@@ -264,7 +264,7 @@ describe("CLI processProjectWork", () => {
       }
 
       expect(createWorkerClientForBaseUrl).toHaveBeenCalledWith(
-        "https://boboddy.vercel.app",
+        "https://app.boboddy.dev",
       );
     },
   );

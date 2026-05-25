@@ -161,7 +161,7 @@ The SDK ships an auto-generated API client built from the OpenAPI spec.
 ```typescript
 import { createBoboddyClient } from '@boboddy/sdk';
 
-const client = createBoboddyClient('https://boboddy.vercel.app');
+const client = createBoboddyClient('https://app.boboddy.dev');
 ```
 
 Use `createStepDefinitionsClient` for CRUD operations on step definitions:
@@ -169,7 +169,7 @@ Use `createStepDefinitionsClient` for CRUD operations on step definitions:
 ```typescript
 import { createStepDefinitionsClient } from '@boboddy/sdk';
 
-const stepClient = createStepDefinitionsClient('https://boboddy.vercel.app');
+const stepClient = createStepDefinitionsClient('https://app.boboddy.dev');
 ```
 
 ---

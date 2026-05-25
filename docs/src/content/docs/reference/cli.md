@@ -10,7 +10,7 @@ These flags apply to every command:
 | Flag | Description |
 |------|-------------|
 | `--env-file <path>` | Load environment variables from an alternate `.env` file |
-| `--base-url <url>` | Override the API server URL (default: `https://boboddy.vercel.app`, also set via `BOBODDY_BASE_URL`) |
+| `--base-url <url>` | Override the API server URL (default: `https://app.boboddy.dev`, also set via `BOBODDY_BASE_URL`) |
 | `--help` | Show help for the current command |
 | `--version` | Print the CLI version |
 

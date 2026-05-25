@@ -4,60 +4,60 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type DeleteApiApiAuth__Data = {
+export type DeleteApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type GetApiApiAuth__Data = {
+export type GetApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type HeadApiApiAuth__Data = {
+export type HeadApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type OptionsApiApiAuth__Data = {
+export type OptionsApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type PatchApiApiAuth__Data = {
+export type PatchApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type PostApiApiAuth__Data = {
+export type PostApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type PutApiApiAuth__Data = {
+export type PutApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
-export type TraceApiApiAuth__Data = {
+export type TraceApiAuth__Data = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/api/auth/*';
+    url: '/api/auth/*';
 };
 
 export type GetApiProjectsData = {
@@ -2966,9 +2966,7 @@ export type GetApiStepExecutionsByStepExecutionIdResponse = GetApiStepExecutions
 export type GetApiLinearPipelineDefinitionsData = {
     body?: never;
     path?: never;
-    query: {
-        projectId: string;
-    };
+    query?: never;
     url: '/api/linear-pipeline-definitions';
 };
 
@@ -3052,6 +3050,7 @@ export type GetApiLinearPipelineDefinitionsResponses = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3389,6 +3388,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3678,6 +3678,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3906,6 +3907,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4118,6 +4120,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4224,6 +4227,219 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
 };
 
 export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponse = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponses[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponses];
+
+export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveData = {
+    body?: never;
+    path: {
+        linearPipelineDefinitionId: string;
+    };
+    query?: never;
+    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/unarchive';
+};
+
+export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveError = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveErrors[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveErrors];
+
+export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        key: string;
+        name: string;
+        description: string | unknown;
+        status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
+        stepDefinitions: Array<{
+            id: string;
+            linearPipelineDefinitionId: string;
+            stepDefinitionId: string;
+            stepDefinitionVersion: number;
+            key: string;
+            name: string;
+            description: string | unknown;
+            position: number;
+            inputBindingsJson: {
+                [key: string]: {
+                    source: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    signalKey: string;
+                } | {
+                    source: string;
+                    value: unknown;
+                };
+            } | unknown;
+            timeoutSeconds: number | unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
+            advancementPolicyDefinition: {
+                id: string;
+                linearPipelineStepDefinitionId: string;
+                rulesJson: {
+                    rules: Array<{
+                        conditions: {
+                            [key: string]: unknown;
+                        };
+                        event: {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        };
+                        name?: string;
+                        priority?: number;
+                        [key: string]: unknown | {
+                            [key: string]: unknown;
+                        } | {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        } | string | number | undefined;
+                    }>;
+                    [key: string]: unknown | Array<{
+                        conditions: {
+                            [key: string]: unknown;
+                        };
+                        event: {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        };
+                        name?: string;
+                        priority?: number;
+                        [key: string]: unknown | {
+                            [key: string]: unknown;
+                        } | {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        } | string | number | undefined;
+                    }>;
+                };
+                defaultEventType: 'continue' | 'block' | 'complete' | 'route';
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
+                allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
+                createdAt: string;
+                updatedAt: string;
+            };
+            computedSignalDefinitions: Array<{
+                id: string;
+                key: string;
+                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
+                inputSignalKeys: Array<string>;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
+                availableWhenResultStatusIn: Array<string> | unknown;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponse = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponses[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponses];
 
 export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsData = {
     body: {
@@ -4418,6 +4634,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4631,6 +4848,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4932,6 +5150,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -5193,6 +5412,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -9293,3 +9513,523 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
 };
 
 export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateResponse = PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateResponses[keyof PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateResponses];
+
+export type GetApiProjectsByProjectIdIntegrationsData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/integrations';
+};
+
+export type GetApiProjectsByProjectIdIntegrationsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectsByProjectIdIntegrationsError = GetApiProjectsByProjectIdIntegrationsErrors[keyof GetApiProjectsByProjectIdIntegrationsErrors];
+
+export type GetApiProjectsByProjectIdIntegrationsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        projectId: string;
+        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        installationId: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        };
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiProjectsByProjectIdIntegrationsResponse = GetApiProjectsByProjectIdIntegrationsResponses[keyof GetApiProjectsByProjectIdIntegrationsResponses];
+
+export type PostApiProjectsByProjectIdIntegrationsData = {
+    body: unknown;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/integrations';
+};
+
+export type PostApiProjectsByProjectIdIntegrationsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdIntegrationsError = PostApiProjectsByProjectIdIntegrationsErrors[keyof PostApiProjectsByProjectIdIntegrationsErrors];
+
+export type PostApiProjectsByProjectIdIntegrationsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        installationId: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        };
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiProjectsByProjectIdIntegrationsResponse = PostApiProjectsByProjectIdIntegrationsResponses[keyof PostApiProjectsByProjectIdIntegrationsResponses];
+
+export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncData = {
+    body?: never;
+    path: {
+        projectId: string;
+        integrationId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/integrations/{integrationId}/sync';
+};
+
+export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 502
+     */
+    502: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncError = PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors[keyof PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors];
+
+export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        totalUpserted: number;
+        perRepo: Array<{
+            fullName: string;
+            totalSeen: number;
+            totalUpserted: number;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncResponse = PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncResponses[keyof PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncResponses];
+
+export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdData = {
+    body?: never;
+    path: {
+        projectId: string;
+        integrationId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/integrations/{integrationId}';
+};
+
+export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdError = DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors[keyof DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors];
+
+export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: unknown;
+};
+
+export type GetApiIntegrationsGithubInstallData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/integrations/github/install';
+};
+
+export type GetApiIntegrationsGithubCallbackData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/integrations/github/callback';
+};
+
+export type PostApiIntegrationsGithubWebhookData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/integrations/github/webhook';
+};

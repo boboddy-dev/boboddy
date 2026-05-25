@@ -74,7 +74,7 @@ boboddy auth whoami   # confirm you're logged in
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BOBODDY_BASE_URL` | API server URL | `https://boboddy.vercel.app` |
+| `BOBODDY_BASE_URL` | API server URL | `https://app.boboddy.dev` |
 
 You can also pass `--base-url <url>` to any command or use `--env-file <path>` to load an alternate `.env` file.
 
