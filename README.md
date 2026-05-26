@@ -10,4 +10,4 @@ Because workers run on your own machines and you bring your own AI provider, you
 
 The result: multi-step AI workflows that are type-safe, scalable, and require no custom orchestration infrastructure.
 
-**[app.boboddy.dev](https://app.boboddy.dev)** — [Docs](https://connorivy.github.io/boboddy/)
+**[boboddy.dev](https://boboddy.dev)** — [Docs](https://boboddy-dev.github.io/boboddy/)
