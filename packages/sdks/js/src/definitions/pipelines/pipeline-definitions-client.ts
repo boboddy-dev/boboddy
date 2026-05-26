@@ -1,158 +1,107 @@
-import type { SerializedAdvancementPolicy } from "../advancement-policies/define-advancement-policy";
+import { createClient } from "../../generated/client";
+import { PipelineDefinitions } from "../../generated/sdk.gen";
+import type { PutApiLinearPipelineDefinitionsData } from "../../generated/types.gen";
+import type { PipelineDefinitionSpec } from "./define-pipeline";
 
 type RequestOptions = {
-  headers?: Record<string, unknown>;
+  headers?: Record<string, unknown> | undefined;
 };
 
-export type PipelineStepCreateInput = {
-  stepDefinitionId: string;
-  stepDefinitionVersion: number;
-  key: string;
-  name: string;
-  description: string | null;
-  position: number;
-  inputBindingsJson: Record<string, unknown>;
-  timeoutSeconds: number | null;
-  retryPolicyJson: null;
-  advancementPolicyDefinition: SerializedAdvancementPolicy;
-};
+export type UpsertPipelineDefinitionInput =
+  PutApiLinearPipelineDefinitionsData["body"];
 
-export type CreatePipelineInput = {
-  projectId: string;
-  key: string;
-  name: string;
-  description: string | null;
-  version: number;
-  status: "draft" | "active" | "archived";
-  stepDefinitions: PipelineStepCreateInput[];
-};
-
-export type UpdatePipelineInput = {
-  projectId: string;
-  key: string;
-  name: string;
-  description: string | null;
-  version: number;
-  status: "draft" | "active" | "archived";
-};
-
-export type ExistingPipelineStep = {
-  id: string;
-  key: string;
-};
-
-export type ExistingPipeline = {
+export type StepDefinitionRef = {
   id: string;
   key: string;
   version: number;
-  status: string;
-  steps: ExistingPipelineStep[];
 };
 
 export function createPipelineDefinitionsClient(
   baseUrl: string,
 ): ReturnType<typeof buildPipelineDefinitionsClient> {
-  const base = baseUrl.replace(/\/$/, "");
-
-  async function doFetch(
-    path: string,
-    method: string,
-    headers: Record<string, string>,
-    body?: unknown,
-  ): Promise<unknown> {
-    const requestHeaders: Record<string, string> = { ...headers };
-    if (body !== undefined) {
-      requestHeaders["Content-Type"] = "application/json";
-    }
-    const response = await fetch(`${base}${path}`, {
-      method,
-      headers: requestHeaders,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
-    if (!response.ok) {
-      const err = (await response.json().catch(() => null)) as {
-        title?: string;
-      } | null;
-      throw new Error(
-        err?.title ?? `HTTP ${String(response.status)} ${method} ${path}`,
-      );
-    }
-    return response.json().catch(() => null);
-  }
-
-  return buildPipelineDefinitionsClient(base, doFetch);
+  const client = createClient({ baseUrl });
+  return buildPipelineDefinitionsClient(new PipelineDefinitions({ client }));
 }
 
 const buildPipelineDefinitionsClient = (
-  _base: string,
-  doFetch: (
-    path: string,
-    method: string,
-    headers: Record<string, string>,
-    body?: unknown,
-  ) => Promise<unknown>,
-) => ({
-  listByProjectId: async (
-    projectId: string,
-    options?: RequestOptions,
-  ): Promise<ExistingPipeline[]> => {
-    const path = `/api/linear-pipeline-definitions?projectId=${encodeURIComponent(projectId)}`;
-    const result = await doFetch(
-      path,
-      "GET",
-      (options?.headers as Record<string, string>) ?? {},
-    );
-    return (result as ExistingPipeline[] | null) ?? [];
-  },
+  pipelineDefinitions: PipelineDefinitions,
+) => {
+  return {
+    listByProjectId: async (
+      projectId: string,
+      options?: RequestOptions,
+    ) => {
+      // The generated OpenAPI types model `query` as `never` for this endpoint,
+      // but the server accepts a `projectId` filter. Cast to align with runtime
+      // behavior until the OpenAPI spec is updated.
+      const result = await pipelineDefinitions.listPipelineDefinitions({
+        query: { projectId } as never,
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data ?? [];
+    },
+    /**
+     * Upserts a pipeline definition keyed by (projectId, key). Accepts the
+     * `PipelineDefinitionSpec` produced by `definePipeline()` directly, along
+     * with the list of pushed step definitions (used to resolve
+     * `stepDefinitionId` for each pipeline step).
+     *
+     * Throws if any pipeline step references a step key/version that isn't
+     * present in `stepDefs`.
+     */
+    upsertFromSpec: async (
+      projectId: string,
+      spec: PipelineDefinitionSpec,
+      stepDefs: ReadonlyArray<StepDefinitionRef>,
+      options?: RequestOptions,
+    ) => {
+      const stepDefMap = new Map<string, StepDefinitionRef>();
+      for (const s of stepDefs) {
+        const existing = stepDefMap.get(s.key);
+        if (!existing || s.version > existing.version) {
+          stepDefMap.set(s.key, s);
+        }
+      }
 
-  create: async (
-    body: CreatePipelineInput,
-    options?: RequestOptions,
-  ): Promise<{ id: string; key: string }> => {
-    const result = await doFetch(
-      "/api/linear-pipeline-definitions",
-      "POST",
-      (options?.headers as Record<string, string>) ?? {},
-      body,
-    );
-    return result as { id: string; key: string };
-  },
+      const stepDefinitions = spec.steps.map((step) => {
+        const stepDef = stepDefMap.get(step.stepKey);
+        if (!stepDef) {
+          throw new Error(
+            `Step "${step.stepKey}" referenced in pipeline "${spec.key}" was not found on the server. ` +
+              `Run \`boboddy steps push\` first to push your step definitions.`,
+          );
+        }
+        return {
+          stepDefinitionId: stepDef.id,
+          stepDefinitionVersion: stepDef.version,
+          key: step.stepKey,
+          name: step.stepName,
+          description: step.stepDescription,
+          position: step.position,
+          inputBindingsJson: step.inputBindingsJson,
+          timeoutSeconds: step.timeoutSeconds,
+          retryPolicyJson: null,
+          advancementPolicyDefinition: step.advancementPolicyDefinition,
+          computedSignalDefinitions: step.computedSignalDefinitions,
+        };
+      });
 
-  update: async (
-    pipelineId: string,
-    body: UpdatePipelineInput,
-    options?: RequestOptions,
-  ): Promise<void> => {
-    await doFetch(
-      `/api/linear-pipeline-definitions/${pipelineId}`,
-      "PUT",
-      (options?.headers as Record<string, string>) ?? {},
-      body,
-    );
-  },
+      const body: UpsertPipelineDefinitionInput = {
+        projectId,
+        key: spec.key,
+        name: spec.name,
+        description: spec.description,
+        status: spec.status,
+        stepDefinitions,
+      };
 
-  addStep: async (
-    pipelineId: string,
-    body: PipelineStepCreateInput,
-    options?: RequestOptions,
-  ): Promise<void> => {
-    await doFetch(
-      `/api/linear-pipeline-definitions/${pipelineId}/steps`,
-      "POST",
-      (options?.headers as Record<string, string>) ?? {},
-      body,
-    );
-  },
-
-  removeStep: async (
-    pipelineId: string,
-    stepId: string,
-    options?: RequestOptions,
-  ): Promise<void> => {
-    await doFetch(
-      `/api/linear-pipeline-definitions/${pipelineId}/steps/${stepId}`,
-      "DELETE",
-      (options?.headers as Record<string, string>) ?? {},
-    );
-  },
-});
+      const result = await pipelineDefinitions.upsertPipelineDefinition({
+        body,
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
+  };
+};

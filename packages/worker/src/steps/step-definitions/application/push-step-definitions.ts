@@ -11,24 +11,10 @@ type StepPushLogger = {
   info: (obj: unknown, msg?: string) => void;
 };
 
-type ExistingStepDefinition = {
-  id: string;
-  key: string;
-  version: number;
-};
-
 type StepDefinitionsClient = {
-  listByProjectId: (
+  upsertFromSpec: (
     projectId: string,
-    options: { headers: { Authorization: string } },
-  ) => Promise<ExistingStepDefinition[]>;
-  update: (
-    id: string,
-    body: StepDefinitionSpec & { projectId: string },
-    options: { headers: { Authorization: string } },
-  ) => Promise<unknown>;
-  create: (
-    body: StepDefinitionSpec & { projectId: string },
+    spec: StepDefinitionSpec,
     options: { headers: { Authorization: string } },
   ) => Promise<unknown>;
 };
@@ -47,8 +33,7 @@ interface PushStepDefinitionsOptions {
 
 export interface PushStepDefinitionsResult {
   found: number;
-  created: number;
-  updated: number;
+  upserted: number;
   skippedMissingDirectory: boolean;
 }
 
@@ -62,8 +47,7 @@ export async function pushStepDefinitions(
     if (options.skipMissingDirectory) {
       return {
         found: 0,
-        created: 0,
-        updated: 0,
+        upserted: 0,
         skippedMissingDirectory: true,
       };
     }
@@ -84,55 +68,31 @@ export async function pushStepDefinitions(
     options.logger.info("Nothing to push.");
     return {
       found: 0,
-      created: 0,
-      updated: 0,
+      upserted: 0,
       skippedMissingDirectory: false,
     };
   }
 
-  const existing = await client.listByProjectId(options.projectId, {
-    headers: options.headers,
-  });
-
-  const existingById = new Map<string, string>();
-  for (const step of existing) {
-    existingById.set(`${step.key}@v${String(step.version)}`, step.id);
-  }
-
-  let created = 0;
-  let updated = 0;
-
+  let upserted = 0;
   for (const spec of specs) {
-    const lookup = `${spec.key}@v${String(spec.version)}`;
-    const existingId = existingById.get(lookup);
-    const payload = { ...spec, projectId: options.projectId };
-
-    if (existingId) {
-      await client.update(existingId, payload, { headers: options.headers });
-      updated++;
-      options.logger.info(
-        { key: spec.key, version: spec.version },
-        `✓ ${spec.key} v${String(spec.version)} → updated`,
-      );
-    } else {
-      await client.create(payload, { headers: options.headers });
-      created++;
-      options.logger.info(
-        { key: spec.key, version: spec.version },
-        `✓ ${spec.key} v${String(spec.version)} → created`,
-      );
-    }
+    await client.upsertFromSpec(options.projectId, spec, {
+      headers: options.headers,
+    });
+    upserted++;
+    options.logger.info(
+      { key: spec.key, version: spec.version },
+      `✓ ${spec.key} v${String(spec.version)} → upserted`,
+    );
   }
 
   options.logger.info(
-    { created, updated },
-    `Pushed ${String(created + updated)} step definition(s) (${String(created)} created, ${String(updated)} updated)`,
+    { upserted },
+    `Pushed ${String(upserted)} step definition(s)`,
   );
 
   return {
     found: specs.length,
-    created,
-    updated,
+    upserted,
     skippedMissingDirectory: false,
   };
 }

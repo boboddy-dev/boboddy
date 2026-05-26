@@ -10,7 +10,6 @@ export {
   ConfigurationError,
 } from "./lib/errors";
 export { parseJsonc, stripJsoncComments, stripTrailingCommas } from "./lib/jsonc";
-export { importUserModule } from "./lib/import-user-module";
 export { systemTimeProvider } from "./lib/time-provider";
 export type { TimeProvider } from "./lib/time-provider";
 export {

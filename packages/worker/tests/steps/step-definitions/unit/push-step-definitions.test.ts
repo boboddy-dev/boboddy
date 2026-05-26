@@ -28,8 +28,7 @@ describe("pushStepDefinitions", () => {
 
       expect(result).toEqual({
         found: 0,
-        created: 0,
-        updated: 0,
+        upserted: 0,
         skippedMissingDirectory: true,
       });
       expect(logger.info).not.toHaveBeenCalled();
@@ -38,22 +37,12 @@ describe("pushStepDefinitions", () => {
     }
   });
 
-  test("creates and updates step definitions from the local steps directory", async () => {
+  test("upserts each step definition with the projectId attached", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "boboddy-push-steps-"));
     mkdirSync(join(cwd, STEPS_DIR), { recursive: true });
 
     const logger = createLogger();
-    const listByProjectId = vi.fn(() =>
-      Promise.resolve([
-        {
-          id: "existing-id",
-          key: "existing-step",
-          version: 1,
-        },
-      ]),
-    );
-    const update = vi.fn(() => Promise.resolve(undefined));
-    const create = vi.fn(() => Promise.resolve(undefined));
+    const upsertFromSpec = vi.fn(() => Promise.resolve(undefined));
 
     try {
       const result = await pushStepDefinitions({
@@ -93,25 +82,26 @@ describe("pushStepDefinitions", () => {
           ]),
         ),
         createClient: vi.fn(() => ({
-          listByProjectId,
-          update,
-          create,
+          upsertFromSpec,
         })),
       });
 
       expect(result).toEqual({
         found: 2,
-        created: 1,
-        updated: 1,
+        upserted: 2,
         skippedMissingDirectory: false,
       });
-      expect(update).toHaveBeenCalledWith(
-        "existing-id",
-        expect.objectContaining({ key: "existing-step", projectId: "project-1" }),
+      expect(upsertFromSpec).toHaveBeenCalledTimes(2);
+      expect(upsertFromSpec).toHaveBeenNthCalledWith(
+        1,
+        "project-1",
+        expect.objectContaining({ key: "existing-step", version: 1 }),
         { headers: { Authorization: "Bearer token" } },
       );
-      expect(create).toHaveBeenCalledWith(
-        expect.objectContaining({ key: "new-step", projectId: "project-1" }),
+      expect(upsertFromSpec).toHaveBeenNthCalledWith(
+        2,
+        "project-1",
+        expect.objectContaining({ key: "new-step", version: 2 }),
         { headers: { Authorization: "Bearer token" } },
       );
     } finally {

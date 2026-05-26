@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { PipelineDefinitionSpec } from "@boboddy/sdk/definitions/pipelines";
-import { importUserModule } from "../../../lib/import-user-module";
 
 function isPipelineDefinitionSpec(value: unknown): value is PipelineDefinitionSpec {
   if (typeof value !== "object" || value === null) return false;
@@ -14,6 +14,15 @@ function isPipelineDefinitionSpec(value: unknown): value is PipelineDefinitionSp
   );
 }
 
+function isMissingDepError(message: string): boolean {
+  return (
+    message.includes("Cannot find module") || message.includes("Cannot find package")
+  );
+}
+
+// Requires the bun runtime: dynamic `await import(...)` of user TS files and bare-specifier
+// resolution against the user's `node_modules/` rely on bun's native behavior, which is
+// preserved even in `bun build --compile` binaries.
 export async function loadPipelinesFromDirectory(
   dir: string,
 ): Promise<PipelineDefinitionSpec[]> {
@@ -33,13 +42,10 @@ export async function loadPipelinesFromDirectory(
     const absPath = join(absDir, file);
     let imported: unknown;
     try {
-      imported = await importUserModule(absPath);
+      imported = await import(pathToFileURL(absPath).href);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (
-        message.includes("Cannot find module") ||
-        message.includes("Cannot find package")
-      ) {
+      if (isMissingDepError(message)) {
         throw new Error(
           `Failed to import ${file}: ${message}\n\nRun \`npm install\` or \`bun install\` inside .boboddy/pipeline-builder/ to install dependencies first.`,
           { cause: err },

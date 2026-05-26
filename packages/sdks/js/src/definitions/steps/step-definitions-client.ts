@@ -2,16 +2,16 @@ import { createClient } from "../../generated/client";
 import { StepDefinitions } from "../../generated/sdk.gen";
 import type {
   PostApiStepDefinitionsData,
-  PutApiStepDefinitionsByStepDefinitionIdData,
+  PutApiStepDefinitionsData,
 } from "../../generated/types.gen";
+import type { StepDefinitionSpec } from "./define-step";
 
 type RequestOptions = {
   headers?: Record<string, unknown> | undefined;
 };
 
 export type CreateStepDefinitionInput = PostApiStepDefinitionsData["body"];
-export type UpdateStepDefinitionInput =
-  PutApiStepDefinitionsByStepDefinitionIdData["body"];
+export type UpsertStepDefinitionInput = PutApiStepDefinitionsData["body"];
 
 export function createStepDefinitionsClient(
   baseUrl: string,
@@ -41,13 +41,21 @@ const buildStepDefinitionsClient = (stepDefinitions: StepDefinitions) => {
       if (result.error) throw new Error(JSON.stringify(result.error));
       return result.data;
     },
-    update: async (
-      stepDefinitionId: string,
-      body: UpdateStepDefinitionInput,
+    /**
+     * Upserts a step definition keyed by (projectId, key, version). Accepts the
+     * `StepDefinitionSpec` produced by `defineStep()` directly — no separate
+     * fetch-existing/branch-on-id step needed.
+     */
+    upsertFromSpec: async (
+      projectId: string,
+      spec: StepDefinitionSpec,
       options?: RequestOptions,
     ) => {
-      const result = await stepDefinitions.updateStepDefinition({
-        path: { stepDefinitionId },
+      const body = {
+        ...spec,
+        projectId,
+      } satisfies UpsertStepDefinitionInput;
+      const result = await stepDefinitions.upsertStepDefinition({
         body,
         headers: options?.headers,
       });

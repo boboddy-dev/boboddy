@@ -6,18 +6,21 @@ function makeLogger() {
   return { info: vi.fn() };
 }
 
-function makeUpsert() {
+function makeListByProjectId(keys: string[] = []) {
+  return vi.fn(() => Promise.resolve(keys.map((key) => ({ key }))));
+}
+
+function makeUpsertFromSpec() {
   return vi.fn(() => Promise.resolve({}));
 }
 
-function makeListPipelines(keys: string[] = []) {
-  return vi.fn(() => Promise.resolve({ data: keys.map((key) => ({ key })) }));
-}
-
-function makeClient(upsert = makeUpsert(), listPipelines = makeListPipelines()) {
+function makeClient(
+  upsertFromSpec = makeUpsertFromSpec(),
+  listByProjectId = makeListByProjectId(),
+) {
   return vi.fn(() => ({
-    listPipelineDefinitions: listPipelines,
-    upsertPipelineDefinition: upsert,
+    listByProjectId,
+    upsertFromSpec,
   }));
 }
 
@@ -52,43 +55,35 @@ function makeSpec(overrides?: Partial<PipelineDefinitionSpec>): PipelineDefiniti
 }
 
 describe("pushPipelineDefinitions", () => {
-  test("calls upsertPipelineDefinition for each spec with the resolved step def ID", async () => {
-    const upsert = makeUpsert();
-    const createClient = makeClient(upsert);
+  test("calls upsertFromSpec with projectId, spec, and the step def list", async () => {
+    const upsertFromSpec = makeUpsertFromSpec();
+    const createClient = makeClient(upsertFromSpec);
+
+    const stepDefs = [{ id: "step-def-id", key: "step-a", version: 1 }];
+    const spec = makeSpec();
 
     await pushPipelineDefinitions({
       projectId: "proj-1",
       baseUrl: "https://example.com",
       headers: { Authorization: "Bearer token" },
       logger: makeLogger(),
-      specs: [makeSpec()],
-      stepDefs: [{ id: "step-def-id", key: "step-a", version: 1 }],
+      specs: [spec],
+      stepDefs,
       createClient,
     });
 
-    expect(upsert).toHaveBeenCalledTimes(1);
-    expect(upsert).toHaveBeenCalledWith({
-      body: expect.objectContaining({
-        projectId: "proj-1",
-        key: "my-pipeline",
-        name: "My Pipeline",
-        version: 1,
-        status: "active",
-        stepDefinitions: [
-          expect.objectContaining({
-            stepDefinitionId: "step-def-id",
-            stepDefinitionVersion: 1,
-            key: "step-a",
-          }),
-        ],
-      }),
-      headers: { Authorization: "Bearer token" },
-    });
+    expect(upsertFromSpec).toHaveBeenCalledTimes(1);
+    expect(upsertFromSpec).toHaveBeenCalledWith(
+      "proj-1",
+      spec,
+      stepDefs,
+      { headers: { Authorization: "Bearer token" } },
+    );
   });
 
-  test("calls upsertPipelineDefinition once per spec", async () => {
-    const upsert = makeUpsert();
-    const createClient = makeClient(upsert);
+  test("calls upsertFromSpec once per spec", async () => {
+    const upsertFromSpec = makeUpsertFromSpec();
+    const createClient = makeClient(upsertFromSpec);
 
     const specs = [
       makeSpec({ key: "pipeline-a" }),
@@ -105,36 +100,33 @@ describe("pushPipelineDefinitions", () => {
       createClient,
     });
 
-    expect(upsert).toHaveBeenCalledTimes(2);
+    expect(upsertFromSpec).toHaveBeenCalledTimes(2);
   });
 
-  test("resolves to the latest step def version when multiple versions exist", async () => {
-    const upsert = makeUpsert();
-    const createClient = makeClient(upsert);
+  test("throws when a step routes to an unknown pipeline key", async () => {
+    const upsertFromSpec = makeUpsertFromSpec();
+    const createClient = makeClient(upsertFromSpec, makeListByProjectId([]));
 
-    await pushPipelineDefinitions({
-      projectId: "proj-1",
-      baseUrl: "https://example.com",
-      headers: { Authorization: "Bearer token" },
-      logger: makeLogger(),
-      specs: [makeSpec()],
-      stepDefs: [
-        { id: "old-id", key: "step-a", version: 1 },
-        { id: "new-id", key: "step-a", version: 2 },
+    const spec = makeSpec({
+      steps: [
+        {
+          stepKey: "step-a",
+          stepName: "Step A",
+          stepDescription: null,
+          position: 0,
+          inputBindingsJson: {},
+          timeoutSeconds: null,
+          advancementPolicyDefinition: {
+            rulesJson: { rules: [] },
+            defaultEventType: "route",
+            defaultEventParamsJson: { pipelineKey: "missing-pipeline" },
+            allowedEventTypes: ["route", "continue"],
+          },
+          computedSignalDefinitions: [],
+        },
       ],
-      createClient,
     });
 
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: expect.objectContaining({
-          stepDefinitions: [expect.objectContaining({ stepDefinitionId: "new-id", stepDefinitionVersion: 2 })],
-        }),
-      }),
-    );
-  });
-
-  test("throws a descriptive error when a step key is missing from the server", async () => {
     let caughtError: unknown;
     try {
       await pushPipelineDefinitions({
@@ -142,9 +134,9 @@ describe("pushPipelineDefinitions", () => {
         baseUrl: "https://example.com",
         headers: { Authorization: "Bearer token" },
         logger: makeLogger(),
-        specs: [makeSpec()],
-        stepDefs: [],
-        createClient: makeClient(),
+        specs: [spec],
+        stepDefs: [{ id: "step-def-id", key: "step-a", version: 1 }],
+        createClient,
       });
     } catch (err) {
       caughtError = err;
@@ -152,8 +144,88 @@ describe("pushPipelineDefinitions", () => {
 
     expect(caughtError).toBeInstanceOf(Error);
     expect((caughtError as Error).message).toContain(
-      'Step "step-a" referenced in pipeline "my-pipeline" was not found on the server',
+      'routes to pipeline "missing-pipeline"',
     );
+    expect(upsertFromSpec).not.toHaveBeenCalled();
+  });
+
+  test("allows a step to route to a pipeline being pushed in the same batch", async () => {
+    const upsertFromSpec = makeUpsertFromSpec();
+    const createClient = makeClient(upsertFromSpec, makeListByProjectId([]));
+
+    const routing = makeSpec({
+      key: "router",
+      steps: [
+        {
+          stepKey: "step-a",
+          stepName: "Step A",
+          stepDescription: null,
+          position: 0,
+          inputBindingsJson: {},
+          timeoutSeconds: null,
+          advancementPolicyDefinition: {
+            rulesJson: { rules: [] },
+            defaultEventType: "route",
+            defaultEventParamsJson: { pipelineKey: "destination" },
+            allowedEventTypes: ["route", "continue"],
+          },
+          computedSignalDefinitions: [],
+        },
+      ],
+    });
+    const destination = makeSpec({ key: "destination" });
+
+    await pushPipelineDefinitions({
+      projectId: "proj-1",
+      baseUrl: "https://example.com",
+      headers: { Authorization: "Bearer token" },
+      logger: makeLogger(),
+      specs: [routing, destination],
+      stepDefs: [{ id: "step-def-id", key: "step-a", version: 1 }],
+      createClient,
+    });
+
+    expect(upsertFromSpec).toHaveBeenCalledTimes(2);
+  });
+
+  test("allows a step to route to a pipeline that exists on the server", async () => {
+    const upsertFromSpec = makeUpsertFromSpec();
+    const createClient = makeClient(
+      upsertFromSpec,
+      makeListByProjectId(["existing-destination"]),
+    );
+
+    const routing = makeSpec({
+      steps: [
+        {
+          stepKey: "step-a",
+          stepName: "Step A",
+          stepDescription: null,
+          position: 0,
+          inputBindingsJson: {},
+          timeoutSeconds: null,
+          advancementPolicyDefinition: {
+            rulesJson: { rules: [] },
+            defaultEventType: "route",
+            defaultEventParamsJson: { pipelineKey: "existing-destination" },
+            allowedEventTypes: ["route", "continue"],
+          },
+          computedSignalDefinitions: [],
+        },
+      ],
+    });
+
+    await pushPipelineDefinitions({
+      projectId: "proj-1",
+      baseUrl: "https://example.com",
+      headers: { Authorization: "Bearer token" },
+      logger: makeLogger(),
+      specs: [routing],
+      stepDefs: [{ id: "step-def-id", key: "step-a", version: 1 }],
+      createClient,
+    });
+
+    expect(upsertFromSpec).toHaveBeenCalledTimes(1);
   });
 
   test("returns the count of pushed pipeline definitions", async () => {
@@ -172,7 +244,11 @@ describe("pushPipelineDefinitions", () => {
     expect(result).toEqual({ pushed: 2 });
   });
 
-  test("returns zero pushed when specs list is empty", async () => {
+  test("returns zero pushed when specs list is empty and skips server roundtrip", async () => {
+    const upsertFromSpec = makeUpsertFromSpec();
+    const listByProjectId = makeListByProjectId();
+    const createClient = makeClient(upsertFromSpec, listByProjectId);
+
     const result = await pushPipelineDefinitions({
       projectId: "proj-1",
       baseUrl: "https://example.com",
@@ -180,10 +256,12 @@ describe("pushPipelineDefinitions", () => {
       logger: makeLogger(),
       specs: [],
       stepDefs: [],
-      createClient: makeClient(),
+      createClient,
     });
 
     expect(result).toEqual({ pushed: 0 });
+    expect(listByProjectId).not.toHaveBeenCalled();
+    expect(upsertFromSpec).not.toHaveBeenCalled();
   });
 
   test("instantiates the client with the given baseUrl", async () => {

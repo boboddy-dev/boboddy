@@ -1,47 +1,22 @@
-import { createBoboddyClient } from "@boboddy/sdk";
+import {
+  createPipelineDefinitionsClient,
+  type StepDefinitionRef,
+} from "@boboddy/sdk/definitions/pipelines";
 import type { PipelineDefinitionSpec } from "@boboddy/sdk/definitions/pipelines";
 
-export type StepDefEntry = {
-  id: string;
-  key: string;
-  version: number;
-};
+export type StepDefEntry = StepDefinitionRef;
 
-type PipelineClient = {
-  listPipelineDefinitions: (options: {
-    query: { projectId: string };
-    headers: Record<string, unknown>;
-  }) => Promise<{ data?: Array<{ key: string }> | null }>;
-  upsertPipelineDefinition: (options: {
-    body: {
-      projectId: string;
-      key: string;
-      name: string;
-      description: unknown;
-      version: number;
-      status: "draft" | "active" | "archived";
-      stepDefinitions: Array<{
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        key: string;
-        name: string;
-        description: unknown;
-        position: number;
-        inputBindingsJson: unknown;
-        timeoutSeconds: unknown;
-        retryPolicyJson: null;
-        advancementPolicyDefinition: unknown;
-        computedSignalDefinitions: Array<{
-          key: string;
-          type: string;
-          inputSignalKeys: string[];
-          configJson: Record<string, unknown> | null;
-          availableWhenResultStatusIn: string[] | null;
-        }>;
-      }>;
-    };
-    headers: Record<string, unknown>;
-  }) => Promise<unknown>;
+type PipelineDefinitionsClient = {
+  listByProjectId: (
+    projectId: string,
+    options: { headers: Record<string, unknown> },
+  ) => Promise<Array<{ key: string }>>;
+  upsertFromSpec: (
+    projectId: string,
+    spec: PipelineDefinitionSpec,
+    stepDefs: ReadonlyArray<StepDefinitionRef>,
+    options: { headers: Record<string, unknown> },
+  ) => Promise<unknown>;
 };
 
 type PipelinePushLogger = {
@@ -55,7 +30,7 @@ export interface PushPipelineDefinitionsOptions {
   logger: PipelinePushLogger;
   specs: PipelineDefinitionSpec[];
   stepDefs: StepDefEntry[];
-  createClient?: (baseUrl: string) => PipelineClient;
+  createClient?: (baseUrl: string) => PipelineDefinitionsClient;
 }
 
 export interface PushPipelineDefinitionsResult {
@@ -88,34 +63,22 @@ function extractRoutePipelineKeys(policy: {
 export async function pushPipelineDefinitions(
   options: PushPipelineDefinitionsOptions,
 ): Promise<PushPipelineDefinitionsResult> {
-  const stepDefMap = new Map<string, StepDefEntry>();
-  for (const s of options.stepDefs) {
-    const existing = stepDefMap.get(s.key);
-    if (!existing || s.version > existing.version) {
-      stepDefMap.set(s.key, s);
-    }
-  }
-
   const createClient =
-    options.createClient ??
-    ((baseUrl: string) =>
-      createBoboddyClient(baseUrl).pipelineDefinitions as unknown as PipelineClient);
+    options.createClient ?? createPipelineDefinitionsClient;
   const client = createClient(options.baseUrl);
 
-  // Build set of pipeline keys being pushed in this batch
-  const localPipelineKeys = new Set(options.specs.map((s) => s.key));
+  if (options.specs.length === 0) {
+    return { pushed: 0 };
+  }
 
-  // Fetch existing pipeline keys from server
-  const existingPipelinesResult = await client.listPipelineDefinitions({
-    query: { projectId: options.projectId },
+  // Validate cross-pipeline route references before touching the server.
+  const localPipelineKeys = new Set(options.specs.map((s) => s.key));
+  const existingPipelines = await client.listByProjectId(options.projectId, {
     headers: options.headers,
   });
-  const serverPipelineKeys = new Set(
-    existingPipelinesResult.data?.map((p) => p.key) ?? [],
-  );
+  const serverPipelineKeys = new Set(existingPipelines.map((p) => p.key));
   const knownPipelineKeys = new Set([...localPipelineKeys, ...serverPipelineKeys]);
 
-  // Validate all route pipelineKey references
   for (const spec of options.specs) {
     for (const step of spec.steps) {
       const routeKeys = extractRoutePipelineKeys(step.advancementPolicyDefinition);
@@ -132,41 +95,12 @@ export async function pushPipelineDefinitions(
   }
 
   for (const spec of options.specs) {
-    const stepDefinitions = spec.steps.map((step) => {
-      const stepDef = stepDefMap.get(step.stepKey);
-      if (!stepDef) {
-        throw new Error(
-          `Step "${step.stepKey}" referenced in pipeline "${spec.key}" was not found on the server. ` +
-            `Run \`boboddy steps push\` first to push your step definitions.`,
-        );
-      }
-      return {
-        stepDefinitionId: stepDef.id,
-        stepDefinitionVersion: stepDef.version,
-        key: step.stepKey,
-        name: step.stepName,
-        description: step.stepDescription,
-        position: step.position,
-        inputBindingsJson: step.inputBindingsJson as Record<string, unknown>,
-        timeoutSeconds: step.timeoutSeconds,
-        retryPolicyJson: null as null,
-        advancementPolicyDefinition: step.advancementPolicyDefinition,
-        computedSignalDefinitions: step.computedSignalDefinitions,
-      };
-    });
-
-    await client.upsertPipelineDefinition({
-      body: {
-        projectId: options.projectId,
-        key: spec.key,
-        name: spec.name,
-        description: spec.description,
-        version: spec.version,
-        status: spec.status,
-        stepDefinitions,
-      },
-      headers: options.headers,
-    });
+    await client.upsertFromSpec(
+      options.projectId,
+      spec,
+      options.stepDefs,
+      { headers: options.headers },
+    );
 
     options.logger.info(
       { key: spec.key, version: spec.version },
