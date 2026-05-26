@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve as resolvePath, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 type PackageJson = {
@@ -8,12 +8,20 @@ type PackageJson = {
   main?: string;
 };
 
+const RELATIVE_USER_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+const NODE_MODULES_SEGMENT = `${sep}node_modules${sep}`;
+
 function isBareSpecifier(specifier: string): boolean {
   return !specifier.startsWith(".") &&
     !specifier.startsWith("/") &&
     !specifier.startsWith("file:") &&
     !specifier.startsWith("node:") &&
     !specifier.startsWith("bun:");
+}
+
+function isRelativeSpecifier(specifier: string): boolean {
+  return specifier === "." || specifier === ".." ||
+    specifier.startsWith("./") || specifier.startsWith("../");
 }
 
 function resolvePackageDirectory(specifier: string, importerPath: string): {
@@ -68,11 +76,7 @@ function resolveExportTarget(exportsField: PackageJson["exports"], subpath: stri
   return null;
 }
 
-function resolveSpecifier(specifier: string, importerPath: string): string {
-  if (!isBareSpecifier(specifier)) {
-    return specifier;
-  }
-
+function resolveBareSpecifier(specifier: string, importerPath: string): string {
   // Normalize "node_modules/foo/..." → "foo/..." (IDE auto-import artifact)
   if (specifier.startsWith("node_modules/")) {
     specifier = specifier.slice("node_modules/".length);
@@ -102,38 +106,123 @@ function resolveSpecifier(specifier: string, importerPath: string): string {
   return pathToFileURL(resolvedPath).href;
 }
 
-function rewriteImports(source: string, importerPath: string): string {
-  return source
-    .replace(/\bfrom\s+(['"])([^'"]+)\1/g, (full, quote: string, specifier: string) => {
-      return `from ${quote}${resolveSpecifier(specifier, importerPath)}${quote}`;
-    })
-    .replace(/\bimport\s+(['"])([^'"]+)\1/g, (full, quote: string, specifier: string) => {
-      return `import ${quote}${resolveSpecifier(specifier, importerPath)}${quote}`;
-    })
-    .replace(/\bimport\(\s*(['"])([^'"]+)\1\s*\)/g, (full, quote: string, specifier: string) => {
-      return `import(${quote}${resolveSpecifier(specifier, importerPath)}${quote})`;
-    });
+function resolveRelativeUserModule(specifier: string, importerPath: string): string | null {
+  const base = resolvePath(dirname(importerPath), specifier);
+  const ext = extname(base);
+  if (ext) {
+    if (RELATIVE_USER_EXTENSIONS.includes(ext) && existsSync(base)) {
+      return base;
+    }
+    return null;
+  }
+  for (const candidateExt of RELATIVE_USER_EXTENSIONS) {
+    const candidate = base + candidateExt;
+    if (existsSync(candidate)) return candidate;
+  }
+  for (const indexName of ["index.ts", "index.tsx", "index.js", "index.mjs", "index.cjs"]) {
+    const candidate = join(base, indexName);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
 }
 
-export async function importUserModule(absPath: string): Promise<unknown> {
-  const source = readFileSync(absPath, "utf8");
-  const rewritten = rewriteImports(source, absPath);
+interface PrepareContext {
+  tempFiles: string[];
+  cache: Map<string, string>; // original absolute path → URL to import
+}
 
-  if (rewritten === source) {
-    return import(pathToFileURL(absPath).href);
-  }
+function preparePath(absPath: string, ctx: PrepareContext): string {
+  const cached = ctx.cache.get(absPath);
+  if (cached !== undefined) return cached;
 
   const ext = extname(absPath);
   const tempPath = join(
     dirname(absPath),
     `.${basename(absPath, ext)}.boboddy-load-${randomUUID()}${ext || ".js"}`,
   );
+  const tempURL = pathToFileURL(tempPath).href;
+  // Pre-cache the temp URL so cyclic re-entries get a stable reference.
+  ctx.cache.set(absPath, tempURL);
+
+  const source = readFileSync(absPath, "utf8");
+  const { rewritten, changed } = rewriteImports(source, absPath, ctx);
+
+  if (!changed) {
+    const origURL = pathToFileURL(absPath).href;
+    ctx.cache.set(absPath, origURL);
+    return origURL;
+  }
 
   writeFileSync(tempPath, rewritten, "utf8");
+  ctx.tempFiles.push(tempPath);
+  return tempURL;
+}
+
+function rewriteSpecifier(
+  specifier: string,
+  importerPath: string,
+  ctx: PrepareContext,
+): string {
+  if (isBareSpecifier(specifier)) {
+    let normalized = specifier;
+    if (normalized.startsWith("node_modules/")) {
+      normalized = normalized.slice("node_modules/".length);
+    }
+    return resolveBareSpecifier(normalized, importerPath);
+  }
+  if (isRelativeSpecifier(specifier)) {
+    const resolved = resolveRelativeUserModule(specifier, importerPath);
+    // Skip node_modules-resident files — those depend on their own package layout
+    // and bun can resolve them natively.
+    if (resolved !== null && !resolved.includes(NODE_MODULES_SEGMENT)) {
+      const targetURL = preparePath(resolved, ctx);
+      const origURL = pathToFileURL(resolved).href;
+      // If the target needed no rewrites, leave the relative specifier intact.
+      return targetURL === origURL ? specifier : targetURL;
+    }
+  }
+  return specifier;
+}
+
+function rewriteImports(
+  source: string,
+  importerPath: string,
+  ctx: PrepareContext,
+): { rewritten: string; changed: boolean } {
+  let changed = false;
+  const applyRewrite = (quote: string, specifier: string, wrap: (s: string) => string): string => {
+    const newSpec = rewriteSpecifier(specifier, importerPath, ctx);
+    if (newSpec !== specifier) changed = true;
+    return wrap(`${quote}${newSpec}${quote}`);
+  };
+
+  const rewritten = source
+    .replace(/\bfrom\s+(['"])([^'"]+)\1/g, (_, quote: string, specifier: string) =>
+      applyRewrite(quote, specifier, (s) => `from ${s}`),
+    )
+    .replace(/\bimport\s+(['"])([^'"]+)\1/g, (_, quote: string, specifier: string) =>
+      applyRewrite(quote, specifier, (s) => `import ${s}`),
+    )
+    .replace(/\bimport\(\s*(['"])([^'"]+)\1\s*\)/g, (_, quote: string, specifier: string) =>
+      applyRewrite(quote, specifier, (s) => `import(${s})`),
+    );
+
+  return { rewritten, changed };
+}
+
+export async function importUserModule(absPath: string): Promise<unknown> {
+  const ctx: PrepareContext = { tempFiles: [], cache: new Map() };
+  let targetURL: string;
+  try {
+    targetURL = preparePath(absPath, ctx);
+  } catch (err) {
+    for (const tmp of ctx.tempFiles) rmSync(tmp, { force: true });
+    throw err;
+  }
 
   try {
-    return await import(pathToFileURL(tempPath).href);
+    return await import(targetURL);
   } finally {
-    rmSync(tempPath, { force: true });
+    for (const tmp of ctx.tempFiles) rmSync(tmp, { force: true });
   }
 }

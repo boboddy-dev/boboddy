@@ -173,12 +173,117 @@ export default {
     }
   });
 
+  test("resolves bare imports inside a relatively-imported shared module", async () => {
+    const dir = makeTempDir();
+    try {
+      mkdirSync(join(dir, "node_modules", "pipeline-helper"), { recursive: true });
+      writeFileSync(
+        join(dir, "node_modules", "pipeline-helper", "package.json"),
+        JSON.stringify({
+          name: "pipeline-helper",
+          type: "module",
+          exports: { ".": "./index.js" },
+        }),
+      );
+      writeFileSync(
+        join(dir, "node_modules", "pipeline-helper", "index.js"),
+        `export const sharedKey = "shared-bare-import";`,
+      );
+      // The shared module has the bare import — this is the case that broke under the
+      // standalone bun binary before the rewriter went recursive.
+      writeFileSync(
+        join(dir, "shared.ts"),
+        `import { sharedKey } from "pipeline-helper";
+export const key = sharedKey;`,
+      );
+      writeFileSync(
+        join(dir, "pipeline.ts"),
+        `import { key } from "./shared";
+export default { key, name: "Recursive", version: 1, status: "active", steps: [] };`,
+      );
+
+      const specs = await loadPipelinesFromDirectory(dir);
+      expect(specs).toHaveLength(1);
+      expect(specs[0]?.key).toBe("shared-bare-import");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("handles a cycle between two relatively-imported user modules", async () => {
+    const dir = makeTempDir();
+    try {
+      mkdirSync(join(dir, "node_modules", "pipeline-helper"), { recursive: true });
+      writeFileSync(
+        join(dir, "node_modules", "pipeline-helper", "package.json"),
+        JSON.stringify({
+          name: "pipeline-helper",
+          type: "module",
+          exports: { ".": "./index.js" },
+        }),
+      );
+      writeFileSync(
+        join(dir, "node_modules", "pipeline-helper", "index.js"),
+        `export const cycleKey = "cycle-survived";`,
+      );
+      // a ↔ b cycle, with each side also importing a bare package — the rewriter must
+      // terminate and still rewrite bare specifiers on both sides.
+      writeFileSync(
+        join(dir, "a.ts"),
+        `import { cycleKey } from "pipeline-helper";
+import { other } from "./b";
+export const key = cycleKey;
+export const peer = () => other;`,
+      );
+      writeFileSync(
+        join(dir, "b.ts"),
+        `import { cycleKey } from "pipeline-helper";
+import { peer } from "./a";
+export const other = cycleKey;
+export const back = () => peer;`,
+      );
+      writeFileSync(
+        join(dir, "pipeline.ts"),
+        `import { key } from "./a";
+export default { key, name: "Cycle", version: 1, status: "active", steps: [] };`,
+      );
+
+      const specs = await loadPipelinesFromDirectory(dir);
+      expect(specs).toHaveLength(1);
+      expect(specs[0]?.key).toBe("cycle-survived");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("wraps missing dependency errors with install guidance", async () => {
     const dir = makeTempDir();
     try {
       writeFileSync(
         join(dir, "missing-dep.ts"),
         `import "@boboddy/sdk/definitions/steps"; export default { key: "x", name: "X", version: 1, steps: [] };`,
+      );
+
+      await expect(loadPipelinesFromDirectory(dir)).rejects.toThrow(
+        "Run `npm install` or `bun install` inside .boboddy/pipeline-builder/ to install dependencies first.",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("wraps missing dependency errors raised from a relatively-imported shared module", async () => {
+    const dir = makeTempDir();
+    try {
+      writeFileSync(
+        join(dir, "shared.ts"),
+        `import "@boboddy/sdk/definitions/steps";
+export const key = "x";`,
+      );
+      writeFileSync(
+        join(dir, "missing-dep.ts"),
+        `import { key } from "./shared";
+export default { key, name: "X", version: 1, steps: [] };`,
       );
 
       await expect(loadPipelinesFromDirectory(dir)).rejects.toThrow(
