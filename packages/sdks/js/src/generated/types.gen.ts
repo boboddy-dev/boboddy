@@ -965,6 +965,203 @@ export type PostApiStepDefinitionsResponses = {
 
 export type PostApiStepDefinitionsResponse = PostApiStepDefinitionsResponses[keyof PostApiStepDefinitionsResponses];
 
+export type PutApiStepDefinitionsData = {
+    body: {
+        projectId: string;
+        key: string;
+        name: string;
+        description: string | unknown;
+        prompt: string | unknown;
+        version: number;
+        kind: 'built_in' | 'user_defined';
+        inputSchemaJson: unknown;
+        resultSchemaJson: unknown;
+        opencodeMcpJson?: {
+            [key: string]: {
+                type: string;
+                command: Array<string>;
+                environment?: {
+                    [key: string]: string;
+                };
+                enabled?: boolean;
+                timeout?: number;
+            } | {
+                type: string;
+                url: string;
+                enabled?: boolean;
+                headers?: {
+                    [key: string]: string;
+                };
+                oauth?: {
+                    clientId?: string;
+                    clientSecret?: string;
+                    scope?: string;
+                    redirectUri?: string;
+                } | boolean;
+                timeout?: number;
+            } | {
+                enabled: boolean;
+            };
+        } | unknown;
+        status: 'draft' | 'active' | 'archived';
+        signalExtractorDefinitions: Array<{
+            key: string;
+            sourcePath: string;
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            required: boolean;
+            availableWhenResultStatusIn: Array<string> | unknown;
+        }>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/step-definitions';
+};
+
+export type PutApiStepDefinitionsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PutApiStepDefinitionsError = PutApiStepDefinitionsErrors[keyof PutApiStepDefinitionsErrors];
+
+export type PutApiStepDefinitionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        key: string;
+        name: string;
+        description: string | unknown;
+        prompt: string | unknown;
+        version: number;
+        kind: 'built_in' | 'user_defined';
+        inputSchemaJson: unknown;
+        resultSchemaJson: unknown;
+        opencodeMcpJson: {
+            [key: string]: {
+                type: string;
+                command: Array<string>;
+                environment?: {
+                    [key: string]: string;
+                };
+                enabled?: boolean;
+                timeout?: number;
+            } | {
+                type: string;
+                url: string;
+                enabled?: boolean;
+                headers?: {
+                    [key: string]: string;
+                };
+                oauth?: {
+                    clientId?: string;
+                    clientSecret?: string;
+                    scope?: string;
+                    redirectUri?: string;
+                } | boolean;
+                timeout?: number;
+            } | {
+                enabled: boolean;
+            };
+        } | unknown;
+        status: 'draft' | 'active' | 'archived';
+        signalExtractorDefinitions: Array<{
+            id: string;
+            key: string;
+            sourcePath: string;
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            required: boolean;
+            availableWhenResultStatusIn: Array<string> | unknown;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PutApiStepDefinitionsResponse = PutApiStepDefinitionsResponses[keyof PutApiStepDefinitionsResponses];
+
 export type GetApiStepDefinitionsByStepDefinitionIdData = {
     body?: never;
     path: {
@@ -1118,205 +1315,6 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
 };
 
 export type GetApiStepDefinitionsByStepDefinitionIdResponse = GetApiStepDefinitionsByStepDefinitionIdResponses[keyof GetApiStepDefinitionsByStepDefinitionIdResponses];
-
-export type PutApiStepDefinitionsByStepDefinitionIdData = {
-    body: {
-        projectId: string;
-        key: string;
-        name: string;
-        description: string | unknown;
-        prompt: string | unknown;
-        version: number;
-        kind: 'built_in' | 'user_defined';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
-        opencodeMcpJson?: {
-            [key: string]: {
-                type: string;
-                command: Array<string>;
-                environment?: {
-                    [key: string]: string;
-                };
-                enabled?: boolean;
-                timeout?: number;
-            } | {
-                type: string;
-                url: string;
-                enabled?: boolean;
-                headers?: {
-                    [key: string]: string;
-                };
-                oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
-                    scope?: string;
-                    redirectUri?: string;
-                } | boolean;
-                timeout?: number;
-            } | {
-                enabled: boolean;
-            };
-        } | unknown;
-        status: 'draft' | 'active' | 'archived';
-        signalExtractorDefinitions: Array<{
-            key: string;
-            sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
-            required: boolean;
-            availableWhenResultStatusIn: Array<string> | unknown;
-        }>;
-    };
-    path: {
-        stepDefinitionId: string;
-    };
-    query?: never;
-    url: '/api/step-definitions/{stepDefinitionId}';
-};
-
-export type PutApiStepDefinitionsByStepDefinitionIdErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type PutApiStepDefinitionsByStepDefinitionIdError = PutApiStepDefinitionsByStepDefinitionIdErrors[keyof PutApiStepDefinitionsByStepDefinitionIdErrors];
-
-export type PutApiStepDefinitionsByStepDefinitionIdResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        id: string;
-        projectId: string;
-        key: string;
-        name: string;
-        description: string | unknown;
-        prompt: string | unknown;
-        version: number;
-        kind: 'built_in' | 'user_defined';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
-        opencodeMcpJson: {
-            [key: string]: {
-                type: string;
-                command: Array<string>;
-                environment?: {
-                    [key: string]: string;
-                };
-                enabled?: boolean;
-                timeout?: number;
-            } | {
-                type: string;
-                url: string;
-                enabled?: boolean;
-                headers?: {
-                    [key: string]: string;
-                };
-                oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
-                    scope?: string;
-                    redirectUri?: string;
-                } | boolean;
-                timeout?: number;
-            } | {
-                enabled: boolean;
-            };
-        } | unknown;
-        status: 'draft' | 'active' | 'archived';
-        signalExtractorDefinitions: Array<{
-            id: string;
-            key: string;
-            sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
-            required: boolean;
-            availableWhenResultStatusIn: Array<string> | unknown;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        createdAt: string;
-        updatedAt: string;
-    };
-};
-
-export type PutApiStepDefinitionsByStepDefinitionIdResponse = PutApiStepDefinitionsByStepDefinitionIdResponses[keyof PutApiStepDefinitionsByStepDefinitionIdResponses];
 
 export type PutApiStepDefinitionsByStepDefinitionIdArchiveData = {
     body?: never;
