@@ -9,6 +9,8 @@
     "./definitions/steps": "./src/definitions/steps/index.ts",
     "./definitions/pipelines": "./src/definitions/pipelines/index.ts",
     "./definitions/advancement-policies": "./src/definitions/advancement-policies/index.ts",
+    "./defaults": "./src/defaults/index.ts",
+    "./push": "./src/push/index.ts",
     "./opencode-mcp": "./src/opencode-mcp.ts",
     "./jsonc": "./src/jsonc.ts",
     "./boboddy-config-parser": "./src/boboddy-config-parser.ts"

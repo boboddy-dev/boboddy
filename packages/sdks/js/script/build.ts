@@ -25,7 +25,10 @@ const result = await Bun.build({
   entrypoints,
   outdir: distDir,
   format: "esm",
-  target: "browser",
+  // `bun` target keeps `node:*` imports external rather than polyfilling them
+  // (which the browser target does, dropping members like `readdirSync`). The
+  // SDK runs in bun/node/deno; there is no browser use case today.
+  target: "bun",
 });
 
 if (!result.success) {
@@ -45,6 +48,15 @@ for (const entry of await readdir(nestedSrcDir).catch(() => [])) {
   });
 }
 
-for (const dir of ["packages", "apps"]) {
+// Flatten Bun.build output, which preserves the `src/` segment from the
+// entrypoint paths. The published `exports` field assumes flat `dist/` paths.
+const bunBuildSrcDir = resolve(distDir, "src");
+for (const entry of await readdir(bunBuildSrcDir).catch(() => [])) {
+  await cp(resolve(bunBuildSrcDir, entry), resolve(distDir, entry), {
+    recursive: true,
+  });
+}
+
+for (const dir of ["packages", "apps", "src"]) {
   await rm(resolve(distDir, dir), { recursive: true, force: true });
 }

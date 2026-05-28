@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+export const PIPELINE_BUILDER_DIR = ".boboddy/pipeline-builder";
+
 export type StepSignalInfo = {
   key: string;
   sourcePath: string;
@@ -33,7 +35,7 @@ function resolveSdkDependency(sdkVersion: string): string {
   return `^${sdkVersion}`;
 }
 
-function buildPackageJson(sdkVersion: string): string {
+export function buildPipelineBuilderPackageJson(sdkVersion: string): string {
   return JSON.stringify(
     {
       name: "pipeline-builder",
@@ -43,13 +45,18 @@ function buildPackageJson(sdkVersion: string): string {
         "@boboddy/sdk": resolveSdkDependency(sdkVersion),
         zod: "^4.4.2",
       },
+      // tsx lets `boboddy pipelines push` execute `push.ts` under node-based
+      // package managers (npm/pnpm/yarn). bun and deno don't need it.
+      devDependencies: {
+        tsx: "^4.20.0",
+      },
     },
     null,
     2,
   );
 }
 
-const TSCONFIG_JSON = JSON.stringify(
+export const PIPELINE_BUILDER_TSCONFIG = JSON.stringify(
   {
     compilerOptions: {
       target: "ES2022",
@@ -70,7 +77,7 @@ const TSCONFIG_JSON = JSON.stringify(
   2,
 );
 
-const GITIGNORE = `*
+export const PIPELINE_BUILDER_GITIGNORE = `*
 `;
 
 function zodType(type: string): string {
@@ -217,9 +224,9 @@ export function scaffoldPipelineBuilderDirectory(
     }
   }
 
-  writeFile("package.json", buildPackageJson(sdkVersion));
-  writeFile("tsconfig.json", TSCONFIG_JSON);
-  writeFile(".gitignore", GITIGNORE);
+  writeFile("package.json", buildPipelineBuilderPackageJson(sdkVersion));
+  writeFile("tsconfig.json", PIPELINE_BUILDER_TSCONFIG);
+  writeFile(".gitignore", PIPELINE_BUILDER_GITIGNORE);
   writeFile("example-pipeline.ts", buildCombinedFile(steps));
 
   return result;

@@ -3,47 +3,11 @@ import { join } from "node:path";
 import { createStepDefinitionsClient } from "@boboddy/sdk/definitions/steps";
 import { generateStepsFileContent, type StepDefContract } from "../../../steps/step-definitions/infra/step-file-generator";
 import { generatePipelineFileContent, type PipelineContract } from "../infra/pipeline-file-generator";
-
-function buildPipelineBuilderPackageJson(sdkVersion: string): string {
-  const artifactPath = process.env["BOBODDY_SDK_ARTIFACT_PATH"];
-  const sdkDep = artifactPath ? `file:${artifactPath}` : `^${sdkVersion}`;
-  return JSON.stringify(
-    {
-      name: "pipeline-builder",
-      private: true,
-      type: "module",
-      dependencies: {
-        "@boboddy/sdk": sdkDep,
-        zod: "^4.4.2",
-      },
-    },
-    null,
-    2,
-  );
-}
-
-const PIPELINE_BUILDER_TSCONFIG = JSON.stringify(
-  {
-    compilerOptions: {
-      target: "ES2022",
-      lib: ["ES2022"],
-      module: "ESNext",
-      moduleResolution: "Bundler",
-      moduleDetection: "force",
-      verbatimModuleSyntax: true,
-      resolveJsonModule: true,
-      strict: true,
-      isolatedModules: true,
-      baseUrl: ".",
-    },
-    include: ["**/*.ts"],
-    exclude: ["node_modules"],
-  },
-  null,
-  2,
-);
-
-const PIPELINE_BUILDER_GITIGNORE = `*\n`;
+import {
+  buildPipelineBuilderPackageJson,
+  PIPELINE_BUILDER_GITIGNORE,
+  PIPELINE_BUILDER_TSCONFIG,
+} from "../infra/pipeline-builder-scaffolder";
 
 type Logger = {
   info: (obj: unknown, msg?: string) => void;

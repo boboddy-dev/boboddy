@@ -1,24 +1,25 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
+import { spawn } from "node:child_process";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { existsSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { createStepDefinitionsClient } from "@boboddy/sdk/definitions/steps";
 import {
   listExistingPipelineBuilderFiles,
   loadAuthenticatedSession,
-  loadPipelinesFromDirectory,
-  loadPipelineStepsFromDirectory,
   PIPELINE_BUILDER_DIR,
   pullPipelineDefinitions,
-  pushPipelineDefinitions,
-  pushStepDefinitions,
   readProjectConfig,
   resolveBoboddyBaseUrl,
   scaffoldPipelineBuilderDirectory,
   type StepInfo,
 } from "@boboddy/worker";
 import { version as CLI_VERSION } from "../../package.json";
+import { detectPipelineRuntime } from "../lib/detect-pipeline-runtime";
 import { createCliLogger } from "../lib/logger";
+import {
+  PUSH_SCRIPT_FILENAME,
+  PUSH_SCRIPT_TEMPLATE,
+} from "../templates/push-script";
 
 const DUMMY_STEPS: StepInfo[] = [
   {
@@ -94,54 +95,66 @@ const runPush = async (
     );
   }
 
-  const headers = { Authorization: `Bearer ${authenticated.profile.accessToken}` };
   const dir = join(process.cwd(), PIPELINE_BUILDER_DIR);
 
-  const specs = await loadPipelinesFromDirectory(dir);
-  logger.info(
-    { count: specs.length },
-    `Found ${String(specs.length)} pipeline definition(s)`,
-  );
-
-  if (specs.length === 0) {
-    logger.info("Nothing to push.");
-    return;
+  if (!existsSync(dir)) {
+    throw new Error(
+      `Pipeline builder directory not found at ${PIPELINE_BUILDER_DIR}. ` +
+        "Run `boboddy pipelines init` first.",
+    );
   }
 
-  // Collect steps embedded in pipeline specs (steps not explicitly exported still get pushed)
-  const embeddedSteps = specs.flatMap((spec) => spec._stepDefinitions ?? []);
+  // Without node_modules, the user's pipeline files can't import @boboddy/sdk
+  // (or anything else). Bail with a clear hint before we even pick a runtime.
+  if (!existsSync(join(dir, "node_modules", "@boboddy", "sdk"))) {
+    throw new Error(
+      `Missing dependencies in ${PIPELINE_BUILDER_DIR}. ` +
+        "Run `bun install` / `npm install` / `pnpm install` / `yarn install` " +
+        "inside that directory first.",
+    );
+  }
 
-  await pushStepDefinitions({
-    projectId,
-    baseUrl,
-    headers,
-    logger,
-    dir: PIPELINE_BUILDER_DIR,
-    skipMissingDirectory: true,
-    loadSteps: async (resolvedDir) => {
-      const namedSteps = await loadPipelineStepsFromDirectory(resolvedDir);
-      // Named exports take precedence; embedded steps fill in the gaps
-      const merged = new Map(
-        embeddedSteps.map((s) => [`${s.key}@v${String(s.version)}`, s]),
-      );
-      for (const step of namedSteps) {
-        merged.set(`${step.key}@v${String(step.version)}`, step);
-      }
-      return [...merged.values()];
-    },
+  const detected = detectPipelineRuntime(dir);
+  if (!detected.ok) {
+    throw new Error(detected.message);
+  }
+  const { runtime } = detected;
+
+  // Overwrite the script every push so the user never runs a stale version.
+  const scriptPath = join(dir, PUSH_SCRIPT_FILENAME);
+  writeFileSync(scriptPath, PUSH_SCRIPT_TEMPLATE, "utf8");
+
+  logger.info(
+    { runtime: runtime.kind, script: PUSH_SCRIPT_FILENAME },
+    `Running ${runtime.kind} on ${PUSH_SCRIPT_FILENAME}…`,
+  );
+
+  // The script reads auth from the same file the CLI writes, and projectId
+  // from .boboddy/boboddy.jsonc — both already resolved above to fail fast.
+  // We forward overrides via env vars so positional CLI args still take effect.
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    BOBODDY_PROJECT_ID: projectId,
+    BOBODDY_BASE_URL: baseUrl,
+    BOBODDY_ACCESS_TOKEN: authenticated.profile.accessToken,
+  };
+
+  const exitCode = await new Promise<number>((resolvePromise) => {
+    const child = spawn(runtime.command, [...runtime.args, PUSH_SCRIPT_FILENAME], {
+      cwd: dir,
+      stdio: "inherit",
+      env,
+    });
+    child.on("error", (err) => {
+      logger.error({ err }, `Failed to start ${runtime.command}.`);
+      resolvePromise(1);
+    });
+    child.on("exit", (code) => resolvePromise(code ?? 1));
   });
 
-  const stepDefsClient = createStepDefinitionsClient(baseUrl);
-  const stepDefs = await stepDefsClient.listByProjectId(projectId, { headers });
-
-  await pushPipelineDefinitions({
-    projectId,
-    baseUrl,
-    headers,
-    logger,
-    specs,
-    stepDefs: stepDefs as { id: string; key: string; version: number }[],
-  });
+  if (exitCode !== 0) {
+    process.exit(exitCode);
+  }
 };
 
 const pushCommand: CommandModule<object, PushArguments> = {
