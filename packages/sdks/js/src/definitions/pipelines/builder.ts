@@ -72,6 +72,7 @@ type StepInputMapping<S extends AnyTypedStep> =
 export type WorkItemAccessor = {
   readonly title: WorkItemBinding;
   readonly description: WorkItemBinding;
+  readonly field: (fieldName: string) => WorkItemBinding;
 };
 
 export type StepInputCtx<
@@ -238,6 +239,8 @@ const WORK_ITEM_ACCESSOR: WorkItemAccessor = Object.freeze({
     source: "work_item",
     field: "description",
   } as const),
+  field: (fieldName: string): WorkItemBinding =>
+    Object.freeze({ source: "work_item", field: `fields.${fieldName}` }),
 });
 
 function makeStepInputCtx<TInput extends ZodType>(

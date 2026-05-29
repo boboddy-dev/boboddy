@@ -450,6 +450,28 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
+      "workItem.field(name) serializes to a fields dot-path work_item binding",
+      () => {
+        const spec = pipeline({
+          key: "p",
+          name: "P",
+          input: z.object({}),
+        })
+          .step(reproduceStep, ({ workItem }) => ({
+            title: workItem.field("Story Points"),
+            description: workItem.field("Company"),
+          }))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toEqual({
+          title: { source: "work_item", field: "fields.Story Points" },
+          description: { source: "work_item", field: "fields.Company" },
+        });
+      },
+    );
+
+    test.concurrent(
       "workItem and pipeline input bindings can be mixed in the same step",
       () => {
         const spec = pipeline({

@@ -32,7 +32,7 @@ export type PipelineInputBinding = {
 
 export type WorkItemBinding = {
   source: "work_item";
-  field: "title" | "description";
+  field: string;
 };
 
 export type StepSignalBinding = {
@@ -76,7 +76,7 @@ export type PipelineStepConfig<TStep extends AnyTypedStep = AnyTypedStep> = {
 
 type SerializedBinding =
   | { source: "pipeline_input"; path: string }
-  | { source: "work_item"; field: "title" | "description" }
+  | { source: "work_item"; field: string }
   | { source: "step_signal"; stepKey: string; signalKey: string }
   | { source: "step_output"; stepKey: string };
 
