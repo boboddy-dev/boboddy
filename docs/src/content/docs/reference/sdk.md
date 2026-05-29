@@ -78,28 +78,34 @@ const myPipeline = pipeline({
   key: 'my-pipeline',
   name: 'My Pipeline',
   status: 'active',
-  input: inputSchema,
+  additionalPipelineInput: {
+    schema: z.object({ text: z.string() }),
+    bindings: ({ workItem }) => ({ text: workItem.field('Text') }),
+  },
 })
   .step(myStep, ({ input }) => ({ text: input.text }))
+  .advance(() => ({ default: 'continue' }))
   .build();
 ```
 
 ### `PipelineMeta` options
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `key` | `string` | Yes | Unique pipeline key |
-| `name` | `string` | Yes | Display name |
-| `input` | `ZodType` | Yes | Schema bound to the `input` accessor in each `.step()` mapper |
-| `version` | `number` | No | Version (default: `1`) |
-| `description` | `string` | No | Short description |
-| `status` | `"draft" \| "active"` | No | Draft pipelines are not executed |
+| Field                     | Type                  | Required | Description                                                  |
+| ------------------------- | --------------------- | -------- | ------------------------------------------------------------ |
+| `key`                     | `string`              | Yes      | Unique pipeline key                                          |
+| `name`                    | `string`              | Yes      | Display name                                                 |
+| `version`                 | `number`              | No       | Version (default: `1`)                                       |
+| `description`             | `string`              | No       | Short description                                            |
+| `status`                  | `"draft" \| "active"` | No       | Draft pipelines are not executed                             |
+| `additionalPipelineInput` | `object`              | No       | Custom input fields; requires both `schema` and `bindings`   |
+
+`additionalPipelineInput.schema` is a Zod object schema for extra fields. `additionalPipelineInput.bindings` is a function that receives `{ workItem, input, literal }` and returns a map of those fields to their sources. Both are required when the object is provided.
 
 ### Builder methods
 
 | Method | Description |
 |--------|-------------|
-| `.step(step, mapper, configFn?)` | Append a step. `mapper` receives `{ input, signal, output, workItem }` and returns a record of input bindings keyed by the step's input fields. Optional `configFn` receives `{ timeout }` — set `cfg.timeout` (seconds) to cap execution time. |
+| `.step(step, mapper, configFn?)` | Append a step. `mapper` receives `{ input, signal, output, literal }` and returns a record of input bindings keyed by the step's input fields. Optional `configFn` receives `{ timeout }` — set `cfg.timeout` (seconds) to cap execution time. |
 | `.advance(callback)` | Attach an advancement policy to the most recently added step. `callback` receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`. **Required** before adding another step or calling `.build()`. |
 | `.build()` | Finalize and return a `PipelineDefinitionSpec`. |
 
@@ -107,10 +113,11 @@ const myPipeline = pipeline({
 
 Inside the `.step()` mapper:
 
-- **`input.<path>`** — drill into the pipeline input schema. `input.code` binds to path `"code"`; `input.ticket.title` binds to `"ticket.title"`. The accessor is a proxy — do not spread or coerce it to a primitive.
+- **`input.workItemTitle`** / **`input.workItemDescription`** — always available; bind to the work item title or description.
+- **`input.<path>`** — custom fields from `additionalPipelineInput.schema`. `input.code` binds to path `"code"`; `input.ticket.title` binds to `"ticket.title"`. The accessor is a proxy — do not spread or coerce it to a primitive.
 - **`signal(step, signalKey)`** — bind to a prior step's signal. `signalKey` is typed against `step.__signalKeys`.
 - **`output(step)`** — bind to a prior step's whole output object.
-- **`workItem.title` / `workItem.description`** — bind to the work item that triggered this pipeline run.
+- **`literal(value)`** — a hardcoded constant.
 
 ### Fluent advancement rules
 

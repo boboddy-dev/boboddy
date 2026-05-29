@@ -53,6 +53,8 @@ type LastSignalTypeMap<T extends ReadonlyArray<AnyTypedStep>> =
 
 type IsAny<T> = 0 extends 1 & T ? true : false;
 
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
+
 type RequiredInputKeys<T extends object> = {
   [K in keyof T & string]-?: undefined extends T[K] ? never : K;
 }[keyof T & string];
@@ -76,16 +78,16 @@ export type WorkItemAccessor = {
   readonly field: (fieldName: string) => WorkItemBinding;
 };
 
-type WithWorkItemFields<T> = T & {
+type WithWorkItemFields<T> = {
   workItemTitle: string;
   workItemDescription: string | null;
-};
+} & T;
 
 export type StepInputCtx<
   TInput extends ZodType,
   TSteps extends ReadonlyArray<AnyTypedStep>,
 > = {
-  input: InputAccessor<WithWorkItemFields<TInput["_output"]>>;
+  input: InputAccessor<Prettify<WithWorkItemFields<TInput["_output"]>>>;
   signal: <S extends ElementOf<TSteps>>(
     step: S,
     key: S["__signalKeys"],
@@ -100,12 +102,11 @@ type ReservedPipelineInputKeys = "workItemTitle" | "workItemDescription";
 // Uses `.shape` (the raw key map on ZodObject) rather than `_output` to avoid a
 // Zod v4 quirk where empty-object strip-mode output is `Record<string, never>`.
 // Non-object schemas (no `.shape`) pass through unconditionally.
-type NoReservedKeys<T extends ZodType> =
-  T extends { shape: infer Shape }
-    ? [string & keyof Shape & ReservedPipelineInputKeys] extends [never]
-      ? T
-      : never
-    : T;
+type NoReservedKeys<T extends ZodType> = T extends { shape: infer Shape }
+  ? [string & keyof Shape & ReservedPipelineInputKeys] extends [never]
+    ? T
+    : never
+  : T;
 
 export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
   key: string;
@@ -113,12 +114,17 @@ export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
   description?: string;
   version?: number;
   status?: "draft" | "active";
-  additionalInput?: NoReservedKeys<TInput>;
-  inputBindings?: (ctx: {
-    workItem: WorkItemAccessor;
-    input: InputAccessor<TInput["_output"]>;
-    literal: (value: unknown) => LiteralBinding;
-  }) => { [K in keyof TInput["_output"] & string]?: AnyBinding };
+  additionalPipelineInput?: {
+    schema: NoReservedKeys<TInput>;
+    bindings: (ctx: {
+      workItem: WorkItemAccessor;
+      literal: (value: unknown) => LiteralBinding;
+    }) => TInput["_output"] extends object
+      ? { [K in RequiredInputKeys<TInput["_output"]>]: AnyBinding } & {
+          [K in OptionalInputKeys<TInput["_output"]>]?: AnyBinding;
+        }
+      : Partial<Record<string, AnyBinding>>;
+  };
 };
 
 /**
@@ -135,7 +141,7 @@ export class PipelineStepAdvancementBuilder<
     protected readonly inputSchema: TInput,
     protected readonly meta: Omit<
       PipelineMeta<TInput>,
-      "additionalInput" | "inputBindings"
+      "additionalPipelineInput"
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
@@ -181,7 +187,7 @@ export class PipelineStepBuilder<
     protected readonly inputSchema: TInput,
     protected readonly meta: Omit<
       PipelineMeta<TInput>,
-      "additionalInput" | "inputBindings"
+      "additionalPipelineInput"
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
@@ -237,25 +243,31 @@ export class PipelineStepBuilder<
  */
 export class PipelineBuilder<TInput extends ZodType> {
   private readonly inputSchema: TInput;
-  private readonly meta: Omit<
-    PipelineMeta<TInput>,
-    "additionalInput" | "inputBindings"
-  >;
+  private readonly meta: Omit<PipelineMeta<TInput>, "additionalPipelineInput">;
   private readonly steps: PipelineStepConfig[] = [];
   private readonly pipelineInputBindings: Record<string, AnyBinding>;
 
   constructor(meta: PipelineMeta<TInput>) {
-    const { additionalInput, inputBindings, ...rest } = meta;
-    this.inputSchema = (additionalInput ?? z.unknown()) as TInput;
+    const { additionalPipelineInput, ...rest } = meta;
+    this.inputSchema = (additionalPipelineInput?.schema ??
+      z.unknown()) as TInput;
     this.meta = rest;
-    if (inputBindings) {
-      const raw = inputBindings({
+    if (additionalPipelineInput) {
+      const raw = additionalPipelineInput.bindings({
         workItem: WORK_ITEM_ACCESSOR,
-        input: createInputAccessor(this.inputSchema) as InputAccessor<
-          TInput["_output"]
-        >,
         literal,
       });
+      if (additionalPipelineInput.schema instanceof z.ZodObject) {
+        const validKeys = new Set(
+          Object.keys(additionalPipelineInput.schema.shape as object),
+        );
+        const unknown = Object.keys(raw).filter((k) => !validKeys.has(k));
+        if (unknown.length > 0) {
+          throw new Error(
+            `additionalPipelineInput.bindings returned key${unknown.length > 1 ? "s" : ""} not in schema: ${unknown.map((k) => `"${k}"`).join(", ")}`,
+          );
+        }
+      }
       this.pipelineInputBindings =
         normalizeInputMapping(raw as Record<string, AnyBinding | undefined>) ??
         {};

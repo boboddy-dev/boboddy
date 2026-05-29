@@ -3,29 +3,23 @@ title: Building Pipelines
 description: Wire steps into orchestrated sequences with typed bindings and advancement policies
 ---
 
-A **pipeline** is an ordered sequence of steps where each step's input can be bound to pipeline-level inputs, prior step outputs, or signals extracted from prior results.
+A **pipeline** is an ordered sequence of steps where each step's input can be bound to work item fields, pipeline-level additional inputs, prior step outputs, or signals extracted from prior results.
 
 ## Basic pipeline
 
-The recommended way to define a pipeline is the fluent `pipeline()` builder. The schema is bound once at the top; each `.step()` mapper receives a typed `input` accessor.
+The recommended way to define a pipeline is the fluent `pipeline()` builder. Each `.step()` mapper receives a typed `input` accessor that always includes `workItemTitle` and `workItemDescription`.
 
 ```typescript
 import { pipeline } from "@boboddy/sdk/definitions/pipelines";
-import { z } from "zod";
-import { reviewCodeStep } from "./steps";
-
-const inputSchema = z.object({
-  code: z.string(),
-});
 
 export default pipeline({
   key: "code-quality-pipeline",
   name: "Code Quality Pipeline",
   status: "active",
-  input: inputSchema,
 })
   .step(reviewCodeStep, ({ input }) => ({
-    code: input.code,
+    title: input.workItemTitle,
+    code: input.workItemDescription,
   }))
   .advance(() => ({ default: "continue" }))
   .build();
@@ -66,29 +60,31 @@ This pushes steps first, then pipelines, in a single command.
 
 ## `pipeline()` options
 
-| Field         | Type                  | Required | Description                                |
-| ------------- | --------------------- | -------- | ------------------------------------------ |
-| `key`         | `string`              | Yes      | Unique identifier for this pipeline        |
-| `name`        | `string`              | Yes      | Human-readable display name                |
-| `input`       | `ZodType`             | Yes      | Schema bound to the `input` accessor       |
-| `version`     | `number`              | No       | Version number (defaults to 1)             |
-| `description` | `string`              | No       | Brief description                          |
-| `status`      | `"draft" \| "active"` | No       | Draft pipelines are not executed           |
+| Field                     | Type                  | Required | Description                                                      |
+| ------------------------- | --------------------- | -------- | ---------------------------------------------------------------- |
+| `key`                     | `string`              | Yes      | Unique identifier for this pipeline                              |
+| `name`                    | `string`              | Yes      | Human-readable display name                                      |
+| `version`                 | `number`              | No       | Version number (defaults to 1)                                   |
+| `description`             | `string`              | No       | Brief description                                                |
+| `status`                  | `"draft" \| "active"` | No       | Draft pipelines are not executed                                 |
+| `additionalPipelineInput` | `object`              | No       | Custom input fields beyond the built-in work item fields         |
 
 Call `.step(...)`, then `.advance(...)` (required before the next step or `.build()`), and finally `.build()` to produce the wire-format pipeline spec. Timeouts are set via the optional `configFn` third argument to `.step()`.
 
 ## Input binding
 
-Inside a `.step()` mapper, three context helpers cover every binding source:
+Inside a `.step()` mapper, four context helpers cover every binding source:
 
-### `input.<path>` — bind to the pipeline input
+### `input.<path>` — built-in and additional pipeline input
 
-The `input` accessor is a proxy bound to the schema passed to `pipeline({ input })`. Drill into the schema's shape; each property access returns a typed binding to that pipeline-input path.
+The `input` accessor always exposes `workItemTitle` (string) and `workItemDescription` (string | null), plus any custom fields defined in `additionalPipelineInput.schema`. Drill into the shape; each property access returns a typed binding.
 
 ```typescript
 .step(reviewCodeStep, ({ input }) => ({
+  title: input.workItemTitle,
+  body: input.workItemDescription,
+  // custom field from additionalPipelineInput:
   code: input.code,
-  language: input.language,
 }))
 ```
 
@@ -113,6 +109,53 @@ Nested fields work as you'd expect — `input.ticket.title` binds to the dotted 
   reviewResult: output(reviewCodeStep),
 }))
 ```
+
+### `literal(value)` — a hardcoded constant
+
+```typescript
+.step(myStep, ({ literal }) => ({
+  model: literal("gpt-4o"),
+}))
+```
+
+## Additional pipeline input
+
+When a step needs data beyond the built-in work item fields, define it with `additionalPipelineInput`. Both `schema` and `bindings` are required when the object is provided.
+
+```typescript
+import { z } from "zod";
+
+export default pipeline({
+  key: "ticket-analyzer",
+  name: "Ticket Analyzer",
+  additionalPipelineInput: {
+    schema: z.object({
+      storyPoints: z.number().nullable(),
+      team: z.string(),
+    }),
+    bindings: ({ workItem, literal }) => ({
+      storyPoints: workItem.field("Story Points"),
+      team: literal("platform"),
+    }),
+  },
+})
+  .step(analyzeStep, ({ input }) => ({
+    title: input.workItemTitle,
+    storyPoints: input.storyPoints,
+    team: input.team,
+  }))
+  .advance(() => ({ default: "continue" }))
+  .build();
+```
+
+The `bindings` callback receives `{ workItem, input, literal }`:
+
+- **`workItem.title`** / **`workItem.description`** — the work item's title or description
+- **`workItem.field(name)`** — a named custom field on the work item (e.g. `workItem.field("Story Points")`)
+- **`input.<path>`** — another field from the same `additionalPipelineInput.schema` (for derived bindings)
+- **`literal(value)`** — a hardcoded constant
+
+Pipeline-level bindings are defaults applied to every step automatically. Explicit bindings in a `.step()` mapper override them for that step.
 
 ## Advancement policies
 
@@ -211,13 +254,16 @@ import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 import { z } from "zod";
 import { reviewCodeStep, refactorStep, verifyStep } from "./steps";
 
-const inputSchema = z.object({ code: z.string() });
-
 export default pipeline({
   key: "full-review",
   name: "Full Code Review Pipeline",
   status: "active",
-  input: inputSchema,
+  additionalPipelineInput: {
+    schema: z.object({ code: z.string() }),
+    bindings: ({ workItem }) => ({
+      code: workItem.field("Code"),
+    }),
+  },
 })
   .step(reviewCodeStep, ({ input }) => ({
     code: input.code,

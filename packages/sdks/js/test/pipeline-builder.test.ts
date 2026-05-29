@@ -8,11 +8,6 @@ import {
 } from "../src/definitions/pipelines/builder";
 import { defineStep } from "../src/definitions/steps/define-step";
 
-const inputSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-});
-
 const noInputStep = defineStep({
   key: "no-input",
   name: "No Input Step",
@@ -57,11 +52,7 @@ const verifyStep = defineStep({
 
 describe("pipeline() builder — Phase 1", () => {
   test.concurrent("pipeline() returns a PipelineBuilder", () => {
-    const builder = pipeline({
-      key: "p",
-      name: "P",
-      additionalInput: inputSchema,
-    });
+    const builder = pipeline({ key: "p", name: "P" });
 
     expect(builder).toBeInstanceOf(PipelineBuilder);
   });
@@ -75,11 +66,10 @@ describe("pipeline() builder — Phase 1", () => {
         description: "does stuff",
         version: 3,
         status: "draft",
-        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(() => ({ default: "continue" }))
         .build();
@@ -93,27 +83,22 @@ describe("pipeline() builder — Phase 1", () => {
 
 describe("pipeline() builder — .step() (Phase 3)", () => {
   test.concurrent(".step() returns a PipelineStepAdvancementBuilder", () => {
-    const builder = pipeline({
-      key: "p",
-      name: "P",
-      additionalInput: inputSchema,
-    }).step(reproduceStep, ({ input }) => ({
-      title: input.title,
-      description: input.description,
-    }));
+    const builder = pipeline({ key: "p", name: "P" }).step(
+      reproduceStep,
+      ({ input }) => ({
+        title: input.workItemTitle,
+        description: input.workItemDescription,
+      }),
+    );
 
     expect(builder).toBeInstanceOf(PipelineStepAdvancementBuilder);
   });
 
   test.concurrent(".advance() returns a PipelineStepBuilder", () => {
-    const builder = pipeline({
-      key: "p",
-      name: "P",
-      additionalInput: inputSchema,
-    })
+    const builder = pipeline({ key: "p", name: "P" })
       .step(reproduceStep, ({ input }) => ({
-        title: input.title,
-        description: input.description,
+        title: input.workItemTitle,
+        description: input.workItemDescription,
       }))
       .advance(() => ({ default: "continue" }));
 
@@ -121,38 +106,12 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
   });
 
   test.concurrent(
-    "input.x proxies serialize to pipeline_input bindings",
-    () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
-        .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
-        }))
-        .advance(() => ({ default: "continue" }))
-        .build();
-
-      expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
-        title: { source: "pipeline_input", path: "title" },
-        description: { source: "pipeline_input", path: "description" },
-      });
-    },
-  );
-
-  test.concurrent(
     "multi-step pipeline: signal and output bindings serialize correctly",
     () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(() => ({ default: "continue" }))
         .step(verifyStep, ({ signal, output }) => ({
@@ -182,14 +141,10 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
   test.concurrent(
     "_stepDefinitions accumulates referenced step specs deduped",
     () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(() => ({ default: "continue" }))
         .step(verifyStep, ({ signal, output }) => ({
@@ -208,14 +163,10 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
 
 describe("pipeline() builder — .advance() (Phase 4)", () => {
   test.concurrent("all-group with route outcome serializes correctly", () => {
-    const spec = pipeline({
-      key: "p",
-      name: "P",
-      additionalInput: inputSchema,
-    })
+    const spec = pipeline({ key: "p", name: "P" })
       .step(reproduceStep, ({ input }) => ({
-        title: input.title,
-        description: input.description,
+        title: input.workItemTitle,
+        description: input.workItemDescription,
       }))
       .advance(({ signal, all, route }) => ({
         default: "complete",
@@ -244,14 +195,10 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
   test.concurrent(
     "computed rule (avg) hoists into computedSignalDefinitions",
     () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(({ avg, stepSignals }) => ({
           default: "complete",
@@ -292,14 +239,10 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
   test.concurrent(
     "stepSignals property map produces same condition as signal()",
     () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(({ stepSignals }) => ({
           default: "block",
@@ -319,14 +262,10 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
   );
 
   test.concurrent("multi-step pipeline with .advance() on each step", () => {
-    const fromBuilder = pipeline({
-      key: "p",
-      name: "P",
-      additionalInput: inputSchema,
-    })
+    const fromBuilder = pipeline({ key: "p", name: "P" })
       .step(reproduceStep, ({ input }) => ({
-        title: input.title,
-        description: input.description,
+        title: input.workItemTitle,
+        description: input.workItemDescription,
       }))
       .advance(({ signal }) => ({
         default: "block",
@@ -368,14 +307,10 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
 describe("pipeline() builder — parity coverage (Phase 5)", () => {
   describe("step ordering and metadata", () => {
     test.concurrent("assigns positions 1-indexed in declaration order", () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(() => ({ default: "continue" }))
         .step(verifyStep, ({ signal, output }) => ({
@@ -393,14 +328,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     test.concurrent(
       "carries step key, name, and description into the output",
       () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance(() => ({ default: "continue" }))
           .build();
@@ -414,35 +345,9 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
 
   describe("input bindings", () => {
     test.concurrent(
-      "pipeline input bindings serialize to inputBindingsJson",
-      () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-        })
-          .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
-          }))
-          .advance(() => ({ default: "continue" }))
-          .build();
-
-        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
-          title: { source: "pipeline_input", path: "title" },
-          description: { source: "pipeline_input", path: "description" },
-        });
-      },
-    );
-
-    test.concurrent(
       "workItemTitle and workItemDescription are auto-injected into every step",
       () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: z.object({}),
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(noInputStep, () => ({}))
           .advance(() => ({ default: "continue" }))
           .build();
@@ -457,11 +362,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     test.concurrent(
       "input.workItemTitle and input.workItemDescription bind to work_item source",
       () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: z.object({}),
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(reproduceStep, ({ input }) => ({
             title: input.workItemTitle,
             description: input.workItemDescription,
@@ -482,14 +383,16 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          additionalInput: z.object({
-            company: z.string().nullable(),
-            storyPoints: z.number().nullable(),
-          }),
-          inputBindings: ({ workItem }) => ({
-            company: workItem.field("Company"),
-            storyPoints: workItem.field("Story Points"),
-          }),
+          additionalPipelineInput: {
+            schema: z.object({
+              company: z.string().nullable(),
+              storyPoints: z.number().nullable(),
+            }),
+            bindings: ({ workItem }) => ({
+              company: workItem.field("Company"),
+              storyPoints: workItem.field("Story Points"),
+            }),
+          },
         })
           .step(noInputStep, () => ({}))
           .advance(() => ({ default: "continue" }))
@@ -505,46 +408,25 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
-      "pipeline-level inputBindings via input accessor bind from pipeline_input source",
-      () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-          inputBindings: ({ input }) => ({
-            title: input.title,
-          }),
-        })
-          .step(noInputStep, () => ({}))
-          .advance(() => ({ default: "continue" }))
-          .build();
-
-        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
-          title: { source: "pipeline_input", path: "title" },
-        });
-      },
-    );
-
-    test.concurrent(
       "explicit step bindings override pipeline-level inputBindings",
       () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          additionalInput: inputSchema,
-          inputBindings: ({ workItem }) => ({
-            title: workItem.title,
-          }),
+          additionalPipelineInput: {
+            schema: z.object({ title: z.string().optional() }),
+            bindings: ({ literal }) => ({ title: literal("from-pipeline") }),
+          },
         })
           .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance(() => ({ default: "continue" }))
           .build();
 
         expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
-          title: { source: "pipeline_input", path: "title" },
+          title: { source: "work_item", field: "title" },
         });
       },
     );
@@ -555,12 +437,16 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          additionalInput: z.object({ model: z.string() }),
-          inputBindings: ({ literal }) => ({ model: literal("gpt-4o") }),
+          additionalPipelineInput: {
+            schema: z.object({ model: z.string() }),
+            bindings: ({ literal }) => ({
+              model: literal("gpt-4o"),
+            }),
+          },
         })
-          .step(reproduceStep, ({ input, literal: lit }) => ({
+          .step(reproduceStep, ({ input, literal }) => ({
             title: input.workItemTitle,
-            description: lit("hardcoded description"),
+            description: literal("hardcoded description"),
           }))
           .advance(() => ({ default: "continue" }))
           .build();
@@ -569,6 +455,27 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           model: { source: "literal", value: "gpt-4o" },
           description: { source: "literal", value: "hardcoded description" },
         });
+      },
+    );
+
+    test.concurrent(
+      "additionalPipelineInput.bindings throws on keys not in schema",
+      () => {
+        expect(() =>
+          pipeline({
+            key: "p",
+            name: "P",
+            additionalPipelineInput: {
+              schema: z.object({ model: z.string() }),
+              bindings: ({ literal }) => ({
+                model: literal("gpt-4o"),
+                asdf: literal(123),
+              }),
+            },
+          }),
+        ).toThrow(
+          'additionalPipelineInput.bindings returned key not in schema: "asdf"',
+        );
       },
     );
 
@@ -592,7 +499,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          additionalInput: nestedInputSchema,
+          additionalPipelineInput: {
+            schema: nestedInputSchema,
+            bindings: ({ workItem }) => ({ ticket: workItem.field("ticket") }),
+          },
         })
           .step(nestedStep, ({ input }) => ({
             title: input.ticket.title,
@@ -611,14 +521,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
 
   describe("advancement", () => {
     test.concurrent('defaultOutcome "block" serializes correctly', () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(() => ({ default: "block" }))
         .build();
@@ -630,14 +536,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     });
 
     test.concurrent("top-level .any() produces an any-mode rule", () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(({ signal, any }) => ({
           default: "block",
@@ -661,14 +563,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     });
 
     test.concurrent("multiple rules per step are preserved in order", () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(({ signal }) => ({
           default: "block",
@@ -688,14 +586,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     test.concurrent(
       "allowedEventTypes contains the default outcome plus every rule outcome",
       () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance(({ signal, route }) => ({
             default: "block",
@@ -724,14 +618,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     ] as const)(
       "ctx.%s emits a computed signal of type %s",
       (factory, wireType) => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance((ctx) => ({
             default: "block",
@@ -762,14 +652,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     ] as const)(
       "ctx.%s emits a computed signal of type %s",
       (factory, wireType) => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance((ctx) => ({
             default: "block",
@@ -795,14 +681,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent("same computed token across rules is deduped", () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(({ sum, stepSignals }) => ({
           default: "block",
@@ -822,14 +704,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     test.concurrent(
       "computed nested inside all/any groups is still extracted",
       () => {
-        const spec = pipeline({
-          key: "p",
-          name: "P",
-          additionalInput: inputSchema,
-        })
+        const spec = pipeline({ key: "p", name: "P" })
           .step(reproduceStep, ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance(({ all, any, max, min, signal, stepSignals }) => ({
             default: "block",
@@ -855,14 +733,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
 
   describe("timeout", () => {
     test.concurrent("timeoutSeconds defaults to null when omitted", () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(reproduceStep, ({ input }) => ({
-          title: input.title,
-          description: input.description,
+          title: input.workItemTitle,
+          description: input.workItemDescription,
         }))
         .advance(() => ({ default: "continue" }))
         .build();
@@ -871,16 +745,12 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     });
 
     test.concurrent("config callback sets timeoutSeconds on the step", () => {
-      const spec = pipeline({
-        key: "p",
-        name: "P",
-        additionalInput: inputSchema,
-      })
+      const spec = pipeline({ key: "p", name: "P" })
         .step(
           reproduceStep,
           ({ input }) => ({
-            title: input.title,
-            description: input.description,
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }),
           (cfg) => {
             cfg.timeout = 900;
@@ -901,13 +771,12 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           key: "ticket-router",
           name: "Ticket Router",
           description: "scores then routes",
-          additionalInput: inputSchema,
         })
           .step(
             reproduceStep,
             ({ input }) => ({
-              title: input.title,
-              description: input.description,
+              title: input.workItemTitle,
+              description: input.workItemDescription,
             }),
             (cfg) => {
               cfg.timeout = 300;
@@ -946,8 +815,8 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         expect(step0.stepKey).toBe("reproduce");
         expect(step0.timeoutSeconds).toBe(300);
         expect(step0.inputBindingsJson).toMatchObject({
-          title: { source: "pipeline_input", path: "title" },
-          description: { source: "pipeline_input", path: "description" },
+          title: { source: "work_item", field: "title" },
+          description: { source: "work_item", field: "description" },
         });
         expect(step0.advancementPolicyDefinition.defaultEventType).toBe(
           "complete",

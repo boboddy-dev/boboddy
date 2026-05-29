@@ -107,7 +107,15 @@ export default pipeline({
   description: null,        // optional
   version: 1,
   status: "active",         // "draft" | "active" (default: "active")
-  input: z.object({ body: z.string(), userId: z.string() }),
+  // Optional: define custom input fields beyond the built-in work item fields.
+  // Both schema and bindings are required when this object is provided.
+  additionalPipelineInput: {
+    schema: z.object({ body: z.string(), userId: z.string() }),
+    bindings: ({ workItem, literal }) => ({
+      body: workItem.description,      // bind from the work item
+      userId: literal("system"),       // or a hardcoded constant
+    }),
+  },
 })
   .step(stepOne, ({ input }) => ({
     content: input.body,
@@ -128,17 +136,24 @@ export default pipeline({
 
 ## Step input bindings
 
-Each `.step(step, mapper)` mapper receives a context object `{ input, signal, output, workItem }` and must return a record mapping the step's input fields to bindings.
+Each `.step(step, mapper)` mapper receives a context object `{ input, signal, output, literal }` and must return a record mapping the step's input fields to bindings.
 
-### `input.<path>` — pipeline-level input
+### `input.<path>` — work item fields and additional pipeline input
 
-`input` is a typed proxy bound to the schema passed to `pipeline({ input })`. Drill into fields — each access returns a binding for that path.
+`input` is a typed proxy that always exposes two built-in fields:
+- `input.workItemTitle` — the title of the work item triggering this run
+- `input.workItemDescription` — the description of the work item (may be null)
+
+It also exposes any custom fields defined in `additionalPipelineInput.schema`. Drill into fields — each access returns a binding for that path.
 
 ```typescript
 .step(investigate, ({ input }) => ({
-  content: input.body,
+  title: input.workItemTitle,
+  body: input.workItemDescription,
+  // custom field from additionalPipelineInput.schema:
+  userId: input.userId,
   // nested paths also work:
-  userId: input.meta.userId,
+  ticketTitle: input.meta.title,
 }))
 ```
 
@@ -164,16 +179,13 @@ Do **not** spread or coerce the accessor (`${input.code}`, `{ ...input.metadata 
 
 Prefer `signal` for stability; use `output` when you need the full object.
 
-### `workItem` — the work item triggering this pipeline run
+### `literal(value)` — a hardcoded constant
 
 ```typescript
-.step(myStep, ({ workItem }) => ({
-  title: workItem.title,
-  description: workItem.description,
+.step(myStep, ({ literal }) => ({
+  model: literal("gpt-4o"),
 }))
 ```
-
-`workItem.title` and `workItem.description` are the only available fields.
 
 ---
 
@@ -329,11 +341,10 @@ export default pipeline({
   key: "issue-pipeline",
   name: "Issue Pipeline",
   version: 1,
-  input: z.object({ title: z.string(), body: z.string() }),
 })
   .step(investigate, ({ input }) => ({
-    title: input.title,
-    body: input.body,
+    title: input.workItemTitle,
+    body: input.workItemDescription,
   }))
   .advance(({ signal }) => ({
     default: "block",
