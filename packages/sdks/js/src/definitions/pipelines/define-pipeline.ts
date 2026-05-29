@@ -46,11 +46,17 @@ export type StepOutputBinding = {
   step: AnyTypedStep;
 };
 
+export type LiteralBinding = {
+  source: "literal";
+  value: unknown;
+};
+
 export type AnyBinding =
   | PipelineInputBinding
   | WorkItemBinding
   | StepSignalBinding
-  | StepOutputBinding;
+  | StepOutputBinding
+  | LiteralBinding;
 
 // ─── Pipeline step config ─────────────────────────────────────────────────────
 
@@ -78,7 +84,8 @@ type SerializedBinding =
   | { source: "pipeline_input"; path: string }
   | { source: "work_item"; field: string }
   | { source: "step_signal"; stepKey: string; signalKey: string }
-  | { source: "step_output"; stepKey: string };
+  | { source: "step_output"; stepKey: string }
+  | { source: "literal"; value: unknown };
 
 export type PipelineDefinitionSpec = {
   key: string;
@@ -125,6 +132,9 @@ function serializeBinding(binding: AnyBinding): SerializedBinding {
       stepKey: binding.step.key,
       signalKey: binding.signalKey,
     };
+  }
+  if (binding.source === "literal") {
+    return { source: "literal", value: binding.value };
   }
   return { source: "step_output", stepKey: binding.step.key };
 }

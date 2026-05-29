@@ -60,7 +60,7 @@ describe("pipeline() builder — Phase 1", () => {
     const builder = pipeline({
       key: "p",
       name: "P",
-      input: inputSchema,
+      additionalInput: inputSchema,
     });
 
     expect(builder).toBeInstanceOf(PipelineBuilder);
@@ -75,7 +75,7 @@ describe("pipeline() builder — Phase 1", () => {
         description: "does stuff",
         version: 3,
         status: "draft",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -96,7 +96,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
     const builder = pipeline({
       key: "p",
       name: "P",
-      input: inputSchema,
+      additionalInput: inputSchema,
     }).step(reproduceStep, ({ input }) => ({
       title: input.title,
       description: input.description,
@@ -109,7 +109,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
     const builder = pipeline({
       key: "p",
       name: "P",
-      input: inputSchema,
+      additionalInput: inputSchema,
     })
       .step(reproduceStep, ({ input }) => ({
         title: input.title,
@@ -126,7 +126,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -148,7 +148,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -185,7 +185,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -211,7 +211,7 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
     const spec = pipeline({
       key: "p",
       name: "P",
-      input: inputSchema,
+      additionalInput: inputSchema,
     })
       .step(reproduceStep, ({ input }) => ({
         title: input.title,
@@ -247,7 +247,7 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -295,7 +295,7 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -322,7 +322,7 @@ describe("pipeline() builder — .advance() (Phase 4)", () => {
     const fromBuilder = pipeline({
       key: "p",
       name: "P",
-      input: inputSchema,
+      additionalInput: inputSchema,
     })
       .step(reproduceStep, ({ input }) => ({
         title: input.title,
@@ -371,7 +371,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -396,7 +396,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.title,
@@ -419,7 +419,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.title,
@@ -441,7 +441,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: z.object({}),
+          additionalInput: z.object({}),
         })
           .step(noInputStep, () => ({}))
           .advance(() => ({ default: "continue" }))
@@ -460,7 +460,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: z.object({}),
+          additionalInput: z.object({}),
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.workItemTitle,
@@ -482,7 +482,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: z.object({
+          additionalInput: z.object({
             company: z.string().nullable(),
             storyPoints: z.number().nullable(),
           }),
@@ -510,7 +510,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
           inputBindings: ({ input }) => ({
             title: input.title,
           }),
@@ -531,7 +531,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
           inputBindings: ({ workItem }) => ({
             title: workItem.title,
           }),
@@ -545,6 +545,29 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
 
         expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
           title: { source: "pipeline_input", path: "title" },
+        });
+      },
+    );
+
+    test.concurrent(
+      "literal bindings serialize correctly at pipeline and step level",
+      () => {
+        const spec = pipeline({
+          key: "p",
+          name: "P",
+          additionalInput: z.object({ model: z.string() }),
+          inputBindings: ({ literal }) => ({ model: literal("gpt-4o") }),
+        })
+          .step(reproduceStep, ({ input, literal: lit }) => ({
+            title: input.workItemTitle,
+            description: lit("hardcoded description"),
+          }))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          model: { source: "literal", value: "gpt-4o" },
+          description: { source: "literal", value: "hardcoded description" },
         });
       },
     );
@@ -569,7 +592,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: nestedInputSchema,
+          additionalInput: nestedInputSchema,
         })
           .step(nestedStep, ({ input }) => ({
             title: input.ticket.title,
@@ -591,7 +614,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -610,7 +633,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -641,7 +664,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -668,7 +691,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.title,
@@ -704,7 +727,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.title,
@@ -742,7 +765,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.title,
@@ -775,7 +798,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -802,7 +825,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(reproduceStep, ({ input }) => ({
             title: input.title,
@@ -835,7 +858,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(reproduceStep, ({ input }) => ({
           title: input.title,
@@ -851,7 +874,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       const spec = pipeline({
         key: "p",
         name: "P",
-        input: inputSchema,
+        additionalInput: inputSchema,
       })
         .step(
           reproduceStep,
@@ -878,7 +901,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           key: "ticket-router",
           name: "Ticket Router",
           description: "scores then routes",
-          input: inputSchema,
+          additionalInput: inputSchema,
         })
           .step(
             reproduceStep,

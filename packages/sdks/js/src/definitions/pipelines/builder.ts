@@ -10,6 +10,7 @@ import {
   buildPipelineSpec,
   type AnyBinding,
   type DefinePipelineInput,
+  type LiteralBinding,
   type PipelineDefinitionSpec,
   type PipelineStepConfig,
   type StepOutputBinding,
@@ -90,7 +91,21 @@ export type StepInputCtx<
     key: S["__signalKeys"],
   ) => StepSignalBinding;
   output: <S extends ElementOf<TSteps>>(step: S) => StepOutputBinding;
+  literal: (value: unknown) => LiteralBinding;
 };
+
+type ReservedPipelineInputKeys = "workItemTitle" | "workItemDescription";
+
+// Resolves to T when the schema shape has none of the reserved keys, never otherwise.
+// Uses `.shape` (the raw key map on ZodObject) rather than `_output` to avoid a
+// Zod v4 quirk where empty-object strip-mode output is `Record<string, never>`.
+// Non-object schemas (no `.shape`) pass through unconditionally.
+type NoReservedKeys<T extends ZodType> =
+  T extends { shape: infer Shape }
+    ? [string & keyof Shape & ReservedPipelineInputKeys] extends [never]
+      ? T
+      : never
+    : T;
 
 export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
   key: string;
@@ -98,10 +113,11 @@ export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
   description?: string;
   version?: number;
   status?: "draft" | "active";
-  input?: TInput;
+  additionalInput?: NoReservedKeys<TInput>;
   inputBindings?: (ctx: {
     workItem: WorkItemAccessor;
     input: InputAccessor<TInput["_output"]>;
+    literal: (value: unknown) => LiteralBinding;
   }) => { [K in keyof TInput["_output"] & string]?: AnyBinding };
 };
 
@@ -119,7 +135,7 @@ export class PipelineStepAdvancementBuilder<
     protected readonly inputSchema: TInput,
     protected readonly meta: Omit<
       PipelineMeta<TInput>,
-      "input" | "inputBindings"
+      "additionalInput" | "inputBindings"
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
@@ -165,7 +181,7 @@ export class PipelineStepBuilder<
     protected readonly inputSchema: TInput,
     protected readonly meta: Omit<
       PipelineMeta<TInput>,
-      "input" | "inputBindings"
+      "additionalInput" | "inputBindings"
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
@@ -221,13 +237,16 @@ export class PipelineStepBuilder<
  */
 export class PipelineBuilder<TInput extends ZodType> {
   private readonly inputSchema: TInput;
-  private readonly meta: Omit<PipelineMeta<TInput>, "input" | "inputBindings">;
+  private readonly meta: Omit<
+    PipelineMeta<TInput>,
+    "additionalInput" | "inputBindings"
+  >;
   private readonly steps: PipelineStepConfig[] = [];
   private readonly pipelineInputBindings: Record<string, AnyBinding>;
 
   constructor(meta: PipelineMeta<TInput>) {
-    const { input, inputBindings, ...rest } = meta;
-    this.inputSchema = (input ?? z.unknown()) as TInput;
+    const { additionalInput, inputBindings, ...rest } = meta;
+    this.inputSchema = (additionalInput ?? z.unknown()) as TInput;
     this.meta = rest;
     if (inputBindings) {
       const raw = inputBindings({
@@ -235,6 +254,7 @@ export class PipelineBuilder<TInput extends ZodType> {
         input: createInputAccessor(this.inputSchema) as InputAccessor<
           TInput["_output"]
         >,
+        literal,
       });
       this.pipelineInputBindings =
         normalizeInputMapping(raw as Record<string, AnyBinding | undefined>) ??
@@ -310,7 +330,12 @@ function makeStepInputCtx<TInput extends ZodType>(
     output<S extends AnyTypedStep>(step: S): StepOutputBinding {
       return { source: "step_output", step };
     },
+    literal,
   };
+}
+
+export function literal(value: unknown): LiteralBinding {
+  return { source: "literal", value };
 }
 
 function normalizeInputMapping(
