@@ -16,8 +16,8 @@ Invoke me when a user says something like "create a pipeline that first investig
 ## Workflow
 
 1. If `.boboddy/pipeline-builder/` does not exist, run `boboddy pipelines init` to scaffold it.
-2. Create or edit a `.ts` file inside `.boboddy/pipeline-builder/`. Each file must export a default `definePipeline(...)`.
-3. Present the pipeline definition to the user for review. Summarize the steps, signals, input bindings, and advancement rules so the user can verify intent without re-reading the file.
+2. Create or edit a `.ts` file inside `.boboddy/pipeline-builder/`. Each file must export a default `pipeline(...).step(...).advance(...).build()` chain.
+3. Present the pipeline definition to the user for review. Summarize the steps, input bindings, and advancement rules so the user can verify intent without re-reading the file.
 4. Wait for explicit approval. Do not run `boboddy pipelines push` until the user confirms. If they request changes, iterate on the file and re-surface for review.
 5. Once approved, ask whether the user wants to push themselves or have me push. Only run `boboddy pipelines push` (or `boboddy pipelines push <projectId>`) if they choose the latter. The CLI auto-pushes any step definitions it finds in the same directory first.
 
@@ -28,20 +28,14 @@ Invoke me when a user says something like "create a pipeline that first investig
 ```typescript
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
-import {
-  definePipeline,
-  Rule,
-  fromPipelineInput,
-  fromSignal,
-  stepOutput,
-} from "@boboddy/sdk/definitions/pipelines";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 ```
 
 ---
 
 ## Defining steps
 
-Each step represents one unit of agent work. Define every step before `definePipeline`.
+Each step represents one unit of agent work. Define every step before the pipeline builder.
 
 ```typescript
 export const myStep = defineStep({
@@ -51,7 +45,11 @@ export const myStep = defineStep({
   version: 1,               // increment when schema changes
   status: "active",         // "draft" | "active" (default: "active")
 
-  prompt: "You are ...",    // the LLM system prompt for this step
+  // Static string prompt:
+  prompt: "You are an analyst. Evaluate the input and return a score.",
+
+  // Or a function prompt — `input` is a typed proxy; embed fields with template literals:
+  prompt: (input) => `Analyze the following issue:\n\nTitle: ${input.title}\nBody: ${input.body}`,
 
   // Zod schema for what the step receives
   input: z.object({
@@ -65,13 +63,13 @@ export const myStep = defineStep({
     approved: z.boolean(),
   }),
 
-  // Signals: named values extracted from the result for use in advancement rules
+  // Signals: named values extracted from the result, usable in advancement rules
   // and as bindings for downstream steps.
   // key defaults to sourcePath if omitted.
   // type is inferred from the result schema if omitted.
   signals: [
-    { sourcePath: "confidence" },        // key = "confidence", type = "number"
-    { key: "ok", sourcePath: "approved" }, // explicit key
+    { sourcePath: "confidence" },             // key = "confidence", type = "number"
+    { key: "ok", sourcePath: "approved" },    // explicit key
   ],
 
   // Optional: MCP servers available as tools during this step
@@ -91,18 +89,6 @@ export const myStep = defineStep({
 ### Signal types
 `"string"` | `"number"` | `"boolean"` | `"object"` | `"array"`
 
-### Computed signals
-Aggregate multiple signals into one:
-```typescript
-computedSignals: [
-  {
-    key: "avg-score",
-    type: "average",           // "average" | "weighted_average" | "sum" | "min" | "max" | "custom"
-    inputSignalKeys: ["score1", "score2"],
-  },
-],
-```
-
 ### `Features.feedbackRequests()`
 Adds a `feedbackRequests?: FeedbackRequestItem[]` field to the result and injects a prompt instructing the agent to surface questions for human review. Use when a step may need to escalate unclear cases.
 
@@ -110,78 +96,102 @@ Adds a `feedbackRequests?: FeedbackRequestItem[]` field to the result and inject
 
 ## Defining a pipeline
 
+Pipelines use a fluent builder. The chain is: `pipeline(meta)` → `.step(step, mapper, configFn?)` → `.advance(ctx => ...)` → repeat or `.build()`.
+
+`.advance()` is required after every `.step()` before you can add another step or call `.build()`.
+
 ```typescript
-export default definePipeline({
-  key: "my-pipeline",     // lowercase kebab-case, unique per project
+export default pipeline({
+  key: "my-pipeline",       // lowercase kebab-case, unique per project
   name: "My Pipeline",
-  description: null,      // optional
+  description: null,        // optional
   version: 1,
-  status: "active",       // "draft" | "active" (default: "active")
-  steps: [
-    // Step configs — ordered, 1-indexed positions assigned automatically
-    { step: stepOne, input: { ... }, advancement: { ... } },
-    { step: stepTwo, input: { ... } },
-  ],
-});
+  status: "active",         // "draft" | "active" (default: "active")
+  input: z.object({ body: z.string(), userId: z.string() }),
+})
+  .step(stepOne, ({ input }) => ({
+    content: input.body,
+  }))
+  .advance(({ signal }) => ({
+    default: "block",
+    rules: [signal("confidence").gte(0.8).then("continue")],
+  }))
+  .step(stepTwo, ({ signal, output }) => ({
+    priorSummary: signal(stepOne, "summary"),
+    fullResult: output(stepOne),
+  }))
+  .advance(() => ({ default: "continue" }))
+  .build();
 ```
 
 ---
 
-## Step config: input bindings
+## Step input bindings
 
-Each step config has an optional `input` map that wires values into the step's input fields.
+Each `.step(step, mapper)` mapper receives a context object `{ input, signal, output, workItem }` and must return a record mapping the step's input fields to bindings.
 
-### `fromPipelineInput(schema, path)` — pipeline-level input
+### `input.<path>` — pipeline-level input
+
+`input` is a typed proxy bound to the schema passed to `pipeline({ input })`. Drill into fields — each access returns a binding for that path.
+
 ```typescript
-const pipelineInput = z.object({ body: z.string(), userId: z.string() });
-
-{
-  step: investigate,
-  input: {
-    content: fromPipelineInput(pipelineInput, "body"),
-    // nested paths also work: fromPipelineInput(pipelineInput, "meta.id")
-  },
-}
+.step(investigate, ({ input }) => ({
+  content: input.body,
+  // nested paths also work:
+  userId: input.meta.userId,
+}))
 ```
 
-### `fromSignal(priorStep, signalKey)` — use a named signal from an earlier step
+Do **not** spread or coerce the accessor (`${input.code}`, `{ ...input.metadata }`) — it will throw at build time.
+
+### `signal(priorStep, signalKey)` — a named signal from an earlier step
+
 ```typescript
-{
-  step: triage,
-  input: {
-    confidence: fromSignal(investigate, "confidence"),
-  },
-}
+.step(triage, ({ signal }) => ({
+  confidence: signal(investigate, "confidence"),
+}))
 ```
+
 `signalKey` is TypeScript-validated against the prior step's declared signals.
 
-### `stepOutput(priorStep)` — bind the entire result object of a prior step
+### `output(priorStep)` — the entire result object of a prior step
+
 ```typescript
-{
-  step: report,
-  input: {
-    data: stepOutput(investigate),
-  },
-}
+.step(report, ({ output }) => ({
+  data: output(investigate),
+}))
 ```
-Prefer `fromSignal` for stability; use `stepOutput` when you need the full object.
+
+Prefer `signal` for stability; use `output` when you need the full object.
+
+### `workItem` — the work item triggering this pipeline run
+
+```typescript
+.step(myStep, ({ workItem }) => ({
+  title: workItem.title,
+  description: workItem.description,
+}))
+```
+
+`workItem.title` and `workItem.description` are the only available fields.
 
 ---
 
-## Step config: advancement policy
+## Advancement policies
 
-Controls how a step transitions after the agent completes. Omitting `advancement` defaults to `{ defaultOutcome: "continue" }`.
+`.advance(callback)` attaches a policy to the most recently added step. The callback receives a context with typed helpers and must return `{ default, rules? }`.
 
 ```typescript
-advancement: {
-  defaultOutcome: "block",   // outcome when no rules match
-  rules: [                   // evaluated in order; first match wins
-    Rule.when("confidence", "greaterThanInclusive", 0.8, "continue"),
+.advance(({ signal }) => ({
+  default: "block",
+  rules: [
+    signal("confidence").gte(0.8).then("continue"),
   ],
-}
+}))
 ```
 
 ### Outcomes
+
 | Outcome | Meaning |
 |---|---|
 | `"continue"` | Advance to the next step automatically |
@@ -189,47 +199,99 @@ advancement: {
 | `"needs_review"` | Flag for review before proceeding |
 | `"complete"` | End the pipeline here |
 
-Attach extra context with object form:
+To route to another pipeline:
 ```typescript
-{ outcome: "needs_review", outcomeJson: { reason: "low confidence" } }
+signal("flagged").eq(true).then(route("triage-pipeline", { reason: "flagged" }))
 ```
 
-### Rule builders
+### Signal references
 
-**`Rule.when`** — single-condition shorthand:
+`signal(key)` returns a `SignalRef`. Chain a comparator, then `.then(outcome)` to produce a rule:
+
 ```typescript
-Rule.when("score", "greaterThanInclusive", 80, "continue")
+signal("score").gte(0.8).then("continue")
 ```
 
-**`Rule.all`** — all conditions must match:
+The `stepSignals` property map is an alternative shorthand — both are equivalent:
 ```typescript
-Rule.all([
-  Rule.signal("score", "greaterThanInclusive", 80),
-  Rule.signal("flagged", "equal", false),
-], "continue")
+// These are identical:
+signal("score").gte(0.8).then("continue")
+stepSignals.score.gte(0.8).then("continue")
 ```
 
-**`Rule.any`** — any condition must match:
+### Comparators on `SignalRef`
+
+| Method | Operator |
+|---|---|
+| `.eq(value)` | `equal` |
+| `.ne(value)` | `notEqual` |
+| `.gt(n)` | `greaterThan` |
+| `.gte(n)` | `greaterThanInclusive` |
+| `.lt(n)` | `lessThan` |
+| `.lte(n)` | `lessThanInclusive` |
+| `.in(values)` | `in` |
+| `.notIn(values)` | `notIn` |
+| `.contains(value)` | `contains` |
+| `.doesNotContain(v)` | `doesNotContain` |
+
+### Grouping with `all` and `any`
+
 ```typescript
-Rule.any([
-  Rule.signal("score", "greaterThan", 95),
-  Rule.signal("override", "equal", true),
-], "continue")
+.advance(({ signal, all, any }) => ({
+  default: "block",
+  rules: [
+    all(
+      signal("score").gte(0.8),
+      any(
+        signal("reviewerApproved").eq(true),
+        signal("autoApproved").eq(true),
+      ),
+    ).then("continue"),
+  ],
+}))
 ```
 
-**Nesting** — `Rule.all` / `Rule.any` can be nested inside each other:
+Groups are nestable arbitrarily. Call `.then(outcome)` to close the rule.
+
+### Computed signals
+
+Aggregate multiple signals into a derived value inline — no separate declaration on the step required. Factories accept 2+ `signal(key)` or `stepSignals.key` references:
+
 ```typescript
-Rule.all([
-  Rule.signal("score", "greaterThanInclusive", 80),
-  Rule.any([
-    Rule.signal("reviewerApproved", "equal", true),
-    Rule.signal("autoApproved", "equal", true),
-  ]),
-], "continue")
+.advance(({ avg, stepSignals }) => ({
+  default: "block",
+  rules: [
+    avg(stepSignals.score1, stepSignals.score2).gte(0.7).then("continue"),
+  ],
+}))
 ```
 
-### Operators
-`equal` · `notEqual` · `lessThan` · `lessThanInclusive` · `greaterThan` · `greaterThanInclusive` · `in` · `notIn` · `contains` · `doesNotContain`
+The same call across multiple rules is deduplicated into a single computed-signal definition at build time.
+
+| Factory | Description | Signal types |
+|---|---|---|
+| `avg(...)` | Arithmetic mean | `number` |
+| `weightedAvg(...)` | Weighted mean | `number` |
+| `sum(...)` | Sum | `number` |
+| `min(...)` | Minimum | `number` |
+| `max(...)` | Maximum | `number` |
+| `count(...)` | Count of truthy/present values | any |
+| `booleanAny(...)` | `true` if any input is truthy | `boolean` |
+| `booleanAll(...)` | `true` only if all inputs are truthy | `boolean` |
+
+---
+
+## Timeouts
+
+Pass a third `configFn` argument to `.step()` to cap how long a worker can spend on that step:
+
+```typescript
+.step(
+  heavyAnalysisStep,
+  ({ input }) => ({ payload: input.payload }),
+  (cfg) => { cfg.timeout = 900; },   // seconds
+)
+```
 
 ---
 
@@ -238,57 +300,51 @@ Rule.all([
 ```typescript
 import { z } from "zod";
 import { defineStep } from "@boboddy/sdk/definitions/steps";
-import {
-  definePipeline,
-  Rule,
-  fromPipelineInput,
-  fromSignal,
-} from "@boboddy/sdk/definitions/pipelines";
-
-const pipelineInput = z.object({ issueBody: z.string() });
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 
 export const investigate = defineStep({
   key: "investigate",
   name: "Investigate",
   version: 1,
-  prompt: "You are an expert investigator. Analyze the issue and assess confidence.",
-  input: z.object({ content: z.string() }),
+  prompt: (input) => `Analyze this issue:\n\nTitle: ${input.title}\nBody: ${input.body}`,
+  input: z.object({ title: z.string(), body: z.string() }),
   result: z.object({ summary: z.string(), confidence: z.number() }),
-  signals: [{ sourcePath: "confidence" }],
+  signals: [
+    { sourcePath: "confidence" },
+    { sourcePath: "summary" },
+  ],
 });
 
 export const triage = defineStep({
   key: "triage",
   name: "Triage",
   version: 1,
-  prompt: "Given the investigation summary, assign a priority level: low, medium, or high.",
+  prompt: "Given the investigation summary, assign a priority: low, medium, or high.",
   input: z.object({ summary: z.string() }),
   result: z.object({ priority: z.string() }),
   signals: [{ sourcePath: "priority" }],
 });
 
-export default definePipeline({
+export default pipeline({
   key: "issue-pipeline",
   name: "Issue Pipeline",
   version: 1,
-  steps: [
-    {
-      step: investigate,
-      input: { content: fromPipelineInput(pipelineInput, "issueBody") },
-      advancement: {
-        defaultOutcome: "block",
-        rules: [Rule.when("confidence", "greaterThanInclusive", 0.8, "continue")],
-      },
-    },
-    {
-      step: triage,
-      input: { summary: fromSignal(investigate, "summary") },
-    },
-  ],
-});
+  input: z.object({ title: z.string(), body: z.string() }),
+})
+  .step(investigate, ({ input }) => ({
+    title: input.title,
+    body: input.body,
+  }))
+  .advance(({ signal }) => ({
+    default: "block",
+    rules: [signal("confidence").gte(0.8).then("continue")],
+  }))
+  .step(triage, ({ signal }) => ({
+    summary: signal(investigate, "summary"),
+  }))
+  .advance(() => ({ default: "continue" }))
+  .build();
 ```
-
-Wait — `summary` is on the result, not declared as a signal above. To use `fromSignal`, the field must appear in `signals`. To pass `summary` without declaring it as a signal, use `stepOutput(investigate)` and let the triage step unpack it, or add `{ sourcePath: "summary" }` to `investigate`'s signals.
 
 ---
 
@@ -300,6 +356,9 @@ Only push after the user has reviewed and approved the pipeline definition. Once
 # First time setup (creates .boboddy/pipeline-builder/ with example files)
 boboddy pipelines init
 
+# Fetch existing definitions from the server as editable TypeScript
+boboddy pipelines pull
+
 # Push all pipeline definitions (also pushes step definitions automatically)
 boboddy pipelines push
 
@@ -309,4 +368,4 @@ boboddy pipelines push <projectId>
 
 Steps referenced in a pipeline must exist on the server. The `push` command handles this automatically by pushing all step definitions found in `.boboddy/pipeline-builder/` before pushing pipelines.
 
-Incrementing `version` in `defineStep` or `definePipeline` creates a new entity on the server rather than updating the existing one.
+Incrementing `version` in `defineStep` or `pipeline()` creates a new entity on the server rather than updating the existing one.

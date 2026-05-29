@@ -54,7 +54,7 @@ npm install @boboddy/sdk
 bun add @boboddy/sdk
 ```
 
-The SDK provides `defineStep`, `definePipeline`, and the auto-generated API client for programmatic use.
+The SDK provides `defineStep`, the `pipeline()` builder (and the legacy `definePipeline`), and the auto-generated API client for programmatic use.
 
 ## Authenticate
 

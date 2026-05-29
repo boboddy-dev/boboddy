@@ -103,7 +103,7 @@ boboddy pipelines pull <projectId>
 | `tsconfig.json` | TypeScript config scoped to the pipeline-builder package (only on first pull) |
 | `.gitignore` | Ignores `node_modules` (only on first pull) |
 | `steps.ts` | One `defineStep()` export per step definition (latest version of each key) |
-| `<pipeline-key>.ts` | One `definePipeline()` export per pipeline |
+| `<pipeline-key>.ts` | One pipeline export per pipeline (uses the fluent `pipeline()` builder) |
 
 After pulling, run `npm install` or `bun install` inside `.boboddy/pipeline-builder/` to install dependencies.
 

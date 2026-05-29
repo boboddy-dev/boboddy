@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createStepDefinitionsClient } from "@boboddy/sdk/definitions/steps";
+import { createPipelineDefinitionsClient } from "@boboddy/sdk/definitions/pipelines";
 import { generateStepsFileContent, type StepDefContract } from "../../../steps/step-definitions/infra/step-file-generator";
 import { generatePipelineFileContent, type PipelineContract } from "../infra/pipeline-file-generator";
 import {
@@ -26,20 +27,6 @@ export interface PullPipelineDefinitionsOptions {
 export interface PullPipelineDefinitionsResult {
   stepFiles: number;
   pipelineFiles: number;
-}
-
-async function fetchPipelines(
-  baseUrl: string,
-  projectId: string,
-  headers: { Authorization: string },
-): Promise<PipelineContract[]> {
-  const url = `${baseUrl.replace(/\/$/, "")}/api/linear-pipeline-definitions?projectId=${encodeURIComponent(projectId)}`;
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    const err = (await response.json().catch(() => null)) as { title?: string } | null;
-    throw new Error(err?.title ?? `HTTP ${String(response.status)} GET /api/linear-pipeline-definitions`);
-  }
-  return response.json() as Promise<PipelineContract[]>;
 }
 
 function ensureScaffold(dir: string, sdkVersion: string): void {
@@ -71,12 +58,13 @@ export async function pullPipelineDefinitions(
   const { projectId, baseUrl, headers, logger, dir, sdkVersion } = options;
 
   const stepDefsClient = createStepDefinitionsClient(baseUrl);
+  const pipelineDefsClient = createPipelineDefinitionsClient(baseUrl);
   const [rawSteps, pipelines] = await Promise.all([
     stepDefsClient.listByProjectId(projectId, { headers }),
-    fetchPipelines(baseUrl, projectId, headers),
-  ]);
+    pipelineDefsClient.listByProjectId(projectId, { headers }),
+  ]) as unknown as [StepDefContract[], PipelineContract[]];
 
-  const stepDefs = rawSteps as StepDefContract[];
+  const stepDefs = rawSteps;
 
   if (stepDefs.length === 0 && pipelines.length === 0) {
     logger.info({}, "No pipeline or step definitions found for this project. Nothing to pull.");

@@ -44,11 +44,10 @@ const myStep = defineStep({
 | `name` | `string` | Yes | Display name |
 | `version` | `number` | No | Version (default: `1`) |
 | `description` | `string` | No | Short description |
-| `prompt` | `string` | No | AI instruction given to the executing agent |
+| `prompt` | `string \| (input) => string` | No | AI instruction given to the executing agent. Pass a function to embed typed input fields via template literals: `` (input) => `Title: ${input.title}` `` |
 | `input` | `ZodType` | No | Input payload schema |
 | `result` | `ZodType` | No | Output payload schema |
 | `signals` | `Signal[]` | No | Values to extract from the result |
-| `computedSignals` | `ComputedSignal[]` | No | Derived aggregate signals |
 | `mcpServers` | `OpenCodeMcpServers` | No | MCP server configs for tool-using agents |
 | `status` | `"draft" \| "active"` | No | Draft steps are skipped by workers |
 
@@ -57,27 +56,77 @@ const myStep = defineStep({
 ```typescript
 type Signal = {
   sourcePath: string;        // dot-notation path into result, e.g. "metrics.score"
-  key?: string;              // signal name used in advancement rules
-  type?: 'number' | 'string' | 'boolean';
+  key?: string;              // signal name used in advancement rules (defaults to sourcePath)
+  type?: 'number' | 'string' | 'boolean' | 'object' | 'array';
   required?: boolean;        // fail execution if signal is missing
-};
-```
-
-### `ComputedSignal`
-
-```typescript
-type ComputedSignal = {
-  key: string;               // signal name
-  type: 'average';           // aggregation function
-  inputSignalKeys: string[]; // source signal keys to aggregate
 };
 ```
 
 ---
 
-## `definePipeline(options)`
+## `pipeline(meta)`
 
-Define an ordered sequence of steps with typed input bindings and advancement policies.
+Define an ordered sequence of steps using the fluent builder.
+
+```typescript
+import { pipeline } from '@boboddy/sdk/definitions/pipelines';
+import { z } from 'zod';
+
+const inputSchema = z.object({ text: z.string() });
+
+const myPipeline = pipeline({
+  key: 'my-pipeline',
+  name: 'My Pipeline',
+  status: 'active',
+  input: inputSchema,
+})
+  .step(myStep, ({ input }) => ({ text: input.text }))
+  .build();
+```
+
+### `PipelineMeta` options
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `key` | `string` | Yes | Unique pipeline key |
+| `name` | `string` | Yes | Display name |
+| `input` | `ZodType` | Yes | Schema bound to the `input` accessor in each `.step()` mapper |
+| `version` | `number` | No | Version (default: `1`) |
+| `description` | `string` | No | Short description |
+| `status` | `"draft" \| "active"` | No | Draft pipelines are not executed |
+
+### Builder methods
+
+| Method | Description |
+|--------|-------------|
+| `.step(step, mapper, configFn?)` | Append a step. `mapper` receives `{ input, signal, output, workItem }` and returns a record of input bindings keyed by the step's input fields. Optional `configFn` receives `{ timeout }` — set `cfg.timeout` (seconds) to cap execution time. |
+| `.advance(callback)` | Attach an advancement policy to the most recently added step. `callback` receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`. **Required** before adding another step or calling `.build()`. |
+| `.build()` | Finalize and return a `PipelineDefinitionSpec`. |
+
+### Step input bindings
+
+Inside the `.step()` mapper:
+
+- **`input.<path>`** — drill into the pipeline input schema. `input.code` binds to path `"code"`; `input.ticket.title` binds to `"ticket.title"`. The accessor is a proxy — do not spread or coerce it to a primitive.
+- **`signal(step, signalKey)`** — bind to a prior step's signal. `signalKey` is typed against `step.__signalKeys`.
+- **`output(step)`** — bind to a prior step's whole output object.
+- **`workItem.title` / `workItem.description`** — bind to the work item that triggered this pipeline run.
+
+### Fluent advancement rules
+
+Inside the `.advance()` callback:
+
+- **`signal(key)`** — returns a typed `SignalRef` for the current step's signal. Chain a comparator (`.eq`, `.gt`, `.gte`, `.lt`, `.lte`, `.ne`, `.in`, `.notIn`, `.contains`, `.doesNotContain`) followed by `.then(outcome)`.
+- **`stepSignals.<key>`** — property-map shorthand equivalent to `signal(key)`. Both produce identical output.
+- **Computed factories** — `avg`, `weightedAvg`, `sum`, `min`, `max`, `count`, `booleanAny`, `booleanAll`. Each takes 2+ `signal(key)` or `stepSignals.key` references and returns a `SignalRef`. Identical calls across rules are deduplicated at build time.
+- **`all(...refs)` / `any(...refs)`** — group `SignalRef`s and other groups; terminate with `.then(outcome)`.
+- **`route(pipelineKey, inputJson?)`** — produces a route outcome value for `.then(...)`.
+
+---
+
+## Legacy `definePipeline(options)`
+
+The original object-based API. Still supported; produces identical wire output. New pipelines should prefer the `pipeline()` builder above.
 
 ```typescript
 import { definePipeline, fromPipelineInput } from '@boboddy/sdk';
@@ -120,7 +169,9 @@ const myPipeline = definePipeline({
 
 ---
 
-## Input binding helpers
+## Legacy input binding helpers
+
+These remain exported for use with `definePipeline`. With the `pipeline()` builder, prefer the `input` / `signal` / `output` context helpers documented above.
 
 ### `fromPipelineInput(schema, path)`
 

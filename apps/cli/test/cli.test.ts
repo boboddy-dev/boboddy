@@ -125,7 +125,7 @@ describe("boboddy CLI", () => {
     );
     expect(logged).toBeDefined();
     const url = logged?.["url"] as string;
-    expect(url).toContain("github.com/connorivy/boboddy/issues/new");
+    expect(url).toContain("github.com/boboddy-dev/boboddy/issues/new");
     expect(url).toContain("title=boboddy+crashes+on+init");
     expect(url).toContain("labels=bug");
     expect(url).toContain("Diagnostics");

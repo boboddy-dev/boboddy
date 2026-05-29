@@ -107,21 +107,38 @@ ${fields}
 }
 
 function buildCombinedFile(steps: StepInfo[]): string {
+  const inputSchemaDecl = `const inputSchema = z.object({
+  content: z.string(),
+});`;
+
   if (steps.length === 0) {
     return `import { z } from "zod";
-import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
+import { defineStep } from "@boboddy/sdk/definitions/steps";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 
-export default definePipeline({
+${inputSchemaDecl}
+
+const placeholderStep = defineStep({
+  key: "placeholder",
+  name: "Placeholder",
+  version: 1,
+  input: z.object({
+    content: z.string(),
+  }),
+  result: z.object({}),
+  signals: [],
+});
+
+export default pipeline({
   key: "investigation",
   name: "Investigation",
-  steps: [],
-});
+  input: inputSchema,
+})
+  .step(placeholderStep, ({ input }) => ({ content: input.content }))
+  .advance(() => ({ default: "continue" }))
+  .build();
 `;
   }
-
-  const firstStep = steps[0]!;
-  const firstSignal = firstStep.signals[0];
-  const ruleImport = firstSignal ? `, Rule` : "";
 
   const stepDefs = steps
     .map((step) => {
@@ -166,40 +183,43 @@ ${signalsSection}});`;
     })
     .join("\n\n");
 
-  const [firstPipelineStep, ...remainingSteps] = steps;
+  const stepChain = steps
+    .map((step, index) => {
+      const stepVar = kebabToCamel(step.key);
+      const isFirst = index === 0;
+      const firstSignal = step.signals[0];
+      const mapper = isFirst
+        ? `({ input }) => ({ content: input.content })`
+        : `() => ({})`;
+      const stepCall = `  .step(${stepVar}, ${mapper})`;
 
-  const firstStepEntry = firstSignal
-    ? `    {
-      step: ${kebabToCamel(firstPipelineStep!.key)},
-      advancement: {
-        defaultOutcome: "block",
-        rules: [Rule.when(${JSON.stringify(firstSignal.key)}, "greaterThanInclusive", 1, "continue")],
-      },
-    },`
-    : `    { step: ${kebabToCamel(firstPipelineStep!.key)} },`;
-
-  const remainingStepEntries = remainingSteps
-    .map((s) => `    { step: ${kebabToCamel(s.key)} },`)
+      if (firstSignal) {
+        return `${stepCall}
+  .advance(({ signal }) => ({
+    default: "block",
+    rules: [signal(${JSON.stringify(firstSignal.key)}).gte(1).then("continue")],
+  }))`;
+      }
+      return `${stepCall}
+  .advance(() => ({ default: "continue" }))`;
+    })
     .join("\n");
-
-  const stepEntries = remainingStepEntries
-    ? `${firstStepEntry}
-${remainingStepEntries}`
-    : firstStepEntry;
 
   return `import { z } from "zod";
 import { defineStep } from "@boboddy/sdk/definitions/steps";
-import { definePipeline${ruleImport} } from "@boboddy/sdk/definitions/pipelines";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+
+${inputSchemaDecl}
 
 ${stepDefs}
 
-export default definePipeline({
+export default pipeline({
   key: "investigation",
   name: "Investigation",
-  steps: [
-${stepEntries}
-  ],
-});
+  input: inputSchema,
+})
+${stepChain}
+  .build();
 `;
 }
 

@@ -31,6 +31,7 @@ function makePipeline(steps: PipelineStepContract[], overrides: Partial<Pipeline
     description: null,
     version: 1,
     status: "active",
+    inputSchemaJson: null,
     stepDefinitions: steps,
     ...overrides,
   };
@@ -40,10 +41,48 @@ function gen(pipeline: PipelineContract): string {
   return generatePipelineFileContent(pipeline, new Map());
 }
 
+// ─── work_item binding ────────────────────────────────────────────────────────
+
+describe("work_item binding", () => {
+  test("emits workItem.title for a work_item title binding", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        subject: { source: "work_item", field: "title" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain("workItem");
+    expect(output).toContain("workItem.title");
+  });
+
+  test("emits workItem.description for a work_item description binding", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        body: { source: "work_item", field: "description" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain("workItem.description");
+  });
+
+  test("includes workItem in destructured ctx param when work_item binding is present", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        title: { source: "work_item", field: "title" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toMatch(/\(\s*\{\s*[^}]*workItem[^}]*\}\s*\)/);
+  });
+});
+
 // ─── Import line ──────────────────────────────────────────────────────────────
 
 describe("imports", () => {
-  test("includes Computed in import when step has computed signal definitions", () => {
+  test("does not import Computed or Rule even when computed signal definitions are present", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -66,11 +105,13 @@ describe("imports", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("Computed");
-    expect(output).toMatch(/import \{[^}]*Computed[^}]*\}/);
+    expect(output).not.toMatch(/import \{[^}]*Computed[^}]*\}/);
+    expect(output).not.toMatch(/import \{[^}]*Rule[^}]*\}/);
+    // computed is expressed via ctx destructuring, not imports
+    expect(output).toContain("sum(stepSignals.");
   });
 
-  test("omits Computed from import when no computed signal definitions are present", () => {
+  test("does not import Computed or Rule when no computed signal definitions are present", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -88,13 +129,14 @@ describe("imports", () => {
 
     const output = gen(makePipeline([step]));
     expect(output).not.toContain("Computed");
+    expect(output).not.toContain("Rule");
   });
 });
 
-// ─── Rule.when shorthand ──────────────────────────────────────────────────────
+// ─── Single-condition rules ───────────────────────────────────────────────────
 
-describe("Rule.when shorthand", () => {
-  test("emits plain string key when fact has no matching computed definition", () => {
+describe("single-condition rules", () => {
+  test("emits stepSignals.key.op(val).then(outcome) for a plain signal fact", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -111,10 +153,11 @@ describe("Rule.when shorthand", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Rule.when("clarity_score", "greaterThan", 7, "continue")`);
+    expect(output).toContain(`stepSignals.clarity_score.gt(7).then("continue")`);
+    expect(output).not.toContain("Rule");
   });
 
-  test("replaces fact with Computed.sum() in Rule.when shorthand", () => {
+  test("emits ctx computed method for a computed signal fact", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -137,14 +180,15 @@ describe("Rule.when shorthand", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Rule.when(Computed.sum(["score_a","score_b"]), "greaterThan", 5, "continue")`);
+    expect(output).toContain(`sum(stepSignals.score_a, stepSignals.score_b).gt(5).then("continue")`);
+    expect(output).not.toContain("Computed");
   });
 });
 
 // ─── Multi-condition rules ────────────────────────────────────────────────────
 
-describe("Rule.all with multiple conditions", () => {
-  test("replaces computed fact and leaves plain fact untouched in the same rule", () => {
+describe("multi-condition rules", () => {
+  test("emits all(...).then(outcome) for a multi-condition all rule mixing computed and plain facts", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -172,11 +216,14 @@ describe("Rule.all with multiple conditions", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Computed.average(["quality","security"])`);
-    expect(output).toContain(`Rule.signal("flagged", "equal", false)`);
+    expect(output).toContain(`avg(stepSignals.quality, stepSignals.security).gte(7)`);
+    expect(output).toContain(`stepSignals.flagged.eq(false)`);
+    expect(output).toContain(`.then("continue")`);
+    expect(output).not.toContain("Computed");
+    expect(output).not.toContain("Rule");
   });
 
-  test("handles computed signal in nested Rule.any condition group", () => {
+  test("handles computed signal in nested any condition group", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -204,26 +251,27 @@ describe("Rule.all with multiple conditions", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Computed.sum(["x","y"])`);
+    expect(output).toContain(`sum(stepSignals.x, stepSignals.y).gt(10)`);
+    expect(output).not.toContain("Computed");
   });
 });
 
-// ─── All 8 Computed method mappings ──────────────────────────────────────────
+// ─── All 8 computed ctx method mappings ──────────────────────────────────────
 
-describe("Computed method name mapping", () => {
+describe("computed ctx method mapping", () => {
   const cases: Array<[string, string]> = [
-    ["average", "Computed.average"],
-    ["weighted_average", "Computed.weightedAverage"],
-    ["sum", "Computed.sum"],
-    ["min", "Computed.min"],
-    ["max", "Computed.max"],
-    ["count", "Computed.count"],
-    ["boolean_any", "Computed.booleanAny"],
-    ["boolean_all", "Computed.booleanAll"],
+    ["average", "avg"],
+    ["weighted_average", "weightedAvg"],
+    ["sum", "sum"],
+    ["min", "min"],
+    ["max", "max"],
+    ["count", "count"],
+    ["boolean_any", "booleanAny"],
+    ["boolean_all", "booleanAll"],
   ];
 
   for (const [wireType, expectedMethod] of cases) {
-    test(`maps wire type "${wireType}" to "${expectedMethod}"`, () => {
+    test(`maps wire type "${wireType}" to ctx method "${expectedMethod}"`, () => {
       const key = `${wireType}_sig_a_sig_b`;
       const step = makeStep({
         advancementPolicyDefinition: {
@@ -247,15 +295,18 @@ describe("Computed method name mapping", () => {
       });
 
       const output = gen(makePipeline([step]));
-      expect(output).toContain(`${expectedMethod}(["sig_a","sig_b"])`);
+      expect(output).toContain(`${expectedMethod}(stepSignals.sig_a, stepSignals.sig_b)`);
+      expect(output).not.toContain("Computed");
     });
   }
 });
 
-// ─── Options passthrough ──────────────────────────────────────────────────────
+// ─── Computed with options ────────────────────────────────────────────────────
+// The fluent ctx API doesn't expose configJson/availableWhenResultStatusIn;
+// the new generator uses the ctx method form regardless of those fields.
 
-describe("Computed options", () => {
-  test("includes configJson in the Computed call when non-null", () => {
+describe("computed signals", () => {
+  test("uses ctx weightedAvg method even when configJson is set on the server", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -278,12 +329,11 @@ describe("Computed options", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Computed.weightedAverage(["a","b"],`);
-    expect(output).toContain(`"configJson"`);
-    expect(output).toContain(`[0.3,0.7]`);
+    expect(output).toContain(`weightedAvg(stepSignals.a, stepSignals.b).gt(0.5).then("continue")`);
+    expect(output).not.toContain("Computed");
   });
 
-  test("includes availableWhenResultStatusIn in the Computed call when non-null", () => {
+  test("uses ctx sum method even when availableWhenResultStatusIn is set on the server", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
@@ -306,10 +356,8 @@ describe("Computed options", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Computed.sum(["p","q"],`);
-    expect(output).toContain(`"availableWhenResultStatusIn"`);
-    expect(output).toContain(`"success"`);
-    expect(output).toContain(`"partial"`);
+    expect(output).toContain(`sum(stepSignals.p, stepSignals.q).gt(1).then("continue")`);
+    expect(output).not.toContain("Computed");
   });
 
   test("omits options argument when both configJson and availableWhenResultStatusIn are null", () => {
@@ -335,7 +383,7 @@ describe("Computed options", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`Computed.min(["a","b"])`);
-    expect(output).not.toContain(`Computed.min(["a","b"],`);
+    expect(output).toContain(`min(stepSignals.a, stepSignals.b).gt(0).then("continue")`);
+    expect(output).not.toContain("Computed");
   });
 });

@@ -3049,6 +3049,7 @@ export type GetApiLinearPipelineDefinitionsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3064,6 +3065,9 @@ export type GetApiLinearPipelineDefinitionsResponses = {
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -3076,9 +3080,7 @@ export type GetApiLinearPipelineDefinitionsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -3127,9 +3129,7 @@ export type GetApiLinearPipelineDefinitionsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -3139,9 +3139,7 @@ export type GetApiLinearPipelineDefinitionsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -3163,6 +3161,7 @@ export type PostApiLinearPipelineDefinitionsData = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        inputSchemaJson?: unknown;
         stepDefinitions: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
@@ -3174,6 +3173,9 @@ export type PostApiLinearPipelineDefinitionsData = {
                 [key: string]: {
                     source: string;
                     path: string | unknown;
+                } | {
+                    source: string;
+                    field: 'title' | 'description';
                 } | {
                     source: string;
                     stepKey: string;
@@ -3188,9 +3190,7 @@ export type PostApiLinearPipelineDefinitionsData = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 rulesJson: {
                     rules: Array<{
@@ -3237,18 +3237,14 @@ export type PostApiLinearPipelineDefinitionsData = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
             };
             computedSignalDefinitions: Array<{
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
             }>;
         }>;
@@ -3387,6 +3383,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3402,6 +3399,9 @@ export type PostApiLinearPipelineDefinitionsResponses = {
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -3414,9 +3414,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -3465,9 +3463,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -3477,9 +3473,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -3501,6 +3495,7 @@ export type PutApiLinearPipelineDefinitionsData = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
+        inputSchemaJson?: unknown;
         stepDefinitions: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
@@ -3512,6 +3507,9 @@ export type PutApiLinearPipelineDefinitionsData = {
                 [key: string]: {
                     source: string;
                     path: string | unknown;
+                } | {
+                    source: string;
+                    field: 'title' | 'description';
                 } | {
                     source: string;
                     stepKey: string;
@@ -3526,9 +3524,7 @@ export type PutApiLinearPipelineDefinitionsData = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 rulesJson: {
                     rules: Array<{
@@ -3575,18 +3571,14 @@ export type PutApiLinearPipelineDefinitionsData = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
             };
             computedSignalDefinitions: Array<{
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
             }>;
         }>;
@@ -3677,6 +3669,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3692,6 +3685,9 @@ export type PutApiLinearPipelineDefinitionsResponses = {
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -3704,9 +3700,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -3755,9 +3749,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -3767,9 +3759,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -3906,6 +3896,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -3921,6 +3912,9 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -3933,9 +3927,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -3984,9 +3976,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -3996,9 +3986,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -4119,6 +4107,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4134,6 +4123,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -4146,9 +4138,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -4197,9 +4187,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -4209,9 +4197,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -4332,6 +4318,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4347,6 +4334,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -4359,9 +4349,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -4410,9 +4398,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -4422,9 +4408,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -4451,6 +4435,9 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsDat
             [key: string]: {
                 source: string;
                 path: string | unknown;
+            } | {
+                source: string;
+                field: 'title' | 'description';
             } | {
                 source: string;
                 stepKey: string;
@@ -4633,6 +4620,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4648,6 +4636,9 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -4660,9 +4651,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -4711,9 +4700,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -4723,9 +4710,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -4847,6 +4832,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -4862,6 +4848,9 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -4874,9 +4863,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -4925,9 +4912,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -4937,9 +4922,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -4966,6 +4949,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
             [key: string]: {
                 source: string;
                 path: string | unknown;
+            } | {
+                source: string;
+                field: 'title' | 'description';
             } | {
                 source: string;
                 stepKey: string;
@@ -5149,6 +5135,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -5164,6 +5151,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -5176,9 +5166,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -5227,9 +5215,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -5239,9 +5225,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -5411,6 +5395,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
+        inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
             linearPipelineDefinitionId: string;
@@ -5426,6 +5411,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                     path: string | unknown;
                 } | {
                     source: string;
+                    field: 'title' | 'description';
+                } | {
+                    source: string;
                     stepKey: string;
                     path: string | unknown;
                 } | {
@@ -5438,9 +5426,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
+            retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
                 linearPipelineStepDefinitionId: string;
@@ -5489,9 +5475,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                defaultEventParamsJson: unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -5501,9 +5485,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
+                configJson: unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;

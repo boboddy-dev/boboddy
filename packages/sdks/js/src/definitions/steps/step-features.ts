@@ -40,10 +40,10 @@ export type FeatureResultExtensions<
     >;
 
 // Unions all signal keys contributed by features.
+// Uses phantom field access instead of infer to avoid disrupting const-literal inference
+// for sibling generics (a TypeScript inference quirk with distributive infer in return types).
 export type FeatureSignalKeys<TFeatures extends readonly AnyStepFeature[]> =
-  TFeatures[number] extends StepFeature<Record<string, unknown>, infer K>
-    ? K
-    : never;
+  NonNullable<TFeatures[number]["__signalKeys"]>;
 
 // ─── Built-in: feedbackRequests ───────────────────────────────────────────────
 

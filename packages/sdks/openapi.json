@@ -13889,6 +13889,14 @@
                       "archived"
                     ]
                   },
+                  "inputSchemaJson": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "stepDefinitions": {
                     "type": "array",
                     "items": {
@@ -13959,6 +13967,27 @@
                                     "required": [
                                       "source",
                                       "path"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "const": "work_item"
+                                      },
+                                      "field": {
+                                        "type": "string",
+                                        "enum": [
+                                          "title",
+                                          "description"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "field"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -14053,13 +14082,7 @@
                         },
                         "retryPolicyJson": {
                           "anyOf": [
-                            {
-                              "type": "object",
-                              "propertyNames": {
-                                "type": "string"
-                              },
-                              "additionalProperties": {}
-                            },
+                            {},
                             {
                               "type": "null"
                             }
@@ -14137,13 +14160,7 @@
                             },
                             "defaultEventParamsJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -14204,13 +14221,7 @@
                               },
                               "configJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -14306,6 +14317,14 @@
                       "archived"
                     ]
                   },
+                  "inputSchemaJson": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "stepDefinitions": {
                     "type": "array",
                     "items": {
@@ -14376,6 +14395,27 @@
                                     "required": [
                                       "source",
                                       "path"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "const": "work_item"
+                                      },
+                                      "field": {
+                                        "type": "string",
+                                        "enum": [
+                                          "title",
+                                          "description"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "field"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -14470,13 +14510,7 @@
                         },
                         "retryPolicyJson": {
                           "anyOf": [
-                            {
-                              "type": "object",
-                              "propertyNames": {
-                                "type": "string"
-                              },
-                              "additionalProperties": {}
-                            },
+                            {},
                             {
                               "type": "null"
                             }
@@ -14554,13 +14588,7 @@
                             },
                             "defaultEventParamsJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -14621,13 +14649,7 @@
                               },
                               "configJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -14723,6 +14745,14 @@
                       "archived"
                     ]
                   },
+                  "inputSchemaJson": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "stepDefinitions": {
                     "type": "array",
                     "items": {
@@ -14793,6 +14823,27 @@
                                     "required": [
                                       "source",
                                       "path"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "const": "work_item"
+                                      },
+                                      "field": {
+                                        "type": "string",
+                                        "enum": [
+                                          "title",
+                                          "description"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "field"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -14887,13 +14938,7 @@
                         },
                         "retryPolicyJson": {
                           "anyOf": [
-                            {
-                              "type": "object",
-                              "propertyNames": {
-                                "type": "string"
-                              },
-                              "additionalProperties": {}
-                            },
+                            {},
                             {
                               "type": "null"
                             }
@@ -14971,13 +15016,7 @@
                             },
                             "defaultEventParamsJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -15038,13 +15077,7 @@
                               },
                               "configJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -15161,6 +15194,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -15237,6 +15278,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -15331,13 +15393,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -15421,13 +15477,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -15504,13 +15554,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -15605,6 +15649,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -16104,6 +16149,14 @@
                           }
                         ]
                       },
+                      "inputSchemaJson": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "stepDefinitions": {
                         "type": "array",
                         "items": {
@@ -16180,6 +16233,27 @@
                                         "required": [
                                           "source",
                                           "path"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "source": {
+                                            "type": "string",
+                                            "const": "work_item"
+                                          },
+                                          "field": {
+                                            "type": "string",
+                                            "enum": [
+                                              "title",
+                                              "description"
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "source",
+                                          "field"
                                         ],
                                         "additionalProperties": false
                                       },
@@ -16274,13 +16348,7 @@
                             },
                             "retryPolicyJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -16364,13 +16432,7 @@
                                 },
                                 "defaultEventParamsJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -16447,13 +16509,7 @@
                                   },
                                   "configJson": {
                                     "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "propertyNames": {
-                                          "type": "string"
-                                        },
-                                        "additionalProperties": {}
-                                      },
+                                      {},
                                       {
                                         "type": "null"
                                       }
@@ -16548,6 +16604,7 @@
                       "description",
                       "status",
                       "archivedAt",
+                      "inputSchemaJson",
                       "stepDefinitions",
                       "createdAt",
                       "updatedAt"
@@ -16847,6 +16904,14 @@
                       "archived"
                     ]
                   },
+                  "inputSchemaJson": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "stepDefinitions": {
                     "type": "array",
                     "items": {
@@ -16917,6 +16982,27 @@
                                     "required": [
                                       "source",
                                       "path"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "const": "work_item"
+                                      },
+                                      "field": {
+                                        "type": "string",
+                                        "enum": [
+                                          "title",
+                                          "description"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "field"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -17011,13 +17097,7 @@
                         },
                         "retryPolicyJson": {
                           "anyOf": [
-                            {
-                              "type": "object",
-                              "propertyNames": {
-                                "type": "string"
-                              },
-                              "additionalProperties": {}
-                            },
+                            {},
                             {
                               "type": "null"
                             }
@@ -17095,13 +17175,7 @@
                             },
                             "defaultEventParamsJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -17162,13 +17236,7 @@
                               },
                               "configJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -17264,6 +17332,14 @@
                       "archived"
                     ]
                   },
+                  "inputSchemaJson": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "stepDefinitions": {
                     "type": "array",
                     "items": {
@@ -17334,6 +17410,27 @@
                                     "required": [
                                       "source",
                                       "path"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "const": "work_item"
+                                      },
+                                      "field": {
+                                        "type": "string",
+                                        "enum": [
+                                          "title",
+                                          "description"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "field"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -17428,13 +17525,7 @@
                         },
                         "retryPolicyJson": {
                           "anyOf": [
-                            {
-                              "type": "object",
-                              "propertyNames": {
-                                "type": "string"
-                              },
-                              "additionalProperties": {}
-                            },
+                            {},
                             {
                               "type": "null"
                             }
@@ -17512,13 +17603,7 @@
                             },
                             "defaultEventParamsJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -17579,13 +17664,7 @@
                               },
                               "configJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -17681,6 +17760,14 @@
                       "archived"
                     ]
                   },
+                  "inputSchemaJson": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "stepDefinitions": {
                     "type": "array",
                     "items": {
@@ -17751,6 +17838,27 @@
                                     "required": [
                                       "source",
                                       "path"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "string",
+                                        "const": "work_item"
+                                      },
+                                      "field": {
+                                        "type": "string",
+                                        "enum": [
+                                          "title",
+                                          "description"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "field"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -17845,13 +17953,7 @@
                         },
                         "retryPolicyJson": {
                           "anyOf": [
-                            {
-                              "type": "object",
-                              "propertyNames": {
-                                "type": "string"
-                              },
-                              "additionalProperties": {}
-                            },
+                            {},
                             {
                               "type": "null"
                             }
@@ -17929,13 +18031,7 @@
                             },
                             "defaultEventParamsJson": {
                               "anyOf": [
-                                {
-                                  "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
-                                  },
-                                  "additionalProperties": {}
-                                },
+                                {},
                                 {
                                   "type": "null"
                                 }
@@ -17996,13 +18092,7 @@
                               },
                               "configJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -18119,6 +18209,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -18195,6 +18293,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -18289,13 +18408,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -18379,13 +18492,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -18462,13 +18569,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -18563,6 +18664,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -18889,6 +18991,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -18965,6 +19075,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -19059,13 +19190,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -19149,13 +19274,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -19232,13 +19351,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -19333,6 +19446,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -19781,6 +19895,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -19857,6 +19979,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -19951,13 +20094,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -20041,13 +20178,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -20124,13 +20255,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -20225,6 +20350,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -20612,6 +20738,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -20688,6 +20822,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -20782,13 +20937,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -20872,13 +21021,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -20955,13 +21098,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -21056,6 +21193,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -21470,6 +21608,27 @@
                               "properties": {
                                 "source": {
                                   "type": "string",
+                                  "const": "work_item"
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "title",
+                                    "description"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "field"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
                                   "const": "step_output"
                                 },
                                 "stepKey": {
@@ -21832,6 +21991,27 @@
                               "required": [
                                 "source",
                                 "path"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
+                                  "const": "work_item"
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "title",
+                                    "description"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "field"
                               ],
                               "additionalProperties": false
                             },
@@ -22210,6 +22390,27 @@
                               "properties": {
                                 "source": {
                                   "type": "string",
+                                  "const": "work_item"
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "title",
+                                    "description"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "field"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
                                   "const": "step_output"
                                 },
                                 "stepKey": {
@@ -22558,6 +22759,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -22634,6 +22843,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -22728,13 +22958,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -22818,13 +23042,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -22901,13 +23119,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -23002,6 +23214,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -23424,6 +23637,27 @@
                               "properties": {
                                 "source": {
                                   "type": "string",
+                                  "const": "work_item"
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "title",
+                                    "description"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "field"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
                                   "const": "step_output"
                                 },
                                 "stepKey": {
@@ -23786,6 +24020,27 @@
                               "required": [
                                 "source",
                                 "path"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
+                                  "const": "work_item"
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "title",
+                                    "description"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "field"
                               ],
                               "additionalProperties": false
                             },
@@ -24164,6 +24419,27 @@
                               "properties": {
                                 "source": {
                                   "type": "string",
+                                  "const": "work_item"
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "title",
+                                    "description"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "field"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string",
                                   "const": "step_output"
                                 },
                                 "stepKey": {
@@ -24512,6 +24788,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -24588,6 +24872,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -24682,13 +24987,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -24772,13 +25071,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -24855,13 +25148,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -24956,6 +25243,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -25349,6 +25637,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -25425,6 +25721,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -25519,13 +25836,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -25609,13 +25920,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -25692,13 +25997,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -25793,6 +26092,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"
@@ -26502,6 +26802,14 @@
                         }
                       ]
                     },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "stepDefinitions": {
                       "type": "array",
                       "items": {
@@ -26578,6 +26886,27 @@
                                       "required": [
                                         "source",
                                         "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "title",
+                                            "description"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -26672,13 +27001,7 @@
                           },
                           "retryPolicyJson": {
                             "anyOf": [
-                              {
-                                "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
-                                },
-                                "additionalProperties": {}
-                              },
+                              {},
                               {
                                 "type": "null"
                               }
@@ -26762,13 +27085,7 @@
                               },
                               "defaultEventParamsJson": {
                                 "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
-                                    },
-                                    "additionalProperties": {}
-                                  },
+                                  {},
                                   {
                                     "type": "null"
                                   }
@@ -26845,13 +27162,7 @@
                                 },
                                 "configJson": {
                                   "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "propertyNames": {
-                                        "type": "string"
-                                      },
-                                      "additionalProperties": {}
-                                    },
+                                    {},
                                     {
                                       "type": "null"
                                     }
@@ -26946,6 +27257,7 @@
                     "description",
                     "status",
                     "archivedAt",
+                    "inputSchemaJson",
                     "stepDefinitions",
                     "createdAt",
                     "updatedAt"

@@ -7,24 +7,28 @@ A **pipeline** is an ordered sequence of steps where each step's input can be bo
 
 ## Basic pipeline
 
+The recommended way to define a pipeline is the fluent `pipeline()` builder. The schema is bound once at the top; each `.step()` mapper receives a typed `input` accessor.
+
 ```typescript
-import { definePipeline, fromPipelineInput } from "@boboddy/sdk";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 import { z } from "zod";
 import { reviewCodeStep } from "./steps";
 
-export const codePipeline = definePipeline({
+const inputSchema = z.object({
+  code: z.string(),
+});
+
+export default pipeline({
   key: "code-quality-pipeline",
   name: "Code Quality Pipeline",
   status: "active",
-  steps: [
-    {
-      step: reviewCodeStep,
-      input: {
-        code: fromPipelineInput(z.string(), "code"),
-      },
-    },
-  ],
-});
+  input: inputSchema,
+})
+  .step(reviewCodeStep, ({ input }) => ({
+    code: input.code,
+  }))
+  .advance(() => ({ default: "continue" }))
+  .build();
 ```
 
 ## Scaffold pipeline definitions
@@ -40,7 +44,7 @@ This creates (or overwrites) the following files inside `.boboddy/pipeline-build
 | File | Description |
 |------|-------------|
 | `steps.ts` | One `defineStep()` export per step (latest version of each key) |
-| `<pipeline-key>.ts` | One `definePipeline()` export per pipeline |
+| `<pipeline-key>.ts` | One pipeline export per pipeline |
 | `package.json` | SDK and zod dependencies (written once, never overwritten) |
 | `tsconfig.json` | TypeScript config for the package (written once, never overwritten) |
 
@@ -60,147 +64,231 @@ boboddy pipelines push
 
 This pushes steps first, then pipelines, in a single command.
 
-## `definePipeline` options
+## `pipeline()` options
 
-| Field         | Type                  | Required | Description                         |
-| ------------- | --------------------- | -------- | ----------------------------------- |
-| `key`         | `string`              | Yes      | Unique identifier for this pipeline |
-| `name`        | `string`              | Yes      | Human-readable display name         |
-| `version`     | `number`              | No       | Version number (defaults to 1)      |
-| `description` | `string`              | No       | Brief description                   |
-| `status`      | `"draft" \| "active"` | No       | Draft pipelines are not executed    |
-| `steps`       | `PipelineStep[]`      | Yes      | Ordered list of step entries        |
+| Field         | Type                  | Required | Description                                |
+| ------------- | --------------------- | -------- | ------------------------------------------ |
+| `key`         | `string`              | Yes      | Unique identifier for this pipeline        |
+| `name`        | `string`              | Yes      | Human-readable display name                |
+| `input`       | `ZodType`             | Yes      | Schema bound to the `input` accessor       |
+| `version`     | `number`              | No       | Version number (defaults to 1)             |
+| `description` | `string`              | No       | Brief description                          |
+| `status`      | `"draft" \| "active"` | No       | Draft pipelines are not executed           |
+
+Call `.step(...)`, then `.advance(...)` (required before the next step or `.build()`), and finally `.build()` to produce the wire-format pipeline spec. Timeouts are set via the optional `configFn` third argument to `.step()`.
 
 ## Input binding
 
-Each step entry in the pipeline has an `input` map that binds step input fields to values from the pipeline context.
+Inside a `.step()` mapper, three context helpers cover every binding source:
 
-### `fromPipelineInput(schema, path)`
+### `input.<path>` — bind to the pipeline input
 
-Bind a step input field to a top-level pipeline input.
+The `input` accessor is a proxy bound to the schema passed to `pipeline({ input })`. Drill into the schema's shape; each property access returns a typed binding to that pipeline-input path.
 
 ```typescript
-input: {
-  code: fromPipelineInput(z.string(), 'code'),
-  language: fromPipelineInput(z.string().optional(), 'language'),
-},
+.step(reviewCodeStep, ({ input }) => ({
+  code: input.code,
+  language: input.language,
+}))
 ```
 
-### `fromSignal(step, signalKey)`
+Nested fields work as you'd expect — `input.ticket.title` binds to the dotted path `"ticket.title"`. **Do not** spread or coerce the accessor (`${input.code}`, `{ ...input.metadata }`): it will throw at build time. Drill into specific fields instead.
 
-Bind a step input field to a signal emitted by a prior step.
+### `signal(step, signalKey)` — bind to a prior step's signal
 
 ```typescript
-// Step 2 receives the clarity_score signal from step 1
-input: {
-  previousScore: fromSignal(reviewCodeStep, 'clarity_score'),
-},
+.step(refactorStep, ({ input, signal }) => ({
+  code: input.code,
+  previousScore: signal(reviewCodeStep, "clarity_score"),
+}))
 ```
 
-### `stepOutput(step)`
+`signalKey` is constrained to the prior step's declared signal keys, so typos are compile errors.
 
-Bind a step input field to the entire output object of a prior step.
+### `output(step)` — bind to a prior step's whole output
 
 ```typescript
-input: {
-  reviewResult: stepOutput(reviewCodeStep),
-},
+.step(refactorStep, ({ input, output }) => ({
+  code: input.code,
+  reviewResult: output(reviewCodeStep),
+}))
 ```
 
 ## Advancement policies
 
-An advancement policy (the `advancement` field on a step entry) defines a boolean rule over the step's signals that must be satisfied before the pipeline advances to the next step.
+`.advance(callback)` attaches a policy to the most recently added step. The callback receives a context with `signal`, `all`, `any`, `route`, and every computed-signal factory. The signal keys are typed against the just-added step.
 
 ```typescript
-import { definePipeline, rule } from '@boboddy/sdk';
-
-steps: [
-  {
-    step: reviewCodeStep,
-    input: { code: fromPipelineInput(z.string(), 'code') },
-    advancement: rule('clarity_score').greaterThan(7),
-  },
-],
+.step(reviewCodeStep, ({ input }) => ({ code: input.code }))
+.advance(({ signal }) => ({
+  default: "block",
+  rules: [signal("clarity_score").gt(7).then("continue")],
+}))
 ```
 
-If the advancement rule is not satisfied, the pipeline halts at that step and marks the execution as needing review.
+If the default outcome is `"block"` and no rule fires, the pipeline halts at that step and marks the execution as needing review.
 
-## Computed signals in advancement policies
+### Comparators on `SignalRef`
 
-`Computed` methods let you aggregate multiple raw signals into a derived value inline, directly inside an advancement policy — no separate `computedSignals` declaration on the step required.
+| Method               | Wire operator           |
+| -------------------- | ----------------------- |
+| `.eq(value)`         | `equal`                 |
+| `.ne(value)`         | `notEqual`              |
+| `.gt(n)`             | `greaterThan`           |
+| `.gte(n)`            | `greaterThanInclusive`  |
+| `.lt(n)`             | `lessThan`              |
+| `.lte(n)`            | `lessThanInclusive`     |
+| `.in(values)`        | `in`                    |
+| `.notIn(values)`     | `notIn`                 |
+| `.contains(value)`   | `contains`              |
+| `.doesNotContain(v)` | `doesNotContain`        |
+
+Each returns a `RuleLeaf`. Call `.then(outcome)` to finalize as a rule, or pass it into `all(...)` / `any(...)` to nest.
+
+### Grouping with `all` and `any`
 
 ```typescript
-import { definePipeline, Rule, Computed, fromPipelineInput } from '@boboddy/sdk';
-
-steps: [
-  {
-    step: reviewCodeStep,
-    input: { code: fromPipelineInput(z.string(), 'code') },
-    advancement: Rule.all([
-      Rule.signal(Computed.average(['quality_score', 'security_score']), 'greaterThanInclusive', 7),
-      Rule.signal('flagged', 'equal', false),
-    ], 'continue'),
-  },
-],
+.advance(({ signal, all, any }) => ({
+  default: "block",
+  rules: [
+    all(
+      signal("clarity_score").gte(7),
+      any(
+        signal("reviewer_approved").eq(true),
+        signal("auto_approved").eq(true),
+      ),
+    ).then("continue"),
+  ],
+}))
 ```
 
-### Available methods
+Groups are nestable arbitrarily. Each `.then(outcome)` closes the rule.
 
-| Method                           | Description                                   | Input signal types |
-| -------------------------------- | --------------------------------------------- | ------------------ |
-| `Computed.average(keys)`         | Arithmetic mean of the input signals          | `number`           |
-| `Computed.weightedAverage(keys)` | Weighted mean (pass weights via `configJson`) | `number`           |
-| `Computed.sum(keys)`             | Sum of the input signals                      | `number`           |
-| `Computed.min(keys)`             | Minimum value across the input signals        | `number`           |
-| `Computed.max(keys)`             | Maximum value across the input signals        | `number`           |
-| `Computed.count(keys)`           | Count of truthy or present signal values      | `any`              |
-| `Computed.booleanAny(keys)`      | `true` if any input signal is truthy          | `boolean`          |
-| `Computed.booleanAll(keys)`      | `true` only if all input signals are truthy   | `boolean`          |
+### Routing to another pipeline
 
-Each method accepts an array of **at least two** signal keys and an optional second argument for advanced options (`configJson`, `availableWhenResultStatusIn`).
+```typescript
+.advance(({ signal, route }) => ({
+  default: "complete",
+  rules: [
+    signal("flagged").eq(true).then(route("triage-pipeline", { reason: "flagged" })),
+  ],
+}))
+```
+
+## Computed signals
+
+Computed signals aggregate multiple raw signals into a derived value inline. The factories live on the same `.advance()` context — no separate declaration on the step required.
+
+```typescript
+.advance(({ avg, signal, stepSignals }) => ({
+  default: "block",
+  rules: [
+    avg(stepSignals.quality_score, stepSignals.security_score).gte(7).then("continue"),
+    signal("flagged").eq(true).then("block"),
+  ],
+}))
+```
+
+### Available factories
+
+| Method                   | Description                                       | Input signal types |
+| ------------------------ | ------------------------------------------------- | ------------------ |
+| `avg(...keys)`           | Arithmetic mean of the input signals              | `number`           |
+| `weightedAvg(...keys)`   | Weighted mean (pass weights via configJson later) | `number`           |
+| `sum(...keys)`           | Sum of the input signals                          | `number`           |
+| `min(...keys)`           | Minimum value across the input signals            | `number`           |
+| `max(...keys)`           | Maximum value across the input signals            | `number`           |
+| `count(...keys)`         | Count of truthy or present signal values          | `any`              |
+| `booleanAny(...keys)`    | `true` if any input signal is truthy              | `boolean`          |
+| `booleanAll(...keys)`    | `true` only if all input signals are truthy       | `boolean`          |
+
+Each factory requires **at least two** signal keys. The same call across multiple rules is deduplicated into a single computed-signal definition at build time.
 
 ## Multi-step pipeline example
 
 ```typescript
-import { definePipeline, fromPipelineInput, fromSignal } from "@boboddy/sdk";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 import { z } from "zod";
 import { reviewCodeStep, refactorStep, verifyStep } from "./steps";
 
-export const fullReviewPipeline = definePipeline({
+const inputSchema = z.object({ code: z.string() });
+
+export default pipeline({
   key: "full-review",
   name: "Full Code Review Pipeline",
+  status: "active",
+  input: inputSchema,
+})
+  .step(reviewCodeStep, ({ input }) => ({
+    code: input.code,
+  }))
+  .advance(({ signal }) => ({
+    default: "block",
+    rules: [signal("clarity_score").gt(6).then("continue")],
+  }))
+  .step(
+    refactorStep,
+    ({ input, output }) => ({
+      code: input.code,
+      suggestions: output(reviewCodeStep),
+    }),
+    (cfg) => { cfg.timeout = 60; },
+  )
+  .advance(() => ({ default: "continue" }))
+  .step(verifyStep, ({ input, signal }) => ({
+    original: input.code,
+    refactoredScore: signal(reviewCodeStep, "clarity_score"),
+  }))
+  .advance(() => ({ default: "continue" }))
+  .build();
+```
+
+## Timeouts
+
+Pass a third `configFn` argument to `.step()` to cap how long a worker can spend on that step. Set `cfg.timeout` in seconds:
+
+```typescript
+.step(
+  heavyAnalysisStep,
+  ({ input }) => ({ payload: input.payload }),
+  (cfg) => { cfg.timeout = 120; },
+)
+```
+
+---
+
+## Legacy `definePipeline` form
+
+The original object-based API is still supported and produces identical wire output. New pipelines should prefer the builder.
+
+```typescript
+import {
+  definePipeline,
+  fromPipelineInput,
+  Rule,
+} from "@boboddy/sdk/definitions/pipelines";
+import { z } from "zod";
+import { reviewCodeStep } from "./steps";
+
+const inputSchema = z.object({ code: z.string() });
+
+export default definePipeline({
+  key: "code-quality-pipeline",
+  name: "Code Quality Pipeline",
   status: "active",
   steps: [
     {
       step: reviewCodeStep,
       input: {
-        code: fromPipelineInput(z.string(), "code"),
+        code: fromPipelineInput(inputSchema, "code"),
       },
-      advancement: rule("clarity_score").greaterThan(6),
-    },
-    {
-      step: refactorStep,
-      input: {
-        code: fromPipelineInput(z.string(), "code"),
-        suggestions: stepOutput(reviewCodeStep),
-      },
-      timeout: 60_000,
-    },
-    {
-      step: verifyStep,
-      input: {
-        original: fromPipelineInput(z.string(), "code"),
-        refactoredScore: fromSignal(reviewCodeStep, "clarity_score"),
+      advancement: {
+        defaultOutcome: "block",
+        rules: [Rule.when("clarity_score", "greaterThan", 7, "continue")],
       },
     },
   ],
 });
 ```
 
-## Timeouts
-
-Set a `timeout` (milliseconds) on any step entry to cap how long a worker can spend on that step before it is marked failed.
-
-```typescript
-{ step: heavyAnalysisStep, input: { ... }, timeout: 120_000 }
-```
+`fromPipelineInput`, `fromSignal`, `stepOutput`, `Rule`, and `Computed` remain exported from `@boboddy/sdk/definitions/pipelines`.

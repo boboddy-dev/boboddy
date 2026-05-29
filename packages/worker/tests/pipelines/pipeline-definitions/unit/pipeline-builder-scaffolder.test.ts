@@ -154,7 +154,8 @@ describe("scaffoldPipelineBuilderDirectory", () => {
         scaffoldPipelineBuilderDirectory(dir, [EXAMPLE_STEP], "0.0.0");
         const content = readFileSync(join(dir, "example-pipeline.ts"), "utf-8");
         expect(content).toContain("defineStep");
-        expect(content).toContain("definePipeline");
+        expect(content).toContain("pipeline(");
+        expect(content).toContain(".build()");
         expect(content).toContain("investigate");
         expect(content).toContain("investigation");
         expect(content).toContain("export default");
@@ -163,26 +164,30 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       }
     });
 
-    test("example-pipeline.ts includes Rule.when for step with signals", () => {
+    test("example-pipeline.ts includes a fluent advancement rule for step with signals", () => {
       const dir = makeTempDir();
       try {
         scaffoldPipelineBuilderDirectory(dir, [EXAMPLE_STEP], "0.0.0");
         const content = readFileSync(join(dir, "example-pipeline.ts"), "utf-8");
-        expect(content).toContain("Rule");
-        expect(content).toContain("Rule.when");
-        expect(content).toContain("confidence");
+        expect(content).toContain(".advance(");
+        expect(content).toContain('signal("confidence")');
+        expect(content).toContain(".gte(1)");
+        expect(content).toContain('.then("continue")');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
     });
 
-    test("example-pipeline.ts with no steps uses an empty steps array", () => {
+    test("example-pipeline.ts with no steps emits a placeholder step", () => {
       const dir = makeTempDir();
       try {
         scaffoldPipelineBuilderDirectory(dir, [], "0.0.0");
         const content = readFileSync(join(dir, "example-pipeline.ts"), "utf-8");
-        expect(content).toContain("steps: []");
-        expect(content).not.toContain("Rule");
+        expect(content).toContain("pipeline(");
+        expect(content).toContain(".build()");
+        expect(content).toContain(".step(");
+        expect(content).toContain(".advance(");
+        expect(content).toContain("placeholder");
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -210,6 +215,29 @@ describe("scaffoldPipelineBuilderDirectory", () => {
         const content = readFileSync(join(dir, "example-pipeline.ts"), "utf-8");
         expect(content).toContain("stepOne");
         expect(content).toContain("stepTwo");
+        // every step must have an .advance() call
+        const advanceCount = (content.match(/\.advance\(/g) ?? []).length;
+        expect(advanceCount).toBe(steps.length);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test("step without signals gets a default:continue advance call", () => {
+      const dir = makeTempDir();
+      const steps: StepInfo[] = [
+        {
+          key: "no-signal-step",
+          name: "No Signal Step",
+          version: 1,
+          signals: [],
+        },
+      ];
+      try {
+        scaffoldPipelineBuilderDirectory(dir, steps, "0.0.0");
+        const content = readFileSync(join(dir, "example-pipeline.ts"), "utf-8");
+        expect(content).toContain(".advance(");
+        expect(content).toContain('"continue"');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

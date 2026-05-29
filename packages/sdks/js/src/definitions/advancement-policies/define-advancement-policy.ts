@@ -77,6 +77,10 @@ function makeComputed<
  * @example
  * Rule.when(Computed.sum(["success"]), "greaterThan", 1, "continue")
  * Rule.signal(Computed.average(["score"]), "greaterThanInclusive", 80)
+ *
+ * For new code, prefer the equivalent factories on the `.advance()` callback
+ * context of the `pipeline()` builder (`avg`, `sum`, `min`, `max`, …) — they
+ * return chainable `SignalRef`s and infer signal keys from the current step.
  */
 export const Computed = {
   average: <const TInputs extends readonly [string, string, ...string[]]>(

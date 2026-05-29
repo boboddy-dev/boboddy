@@ -1,7 +1,9 @@
+import { parseSchema } from "json-schema-to-zod";
 import { keyToVarName } from "../../../steps/step-definitions/infra/step-file-generator";
 
 type InputBinding =
   | { source: "pipeline_input"; path: string | null }
+  | { source: "work_item"; field: "title" | "description" }
   | { source: "step_output"; stepKey: string; path?: string | null }
   | { source: "step_signal"; stepKey: string; signalKey: string }
   | { source: "literal"; value: unknown };
@@ -52,6 +54,7 @@ export type PipelineContract = {
   description: string | null;
   version: number;
   status: string;
+  inputSchemaJson: Record<string, unknown> | null;
   stepDefinitions: PipelineStepContract[];
 };
 
@@ -60,9 +63,22 @@ type ComputedByKey = Map<string, SerializedComputedSignalDefinition>;
 
 // ─── Advancement policy reconstruction ───────────────────────────────────────
 
-const COMPUTED_TYPE_TO_METHOD: Record<string, string> = {
-  average: "average",
-  weighted_average: "weightedAverage",
+const OPERATOR_TO_METHOD: Record<string, string> = {
+  equal: "eq",
+  notEqual: "ne",
+  greaterThan: "gt",
+  greaterThanInclusive: "gte",
+  lessThan: "lt",
+  lessThanInclusive: "lte",
+  in: "in",
+  notIn: "notIn",
+  contains: "contains",
+  doesNotContain: "doesNotContain",
+};
+
+const COMPUTED_TO_CTX_METHOD: Record<string, string> = {
+  average: "avg",
+  weighted_average: "weightedAvg",
   sum: "sum",
   min: "min",
   max: "max",
@@ -71,100 +87,166 @@ const COMPUTED_TYPE_TO_METHOD: Record<string, string> = {
   boolean_all: "booleanAll",
 };
 
-function reconstructOutcome(eventType: string, params: Record<string, unknown> | null | undefined): string {
-  if (!params || Object.keys(params).length === 0) return JSON.stringify(eventType);
-  return `{ outcome: ${JSON.stringify(eventType)}, outcomeJson: ${JSON.stringify(params)} }`;
-}
-
 function isLeafCondition(c: SerializedCondition): c is SerializedLeafCondition {
   return "fact" in c;
 }
 
-function reconstructFactExpr(fact: string, computedByKey: ComputedByKey): string {
-  const computed = computedByKey.get(fact);
-  if (!computed) return JSON.stringify(fact);
-  const method = COMPUTED_TYPE_TO_METHOD[computed.type] ?? computed.type;
-  const keysExpr = JSON.stringify(computed.inputSignalKeys);
-  const hasOptions = computed.configJson !== null || computed.availableWhenResultStatusIn !== null;
-  if (!hasOptions) return `Computed.${method}(${keysExpr})`;
-  const opts: Record<string, unknown> = {};
-  if (computed.configJson !== null) opts["configJson"] = computed.configJson;
-  if (computed.availableWhenResultStatusIn !== null) opts["availableWhenResultStatusIn"] = computed.availableWhenResultStatusIn;
-  return `Computed.${method}(${keysExpr}, ${JSON.stringify(opts)})`;
+function reconstructOutcomeExpr(type: string, params: Record<string, unknown> | null | undefined): string {
+  if (type !== "route") return JSON.stringify(type);
+  const pipelineKey = params?.["pipelineKey"] as string | undefined;
+  const inputJson = params?.["inputJson"] as Record<string, unknown> | undefined;
+  if (!pipelineKey) return `"route"`;
+  if (inputJson) return `route(${JSON.stringify(pipelineKey)}, ${JSON.stringify(inputJson)})`;
+  return `route(${JSON.stringify(pipelineKey)})`;
 }
 
-function reconstructCondition(cond: SerializedCondition, indent: string, computedByKey: ComputedByKey): string {
+function signalPropAccess(key: string): string {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? `stepSignals.${key}` : `stepSignals[${JSON.stringify(key)}]`;
+}
+
+function reconstructFactRef(fact: string, computedByKey: ComputedByKey): string {
+  const computed = computedByKey.get(fact);
+  if (!computed) return signalPropAccess(fact);
+  const ctxMethod = COMPUTED_TO_CTX_METHOD[computed.type] ?? computed.type;
+  const args = computed.inputSignalKeys.map((k) => signalPropAccess(k)).join(", ");
+  return `${ctxMethod}(${args})`;
+}
+
+// Returns a nestable expression (RuleLeaf or RuleGroup, no .then())
+function reconstructNestable(cond: SerializedCondition, computedByKey: ComputedByKey): string {
   if (isLeafCondition(cond)) {
-    const factExpr = reconstructFactExpr(cond.fact, computedByKey);
-    return `Rule.signal(${factExpr}, "${cond.operator}", ${JSON.stringify(cond.value)})`;
+    const factRef = reconstructFactRef(cond.fact, computedByKey);
+    const method = OPERATOR_TO_METHOD[cond.operator] ?? cond.operator;
+    return `${factRef}.${method}(${JSON.stringify(cond.value)})`;
   }
   const mode = cond.all ? "all" : "any";
-  const children = (cond[mode] ?? []).map((c) => reconstructCondition(c, indent + "  ", computedByKey)).join(`, `);
-  return `Rule.${mode}([${children}])`;
+  const children = (cond[mode] ?? []).map((c) => reconstructNestable(c, computedByKey)).join(", ");
+  return `${mode}(${children})`;
 }
 
-function reconstructRule(rule: AdvancementPolicyRule, computedByKey: ComputedByKey): string {
-  const outcome = reconstructOutcome(rule.event.type, rule.event.params);
+// Returns a complete rule expression ending in .then(outcome)
+function reconstructRuleExpr(rule: AdvancementPolicyRule, computedByKey: ComputedByKey): string {
+  const outcome = reconstructOutcomeExpr(rule.event.type, rule.event.params);
   const mode = rule.conditions.all ? "all" : "any";
   const conditions = rule.conditions[mode] ?? [];
 
   if (mode === "all" && conditions.length === 1 && isLeafCondition(conditions[0]!)) {
-    const cond = conditions[0] as SerializedLeafCondition;
-    const factExpr = reconstructFactExpr(cond.fact, computedByKey);
-    return `Rule.when(${factExpr}, "${cond.operator}", ${JSON.stringify(cond.value)}, ${outcome})`;
+    return `${reconstructNestable(conditions[0]!, computedByKey)}.then(${outcome})`;
   }
 
-  const condExprs = conditions.map((c) => reconstructCondition(c, "        ", computedByKey)).join(", ");
-  return `Rule.${mode}([${condExprs}], ${outcome})`;
+  const nestableExprs = conditions.map((c) => reconstructNestable(c, computedByKey)).join(", ");
+  return `${mode}(${nestableExprs}).then(${outcome})`;
 }
 
-function reconstructAdvancementPolicy(policy: AdvancementPolicy, computedByKey: ComputedByKey): string | null {
-  const rules = policy.rulesJson.rules;
-  const defaultOutcome = reconstructOutcome(policy.defaultEventType, policy.defaultEventParamsJson);
-  const isDefaultContinueNoRules =
-    policy.defaultEventType === "continue" && (!policy.defaultEventParamsJson || Object.keys(policy.defaultEventParamsJson).length === 0) && rules.length === 0;
+function collectCtxParts(policy: AdvancementPolicy, computedByKey: ComputedByKey): string[] {
+  const parts = new Set<string>();
 
-  if (isDefaultContinueNoRules) return null;
+  if (policy.defaultEventType === "route") parts.add("route");
 
-  const lines: string[] = [`defaultOutcome: ${defaultOutcome}`];
-  if (rules.length > 0) {
-    const ruleExprs = rules.map((r) => reconstructRule(r, computedByKey)).map((r) => `          ${r}`).join(",\n");
-    lines.push(`rules: [\n${ruleExprs},\n        ]`);
+  const visitConditions = (conditions: SerializedCondition[]) => {
+    for (const cond of conditions) {
+      if (isLeafCondition(cond)) {
+        const computed = computedByKey.get(cond.fact);
+        if (computed) {
+          const method = COMPUTED_TO_CTX_METHOD[computed.type];
+          if (method) parts.add(method);
+        }
+        parts.add("stepSignals");
+      } else {
+        const mode = cond.all ? "all" : "any";
+        parts.add(mode);
+        visitConditions(cond[mode] ?? []);
+      }
+    }
+  };
+
+  for (const rule of policy.rulesJson.rules) {
+    if (rule.event.type === "route") parts.add("route");
+    const mode = rule.conditions.all ? "all" : "any";
+    visitConditions(rule.conditions[mode] ?? []);
   }
-  return `{\n        ${lines.join(",\n        ")}\n      }`;
+
+  return [...parts].sort();
+}
+
+function reconstructAdvancementCallback(policy: AdvancementPolicy, computedByKey: ComputedByKey): string {
+  const rules = policy.rulesJson.rules;
+  const isDefaultContinueNoRules =
+    policy.defaultEventType === "continue" &&
+    (!policy.defaultEventParamsJson || Object.keys(policy.defaultEventParamsJson).length === 0) &&
+    rules.length === 0;
+
+  if (isDefaultContinueNoRules) return `() => ({ default: "continue" })`;
+
+  const ctxParts = collectCtxParts(policy, computedByKey);
+  const ctxParam = ctxParts.length > 0 ? `{ ${ctxParts.join(", ")} }` : `_ctx`;
+
+  const defaultStr = reconstructOutcomeExpr(policy.defaultEventType, policy.defaultEventParamsJson);
+  const lines: string[] = [`    default: ${defaultStr}`];
+  if (rules.length > 0) {
+    const ruleExprs = rules.map((r) => reconstructRuleExpr(r, computedByKey)).map((r) => `      ${r}`).join(",\n");
+    lines.push(`    rules: [\n${ruleExprs},\n    ]`);
+  }
+  return `(${ctxParam}) => ({\n${lines.join(",\n")},\n  })`;
 }
 
 // ─── Input binding reconstruction ────────────────────────────────────────────
 
-function reconstructBinding(
+function reconstructBindingExpr(
   binding: InputBinding,
   stepVarMap: StepKeyMap,
-  inputSchemaVarName: string | null,
 ): string {
   switch (binding.source) {
     case "pipeline_input":
-      return `fromPipelineInput(${inputSchemaVarName ?? "inputSchema"}, ${JSON.stringify(binding.path ?? "")})`;
+      return `input${binding.path ? `.${binding.path}` : ""}`;
+    case "work_item":
+      return `workItem.${binding.field}`;
     case "step_signal":
-      return `fromSignal(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)}, ${JSON.stringify(binding.signalKey)})`;
+      return `signal(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)}, ${JSON.stringify(binding.signalKey)})`;
     case "step_output":
-      return `stepOutput(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)})`;
+      return `output(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)})`;
     case "literal":
       return `/* TODO: literal binding (value: ${JSON.stringify(binding.value)}) — not supported in SDK */ (undefined as never)`;
   }
 }
 
-// ─── Pipeline input schema inference ─────────────────────────────────────────
+// ─── Step mapper reconstruction ───────────────────────────────────────────────
 
-function inferInputSchemaPaths(steps: PipelineStepContract[]): string[] {
-  const paths: string[] = [];
-  for (const step of steps) {
-    for (const binding of Object.values(step.inputBindingsJson ?? {})) {
-      if (binding.source === "pipeline_input" && binding.path) {
-        paths.push(binding.path);
-      }
-    }
+function reconstructStepMapper(step: PipelineStepContract, stepVarMap: StepKeyMap): string {
+  const bindings = Object.entries(step.inputBindingsJson ?? {});
+
+  const usesInput = bindings.some(([, b]) => b.source === "pipeline_input");
+  const usesWorkItem = bindings.some(([, b]) => b.source === "work_item");
+  const usesSignal = bindings.some(([, b]) => b.source === "step_signal");
+  const usesOutput = bindings.some(([, b]) => b.source === "step_output");
+
+  const ctxParts: string[] = [];
+  if (usesInput) ctxParts.push("input");
+  if (usesWorkItem) ctxParts.push("workItem");
+  if (usesSignal) ctxParts.push("signal");
+  if (usesOutput) ctxParts.push("output");
+
+  const ctxParam = ctxParts.length > 0 ? `{ ${ctxParts.join(", ")} }` : `_ctx`;
+
+  if (bindings.length === 0) {
+    return `(${ctxParam}) => ({})`;
   }
-  return [...new Set(paths)];
+
+  const bindingLines = bindings.map(([fieldKey, binding]) => {
+    const expr = reconstructBindingExpr(binding, stepVarMap);
+    return `    ${JSON.stringify(fieldKey)}: ${expr}`;
+  });
+
+  return `(${ctxParam}) => ({\n${bindingLines.join(",\n")},\n  })`;
+}
+
+function inputSchemaToZodExpr(inputSchemaJson: Record<string, unknown> | null): string | null {
+  if (!inputSchemaJson) return null;
+  try {
+    return parseSchema(inputSchemaJson as Parameters<typeof parseSchema>[0]);
+  } catch {
+    return null;
+  }
 }
 
 // ─── File generator ───────────────────────────────────────────────────────────
@@ -175,107 +257,63 @@ export function generatePipelineFileContent(
 ): string {
   const sortedSteps = [...pipeline.stepDefinitions].sort((a, b) => a.position - b.position);
 
-  // Build map from step key → var name (used for binding references)
   const stepVarMap: StepKeyMap = new Map();
   for (const step of sortedSteps) {
     stepVarMap.set(step.key, keyToVarName(step.key));
   }
-
-  // Also map by stepDefinitionId for cross-pipeline references (unused here but consistent)
   for (const step of sortedSteps) {
     const defKey = stepIdToKey.get(step.stepDefinitionId);
     if (defKey && defKey !== step.key) stepVarMap.set(defKey, keyToVarName(defKey));
   }
 
-  const inputPaths = inferInputSchemaPaths(sortedSteps);
-  const hasPipelineInput = inputPaths.length > 0;
-
-  // Determine which binding helpers are used
-  let usesFromPipelineInput = false;
-  let usesFromSignal = false;
-  let usesStepOutput = false;
-  let usesLiteral = false;
-  let usesRules = false;
-  let usesComputed = false;
-
-  for (const step of sortedSteps) {
-    for (const binding of Object.values(step.inputBindingsJson ?? {})) {
-      if (binding.source === "pipeline_input") usesFromPipelineInput = true;
-      if (binding.source === "step_signal") usesFromSignal = true;
-      if (binding.source === "step_output") usesStepOutput = true;
-      if (binding.source === "literal") usesLiteral = true;
-    }
-    if (step.advancementPolicyDefinition.rulesJson.rules.length > 0) usesRules = true;
-    if (step.computedSignalDefinitions.length > 0) usesComputed = true;
-  }
-
-  // Build imports
-  const pipelineImports: string[] = ["definePipeline"];
-  if (usesFromPipelineInput) pipelineImports.push("fromPipelineInput");
-  if (usesFromSignal) pipelineImports.push("fromSignal");
-  if (usesStepOutput) pipelineImports.push("stepOutput");
-  if (usesRules) pipelineImports.push("Rule");
-  if (usesComputed) pipelineImports.push("Computed");
-
   const stepVarNames = sortedSteps.map((s) => keyToVarName(s.key));
   const uniqueStepVarNames = [...new Set(stepVarNames)];
 
+  const zodExpr = inputSchemaToZodExpr(pipeline.inputSchemaJson);
   const lines: string[] = [];
 
-  if (hasPipelineInput || usesLiteral) lines.push(`import { z } from "zod";`);
-  lines.push(`import { ${pipelineImports.join(", ")} } from "@boboddy/sdk/definitions/pipelines";`);
+  if (zodExpr) lines.push(`import { z } from "zod";`);
+  lines.push(`import { pipeline } from "@boboddy/sdk/definitions/pipelines";`);
   if (uniqueStepVarNames.length > 0) {
     lines.push(`import { ${uniqueStepVarNames.join(", ")} } from "./steps";`);
   }
-
+  if (zodExpr) {
+    lines.push("");
+    lines.push(`const inputSchema = ${zodExpr};`);
+  }
   lines.push("");
 
-  if (hasPipelineInput) {
-    lines.push(`const inputSchema = z.unknown(); // TODO: replace with your pipeline's input schema`);
-    lines.push("");
-  }
-
-  // Build pipeline definePipeline call
-  const pipelineFields: string[] = [
+  const metaFields: string[] = [
     `  key: ${JSON.stringify(pipeline.key)}`,
     `  name: ${JSON.stringify(pipeline.name)}`,
   ];
-  if (pipeline.description) pipelineFields.push(`  description: ${JSON.stringify(pipeline.description)}`);
-  pipelineFields.push(`  version: ${String(pipeline.version)}`);
-  pipelineFields.push(`  status: ${JSON.stringify(pipeline.status)} as const`);
+  if (pipeline.description) metaFields.push(`  description: ${JSON.stringify(pipeline.description)}`);
+  metaFields.push(`  version: ${String(pipeline.version)}`);
+  metaFields.push(`  status: ${JSON.stringify(pipeline.status)} as const`);
+  if (zodExpr) metaFields.push(`  input: inputSchema`);
 
-  const stepEntries = sortedSteps.map((step) => {
+  const chainParts: string[] = [`pipeline({\n${metaFields.join(",\n")},\n})`];
+
+  for (const step of sortedSteps) {
     const varName = keyToVarName(step.key);
-    const stepLines: string[] = [`      step: ${varName}`];
+    const mapper = reconstructStepMapper(step, stepVarMap);
 
-    // Input bindings
-    const bindings = Object.entries(step.inputBindingsJson ?? {});
-    if (bindings.length > 0) {
-      const bindingLines = bindings.map(([fieldKey, binding]) => {
-        const expr = reconstructBinding(binding, stepVarMap, hasPipelineInput ? "inputSchema" : null);
-        return `        ${JSON.stringify(fieldKey)}: ${expr}`;
-      });
-      stepLines.push(`      input: {\n${bindingLines.join(",\n")}\n      }`);
-    }
+    chainParts.push(`  .step(${varName}, ${mapper})`);
 
     if (step.timeoutSeconds !== null) {
-      stepLines.push(`      timeout: ${String(step.timeoutSeconds)}`);
+      chainParts.push(`  .timeout(${String(step.timeoutSeconds)})`);
     }
 
     const computedByKey: ComputedByKey = new Map(
       step.computedSignalDefinitions.map((d) => [d.key, d]),
     );
-    const advancementExpr = reconstructAdvancementPolicy(step.advancementPolicyDefinition, computedByKey);
-    if (advancementExpr !== null) {
-      stepLines.push(`      advancement: ${advancementExpr}`);
-    }
+    const advanceCallback = reconstructAdvancementCallback(step.advancementPolicyDefinition, computedByKey);
+    chainParts.push(`  .advance(${advanceCallback})`);
+  }
 
-    return `    {\n${stepLines.join(",\n")}\n    }`;
-  });
+  chainParts.push(`  .build()`);
 
-  pipelineFields.push(`  steps: [\n${stepEntries.join(",\n")}\n  ]`);
-
-  lines.push(`export default definePipeline({\n${pipelineFields.join(",\n")},\n});`);
+  lines.push(`export default ${chainParts.join("\n")};`);
 
   return lines.join("\n") + "\n";
 }

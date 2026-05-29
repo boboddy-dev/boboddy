@@ -9,6 +9,7 @@ export type StepDefContract = {
   status: string;
   inputSchemaJson: Record<string, unknown> | null;
   resultSchemaJson: Record<string, unknown> | null;
+  opencodeMcpJson: Record<string, unknown> | null;
   signalExtractorDefinitions: Array<{
     key: string;
     sourcePath: string;
@@ -67,6 +68,10 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
       fields.push(`  signals: [\n${signalLines.join(",\n")}\n  ]`);
     } else {
       fields.push("  signals: []");
+    }
+    if (step.opencodeMcpJson && Object.keys(step.opencodeMcpJson).length > 0) {
+      const mcpJson = JSON.stringify(step.opencodeMcpJson, null, 2).replace(/\n/g, "\n  ");
+      fields.push(`  mcpServers: ${mcpJson}`);
     }
 
     return `export const ${varName} = defineStep({\n${fields.join(",\n")},\n});`;

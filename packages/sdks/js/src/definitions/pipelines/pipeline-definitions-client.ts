@@ -43,9 +43,9 @@ const buildPipelineDefinitionsClient = (
     },
     /**
      * Upserts a pipeline definition keyed by (projectId, key). Accepts the
-     * `PipelineDefinitionSpec` produced by `definePipeline()` directly, along
-     * with the list of pushed step definitions (used to resolve
-     * `stepDefinitionId` for each pipeline step).
+     * `PipelineDefinitionSpec` produced by `pipeline().build()`, along with the
+     * list of pushed step definitions (used to resolve `stepDefinitionId` for
+     * each pipeline step).
      *
      * Throws if any pipeline step references a step key/version that isn't
      * present in `stepDefs`.
@@ -87,14 +87,15 @@ const buildPipelineDefinitionsClient = (
         };
       });
 
-      const body: UpsertPipelineDefinitionInput = {
+      const body = {
         projectId,
         key: spec.key,
         name: spec.name,
         description: spec.description,
         status: spec.status,
+        inputSchemaJson: spec.inputSchemaJson,
         stepDefinitions,
-      };
+      } as unknown as UpsertPipelineDefinitionInput;
 
       const result = await pipelineDefinitions.upsertPipelineDefinition({
         body,

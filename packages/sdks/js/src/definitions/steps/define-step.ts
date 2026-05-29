@@ -1,7 +1,15 @@
 import { toJSONSchema } from "zod/v4/core";
 import type { $ZodType } from "zod/v4/core";
 import type { ZodObject, ZodRawShape, ZodType } from "zod";
-import type { AnyStepFeature, FeatureResultExtensions, FeatureSignalKeys } from "./step-features";
+import type {
+  AnyStepFeature,
+  FeatureResultExtensions,
+  FeatureSignalKeys,
+} from "./step-features";
+import {
+  createPromptInputProxy,
+  type PromptInputProxy,
+} from "./prompt-template";
 
 type OpenCodeMcpServers = Record<
   string,
@@ -36,7 +44,10 @@ type SignalTypeStr = "string" | "number" | "boolean" | "object" | "array";
 
 // Produces dot-notation paths for an object type up to 4 levels deep.
 // Falls back to `string` for any, unknown, arrays, or primitives.
-export type DotPaths<T, D extends readonly unknown[] = []> = D["length"] extends 4
+export type DotPaths<
+  T,
+  D extends readonly unknown[] = [],
+> = D["length"] extends 4
   ? string
   : unknown extends T
     ? string
@@ -53,7 +64,10 @@ export type DotPaths<T, D extends readonly unknown[] = []> = D["length"] extends
         : string;
 
 // Resolves the TypeScript type at a dot-notation path within T.
-export type TypeAtPath<T, P extends string> = P extends `${infer K}.${infer Rest}`
+export type TypeAtPath<
+  T,
+  P extends string,
+> = P extends `${infer K}.${infer Rest}`
   ? K extends keyof NonNullable<T>
     ? TypeAtPath<NonNullable<NonNullable<T>[K]>, Rest>
     : unknown
@@ -104,7 +118,7 @@ export type DefineStepInput<
   name: string;
   description?: string | null;
   version?: number;
-  prompt?: string | null;
+  prompt?: string | null | ((input: PromptInputProxy<TInput["_output"]>) => string);
   input?: TInput;
   result?: TResult;
   signals?: SignalSpecInput<TResult["_output"]>[];
@@ -133,27 +147,56 @@ export type StepDefinitionSpec = {
   opencodeMcpJson: OpenCodeMcpServers | null;
 };
 
+// Maps a signal type string literal to its TypeScript type.
+export type SignalTypeStrToTs<T extends SignalTypeStr> = T extends "string"
+  ? string
+  : T extends "number"
+    ? number
+    : T extends "boolean"
+      ? boolean
+      : T extends "array"
+        ? unknown[]
+        : T extends "object"
+          ? object
+          : unknown;
+
+// Builds a map from signal key → TypeScript value type.
+// Uses the explicit `type` field when present, otherwise resolves via TypeAtPath.
+export type SignalTypeMapOf<TSignals extends readonly unknown[], TResult> = {
+  [S in TSignals[number] as ExtractSignalKey<S>]: S extends {
+    type: infer T extends SignalTypeStr;
+  }
+    ? SignalTypeStrToTs<T>
+    : S extends { sourcePath: infer P extends string }
+      ? TypeAtPath<TResult, P>
+      : unknown;
+};
+
 // Phantom-typed extension of StepDefinitionSpec carrying input/result/signal-key types.
-// The phantom fields (__inputType, __resultType, __signalKeys) are never present at
-// runtime — they exist only to thread type information into definePipeline.
+// The phantom fields (__inputType, __resultType, __signalKeys, __signalTypeMap) are never
+// present at runtime — they exist only to thread type information into definePipeline.
 export type TypedStepDefinitionSpec<
   TInput = unknown,
   TResult = unknown,
   TSignalKeys extends string = string,
+  TSignalTypeMap extends Partial<Record<string, unknown>> = Record<
+    string,
+    unknown
+  >,
 > = StepDefinitionSpec & {
   readonly __inputType: TInput;
   readonly __resultType: TResult;
   readonly __signalKeys: TSignalKeys;
+  readonly __signalTypeMap: TSignalTypeMap;
 };
 
 // Infers the signal key from a single signal spec object:
 // uses the explicit `key` if provided, otherwise falls back to `sourcePath`.
-type ExtractSignalKey<T> =
-  T extends { key: infer K extends string }
-    ? K
-    : T extends { sourcePath: infer S extends string }
-      ? S
-      : string;
+type ExtractSignalKey<T> = T extends { key: infer K extends string }
+  ? K
+  : T extends { sourcePath: infer S extends string }
+    ? S
+    : string;
 
 // Unions all signal keys across a const-inferred signals tuple.
 export type SignalKeysOf<TSignals extends readonly unknown[]> =
@@ -185,7 +228,7 @@ function deriveSignalType(
   path: string,
 ): SignalTypeStr {
   if (!schema) return "string";
-   
+
   let current = unwrapZodType(schema as ZodInternal);
 
   for (const part of path.split(".")) {
@@ -196,20 +239,29 @@ function deriveSignalType(
   }
 
   switch (current._def.type) {
-    case "string": return "string";
-    case "number": return "number";
-    case "boolean": return "boolean";
-    case "array": return "array";
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "array":
+      return "array";
     case "object":
-    case "record": return "object";
-    default: return "string";
+    case "record":
+      return "object";
+    default:
+      return "string";
   }
 }
 
 export function defineStep<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
-  const TSignals extends ReadonlyArray<SignalSpecInput<TResult["_output"]>> = never[],
+  // Simpler constraint lets TypeScript preserve string literal types for `key` and `sourcePath`.
+  // The intersection in the config type enforces validity against the result schema.
+  const TSignals extends ReadonlyArray<{ sourcePath: string; key?: string }> =
+    never[],
   const TFeatures extends ReadonlyArray<AnyStepFeature> = never[],
 >(
   config: Omit<DefineStepInput<TInput, TResult>, "signals" | "features"> & {
@@ -219,7 +271,8 @@ export function defineStep<
 ): TypedStepDefinitionSpec<
   TInput["_output"],
   TResult["_output"] & FeatureResultExtensions<TFeatures>,
-  SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>
+  SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,
+  SignalTypeMapOf<TSignals, TResult["_output"]>
 > {
   const features = (config.features ?? []) as AnyStepFeature[];
 
@@ -227,12 +280,17 @@ export function defineStep<
   let effectiveResult: ZodType | undefined = config.result;
   for (const feature of features) {
     effectiveResult = effectiveResult
-      ? (effectiveResult as ZodObject<ZodRawShape>).extend(feature._resultExtension.shape)
+      ? (effectiveResult as ZodObject<ZodRawShape>).extend(
+          feature._resultExtension.shape,
+        )
       : feature._resultExtension;
   }
 
   // Append each feature's prompt addition.
-  let effectivePrompt: string | null = config.prompt ?? null;
+  let effectivePrompt: string | null =
+    typeof config.prompt === "function"
+      ? config.prompt(createPromptInputProxy())
+      : (config.prompt ?? null);
   for (const feature of features) {
     if (feature._promptAddition) {
       effectivePrompt = effectivePrompt
@@ -279,6 +337,7 @@ export function defineStep<
   return spec as TypedStepDefinitionSpec<
     TInput["_output"],
     TResult["_output"] & FeatureResultExtensions<TFeatures>,
-    SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>
+    SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,
+    SignalTypeMapOf<TSignals, TResult["_output"]>
   >;
 }

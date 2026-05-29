@@ -1,5 +1,8 @@
-import type { ZodType } from "zod";
-import type { DotPaths, StepDefinitionSpec, TypedStepDefinitionSpec } from "../steps/define-step";
+import { z, type ZodType } from "zod";
+import type {
+  StepDefinitionSpec,
+  TypedStepDefinitionSpec,
+} from "../steps/define-step";
 import {
   type AdvancementPolicy,
   extractInlineComputedSignals,
@@ -18,13 +21,18 @@ export {
 } from "../advancement-policies/define-advancement-policy";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyTypedStep = TypedStepDefinitionSpec<any, any, any>;
+type AnyTypedStep = TypedStepDefinitionSpec<any, any, any, any>;
 
 // ─── Input binding types ──────────────────────────────────────────────────────
 
 export type PipelineInputBinding = {
   source: "pipeline_input";
   path: string;
+};
+
+export type WorkItemBinding = {
+  source: "work_item";
+  field: "title" | "description";
 };
 
 export type StepSignalBinding = {
@@ -40,41 +48,9 @@ export type StepOutputBinding = {
 
 export type AnyBinding =
   | PipelineInputBinding
+  | WorkItemBinding
   | StepSignalBinding
   | StepOutputBinding;
-
-// ─── Input binding helpers ────────────────────────────────────────────────────
-
-/**
- * Binds a step input field to a field of the pipeline's top-level input.
- * The `path` is validated against the pipeline input schema at compile time.
- */
-export function fromPipelineInput<T extends ZodType>(
-  _schema: T,
-  path: DotPaths<T["_output"]>,
-): PipelineInputBinding {
-  return { source: "pipeline_input", path };
-}
-
-/**
- * Binds a step input field to a named signal from a prior step.
- * `signalKey` is validated against the prior step's declared signal keys.
- */
-export function fromSignal<TStep extends AnyTypedStep>(
-  step: TStep,
-  signalKey: TStep["__signalKeys"],
-): StepSignalBinding {
-  return { source: "step_signal", step, signalKey };
-}
-
-/**
- * Binds a step input field to the entire agent output of a prior step.
- * Use this when your consumer handles the full output object directly.
- * For a stable contract, prefer fromSignal() instead.
- */
-export function stepOutput(step: AnyTypedStep): StepOutputBinding {
-  return { source: "step_output", step };
-}
 
 // ─── Pipeline step config ─────────────────────────────────────────────────────
 
@@ -100,6 +76,7 @@ export type PipelineStepConfig<TStep extends AnyTypedStep = AnyTypedStep> = {
 
 type SerializedBinding =
   | { source: "pipeline_input"; path: string }
+  | { source: "work_item"; field: "title" | "description" }
   | { source: "step_signal"; stepKey: string; signalKey: string }
   | { source: "step_output"; stepKey: string };
 
@@ -109,6 +86,7 @@ export type PipelineDefinitionSpec = {
   description: string | null;
   version: number;
   status: "draft" | "active" | "archived";
+  inputSchemaJson?: Record<string, unknown> | null;
   steps: Array<{
     stepKey: string;
     stepName: string;
@@ -119,29 +97,26 @@ export type PipelineDefinitionSpec = {
     advancementPolicyDefinition: SerializedAdvancementPolicy;
     computedSignalDefinitions: SerializedComputedSignalDefinition[];
   }>;
-  /** Step specs referenced by this pipeline. Populated by definePipeline so the push command can auto-push steps that aren't explicitly exported. */
+  /** Step specs referenced by this pipeline. Used by the push command to auto-push steps that aren't explicitly exported. */
   _stepDefinitions?: StepDefinitionSpec[];
 };
 
-// ─── definePipeline ───────────────────────────────────────────────────────────
-
-/**
- * Untyped input shape used for documentation and as the internal implementation
- * target. Call sites use the generic overload below which provides per-step
- * signal key validation.
- */
 export type DefinePipelineInput = {
   key: string;
   name: string;
   description?: string | null;
   version?: number;
   status?: "draft" | "active";
-  steps: Array<PipelineStepConfig>;
+  input?: ZodType | null;
+  steps: ReadonlyArray<PipelineStepConfig>;
 };
 
 function serializeBinding(binding: AnyBinding): SerializedBinding {
   if (binding.source === "pipeline_input") {
     return { source: "pipeline_input", path: binding.path };
+  }
+  if (binding.source === "work_item") {
+    return { source: "work_item", field: binding.field };
   }
   if (binding.source === "step_signal") {
     return {
@@ -153,32 +128,10 @@ function serializeBinding(binding: AnyBinding): SerializedBinding {
   return { source: "step_output", stepKey: binding.step.key };
 }
 
-/**
- * Defines a pipeline from an ordered list of step configs.
- *
- * Each step's `advancement` policy is typed against that step's declared signal
- * keys — passing an unknown signal key to `Rule.signal()` / `Rule.when()` is a
- * compile-time error. Inline `Computed.X(...)` tokens can also be used in the
- * signal position; they're walked out of the rules tree at serialization time
- * and emitted as the step's `computedSignalDefinitions`.
- *
- * TypeScript achieves per-element signal key checking by constraining `TSteps`
- * to a tuple of step instances (`AnyTypedStep[]`), not step configs. Each element
- * of `steps` is then typed as `PipelineStepConfig<TSteps[K]>`, giving TypeScript
- * a direct inference site: `step: TSteps[K]` matches the concrete step instance,
- * which carries the signal key union via `__signalKeys`.
- */
-export function definePipeline<
-  const TSteps extends ReadonlyArray<AnyTypedStep>,
->(config: {
-  key: string;
-  name: string;
-  description?: string | null;
-  version?: number;
-  status?: "draft" | "active";
-  steps: { [K in keyof TSteps]: PipelineStepConfig<TSteps[K]> };
-}): PipelineDefinitionSpec {
-  const steps = config.steps as ReadonlyArray<PipelineStepConfig>;
+export function buildPipelineSpec(
+  config: DefinePipelineInput,
+): PipelineDefinitionSpec {
+  const steps = config.steps;
   const stepDefMap = new Map<string, StepDefinitionSpec>();
   for (const stepConfig of steps) {
     const mapKey = `${stepConfig.step.key}@v${String(stepConfig.step.version)}`;
@@ -186,12 +139,22 @@ export function definePipeline<
       stepDefMap.set(mapKey, stepConfig.step as StepDefinitionSpec);
     }
   }
+  let inputSchemaJson: Record<string, unknown> | null = null;
+  if (config.input) {
+    try {
+      inputSchemaJson = z.toJSONSchema(config.input) as Record<string, unknown>;
+    } catch {
+      inputSchemaJson = null;
+    }
+  }
+
   return {
     key: config.key,
     name: config.name,
     description: config.description ?? null,
     version: config.version ?? 1,
     status: config.status ?? "active",
+    inputSchemaJson,
     _stepDefinitions: [...stepDefMap.values()],
     steps: steps.map((stepConfig, index) => ({
       stepKey: stepConfig.step.key,
