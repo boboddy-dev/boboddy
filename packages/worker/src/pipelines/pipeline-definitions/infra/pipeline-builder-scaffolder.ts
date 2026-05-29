@@ -107,16 +107,10 @@ ${fields}
 }
 
 function buildCombinedFile(steps: StepInfo[]): string {
-  const inputSchemaDecl = `const inputSchema = z.object({
-  content: z.string(),
-});`;
-
   if (steps.length === 0) {
     return `import { z } from "zod";
 import { defineStep } from "@boboddy/sdk/definitions/steps";
 import { pipeline } from "@boboddy/sdk/definitions/pipelines";
-
-${inputSchemaDecl}
 
 const placeholderStep = defineStep({
   key: "placeholder",
@@ -132,9 +126,8 @@ const placeholderStep = defineStep({
 export default pipeline({
   key: "investigation",
   name: "Investigation",
-  input: inputSchema,
 })
-  .step(placeholderStep, ({ input }) => ({ content: input.content }))
+  .step(placeholderStep, ({ input }) => ({ content: input.workItemTitle }))
   .advance(() => ({ default: "continue" }))
   .build();
 `;
@@ -189,7 +182,7 @@ ${signalsSection}});`;
       const isFirst = index === 0;
       const firstSignal = step.signals[0];
       const mapper = isFirst
-        ? `({ input }) => ({ content: input.content })`
+        ? `({ input }) => ({ content: input.workItemTitle })`
         : `() => ({})`;
       const stepCall = `  .step(${stepVar}, ${mapper})`;
 
@@ -209,14 +202,11 @@ ${signalsSection}});`;
 import { defineStep } from "@boboddy/sdk/definitions/steps";
 import { pipeline } from "@boboddy/sdk/definitions/pipelines";
 
-${inputSchemaDecl}
-
 ${stepDefs}
 
 export default pipeline({
   key: "investigation",
   name: "Investigation",
-  input: inputSchema,
 })
 ${stepChain}
   .build();

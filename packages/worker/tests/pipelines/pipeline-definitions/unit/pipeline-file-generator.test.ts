@@ -44,7 +44,7 @@ function gen(pipeline: PipelineContract): string {
 // ─── work_item binding ────────────────────────────────────────────────────────
 
 describe("work_item binding", () => {
-  test("emits workItem.title for a work_item title binding", () => {
+  test("emits input.workItemTitle for a work_item title binding", () => {
     const step = makeStep({
       inputBindingsJson: {
         subject: { source: "work_item", field: "title" },
@@ -52,11 +52,11 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("workItem");
-    expect(output).toContain("workItem.title");
+    expect(output).toContain("input.workItemTitle");
+    expect(output).not.toContain("workItem.title");
   });
 
-  test("emits workItem.description for a work_item description binding", () => {
+  test("emits input.workItemDescription for a work_item description binding", () => {
     const step = makeStep({
       inputBindingsJson: {
         body: { source: "work_item", field: "description" },
@@ -64,10 +64,11 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("workItem.description");
+    expect(output).toContain("input.workItemDescription");
+    expect(output).not.toContain("workItem.description");
   });
 
-  test("includes workItem in destructured ctx param when work_item binding is present", () => {
+  test("includes input in destructured ctx param when work_item binding is present", () => {
     const step = makeStep({
       inputBindingsJson: {
         title: { source: "work_item", field: "title" },
@@ -75,7 +76,35 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toMatch(/\(\s*\{\s*[^}]*workItem[^}]*\}\s*\)/);
+    expect(output).toMatch(/\(\s*\{\s*[^}]*input[^}]*\}\s*\)/);
+    // standalone "workItem" (not "workItemTitle"/"workItemDescription") must not appear as a ctx binding
+    expect(output).not.toMatch(/\bworkItem\b(?!Title|Description)/);
+  });
+
+  test("skips auto-injected workItemTitle and workItemDescription bindings", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        workItemTitle: { source: "work_item", field: "title" },
+        workItemDescription: { source: "work_item", field: "description" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain("_ctx");
+    expect(output).not.toContain("input.workItemTitle");
+    expect(output).not.toContain("input.workItemDescription");
+  });
+
+  test("emits TODO comment for custom work item field bindings", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        company: { source: "work_item", field: "fields.Company" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain("TODO");
+    expect(output).toContain("Company");
   });
 });
 

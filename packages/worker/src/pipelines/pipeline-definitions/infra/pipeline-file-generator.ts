@@ -1,9 +1,8 @@
-import { parseSchema } from "json-schema-to-zod";
 import { keyToVarName } from "../../../steps/step-definitions/infra/step-file-generator";
 
 type InputBinding =
   | { source: "pipeline_input"; path: string | null }
-  | { source: "work_item"; field: "title" | "description" }
+  | { source: "work_item"; field: string }
   | { source: "step_output"; stepKey: string; path?: string | null }
   | { source: "step_signal"; stepKey: string; signalKey: string }
   | { source: "literal"; value: unknown };
@@ -192,6 +191,14 @@ function reconstructAdvancementCallback(policy: AdvancementPolicy, computedByKey
 
 // ─── Input binding reconstruction ────────────────────────────────────────────
 
+function isAutoBinding(key: string, binding: InputBinding): boolean {
+  if (binding.source !== "work_item") return false;
+  return (
+    (key === "workItemTitle" && binding.field === "title") ||
+    (key === "workItemDescription" && binding.field === "description")
+  );
+}
+
 function reconstructBindingExpr(
   binding: InputBinding,
   stepVarMap: StepKeyMap,
@@ -200,7 +207,9 @@ function reconstructBindingExpr(
     case "pipeline_input":
       return `input${binding.path ? `.${binding.path}` : ""}`;
     case "work_item":
-      return `workItem.${binding.field}`;
+      if (binding.field === "title") return "input.workItemTitle";
+      if (binding.field === "description") return "input.workItemDescription";
+      return `/* TODO: configure via additionalPipelineInput — workItem.field(${JSON.stringify(binding.field.replace(/^fields\./, ""))}) */ (undefined as never)`;
     case "step_signal":
       return `signal(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)}, ${JSON.stringify(binding.signalKey)})`;
     case "step_output":
@@ -213,7 +222,9 @@ function reconstructBindingExpr(
 // ─── Step mapper reconstruction ───────────────────────────────────────────────
 
 function reconstructStepMapper(step: PipelineStepContract, stepVarMap: StepKeyMap): string {
-  const bindings = Object.entries(step.inputBindingsJson ?? {});
+  const allBindings = Object.entries(step.inputBindingsJson ?? {});
+  // Auto-injected by the runtime; no need to emit explicit bindings for them.
+  const bindings = allBindings.filter(([key, binding]) => !isAutoBinding(key, binding));
 
   const usesInput = bindings.some(([, b]) => b.source === "pipeline_input");
   const usesWorkItem = bindings.some(([, b]) => b.source === "work_item");
@@ -221,8 +232,7 @@ function reconstructStepMapper(step: PipelineStepContract, stepVarMap: StepKeyMa
   const usesOutput = bindings.some(([, b]) => b.source === "step_output");
 
   const ctxParts: string[] = [];
-  if (usesInput) ctxParts.push("input");
-  if (usesWorkItem) ctxParts.push("workItem");
+  if (usesInput || usesWorkItem) ctxParts.push("input");
   if (usesSignal) ctxParts.push("signal");
   if (usesOutput) ctxParts.push("output");
 
@@ -238,15 +248,6 @@ function reconstructStepMapper(step: PipelineStepContract, stepVarMap: StepKeyMa
   });
 
   return `(${ctxParam}) => ({\n${bindingLines.join(",\n")},\n  })`;
-}
-
-function inputSchemaToZodExpr(inputSchemaJson: Record<string, unknown> | null): string | null {
-  if (!inputSchemaJson) return null;
-  try {
-    return parseSchema(inputSchemaJson as Parameters<typeof parseSchema>[0]);
-  } catch {
-    return null;
-  }
 }
 
 // ─── File generator ───────────────────────────────────────────────────────────
@@ -269,17 +270,11 @@ export function generatePipelineFileContent(
   const stepVarNames = sortedSteps.map((s) => keyToVarName(s.key));
   const uniqueStepVarNames = [...new Set(stepVarNames)];
 
-  const zodExpr = inputSchemaToZodExpr(pipeline.inputSchemaJson);
   const lines: string[] = [];
 
-  if (zodExpr) lines.push(`import { z } from "zod";`);
   lines.push(`import { pipeline } from "@boboddy/sdk/definitions/pipelines";`);
   if (uniqueStepVarNames.length > 0) {
     lines.push(`import { ${uniqueStepVarNames.join(", ")} } from "./steps";`);
-  }
-  if (zodExpr) {
-    lines.push("");
-    lines.push(`const inputSchema = ${zodExpr};`);
   }
   lines.push("");
 
@@ -290,7 +285,6 @@ export function generatePipelineFileContent(
   if (pipeline.description) metaFields.push(`  description: ${JSON.stringify(pipeline.description)}`);
   metaFields.push(`  version: ${String(pipeline.version)}`);
   metaFields.push(`  status: ${JSON.stringify(pipeline.status)} as const`);
-  if (zodExpr) metaFields.push(`  input: inputSchema`);
 
   const chainParts: string[] = [`pipeline({\n${metaFields.join(",\n")},\n})`];
 
