@@ -13,6 +13,14 @@ const inputSchema = z.object({
   description: z.string(),
 });
 
+const noInputStep = defineStep({
+  key: "no-input",
+  name: "No Input Step",
+  input: z.object({}),
+  result: z.object({}),
+  signals: [],
+});
+
 const reproduceStep = defineStep({
   key: "reproduce",
   name: "Reproduce Issue",
@@ -127,7 +135,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
         .advance(() => ({ default: "continue" }))
         .build();
 
-      expect(spec.steps[0]!.inputBindingsJson).toEqual({
+      expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
         title: { source: "pipeline_input", path: "title" },
         description: { source: "pipeline_input", path: "description" },
       });
@@ -155,7 +163,7 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
         .advance(() => ({ default: "continue" }))
         .build();
 
-      expect(spec.steps[1]!.inputBindingsJson).toEqual({
+      expect(spec.steps[1]!.inputBindingsJson).toMatchObject({
         reproUrl: {
           source: "step_signal",
           stepKey: "reproduce",
@@ -420,7 +428,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           .advance(() => ({ default: "continue" }))
           .build();
 
-        expect(spec.steps[0]!.inputBindingsJson).toEqual({
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
           title: { source: "pipeline_input", path: "title" },
           description: { source: "pipeline_input", path: "description" },
         });
@@ -428,21 +436,40 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
-      "workItem.title and workItem.description serialize to work_item bindings",
+      "workItemTitle and workItemDescription are auto-injected into every step",
       () => {
         const spec = pipeline({
           key: "p",
           name: "P",
           input: z.object({}),
         })
-          .step(reproduceStep, ({ workItem }) => ({
-            title: workItem.title,
-            description: workItem.description,
+          .step(noInputStep, () => ({}))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          workItemTitle: { source: "work_item", field: "title" },
+          workItemDescription: { source: "work_item", field: "description" },
+        });
+      },
+    );
+
+    test.concurrent(
+      "input.workItemTitle and input.workItemDescription bind to work_item source",
+      () => {
+        const spec = pipeline({
+          key: "p",
+          name: "P",
+          input: z.object({}),
+        })
+          .step(reproduceStep, ({ input }) => ({
+            title: input.workItemTitle,
+            description: input.workItemDescription,
           }))
           .advance(() => ({ default: "continue" }))
           .build();
 
-        expect(spec.steps[0]!.inputBindingsJson).toEqual({
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
           title: { source: "work_item", field: "title" },
           description: { source: "work_item", field: "description" },
         });
@@ -450,45 +477,74 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
-      "workItem.field(name) serializes to a fields dot-path work_item binding",
+      "pipeline-level inputBindings via workItem.field are injected into every step",
       () => {
         const spec = pipeline({
           key: "p",
           name: "P",
-          input: z.object({}),
+          input: z.object({
+            company: z.string().nullable(),
+            storyPoints: z.number().nullable(),
+          }),
+          inputBindings: ({ workItem }) => ({
+            company: workItem.field("Company"),
+            storyPoints: workItem.field("Story Points"),
+          }),
         })
-          .step(reproduceStep, ({ workItem }) => ({
-            title: workItem.field("Story Points"),
-            description: workItem.field("Company"),
-          }))
+          .step(noInputStep, () => ({}))
           .advance(() => ({ default: "continue" }))
           .build();
 
-        expect(spec.steps[0]!.inputBindingsJson).toEqual({
-          title: { source: "work_item", field: "fields.Story Points" },
-          description: { source: "work_item", field: "fields.Company" },
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          workItemTitle: { source: "work_item", field: "title" },
+          workItemDescription: { source: "work_item", field: "description" },
+          company: { source: "work_item", field: "fields.Company" },
+          storyPoints: { source: "work_item", field: "fields.Story Points" },
         });
       },
     );
 
     test.concurrent(
-      "workItem and pipeline input bindings can be mixed in the same step",
+      "pipeline-level inputBindings via input accessor bind from pipeline_input source",
       () => {
         const spec = pipeline({
           key: "p",
           name: "P",
           input: inputSchema,
+          inputBindings: ({ input }) => ({
+            title: input.title,
+          }),
         })
-          .step(reproduceStep, ({ input, workItem }) => ({
+          .step(noInputStep, () => ({}))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          title: { source: "pipeline_input", path: "title" },
+        });
+      },
+    );
+
+    test.concurrent(
+      "explicit step bindings override pipeline-level inputBindings",
+      () => {
+        const spec = pipeline({
+          key: "p",
+          name: "P",
+          input: inputSchema,
+          inputBindings: ({ workItem }) => ({
             title: workItem.title,
+          }),
+        })
+          .step(reproduceStep, ({ input }) => ({
+            title: input.title,
             description: input.description,
           }))
           .advance(() => ({ default: "continue" }))
           .build();
 
-        expect(spec.steps[0]!.inputBindingsJson).toEqual({
-          title: { source: "work_item", field: "title" },
-          description: { source: "pipeline_input", path: "description" },
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          title: { source: "pipeline_input", path: "title" },
         });
       },
     );
@@ -522,7 +578,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           .advance(() => ({ default: "continue" }))
           .build();
 
-        expect(spec.steps[0]!.inputBindingsJson).toEqual({
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
           title: { source: "pipeline_input", path: "ticket.title" },
           description: { source: "pipeline_input", path: "ticket.description" },
         });
@@ -866,7 +922,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const step0 = spec.steps[0]!;
         expect(step0.stepKey).toBe("reproduce");
         expect(step0.timeoutSeconds).toBe(300);
-        expect(step0.inputBindingsJson).toEqual({
+        expect(step0.inputBindingsJson).toMatchObject({
           title: { source: "pipeline_input", path: "title" },
           description: { source: "pipeline_input", path: "description" },
         });
@@ -880,7 +936,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
 
         const step1 = spec.steps[1]!;
         expect(step1.stepKey).toBe("verify");
-        expect(step1.inputBindingsJson).toEqual({
+        expect(step1.inputBindingsJson).toMatchObject({
           reproUrl: {
             source: "step_signal",
             stepKey: "reproduce",

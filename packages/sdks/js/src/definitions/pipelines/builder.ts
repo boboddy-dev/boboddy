@@ -75,12 +75,16 @@ export type WorkItemAccessor = {
   readonly field: (fieldName: string) => WorkItemBinding;
 };
 
+type WithWorkItemFields<T> = T & {
+  workItemTitle: string;
+  workItemDescription: string | null;
+};
+
 export type StepInputCtx<
   TInput extends ZodType,
   TSteps extends ReadonlyArray<AnyTypedStep>,
 > = {
-  input: InputAccessor<TInput["_output"]>;
-  workItem: WorkItemAccessor;
+  input: InputAccessor<WithWorkItemFields<TInput["_output"]>>;
   signal: <S extends ElementOf<TSteps>>(
     step: S,
     key: S["__signalKeys"],
@@ -95,6 +99,10 @@ export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
   version?: number;
   status?: "draft" | "active";
   input?: TInput;
+  inputBindings?: (ctx: {
+    workItem: WorkItemAccessor;
+    input: InputAccessor<TInput["_output"]>;
+  }) => { [K in keyof TInput["_output"] & string]?: AnyBinding };
 };
 
 /**
@@ -109,8 +117,12 @@ export class PipelineStepAdvancementBuilder<
 
   constructor(
     protected readonly inputSchema: TInput,
-    protected readonly meta: Omit<PipelineMeta<TInput>, "input">,
+    protected readonly meta: Omit<
+      PipelineMeta<TInput>,
+      "input" | "inputBindings"
+    >,
     protected readonly steps: PipelineStepConfig[],
+    protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
   ) {}
 
   advance(
@@ -130,7 +142,12 @@ export class PipelineStepAdvancementBuilder<
       ...(result.rules !== undefined ? { rules: result.rules } : {}),
     };
     last.advancement = policy as AdvancementPolicy;
-    return new PipelineStepBuilder(this.inputSchema, this.meta, this.steps);
+    return new PipelineStepBuilder(
+      this.inputSchema,
+      this.meta,
+      this.steps,
+      this.pipelineInputBindings,
+    );
   }
 }
 
@@ -146,8 +163,12 @@ export class PipelineStepBuilder<
 
   constructor(
     protected readonly inputSchema: TInput,
-    protected readonly meta: Omit<PipelineMeta<TInput>, "input">,
+    protected readonly meta: Omit<
+      PipelineMeta<TInput>,
+      "input" | "inputBindings"
+    >,
     protected readonly steps: PipelineStepConfig[],
+    protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
   ) {}
 
   step<S extends AnyTypedStep>(
@@ -174,6 +195,7 @@ export class PipelineStepBuilder<
       this.inputSchema,
       this.meta,
       this.steps,
+      this.pipelineInputBindings,
     ) as PipelineStepAdvancementBuilder<TInput, [...TSteps, S]>;
   }
 
@@ -186,6 +208,7 @@ export class PipelineStepBuilder<
       status: this.meta.status,
       input: this.inputSchema,
       steps: this.steps,
+      pipelineInputBindings: this.pipelineInputBindings,
     };
     return buildPipelineSpec(config);
   }
@@ -198,13 +221,27 @@ export class PipelineStepBuilder<
  */
 export class PipelineBuilder<TInput extends ZodType> {
   private readonly inputSchema: TInput;
-  private readonly meta: Omit<PipelineMeta<TInput>, "input">;
+  private readonly meta: Omit<PipelineMeta<TInput>, "input" | "inputBindings">;
   private readonly steps: PipelineStepConfig[] = [];
+  private readonly pipelineInputBindings: Record<string, AnyBinding>;
 
   constructor(meta: PipelineMeta<TInput>) {
-    const { input, ...rest } = meta;
+    const { input, inputBindings, ...rest } = meta;
     this.inputSchema = (input ?? z.unknown()) as TInput;
     this.meta = rest;
+    if (inputBindings) {
+      const raw = inputBindings({
+        workItem: WORK_ITEM_ACCESSOR,
+        input: createInputAccessor(this.inputSchema) as InputAccessor<
+          TInput["_output"]
+        >,
+      });
+      this.pipelineInputBindings =
+        normalizeInputMapping(raw as Record<string, AnyBinding | undefined>) ??
+        {};
+    } else {
+      this.pipelineInputBindings = {};
+    }
   }
 
   step<S extends AnyTypedStep>(
@@ -228,9 +265,9 @@ export class PipelineBuilder<TInput extends ZodType> {
       this.inputSchema,
       this.meta,
       this.steps,
+      this.pipelineInputBindings,
     ) as PipelineStepAdvancementBuilder<TInput, [S]>;
   }
-
 }
 
 const WORK_ITEM_ACCESSOR: WorkItemAccessor = Object.freeze({
@@ -243,12 +280,27 @@ const WORK_ITEM_ACCESSOR: WorkItemAccessor = Object.freeze({
     Object.freeze({ source: "work_item", field: `fields.${fieldName}` }),
 });
 
+const WORK_ITEM_FIELD_BINDINGS: Record<string, WorkItemBinding> = {
+  workItemTitle: { source: "work_item", field: "title" },
+  workItemDescription: { source: "work_item", field: "description" },
+};
+
 function makeStepInputCtx<TInput extends ZodType>(
   inputSchema: TInput,
 ): StepInputCtx<TInput, ReadonlyArray<AnyTypedStep>> {
+  const baseAccessor = createInputAccessor(inputSchema);
+  const input = new Proxy(baseAccessor, {
+    get(target, prop) {
+      if (typeof prop === "string" && prop in WORK_ITEM_FIELD_BINDINGS) {
+        return WORK_ITEM_FIELD_BINDINGS[prop];
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (target as any)[prop];
+    },
+  }) as InputAccessor<WithWorkItemFields<TInput["_output"]>>;
+
   return {
-    input: createInputAccessor(inputSchema) as InputAccessor<TInput["_output"]>,
-    workItem: WORK_ITEM_ACCESSOR,
+    input,
     signal<S extends AnyTypedStep>(
       step: S,
       key: S["__signalKeys"],

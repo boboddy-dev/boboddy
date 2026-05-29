@@ -109,6 +109,7 @@ export type DefinePipelineInput = {
   status?: "draft" | "active";
   input?: ZodType | null;
   steps: ReadonlyArray<PipelineStepConfig>;
+  pipelineInputBindings?: Record<string, AnyBinding>;
 };
 
 function serializeBinding(binding: AnyBinding): SerializedBinding {
@@ -156,25 +157,41 @@ export function buildPipelineSpec(
     status: config.status ?? "active",
     inputSchemaJson,
     _stepDefinitions: [...stepDefMap.values()],
-    steps: steps.map((stepConfig, index) => ({
-      stepKey: stepConfig.step.key,
-      stepName: stepConfig.step.name,
-      stepDescription: stepConfig.step.description,
-      position: index + 1,
-      inputBindingsJson: Object.fromEntries(
+    steps: steps.map((stepConfig, index) => {
+      const autoBindings: Record<string, SerializedBinding> = {
+        workItemTitle: { source: "work_item", field: "title" },
+        workItemDescription: { source: "work_item", field: "description" },
+      };
+
+      const pipelineBindings: Record<string, SerializedBinding> = {};
+      for (const [key, binding] of Object.entries(config.pipelineInputBindings ?? {})) {
+        pipelineBindings[key] = serializeBinding(binding);
+      }
+
+      const explicitStepBindings = Object.fromEntries(
         Object.entries(stepConfig.input ?? {})
-          .filter(
-            (entry): entry is [string, AnyBinding] => entry[1] !== undefined,
-          )
+          .filter((entry): entry is [string, AnyBinding] => entry[1] !== undefined)
           .map(([key, binding]) => [key, serializeBinding(binding)]),
-      ),
-      timeoutSeconds: stepConfig.timeout ?? null,
-      advancementPolicyDefinition: serializeAdvancementPolicy(
-        stepConfig.advancement,
-      ),
-      computedSignalDefinitions: extractInlineComputedSignals(
-        stepConfig.advancement,
-      ),
-    })),
+      );
+
+      return ({
+        stepKey: stepConfig.step.key,
+        stepName: stepConfig.step.name,
+        stepDescription: stepConfig.step.description,
+        position: index + 1,
+        inputBindingsJson: {
+          ...autoBindings,
+          ...pipelineBindings,
+          ...explicitStepBindings,
+        },
+        timeoutSeconds: stepConfig.timeout ?? null,
+        advancementPolicyDefinition: serializeAdvancementPolicy(
+          stepConfig.advancement,
+        ),
+        computedSignalDefinitions: extractInlineComputedSignals(
+          stepConfig.advancement,
+        ),
+      });
+    }),
   };
 }
