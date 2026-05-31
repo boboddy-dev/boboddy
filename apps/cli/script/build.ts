@@ -1,5 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { version as packageVersion } from "../package.json";
 
 interface BuildTarget {
   readonly bunTarget: string;
@@ -72,13 +73,15 @@ async function buildTarget(
 
 async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
+  const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
+  const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
 
   for (const target of allTargets) {
     process.stdout.write(`Building ${target.outputName}...\n`);
-    await buildTarget(target);
+    await buildTarget(target, [versionDefine]);
   }
 
   if (isDev) {

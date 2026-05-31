@@ -13,7 +13,7 @@ import {
   scaffoldPipelineBuilderDirectory,
   type StepInfo,
 } from "@boboddy/worker";
-import { version as CLI_VERSION } from "../../package.json";
+const CLI_VERSION: string = process.env["CLI_BUILD_VERSION"] ?? "0.0.0";
 import { detectPipelineRuntime } from "../lib/detect-pipeline-runtime";
 import { createCliLogger } from "../lib/logger";
 import {

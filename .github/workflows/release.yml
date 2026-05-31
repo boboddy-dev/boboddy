@@ -127,6 +127,8 @@ jobs:
         run: npm pkg set version="${{ needs.resolve-version.outputs.version }}"
 
       - name: Build CLI binaries
+        env:
+          CLI_BUILD_VERSION: ${{ needs.resolve-version.outputs.version }}
         run: bun run --filter @boboddy/cli build
 
       - name: Upload binaries
