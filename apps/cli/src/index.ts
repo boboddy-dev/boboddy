@@ -12,7 +12,7 @@ import { runtimeCommand } from "./commands/runtime";
 import { pipelinesCommand } from "./commands/pipelines";
 import { workCommand } from "./commands/work";
 import { createCliLogger } from "./lib/logger";
-const CLI_VERSION: string = process.env["CLI_BUILD_VERSION"] ?? "0.0.0";
+import { version as CLI_VERSION } from "../package.json";
 const logger = createCliLogger("cli");
 
 export function createCli(argv: readonly string[]) {
