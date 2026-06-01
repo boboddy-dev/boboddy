@@ -1,6 +1,5 @@
 import { z, type ZodType } from "zod";
 import {
-  getAdditionalStepInputBindings,
   type AdditionalStepInputBinding,
   type TypedStepDefinitionSpec,
 } from "../steps/define-step";
@@ -156,7 +155,10 @@ export class PipelineStepAdvancementBuilder<
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
-    protected readonly pipelineStepInputBindings: Record<string, AnyBinding> = {},
+    protected readonly pipelineStepInputBindings: Record<
+      string,
+      AnyBinding
+    > = {},
   ) {}
 
   advance(
@@ -178,11 +180,11 @@ export class PipelineStepAdvancementBuilder<
     last.advancement = policy as AdvancementPolicy;
     return new PipelineStepBuilder(
       this.inputSchema,
-        this.meta,
-        this.steps,
-        this.pipelineInputBindings,
-        this.pipelineStepInputBindings,
-      );
+      this.meta,
+      this.steps,
+      this.pipelineInputBindings,
+      this.pipelineStepInputBindings,
+    );
   }
 }
 
@@ -204,21 +206,37 @@ export class PipelineStepBuilder<
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
-    protected readonly pipelineStepInputBindings: Record<string, AnyBinding> = {},
+    protected readonly pipelineStepInputBindings: Record<
+      string,
+      AnyBinding
+    > = {},
   ) {}
 
+  step<S extends AnyTypedStep & { __hasAdditionalInput: false }>(
+    step: S,
+    mapper?: (
+      ctx: StepInputCtx<TInput, TSteps>,
+    ) => Partial<Record<string, AnyBinding>>,
+    configFn?: (config: StepConfig) => void,
+  ): PipelineStepAdvancementBuilder<TInput, [...TSteps, S]>;
   step<S extends AnyTypedStep>(
     step: S,
     mapper: (ctx: StepInputCtx<TInput, TSteps>) => StepInputMapping<S>,
+    configFn?: (config: StepConfig) => void,
+  ): PipelineStepAdvancementBuilder<TInput, [...TSteps, S]>;
+  step<S extends AnyTypedStep>(
+    step: S,
+    mapper?: (
+      ctx: StepInputCtx<TInput, TSteps>,
+    ) => Record<string, AnyBinding | undefined>,
     configFn?: (config: StepConfig) => void,
   ): PipelineStepAdvancementBuilder<TInput, [...TSteps, S]> {
     const ctx = makeStepInputCtx(this.inputSchema) as unknown as StepInputCtx<
       TInput,
       TSteps
     >;
-    const rawInput = mapper(ctx);
+    const rawInput = mapper ? mapper(ctx) : {};
     const input = mergeStepBindings(
-      getAdditionalStepInputBindings(step),
       this.pipelineStepInputBindings,
       normalizeInputMapping(rawInput as Record<string, AnyBinding | undefined>),
     );
@@ -302,15 +320,28 @@ export class PipelineBuilder<TInput extends ZodType> {
     );
   }
 
+  step<S extends AnyTypedStep & { __hasAdditionalInput: false }>(
+    step: S,
+    mapper?: (
+      ctx: StepInputCtx<TInput, []>,
+    ) => Partial<Record<string, AnyBinding>>,
+    configFn?: (config: StepConfig) => void,
+  ): PipelineStepAdvancementBuilder<TInput, [S]>;
   step<S extends AnyTypedStep>(
     step: S,
     mapper: (ctx: StepInputCtx<TInput, []>) => StepInputMapping<S>,
     configFn?: (config: StepConfig) => void,
+  ): PipelineStepAdvancementBuilder<TInput, [S]>;
+  step<S extends AnyTypedStep>(
+    step: S,
+    mapper?: (
+      ctx: StepInputCtx<TInput, []>,
+    ) => Record<string, AnyBinding | undefined>,
+    configFn?: (config: StepConfig) => void,
   ): PipelineStepAdvancementBuilder<TInput, [S]> {
     const ctx = makeStepInputCtx(this.inputSchema) as StepInputCtx<TInput, []>;
-    const rawInput = mapper(ctx);
+    const rawInput = mapper ? mapper(ctx) : {};
     const input = mergeStepBindings(
-      getAdditionalStepInputBindings(step),
       this.pipelineStepInputBindings,
       normalizeInputMapping(rawInput as Record<string, AnyBinding | undefined>),
     );
@@ -417,16 +448,16 @@ function resolveAdditionalStepInputBindings(
     }
   }
 
-  return normalizeInputMapping(raw as Record<string, AnyBinding | undefined>) ?? {};
+  return (
+    normalizeInputMapping(raw as Record<string, AnyBinding | undefined>) ?? {}
+  );
 }
 
 function mergeStepBindings(
-  stepBindings: Record<string, AnyBinding>,
   pipelineBindings: Record<string, AnyBinding>,
   explicitBindings: Record<string, AnyBinding> | undefined,
 ): Record<string, AnyBinding> | undefined {
   const merged = {
-    ...stepBindings,
     ...pipelineBindings,
     ...(explicitBindings ?? {}),
   };

@@ -156,7 +156,7 @@ The `bindings` callback receives `{ workItem, literal }`:
 
 Pipeline-level bindings are defaults applied to every step automatically. Explicit bindings in a `.step()` mapper override them for that step.
 
-`additionalStepInput` is similar, but it compiles into default step bindings instead of pipeline input fields. You can define it on `defineStep(...)` for reusable step defaults, or on `pipeline(...)` to apply the same defaults to every step in that pipeline. Pipeline-level `additionalStepInput` overrides step-level defaults, and explicit `.step()` bindings override both.
+`additionalStepInput` on `pipeline(...)` compiles into default bindings applied to every step in the pipeline. Explicit `.step()` bindings override these defaults.
 
 ## Advancement policies
 

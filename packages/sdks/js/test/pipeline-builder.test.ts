@@ -12,7 +12,6 @@ const noInputStep = defineStep({
   key: "no-input",
   name: "No Input Step",
   agentPrompt: "Do the work.",
-  input: z.object({}),
   result: z.object({}),
   signals: [],
 });
@@ -22,7 +21,7 @@ const reproduceStep = defineStep({
   name: "Reproduce Issue",
   agentPrompt:
     "Reproduce the following issue using the provided title and description.",
-  input: z.object({ title: z.string(), description: z.string() }),
+  additionalInput: z.object({ title: z.string(), description: z.string() }),
   result: z.object({
     url: z.string(),
     success: z.boolean(),
@@ -43,11 +42,6 @@ const verifyStep = defineStep({
   key: "verify",
   name: "Verify Fix",
   agentPrompt: "Verify whether the fix passes using the provided inputs.",
-  input: z.object({
-    reproUrl: z.string(),
-    checkSuccess: z.boolean(),
-    fullPrior: z.object({ url: z.string(), success: z.boolean() }),
-  }),
   result: z.object({ passed: z.boolean() }),
   signals: [{ sourcePath: "passed" }],
 });
@@ -56,21 +50,11 @@ const enrichedStep = defineStep({
   key: "enriched",
   name: "Enriched Step",
   agentPrompt: "Use the bound metadata fields to produce the result.",
-  input: z.object({
+  additionalInput: z.object({
     jiraProject: z.string().nullable().optional(),
     owner: z.string().optional(),
     priority: z.string().nullable().optional(),
   }),
-  additionalStepInput: {
-    schema: z.object({
-      jiraProject: z.string().nullable(),
-      owner: z.string(),
-    }),
-    bindings: ({ workItemField, literal }) => ({
-      jiraProject: workItemField("Jira Project"),
-      owner: literal("platform-team"),
-    }),
-  },
   result: z.object({ ok: z.boolean() }),
   signals: [{ sourcePath: "ok" }],
 });
@@ -373,7 +357,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
       "workItemTitle and workItemDescription are auto-injected into every step",
       () => {
         const spec = pipeline({ key: "p", name: "P" })
-          .step(noInputStep, () => ({}))
+          .step(noInputStep)
           .advance(() => ({ default: "continue" }))
           .build();
 
@@ -433,7 +417,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
-      "step-level additionalStepInput bindings are injected into the step",
+      "mapper bindings for additionalInput fields are included in step input",
       () => {
         const spec = pipeline({ key: "p", name: "P" })
           .step(enrichedStep, ({ literal }) => ({ priority: literal("high") }))
@@ -441,8 +425,6 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           .build();
 
         expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
-          jiraProject: { source: "work_item", field: "fields.Jira Project" },
-          owner: { source: "literal", value: "platform-team" },
           priority: { source: "literal", value: "high" },
         });
       },
@@ -472,7 +454,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
-      "pipeline additionalStepInput overrides step additionalStepInput before explicit bindings",
+      "pipeline additionalStepInput is overridden by explicit step bindings",
       () => {
         const spec = pipeline({
           key: "p",
@@ -482,7 +464,9 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
             bindings: ({ literal }) => ({ owner: literal("pipeline-owner") }),
           },
         })
-          .step(enrichedStep, ({ literal }) => ({ owner: literal("explicit-owner") }))
+          .step(enrichedStep, ({ literal }) => ({
+            owner: literal("explicit-owner"),
+          }))
           .advance(() => ({ default: "continue" }))
           .build();
 
@@ -598,7 +582,10 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
           key: "nested-step",
           name: "Nested Step",
           agentPrompt: "Do the work.",
-          input: z.object({ title: z.string(), description: z.string() }),
+          additionalInput: z.object({
+            title: z.string(),
+            description: z.string(),
+          }),
           result: z.object({}),
           signals: [],
         });

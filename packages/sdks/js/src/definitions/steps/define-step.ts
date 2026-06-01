@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { toJSONSchema } from "zod/v4/core";
 import type { $ZodType } from "zod/v4/core";
 import type { ZodObject, ZodRawShape, ZodType } from "zod";
@@ -109,45 +108,19 @@ export type StepSignalSpec = {
 export type DefineStepInput<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
-  TAdditionalStepInput extends ZodType = ZodType,
 > = {
   key: string;
   name: string;
   description?: string | null;
   version?: number;
   agentPrompt: string;
-  input?: TInput;
+  additionalInput?: TInput;
   result?: TResult;
-  additionalStepInput?: {
-    schema: TAdditionalStepInput;
-    bindings: (ctx: {
-      workItemField: (fieldName: string) => AdditionalStepInputBinding;
-      literal: (value: unknown) => AdditionalStepInputLiteralBinding;
-    }) => TAdditionalStepInput["_output"] extends object
-      ? {
-          [K in RequiredInputKeys<
-            TAdditionalStepInput["_output"]
-          >]: AdditionalStepInputBinding;
-        } & {
-          [K in OptionalInputKeys<
-            TAdditionalStepInput["_output"]
-          >]?: AdditionalStepInputBinding;
-        }
-      : Partial<Record<string, AdditionalStepInputBinding>>;
-  };
   signals?: SignalSpecInput<TResult["_output"]>[];
   features?: AnyStepFeature[];
   mcpServers?: OpenCodeMcpServers | null;
   status?: "draft" | "active";
 };
-
-type RequiredInputKeys<T extends object> = {
-  [K in keyof T & string]-?: undefined extends T[K] ? never : K;
-}[keyof T & string];
-
-type OptionalInputKeys<T extends object> = {
-  [K in keyof T & string]-?: undefined extends T[K] ? K : never;
-}[keyof T & string];
 
 export type AdditionalStepInputLiteralBinding = {
   source: "literal";
@@ -206,9 +179,16 @@ export type SignalTypeMapOf<TSignals extends readonly unknown[], TResult> = {
       : unknown;
 };
 
+// false when TInput is `unknown` (no additionalInput), true for concrete types, boolean for `any`.
+type HasAdditionalInput<T> = 0 extends 1 & T
+  ? boolean
+  : [unknown] extends [T]
+    ? false
+    : true;
+
 // Phantom-typed extension of StepDefinitionSpec carrying input/result/signal-key types.
-// The phantom fields (__inputType, __resultType, __signalKeys, __signalTypeMap) are never
-// present at runtime — they exist only to thread type information into definePipeline.
+// The phantom fields are never present at runtime — they exist only to thread type information
+// into definePipeline. __hasAdditionalInput drives mapper-required vs optional overload selection.
 export type TypedStepDefinitionSpec<
   TInput = unknown,
   TResult = unknown,
@@ -219,15 +199,11 @@ export type TypedStepDefinitionSpec<
   >,
 > = StepDefinitionSpec & {
   readonly __inputType: TInput;
+  readonly __hasAdditionalInput: HasAdditionalInput<TInput>;
   readonly __resultType: TResult;
   readonly __signalKeys: TSignalKeys;
   readonly __signalTypeMap: TSignalTypeMap;
 };
-
-const additionalStepInputBindingsByStep = new WeakMap<
-  StepDefinitionSpec,
-  Record<string, AdditionalStepInputBinding>
->();
 
 // Infers the signal key from a single signal spec object:
 // uses the explicit `key` if provided, otherwise falls back to `sourcePath`.
@@ -297,17 +273,13 @@ function deriveSignalType(
 export function defineStep<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
-  TAdditionalStepInput extends ZodType = ZodType,
   // Simpler constraint lets TypeScript preserve string literal types for `key` and `sourcePath`.
   // The intersection in the config type enforces validity against the result schema.
   const TSignals extends ReadonlyArray<{ sourcePath: string; key?: string }> =
     never[],
   const TFeatures extends ReadonlyArray<AnyStepFeature> = never[],
 >(
-  config: Omit<
-    DefineStepInput<TInput, TResult, TAdditionalStepInput>,
-    "signals" | "features"
-  > & {
+  config: Omit<DefineStepInput<TInput, TResult>, "signals" | "features"> & {
     signals?: TSignals;
     features?: TFeatures;
   },
@@ -341,9 +313,6 @@ export function defineStep<
 
   // Collect user-defined signals, then append feature signals.
   const featureSignals = features.flatMap((f) => f._signals);
-  const additionalStepInputBindings = normalizeAdditionalStepInputBindings(
-    config.additionalStepInput,
-  );
 
   const spec: StepDefinitionSpec = {
     key: config.key,
@@ -353,8 +322,8 @@ export function defineStep<
     kind: "user_defined",
     status: config.status ?? "active",
     prompt: effectivePrompt,
-    inputSchemaJson: config.input
-      ? toJSONSchema(config.input as unknown as $ZodType)
+    inputSchemaJson: config.additionalInput
+      ? toJSONSchema(config.additionalInput as unknown as $ZodType)
       : null,
     resultSchemaJson: effectiveResult
       ? toJSONSchema(effectiveResult as unknown as $ZodType)
@@ -377,47 +346,10 @@ export function defineStep<
     ],
     opencodeMcpJson: config.mcpServers ?? null,
   };
-  additionalStepInputBindingsByStep.set(spec, additionalStepInputBindings);
   return spec as TypedStepDefinitionSpec<
     TInput["_output"],
     TResult["_output"] & FeatureResultExtensions<TFeatures>,
     SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,
     SignalTypeMapOf<TSignals, TResult["_output"]>
   >;
-}
-
-function normalizeAdditionalStepInputBindings(
-  definition: DefineStepInput["additionalStepInput"] | undefined,
-): Record<string, AdditionalStepInputBinding> {
-  if (!definition) {
-    return {};
-  }
-
-  const raw = definition.bindings({
-    workItemField: (fieldName: string) => ({
-      source: "work_item",
-      field: `fields.${fieldName}`,
-    }),
-    literal: (value: unknown) => ({ source: "literal", value }),
-  });
-
-  if (definition.schema instanceof z.ZodObject) {
-    const validKeys = new Set(Object.keys(definition.schema.shape as object));
-    const unknown = Object.keys(raw).filter((key) => !validKeys.has(key));
-    if (unknown.length > 0) {
-      throw new Error(
-        `additionalStepInput.bindings returned key${unknown.length > 1 ? "s" : ""} not in schema: ${unknown.map((key) => `"${key}"`).join(", ")}`,
-      );
-    }
-  }
-
-  return Object.fromEntries(
-    Object.entries(raw).filter(([, binding]) => binding !== undefined),
-  ) as Record<string, AdditionalStepInputBinding>;
-}
-
-export function getAdditionalStepInputBindings(
-  step: StepDefinitionSpec,
-): Record<string, AdditionalStepInputBinding> {
-  return additionalStepInputBindingsByStep.get(step) ?? {};
 }

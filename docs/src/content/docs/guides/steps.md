@@ -15,7 +15,7 @@ export const summarizeStep = defineStep({
   key: 'summarize-text',
   name: 'Summarize Text',
   agentPrompt: 'Summarize the provided text concisely.',
-  input: z.object({
+  additionalInput: z.object({
     text: z.string(),
   }),
   result: z.object({
@@ -34,8 +34,7 @@ export const summarizeStep = defineStep({
 | `version` | `number` | No | Version number (defaults to 1) |
 | `description` | `string` | No | Brief description shown in the UI |
 | `agentPrompt` | `string` | Yes | AI prompt given to the worker agent when executing this step |
-| `input` | `ZodType` | No | Zod schema for the step's input payload |
-| `additionalStepInput` | `object` | No | Default work item field and literal bindings for this step |
+| `additionalInput` | `ZodType` | No | Zod schema for the step's additional input fields; bound in the pipeline mapper |
 | `result` | `ZodType` | No | Zod schema for the step's output |
 | `signals` | `Signal[]` | No | Values to extract from the result for pipeline advancement logic |
 | `computedSignals` | `ComputedSignal[]` | No | Aggregated signals derived from multiple raw signals |

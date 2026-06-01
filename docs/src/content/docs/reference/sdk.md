@@ -26,7 +26,7 @@ const myStep = defineStep({
   name: 'My Step',
   version: 1,
   description: 'Does something useful.',
-  input: z.object({ text: z.string() }),
+  additionalInput: z.object({ text: z.string() }),
   result: z.object({ summary: z.string(), score: z.number() }),
   signals: [
     { sourcePath: 'score', key: 'quality_score', type: 'number', required: true },
@@ -45,8 +45,7 @@ const myStep = defineStep({
 | `version` | `number` | No | Version (default: `1`) |
 | `description` | `string` | No | Short description |
 | `agentPrompt` | `string` | Yes | AI instruction given to the executing agent |
-| `input` | `ZodType` | No | Input payload schema |
-| `additionalStepInput` | `object` | No | Default step bindings shared anywhere this step is used; requires `schema` and `bindings` |
+| `additionalInput` | `ZodType` | No | Additional input payload schema; fields are bound via the pipeline mapper |
 | `result` | `ZodType` | No | Output payload schema |
 | `signals` | `Signal[]` | No | Values to extract from the result |
 | `mcpServers` | `OpenCodeMcpServers` | No | MCP server configs for tool-using agents |
@@ -103,7 +102,7 @@ const myPipeline = pipeline({
 
 `additionalPipelineInput.schema` is a Zod object schema for extra pipeline input fields. `additionalPipelineInput.bindings` receives `{ workItem, literal }` and returns their bindings.
 
-`additionalStepInput` exists on both `defineStep(...)` and `pipeline(...)`. Its `bindings` function receives `{ workItemField, literal }` and compiles into regular step input bindings. Pipeline-level `additionalStepInput` overrides step-level defaults, and explicit `.step(..., mapper)` bindings override both.
+`additionalStepInput` applies default bindings to every step in the pipeline. Its `bindings` function receives `{ workItemField, literal }` and compiles into regular step input bindings. Explicit `.step(..., mapper)` bindings override pipeline-level defaults.
 
 ### Builder methods
 

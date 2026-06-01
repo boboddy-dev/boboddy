@@ -287,22 +287,4 @@ describe("defineStep", () => {
     });
   });
 
-  test("additionalStepInput.bindings throws on keys not in schema", () => {
-    expect(() =>
-      defineStep({
-        key: "my-step",
-        name: "My Step",
-        agentPrompt: "Do the work.",
-        additionalStepInput: {
-          schema: z.object({ owner: z.string() }),
-          bindings: ({ literal }) => ({
-            owner: literal("platform"),
-            asdf: literal(123),
-          }),
-        },
-      }),
-    ).toThrow(
-      'additionalStepInput.bindings returned key not in schema: "asdf"',
-    );
-  });
 });
