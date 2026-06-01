@@ -2961,199 +2961,6 @@ export type GetApiStepExecutionsByStepExecutionIdResponses = {
 
 export type GetApiStepExecutionsByStepExecutionIdResponse = GetApiStepExecutionsByStepExecutionIdResponses[keyof GetApiStepExecutionsByStepExecutionIdResponses];
 
-export type GetApiLinearPipelineDefinitionsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/linear-pipeline-definitions';
-};
-
-export type GetApiLinearPipelineDefinitionsErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type GetApiLinearPipelineDefinitionsError = GetApiLinearPipelineDefinitionsErrors[keyof GetApiLinearPipelineDefinitionsErrors];
-
-export type GetApiLinearPipelineDefinitionsResponses = {
-    /**
-     * Response for status 200
-     */
-    200: Array<{
-        id: string;
-        projectId: string;
-        key: string;
-        name: string;
-        description: string | unknown;
-        status: 'draft' | 'active' | 'archived';
-        archivedAt: string | unknown;
-        inputSchemaJson: unknown;
-        stepDefinitions: Array<{
-            id: string;
-            linearPipelineDefinitionId: string;
-            stepDefinitionId: string;
-            stepDefinitionVersion: number;
-            key: string;
-            name: string;
-            description: string | unknown;
-            position: number;
-            inputBindingsJson: {
-                [key: string]: {
-                    source: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    field: 'title' | 'description';
-                } | {
-                    source: string;
-                    stepKey: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    signalKey: string;
-                } | {
-                    source: string;
-                    value: unknown;
-                };
-            } | unknown;
-            timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
-            advancementPolicyDefinition: {
-                id: string;
-                linearPipelineStepDefinitionId: string;
-                rulesJson: {
-                    rules: Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                    [key: string]: unknown | Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                };
-                defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
-                allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
-                createdAt: string;
-                updatedAt: string;
-            };
-            computedSignalDefinitions: Array<{
-                id: string;
-                key: string;
-                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
-                inputSignalKeys: Array<string>;
-                configJson: unknown;
-                availableWhenResultStatusIn: Array<string> | unknown;
-                createdAt: string;
-                updatedAt: string;
-            }>;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        createdAt: string;
-        updatedAt: string;
-    }>;
-};
-
-export type GetApiLinearPipelineDefinitionsResponse = GetApiLinearPipelineDefinitionsResponses[keyof GetApiLinearPipelineDefinitionsResponses];
-
 export type PostApiLinearPipelineDefinitionsData = {
     body: {
         projectId: string;
@@ -3175,7 +2982,7 @@ export type PostApiLinearPipelineDefinitionsData = {
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -3399,7 +3206,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -3509,7 +3316,7 @@ export type PutApiLinearPipelineDefinitionsData = {
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -3685,7 +3492,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -3912,7 +3719,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -4000,6 +3807,201 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
 };
 
 export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponse = GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses[keyof GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses];
+
+export type GetApiProjectsByProjectIdLinearPipelineDefinitionsData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/linear-pipeline-definitions';
+};
+
+export type GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectsByProjectIdLinearPipelineDefinitionsError = GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors[keyof GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors];
+
+export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        projectId: string;
+        key: string;
+        name: string;
+        description: string | unknown;
+        status: 'draft' | 'active' | 'archived';
+        archivedAt: string | unknown;
+        inputSchemaJson: unknown;
+        stepDefinitions: Array<{
+            id: string;
+            linearPipelineDefinitionId: string;
+            stepDefinitionId: string;
+            stepDefinitionVersion: number;
+            key: string;
+            name: string;
+            description: string | unknown;
+            position: number;
+            inputBindingsJson: {
+                [key: string]: {
+                    source: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    field: string;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    signalKey: string;
+                } | {
+                    source: string;
+                    value: unknown;
+                };
+            } | unknown;
+            timeoutSeconds: number | unknown;
+            retryPolicyJson: unknown;
+            advancementPolicyDefinition: {
+                id: string;
+                linearPipelineStepDefinitionId: string;
+                rulesJson: {
+                    rules: Array<{
+                        conditions: {
+                            [key: string]: unknown;
+                        };
+                        event: {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        };
+                        name?: string;
+                        priority?: number;
+                        [key: string]: unknown | {
+                            [key: string]: unknown;
+                        } | {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        } | string | number | undefined;
+                    }>;
+                    [key: string]: unknown | Array<{
+                        conditions: {
+                            [key: string]: unknown;
+                        };
+                        event: {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        };
+                        name?: string;
+                        priority?: number;
+                        [key: string]: unknown | {
+                            [key: string]: unknown;
+                        } | {
+                            type: string;
+                            params?: {
+                                [key: string]: unknown;
+                            };
+                        } | string | number | undefined;
+                    }>;
+                };
+                defaultEventType: 'continue' | 'block' | 'complete' | 'route';
+                defaultEventParamsJson: unknown;
+                allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
+                createdAt: string;
+                updatedAt: string;
+            };
+            computedSignalDefinitions: Array<{
+                id: string;
+                key: string;
+                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
+                inputSignalKeys: Array<string>;
+                configJson: unknown;
+                availableWhenResultStatusIn: Array<string> | unknown;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponse = GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses[keyof GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses];
 
 export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveData = {
     body?: never;
@@ -4123,7 +4125,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -4334,7 +4336,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -4437,7 +4439,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsDat
                 path: string | unknown;
             } | {
                 source: string;
-                field: 'title' | 'description';
+                field: string;
             } | {
                 source: string;
                 stepKey: string;
@@ -4636,7 +4638,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -4848,7 +4850,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -4951,7 +4953,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                 path: string | unknown;
             } | {
                 source: string;
-                field: 'title' | 'description';
+                field: string;
             } | {
                 source: string;
                 stepKey: string;
@@ -5151,7 +5153,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -5411,7 +5413,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
                     path: string | unknown;
                 } | {
                     source: string;
-                    field: 'title' | 'description';
+                    field: string;
                 } | {
                     source: string;
                     stepKey: string;
@@ -5608,7 +5610,7 @@ export type GetApiLinearPipelineExecutionsResponses = {
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -5818,7 +5820,7 @@ export type PostApiLinearPipelineExecutionsResponses = {
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -5993,7 +5995,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -6168,7 +6170,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -6344,7 +6346,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -6524,7 +6526,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -6706,7 +6708,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -6883,7 +6885,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -7058,7 +7060,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -7233,7 +7235,7 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -7408,7 +7410,7 @@ export type GetApiLinearPipelineExecutionsByDefinitionByLinearPipelineDefinition
                 stepDefinitionVersion: number;
                 stepKey: string;
                 position: number;
-                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled';
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
                 stepExecutionId: string;
                 stepExecutionResultId: string | unknown;
@@ -9602,6 +9604,10 @@ export type GetApiProjectsByProjectIdIntegrationsResponses = {
                 id: number;
                 fullName: string;
             }>;
+        } | {
+            baseUrl: string;
+            email: string;
+            projectKeys: Array<string>;
         };
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
@@ -9737,6 +9743,10 @@ export type PostApiProjectsByProjectIdIntegrationsResponses = {
                 id: number;
                 fullName: string;
             }>;
+        } | {
+            baseUrl: string;
+            email: string;
+            projectKeys: Array<string>;
         };
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
@@ -9749,7 +9759,9 @@ export type PostApiProjectsByProjectIdIntegrationsResponses = {
 export type PostApiProjectsByProjectIdIntegrationsResponse = PostApiProjectsByProjectIdIntegrationsResponses[keyof PostApiProjectsByProjectIdIntegrationsResponses];
 
 export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncData = {
-    body?: never;
+    body: {
+        apiKey?: string;
+    };
     path: {
         projectId: string;
         integrationId: string;
@@ -9881,8 +9893,8 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncResponses =
      */
     200: {
         totalUpserted: number;
-        perRepo: Array<{
-            fullName: string;
+        perSource: Array<{
+            key: string;
             totalSeen: number;
             totalUpserted: number;
         }>;

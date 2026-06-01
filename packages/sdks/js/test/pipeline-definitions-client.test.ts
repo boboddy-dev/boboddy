@@ -101,7 +101,7 @@ function makeSpec(overrides?: Partial<PipelineDefinitionSpec>): PipelineDefiniti
 
 describe("createPipelineDefinitionsClient", () => {
   describe("listByProjectId", () => {
-    test("sends GET to /api/linear-pipeline-definitions with projectId query param", async () => {
+    test("sends GET to /api/projects/{projectId}/linear-pipeline-definitions", async () => {
       const { mockFetch, captured } = createMockFetch([
         { status: 200, body: [] },
       ]);
@@ -114,7 +114,7 @@ describe("createPipelineDefinitionsClient", () => {
         expect(captured).toHaveLength(1);
         expect(captured[0]?.method).toBe("GET");
         expect(captured[0]?.url).toBe(
-          `${BASE_URL}/api/linear-pipeline-definitions?projectId=proj-1`,
+          `${BASE_URL}/api/projects/proj-1/linear-pipeline-definitions`,
         );
         // Headers.entries() lowercases header names per the WHATWG spec.
         expect(captured[0]?.headers["authorization"]).toBe("Bearer test-token");

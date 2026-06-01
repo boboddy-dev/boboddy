@@ -31,11 +31,8 @@ const buildPipelineDefinitionsClient = (
       projectId: string,
       options?: RequestOptions,
     ) => {
-      // The generated OpenAPI types model `query` as `never` for this endpoint,
-      // but the server accepts a `projectId` filter. Cast to align with runtime
-      // behavior until the OpenAPI spec is updated.
       const result = await pipelineDefinitions.listPipelineDefinitions({
-        query: { projectId } as never,
+        path: { projectId },
         headers: options?.headers,
       });
       if (result.error) throw new Error(JSON.stringify(result.error));
