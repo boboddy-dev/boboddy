@@ -1,15 +1,9 @@
 {
   "name": "boboddy",
-  // Use a minimal devcontainers base image with a non-root user.
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
-  // Install Bun to match the repo's packageManager version.
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+  "remoteUser": "node",
   "features": {
-    "ghcr.io/devcontainers/features/bun:1": {
-      "version": "1.3.12"
-    }
+    "ghcr.io/devcontainers-extra/features/bun-apt-get:1": {}
   },
-  // Install monorepo dependencies on first create.
-  "onCreateCommand": "bun install --frozen-lockfile",
-  // Run as the non-root user provided by the base image.
-  "remoteUser": "vscode"
+  "postCreateCommand": "bun install --frozen-lockfile"
 }
