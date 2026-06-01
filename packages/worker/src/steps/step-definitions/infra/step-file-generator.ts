@@ -61,7 +61,7 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
       `  status: ${JSON.stringify(step.status)} as const`,
     ];
     if (step.description) fields.push(`  description: ${JSON.stringify(step.description)}`);
-    if (step.prompt) fields.push(`  prompt: ${JSON.stringify(step.prompt)}`);
+    fields.push(`  agentPrompt: ${JSON.stringify(step.prompt ?? "")}`);
     fields.push(`  input: ${inputExpr}`);
     fields.push(`  result: ${resultExpr}`);
     if (signalLines.length > 0) {

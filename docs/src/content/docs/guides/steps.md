@@ -3,7 +3,7 @@ title: Defining Steps
 description: Create reusable, versioned computation units with typed inputs, outputs, and signals
 ---
 
-A **step** is the atomic unit of work in Boboddy. Each step has a typed input schema, a result schema, an AI prompt, and optionally a set of **signals** extracted from its output.
+A **step** is the atomic unit of work in Boboddy. Each step has a typed input schema, a result schema, an agent prompt, and optionally a set of **signals** extracted from its output.
 
 ## Basic step
 
@@ -14,13 +14,13 @@ import { z } from 'zod';
 export const summarizeStep = defineStep({
   key: 'summarize-text',
   name: 'Summarize Text',
+  agentPrompt: 'Summarize the provided text concisely.',
   input: z.object({
     text: z.string(),
   }),
   result: z.object({
     summary: z.string(),
   }),
-  prompt: 'Summarize the provided text concisely.',
   status: 'active',
 });
 ```
@@ -33,13 +33,14 @@ export const summarizeStep = defineStep({
 | `name` | `string` | Yes | Human-readable display name |
 | `version` | `number` | No | Version number (defaults to 1) |
 | `description` | `string` | No | Brief description shown in the UI |
-| `prompt` | `string` | No | AI prompt given to the worker agent when executing this step |
+| `agentPrompt` | `string` | Yes | AI prompt given to the worker agent when executing this step |
 | `input` | `ZodType` | No | Zod schema for the step's input payload |
+| `additionalStepInput` | `object` | No | Default work item field and literal bindings for this step |
 | `result` | `ZodType` | No | Zod schema for the step's output |
 | `signals` | `Signal[]` | No | Values to extract from the result for pipeline advancement logic |
 | `computedSignals` | `ComputedSignal[]` | No | Aggregated signals derived from multiple raw signals |
 | `mcpServers` | `OpenCodeMcpServers` | No | MCP server configurations for tool-using agents |
-| `status` | `"draft" \| "active"` | No | Draft steps are not executed; defaults to `"draft"` |
+| `status` | `"draft" \| "active"` | No | Draft steps are not executed; defaults to `"active"` |
 
 ## Signals
 

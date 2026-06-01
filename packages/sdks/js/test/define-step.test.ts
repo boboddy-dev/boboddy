@@ -5,13 +5,17 @@ import { Features, type AnyStepFeature } from "../src/definitions/steps/step-fea
 
 describe("defineStep", () => {
   test("applies sensible defaults", () => {
-    const spec = defineStep({ key: "my-step", name: "My Step" });
+    const spec = defineStep({
+      key: "my-step",
+      name: "My Step",
+      agentPrompt: "Do the work.",
+    });
     expect(spec).toMatchObject({
       version: 1,
       kind: "user_defined",
       status: "active",
       description: null,
-      prompt: null,
+      prompt: "Do the work.",
       inputSchemaJson: null,
       resultSchemaJson: null,
       signalExtractorDefinitions: [],
@@ -50,6 +54,7 @@ describe("defineStep", () => {
     const spec = defineStep({
       key: "debug-issue",
       name: "Debug Issue",
+      agentPrompt: "Analyze the issue.",
       result: resultSchema,
       signals: [
         { sourcePath: "outcome" },
@@ -104,6 +109,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         result: z.object({ score: z.number() }),
         features: [mockFeatureA],
       });
@@ -120,6 +126,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         features: [mockFeatureA],
       });
 
@@ -128,21 +135,22 @@ describe("defineStep", () => {
       });
     });
 
-    test("appends feature prompt addition when base prompt is null", () => {
+    test("appends feature prompt addition to the base agent prompt", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         features: [mockFeatureA],
       });
 
-      expect(spec.prompt).toBe("Feature A instructions");
+      expect(spec.prompt).toBe("Do the work.\n\nFeature A instructions");
     });
 
     test("appends feature prompt addition to existing prompt with double newline separator", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
-        prompt: "Base prompt.",
+        agentPrompt: "Base prompt.",
         features: [mockFeatureA],
       });
 
@@ -153,6 +161,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         features: [mockFeatureA],
       });
 
@@ -165,6 +174,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         result: z.object({ score: z.number(), flagA: z.boolean() }),
         signals: [{ sourcePath: "score" }],
         features: [mockFeatureA],
@@ -180,6 +190,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         features: [mockFeatureA, mockFeatureB],
       });
 
@@ -189,7 +200,9 @@ describe("defineStep", () => {
           labelB: { type: "string" },
         },
       });
-      expect(spec.prompt).toBe("Feature A instructions\n\nFeature B instructions");
+      expect(spec.prompt).toBe(
+        "Do the work.\n\nFeature A instructions\n\nFeature B instructions",
+      );
       const defs = spec.signalExtractorDefinitions;
       expect(defs).toHaveLength(2);
       expect(defs[0]!.key).toBe("sig_a");
@@ -201,7 +214,7 @@ describe("defineStep", () => {
         key: "my-step",
         name: "My Step",
         result: z.object({ outcome: z.string() }),
-        prompt: "Do the thing.",
+        agentPrompt: "Do the thing.",
         features: [Features.feedbackRequests()],
       });
 
@@ -228,6 +241,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         result: z.object({
           score: z.number(),
           label: z.string(),
@@ -258,6 +272,7 @@ describe("defineStep", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
+        agentPrompt: "Do the work.",
         result: z.object({ score: z.number() }),
         signals: [{ key: "custom_key", sourcePath: "score", required: false }],
       });
@@ -270,5 +285,24 @@ describe("defineStep", () => {
         availableWhenResultStatusIn: null,
       });
     });
+  });
+
+  test("additionalStepInput.bindings throws on keys not in schema", () => {
+    expect(() =>
+      defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        additionalStepInput: {
+          schema: z.object({ owner: z.string() }),
+          bindings: ({ literal }) => ({
+            owner: literal("platform"),
+            asdf: literal(123),
+          }),
+        },
+      }),
+    ).toThrow(
+      'additionalStepInput.bindings returned key not in schema: "asdf"',
+    );
   });
 });

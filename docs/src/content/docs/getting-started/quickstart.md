@@ -48,6 +48,7 @@ export const reviewCodeStep = defineStep({
   key: 'review-code',
   name: 'Review Code',
   description: 'Analyze a code snippet and return a clarity score.',
+  agentPrompt: `Review the provided code snippet. Return structured feedback and a clarity score from 0 to 10.`,
   input: z.object({
     code: z.string(),
     language: z.string().optional(),
@@ -59,7 +60,6 @@ export const reviewCodeStep = defineStep({
   signals: [
     { sourcePath: 'score', key: 'clarity_score', type: 'number', required: true },
   ],
-  prompt: `Review the provided code snippet. Return structured feedback and a clarity score from 0 to 10.`,
   status: 'active',
 });
 ```

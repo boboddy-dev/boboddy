@@ -148,14 +148,15 @@ export default pipeline({
   .build();
 ```
 
-The `bindings` callback receives `{ workItem, input, literal }`:
+The `bindings` callback receives `{ workItem, literal }`:
 
 - **`workItem.title`** / **`workItem.description`** — the work item's title or description
 - **`workItem.field(name)`** — a named custom field on the work item (e.g. `workItem.field("Story Points")`)
-- **`input.<path>`** — another field from the same `additionalPipelineInput.schema` (for derived bindings)
 - **`literal(value)`** — a hardcoded constant
 
 Pipeline-level bindings are defaults applied to every step automatically. Explicit bindings in a `.step()` mapper override them for that step.
+
+`additionalStepInput` is similar, but it compiles into default step bindings instead of pipeline input fields. You can define it on `defineStep(...)` for reusable step defaults, or on `pipeline(...)` to apply the same defaults to every step in that pipeline. Pipeline-level `additionalStepInput` overrides step-level defaults, and explicit `.step()` bindings override both.
 
 ## Advancement policies
 

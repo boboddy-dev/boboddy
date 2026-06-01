@@ -116,6 +116,7 @@ const placeholderStep = defineStep({
   key: "placeholder",
   name: "Placeholder",
   version: 1,
+  agentPrompt: "Review the work item title and return the requested result.",
   input: z.object({
     content: z.string(),
   }),
@@ -151,9 +152,10 @@ ${signalLines}
 `;
 
       const promptLine = step.prompt
-        ? `  prompt: ${JSON.stringify(step.prompt)},
+        ? `  agentPrompt: ${JSON.stringify(step.prompt)},
 `
-        : "";
+        : `  agentPrompt: "Review the input and return the requested result.",
+`;
 
       return `export const ${kebabToCamel(step.key)} = defineStep({
   key: ${JSON.stringify(step.key)},

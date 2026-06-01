@@ -1,5 +1,9 @@
 import { z, type ZodType } from "zod";
-import type { TypedStepDefinitionSpec } from "../steps/define-step";
+import {
+  getAdditionalStepInputBindings,
+  type AdditionalStepInputBinding,
+  type TypedStepDefinitionSpec,
+} from "../steps/define-step";
 import type { AdvancementPolicy } from "../advancement-policies/define-advancement-policy";
 import {
   makeAdvanceCtx,
@@ -125,6 +129,13 @@ export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
         }
       : Partial<Record<string, AnyBinding>>;
   };
+  additionalStepInput?: {
+    schema: ZodType;
+    bindings: (ctx: {
+      workItemField: (fieldName: string) => WorkItemBinding;
+      literal: (value: unknown) => LiteralBinding;
+    }) => Partial<Record<string, AdditionalStepInputBinding>>;
+  };
 };
 
 /**
@@ -141,10 +152,11 @@ export class PipelineStepAdvancementBuilder<
     protected readonly inputSchema: TInput,
     protected readonly meta: Omit<
       PipelineMeta<TInput>,
-      "additionalPipelineInput"
+      "additionalPipelineInput" | "additionalStepInput"
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
+    protected readonly pipelineStepInputBindings: Record<string, AnyBinding> = {},
   ) {}
 
   advance(
@@ -166,10 +178,11 @@ export class PipelineStepAdvancementBuilder<
     last.advancement = policy as AdvancementPolicy;
     return new PipelineStepBuilder(
       this.inputSchema,
-      this.meta,
-      this.steps,
-      this.pipelineInputBindings,
-    );
+        this.meta,
+        this.steps,
+        this.pipelineInputBindings,
+        this.pipelineStepInputBindings,
+      );
   }
 }
 
@@ -187,10 +200,11 @@ export class PipelineStepBuilder<
     protected readonly inputSchema: TInput,
     protected readonly meta: Omit<
       PipelineMeta<TInput>,
-      "additionalPipelineInput"
+      "additionalPipelineInput" | "additionalStepInput"
     >,
     protected readonly steps: PipelineStepConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
+    protected readonly pipelineStepInputBindings: Record<string, AnyBinding> = {},
   ) {}
 
   step<S extends AnyTypedStep>(
@@ -203,8 +217,10 @@ export class PipelineStepBuilder<
       TSteps
     >;
     const rawInput = mapper(ctx);
-    const input = normalizeInputMapping(
-      rawInput as Record<string, AnyBinding | undefined>,
+    const input = mergeStepBindings(
+      getAdditionalStepInputBindings(step),
+      this.pipelineStepInputBindings,
+      normalizeInputMapping(rawInput as Record<string, AnyBinding | undefined>),
     );
     const stepConfig: PipelineStepConfig = { step, input };
     if (configFn) {
@@ -218,6 +234,7 @@ export class PipelineStepBuilder<
       this.meta,
       this.steps,
       this.pipelineInputBindings,
+      this.pipelineStepInputBindings,
     ) as PipelineStepAdvancementBuilder<TInput, [...TSteps, S]>;
   }
 
@@ -243,12 +260,16 @@ export class PipelineStepBuilder<
  */
 export class PipelineBuilder<TInput extends ZodType> {
   private readonly inputSchema: TInput;
-  private readonly meta: Omit<PipelineMeta<TInput>, "additionalPipelineInput">;
+  private readonly meta: Omit<
+    PipelineMeta<TInput>,
+    "additionalPipelineInput" | "additionalStepInput"
+  >;
   private readonly steps: PipelineStepConfig[] = [];
   private readonly pipelineInputBindings: Record<string, AnyBinding>;
+  private readonly pipelineStepInputBindings: Record<string, AnyBinding>;
 
   constructor(meta: PipelineMeta<TInput>) {
-    const { additionalPipelineInput, ...rest } = meta;
+    const { additionalPipelineInput, additionalStepInput, ...rest } = meta;
     this.inputSchema = (additionalPipelineInput?.schema ??
       z.unknown()) as TInput;
     this.meta = rest;
@@ -274,6 +295,11 @@ export class PipelineBuilder<TInput extends ZodType> {
     } else {
       this.pipelineInputBindings = {};
     }
+
+    this.pipelineStepInputBindings = resolveAdditionalStepInputBindings(
+      "additionalStepInput",
+      additionalStepInput,
+    );
   }
 
   step<S extends AnyTypedStep>(
@@ -283,8 +309,10 @@ export class PipelineBuilder<TInput extends ZodType> {
   ): PipelineStepAdvancementBuilder<TInput, [S]> {
     const ctx = makeStepInputCtx(this.inputSchema) as StepInputCtx<TInput, []>;
     const rawInput = mapper(ctx);
-    const input = normalizeInputMapping(
-      rawInput as Record<string, AnyBinding | undefined>,
+    const input = mergeStepBindings(
+      getAdditionalStepInputBindings(step),
+      this.pipelineStepInputBindings,
+      normalizeInputMapping(rawInput as Record<string, AnyBinding | undefined>),
     );
     const stepConfig: PipelineStepConfig = { step, input };
     if (configFn) {
@@ -298,6 +326,7 @@ export class PipelineBuilder<TInput extends ZodType> {
       this.meta,
       this.steps,
       this.pipelineInputBindings,
+      this.pipelineStepInputBindings,
     ) as PipelineStepAdvancementBuilder<TInput, [S]>;
   }
 }
@@ -360,6 +389,49 @@ function normalizeInputMapping(
     out[key] = isInputAccessor(value) ? materializeAccessor(value) : value;
   }
   return out;
+}
+
+function resolveAdditionalStepInputBindings(
+  label: "additionalStepInput",
+  definition: PipelineMeta["additionalStepInput"] | undefined,
+): Record<string, AnyBinding> {
+  if (!definition) {
+    return {};
+  }
+
+  const raw = definition.bindings({
+    workItemField: (fieldName: string) => ({
+      source: "work_item",
+      field: `fields.${fieldName}`,
+    }),
+    literal,
+  });
+
+  if (definition.schema instanceof z.ZodObject) {
+    const validKeys = new Set(Object.keys(definition.schema.shape as object));
+    const unknown = Object.keys(raw).filter((key) => !validKeys.has(key));
+    if (unknown.length > 0) {
+      throw new Error(
+        `${label}.bindings returned key${unknown.length > 1 ? "s" : ""} not in schema: ${unknown.map((key) => `"${key}"`).join(", ")}`,
+      );
+    }
+  }
+
+  return normalizeInputMapping(raw as Record<string, AnyBinding | undefined>) ?? {};
+}
+
+function mergeStepBindings(
+  stepBindings: Record<string, AnyBinding>,
+  pipelineBindings: Record<string, AnyBinding>,
+  explicitBindings: Record<string, AnyBinding> | undefined,
+): Record<string, AnyBinding> | undefined {
+  const merged = {
+    ...stepBindings,
+    ...pipelineBindings,
+    ...(explicitBindings ?? {}),
+  };
+
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 export function pipeline<TInput extends ZodType = z.ZodUnknown>(

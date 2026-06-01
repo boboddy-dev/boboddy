@@ -138,7 +138,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
         expect(content).toContain("investigate");
         expect(content).toContain("Investigate");
         expect(content).toContain("confidence");
-        expect(content).toContain("prompt:");
+        expect(content).toContain("agentPrompt:");
         expect(content).toContain("input:");
         expect(content).toContain("result:");
         expect(content).toContain("z.object");

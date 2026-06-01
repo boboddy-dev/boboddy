@@ -134,6 +134,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     gitUrl: string;
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
+    agentPromptText: string;
   }): Promise<LocalProjectRuntimeEnvironment> {
     let workspacePath: string | null = null;
     let devcontainerId: string | null = null;
@@ -172,6 +173,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       await buildOpencodeContext({
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
+        agentPromptText: input.agentPromptText,
       });
       logWork("runtime", "OpenCode context built", {
         sessionId: input.sessionId,

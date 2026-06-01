@@ -46,6 +46,7 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
 export async function buildOpencodeContext(input: {
   workspacePath: string;
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
+  agentPromptText?: string | null | undefined;
 }): Promise<void> {
   const targetRoot = path.join(input.workspacePath, ".opencode");
   const targetConfigPath = path.join(input.workspacePath, "opencode.jsonc");
@@ -59,6 +60,7 @@ export async function buildOpencodeContext(input: {
   const mergedConfig = buildStepExecutionOpencodeConfig({
     baseConfig: baselineConfig,
     stepMcpServers: input.stepMcpServers,
+    agentPromptText: input.agentPromptText,
   });
   await writeFile(
     targetConfigPath,

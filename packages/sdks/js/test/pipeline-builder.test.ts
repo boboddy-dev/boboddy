@@ -11,6 +11,7 @@ import { defineStep } from "../src/definitions/steps/define-step";
 const noInputStep = defineStep({
   key: "no-input",
   name: "No Input Step",
+  agentPrompt: "Do the work.",
   input: z.object({}),
   result: z.object({}),
   signals: [],
@@ -19,6 +20,8 @@ const noInputStep = defineStep({
 const reproduceStep = defineStep({
   key: "reproduce",
   name: "Reproduce Issue",
+  agentPrompt:
+    "Reproduce the following issue using the provided title and description.",
   input: z.object({ title: z.string(), description: z.string() }),
   result: z.object({
     url: z.string(),
@@ -27,8 +30,6 @@ const reproduceStep = defineStep({
     score: z.number(),
     score2: z.number(),
   }),
-  prompt: (input) =>
-    `Reproduce the following issue:\n\nTitle: ${input.title}\nDescription: ${input.description}`,
   signals: [
     { sourcePath: "url", key: "repro_url" },
     { sourcePath: "success" },
@@ -41,6 +42,7 @@ const reproduceStep = defineStep({
 const verifyStep = defineStep({
   key: "verify",
   name: "Verify Fix",
+  agentPrompt: "Verify whether the fix passes using the provided inputs.",
   input: z.object({
     reproUrl: z.string(),
     checkSuccess: z.boolean(),
@@ -48,6 +50,29 @@ const verifyStep = defineStep({
   }),
   result: z.object({ passed: z.boolean() }),
   signals: [{ sourcePath: "passed" }],
+});
+
+const enrichedStep = defineStep({
+  key: "enriched",
+  name: "Enriched Step",
+  agentPrompt: "Use the bound metadata fields to produce the result.",
+  input: z.object({
+    jiraProject: z.string().nullable().optional(),
+    owner: z.string().optional(),
+    priority: z.string().nullable().optional(),
+  }),
+  additionalStepInput: {
+    schema: z.object({
+      jiraProject: z.string().nullable(),
+      owner: z.string(),
+    }),
+    bindings: ({ workItemField, literal }) => ({
+      jiraProject: workItemField("Jira Project"),
+      owner: literal("platform-team"),
+    }),
+  },
+  result: z.object({ ok: z.boolean() }),
+  signals: [{ sourcePath: "ok" }],
 });
 
 describe("pipeline() builder — Phase 1", () => {
@@ -408,6 +433,66 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
+      "step-level additionalStepInput bindings are injected into the step",
+      () => {
+        const spec = pipeline({ key: "p", name: "P" })
+          .step(enrichedStep, ({ literal }) => ({ priority: literal("high") }))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          jiraProject: { source: "work_item", field: "fields.Jira Project" },
+          owner: { source: "literal", value: "platform-team" },
+          priority: { source: "literal", value: "high" },
+        });
+      },
+    );
+
+    test.concurrent(
+      "pipeline-level additionalStepInput bindings are injected into every step",
+      () => {
+        const spec = pipeline({
+          key: "p",
+          name: "P",
+          additionalStepInput: {
+            schema: z.object({ priority: z.string().nullable() }),
+            bindings: ({ workItemField }) => ({
+              priority: workItemField("Priority"),
+            }),
+          },
+        })
+          .step(enrichedStep, () => ({}))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          priority: { source: "work_item", field: "fields.Priority" },
+        });
+      },
+    );
+
+    test.concurrent(
+      "pipeline additionalStepInput overrides step additionalStepInput before explicit bindings",
+      () => {
+        const spec = pipeline({
+          key: "p",
+          name: "P",
+          additionalStepInput: {
+            schema: z.object({ owner: z.string() }),
+            bindings: ({ literal }) => ({ owner: literal("pipeline-owner") }),
+          },
+        })
+          .step(enrichedStep, ({ literal }) => ({ owner: literal("explicit-owner") }))
+          .advance(() => ({ default: "continue" }))
+          .build();
+
+        expect(spec.steps[0]!.inputBindingsJson).toMatchObject({
+          owner: { source: "literal", value: "explicit-owner" },
+        });
+      },
+    );
+
+    test.concurrent(
       "explicit step bindings override pipeline-level inputBindings",
       () => {
         const spec = pipeline({
@@ -480,6 +565,27 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
     );
 
     test.concurrent(
+      "additionalStepInput.bindings throws on keys not in schema",
+      () => {
+        expect(() =>
+          pipeline({
+            key: "p",
+            name: "P",
+            additionalStepInput: {
+              schema: z.object({ owner: z.string() }),
+              bindings: ({ literal }) => ({
+                owner: literal("platform"),
+                asdf: literal(123),
+              }),
+            },
+          }),
+        ).toThrow(
+          'additionalStepInput.bindings returned key not in schema: "asdf"',
+        );
+      },
+    );
+
+    test.concurrent(
       "nested input.x.y proxies serialize to dotted-path bindings",
       () => {
         const nestedInputSchema = z.object({
@@ -491,6 +597,7 @@ describe("pipeline() builder — parity coverage (Phase 5)", () => {
         const nestedStep = defineStep({
           key: "nested-step",
           name: "Nested Step",
+          agentPrompt: "Do the work.",
           input: z.object({ title: z.string(), description: z.string() }),
           result: z.object({}),
           signals: [],

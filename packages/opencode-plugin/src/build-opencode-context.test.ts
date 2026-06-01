@@ -55,4 +55,28 @@ describe("buildOpencodeContext", () => {
       .catch(() => false);
     expect(pluginsDirExists).toBe(true);
   });
+
+  test("writes the step agent prompt into agent.build.prompt", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      agentPromptText: "Execute the Boboddy step.",
+    });
+
+    const config = JSON.parse(
+      await readFile(path.join(workspacePath, "opencode.jsonc"), "utf8"),
+    ) as {
+      agent?: {
+        build?: {
+          prompt?: string;
+        };
+      };
+    };
+
+    expect(config.agent?.build?.prompt).toBe("Execute the Boboddy step.");
+  });
 });

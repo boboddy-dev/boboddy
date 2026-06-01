@@ -121,6 +121,7 @@ async function launchRuntimeEnvironment(
     gitUrl: input.workerContext.gitUrl,
     requestedBranch: input.workerContext.requestedBranch,
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
+    agentPromptText: input.workerContext.agentPrompt.promptText,
   });
 }
 

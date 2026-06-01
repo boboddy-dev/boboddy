@@ -45,11 +45,16 @@ export const myStep = defineStep({
   version: 1,               // increment when schema changes
   status: "active",         // "draft" | "active" (default: "active")
 
-  // Static string prompt:
-  prompt: "You are an analyst. Evaluate the input and return a score.",
+  // Required string prompt for the executing agent:
+  agentPrompt: "You are an analyst. Evaluate the input and return a score.",
 
-  // Or a function prompt — `input` is a typed proxy; embed fields with template literals:
-  prompt: (input) => `Analyze the following issue:\n\nTitle: ${input.title}\nBody: ${input.body}`,
+  // Optional: reusable default bindings for this step
+  additionalStepInput: {
+    schema: z.object({ repo: z.string().nullable() }),
+    bindings: ({ workItemField }) => ({
+      repo: workItemField("Repo"),
+    }),
+  },
 
   // Zod schema for what the step receives
   input: z.object({
@@ -107,13 +112,20 @@ export default pipeline({
   description: null,        // optional
   version: 1,
   status: "active",         // "draft" | "active" (default: "active")
-  // Optional: define custom input fields beyond the built-in work item fields.
+  // Optional: define custom pipeline input fields beyond the built-in work item fields.
   // Both schema and bindings are required when this object is provided.
   additionalPipelineInput: {
     schema: z.object({ body: z.string(), userId: z.string() }),
     bindings: ({ workItem, literal }) => ({
       body: workItem.description,      // bind from the work item
       userId: literal("system"),       // or a hardcoded constant
+    }),
+  },
+  // Optional: define default step bindings applied to every step in this pipeline.
+  additionalStepInput: {
+    schema: z.object({ priority: z.string().nullable() }),
+    bindings: ({ workItemField }) => ({
+      priority: workItemField("Priority"),
     }),
   },
 })
@@ -318,7 +330,7 @@ export const investigate = defineStep({
   key: "investigate",
   name: "Investigate",
   version: 1,
-  prompt: (input) => `Analyze this issue:\n\nTitle: ${input.title}\nBody: ${input.body}`,
+  agentPrompt: "Analyze the provided issue title and body, then return a concise summary and confidence score.",
   input: z.object({ title: z.string(), body: z.string() }),
   result: z.object({ summary: z.string(), confidence: z.number() }),
   signals: [
@@ -331,7 +343,7 @@ export const triage = defineStep({
   key: "triage",
   name: "Triage",
   version: 1,
-  prompt: "Given the investigation summary, assign a priority: low, medium, or high.",
+  agentPrompt: "Given the investigation summary, assign a priority: low, medium, or high.",
   input: z.object({ summary: z.string() }),
   result: z.object({ priority: z.string() }),
   signals: [{ sourcePath: "priority" }],

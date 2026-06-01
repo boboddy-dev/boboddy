@@ -126,8 +126,9 @@ function mergeToolsConfig(
 function mergeAgentConfig(
   baseAgent: OpenCodeConfig["agent"],
   requiredPrefixes: readonly string[],
+  agentPromptText: string | null | undefined,
 ): OpenCodeConfig["agent"] {
-  if (requiredPrefixes.length === 0) {
+  if (requiredPrefixes.length === 0 && !agentPromptText) {
     return baseAgent;
   }
 
@@ -149,6 +150,7 @@ function mergeAgentConfig(
         existingStepExecutionAgent?.description ??
         "Execute Boboddy step runs with the step-specific MCP tools enabled for the current execution profile.",
       ...existingStepExecutionAgent,
+      ...(agentPromptText ? { prompt: agentPromptText } : {}),
       tools: mergedAgentTools,
     },
   };
@@ -157,12 +159,17 @@ function mergeAgentConfig(
 export function buildStepExecutionOpencodeConfig(input: {
   baseConfig: OpenCodeConfig;
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
+  agentPromptText?: string | null | undefined;
 }): OpenCodeConfig {
   const baseConfig = cloneConfig(input.baseConfig);
   const requiredPrefixes = getRequiredMcpToolPrefixes(input.stepMcpServers);
   const mergedMcp = mergeMcpConfig(baseConfig.mcp, input.stepMcpServers);
   const mergedTools = mergeToolsConfig(baseConfig.tools, requiredPrefixes);
-  const mergedAgent = mergeAgentConfig(baseConfig.agent, requiredPrefixes);
+  const mergedAgent = mergeAgentConfig(
+    baseConfig.agent,
+    requiredPrefixes,
+    input.agentPromptText,
+  );
   const model = process.env["AGENT_DEFAULT_MODEL"];
 
   return {

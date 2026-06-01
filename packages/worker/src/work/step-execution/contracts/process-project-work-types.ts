@@ -95,6 +95,7 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     gitUrl: string;
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodeMcpJson"];
+    agentPromptText: StepExecutionWorkerContextContract["agentPrompt"]["promptText"];
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
 
