@@ -122,6 +122,11 @@ jobs:
             exit 1
           fi
 
+      - name: Build opencode plugin
+        run: |
+          bun run --filter @boboddy/opencode-plugin declarations
+          bun run --filter @boboddy/opencode-plugin build
+
       - name: Stamp CLI version
         working-directory: apps/cli
         run: npm pkg set version="${{ needs.resolve-version.outputs.version }}"
