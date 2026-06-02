@@ -106,6 +106,17 @@ async function fetchWorkerContext(
   });
 }
 
+function resolveRequestedBranch(
+  requestedBranch: string | null | undefined,
+): string | null {
+  const explicitBranch = requestedBranch?.trim();
+  if (explicitBranch) return explicitBranch;
+
+  const envBranch = process.env["BOBODDY_WORK_REQUESTED_BRANCH"]?.trim();
+
+  return envBranch || null;
+}
+
 async function launchRuntimeEnvironment(
   deps: ProcessProjectWorkDeps,
   input: {
@@ -119,7 +130,9 @@ async function launchRuntimeEnvironment(
     projectId: parseUuidV7(input.workerContext.projectId),
     requestedByUserId: input.requestedByUserId,
     gitUrl: input.workerContext.gitUrl,
-    requestedBranch: input.workerContext.requestedBranch,
+    requestedBranch: resolveRequestedBranch(
+      input.workerContext.requestedBranch,
+    ),
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     agentPromptText: input.workerContext.agentPrompt.promptText,
   });

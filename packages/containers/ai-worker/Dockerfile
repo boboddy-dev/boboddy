@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/playwright/mcp:v0.0.68
 
 USER root
 
-ARG OPENCODE_NPM_PACKAGE=opencode-ai@1.14.34
+ARG OPENCODE_NPM_PACKAGE=opencode-ai@1.15.13
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV OPENCODE_HOME=/home/node

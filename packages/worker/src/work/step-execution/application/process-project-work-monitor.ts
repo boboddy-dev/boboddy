@@ -1,5 +1,6 @@
 import { access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { STEP_EXECUTION_AGENT } from "@boboddy/opencode-plugin";
 import { ProjectOpencodeRuntimeActions } from "../../opencode-runtime/application/project-opencode-runtime-actions";
 import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
 import type { startProcessClaimedExecution } from "./process-claimed-step-execution";
@@ -226,7 +227,6 @@ export async function monitorStartedClaimedExecution(
           stepExecutionId: startedExecution.stepExecutionId,
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
         });
-         
       } else if (submissionResult === "missing") {
         if (!hasWaitedForSessionStop) {
           hasWaitedForSessionStop = true;
@@ -266,7 +266,7 @@ export async function monitorStartedClaimedExecution(
             aiBaseUrl: startedExecution.environment.aiBaseUrl,
             sessionId: startedExecution.agentSessionId,
             promptText: FINDINGS_RETRY_PROMPT,
-            agent: "step-execution",
+            agent: STEP_EXECUTION_AGENT,
           });
           await deps.sleep(input.pollIntervalMs);
           continue;

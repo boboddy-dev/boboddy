@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import Ajv from "ajv";
+import Ajv2020 from "ajv/dist/2020";
 import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 
 const DEFAULT_OUTPUT_PATH = ".boboddy/step-findings-submission.json";
@@ -71,7 +71,9 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
       .describe("Structured findings payload for the current step"),
   },
   async execute(args, context) {
-    const currentExecutionInfo = await loadCurrentExecutionInfo(context.worktree);
+    const currentExecutionInfo = await loadCurrentExecutionInfo(
+      context.worktree,
+    );
 
     if (!currentExecutionInfo.resultSchemaJson) {
       throw new Error(
@@ -79,8 +81,8 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
       );
     }
 
-    const ajv = new Ajv({ allErrors: true, strict: false });
-    let validate: ReturnType<Ajv["compile"]>;
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    let validate: ReturnType<Ajv2020["compile"]>;
 
     try {
       validate = ajv.compile(currentExecutionInfo.resultSchemaJson);
@@ -96,7 +98,10 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
     const valid = validate(args.findingsJson);
     if (!valid) {
       const details = (validate.errors ?? [])
-        .map((issue) => `${issue.instancePath || "/"} ${issue.message ?? "invalid"}`)
+        .map(
+          (issue) =>
+            `${issue.instancePath || "/"} ${issue.message ?? "invalid"}`,
+        )
         .join("; ");
       throw new Error(
         `findingsJson does not match resultSchemaJson: ${details || "validation failed"}`,

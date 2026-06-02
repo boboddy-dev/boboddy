@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@boboddy/sdk": "workspace:*",
-    "@opencode-ai/sdk": "1.14.34",
+    "@opencode-ai/sdk": "1.15.13",
     "ajv": "^8.17.1",
     "@opencode-ai/plugin": "1.14.34"
   },

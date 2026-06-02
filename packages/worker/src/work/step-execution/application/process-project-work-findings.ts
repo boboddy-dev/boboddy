@@ -1,4 +1,4 @@
-import Ajv from "ajv";
+import Ajv from "ajv/dist/2020";
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AnyJsonValue } from "../../../common/contracts/json";

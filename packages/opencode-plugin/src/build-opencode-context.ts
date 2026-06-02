@@ -6,6 +6,7 @@ import { parseJsonc } from "@boboddy/sdk/jsonc";
 import { buildStepExecutionOpencodeConfig } from "./build-step-execution-opencode-config";
 import embeddedOpencodeJsonc from "../opencode.jsonc" with { type: "text" };
 import embeddedOpencodeignore from "../opencodeignore.txt" with { type: "text" };
+import embeddedPlugin from "../dist/plugin.js" with { type: "text" };
 import packageJson from "../package.json" with { type: "json" };
 
 const PLUGIN_SDK_VERSION =
@@ -38,6 +39,11 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
     writeFile(
       path.join(targetRoot, ".gitignore"),
       embeddedOpencodeignore as string,
+      "utf8",
+    ),
+    writeFile(
+      path.join(targetRoot, "plugins", "boboddy.js"),
+      embeddedPlugin as unknown as string,
       "utf8",
     ),
   ]);

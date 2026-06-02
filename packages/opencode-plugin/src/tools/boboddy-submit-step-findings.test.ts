@@ -98,6 +98,38 @@ describe("boboddySubmitStepFindings", () => {
   );
 
   test.concurrent(
+    "accepts draft 2020-12 schemas written by step execution metadata",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-submit-findings-"),
+      );
+
+      await writeCurrentExecutionInfo(workspacePath, {
+        stepExecutionId: "step-execution-id",
+        resultSchemaJson: {
+          $schema: "https://json-schema.org/draft/2020-12/schema",
+          type: "object",
+          required: ["confidence"],
+          additionalProperties: false,
+          properties: {
+            confidence: { type: "number" },
+          },
+        },
+      });
+
+      const result = await getTool().execute(
+        { findingsJson: { confidence: 1 } },
+        { worktree: workspacePath },
+      );
+
+      expect(JSON.parse(result)).toEqual({
+        ok: true,
+        outputPath: ".boboddy/step-findings-submission.json",
+      });
+    },
+  );
+
+  test.concurrent(
     "rejects findings that do not match the stored schema",
     async () => {
       const workspacePath = await mkdtemp(
