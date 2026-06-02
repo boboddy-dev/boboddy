@@ -13,7 +13,9 @@ const execFileAsync = promisify(execFile);
 const AI_CONTAINER_PORT = 4096;
 const AI_CONTAINER_HEALTH_TIMEOUT_MS = 60_000;
 const AI_CONTAINER_HEALTH_INTERVAL_MS = 500;
-const DEFAULT_AI_IMAGE = "boboddy/ai-worker:local";
+declare const __BUILT_AI_IMAGE__: string;
+const DEFAULT_AI_IMAGE =
+  typeof __BUILT_AI_IMAGE__ !== "undefined" ? __BUILT_AI_IMAGE__ : "boboddy/ai-worker:local";
 const AI_CONTAINER_HEALTH_PATH = "/global/health";
 const RUNTIME_HOME_ROOT_DIR = ".boboddy";
 const RUNTIME_AI_HOME_DIR = "ai-home";
