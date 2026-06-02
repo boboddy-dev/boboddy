@@ -169,6 +169,12 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
       args.push("-v", `${hostOpencodeDataPath}:/opencode-host-share:ro`);
     }
 
+    // On Linux, host.docker.internal is not automatically resolvable inside
+    // containers the way it is on macOS/Windows Docker Desktop.
+    if (os.platform() === "linux") {
+      args.push("--add-host", "host.docker.internal:host-gateway");
+    }
+
     args.push(image);
 
     const { stdout } = await execFileAsync("docker", args);
