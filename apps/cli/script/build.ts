@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
   const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
   const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
-  const aiImageDefine = `--define:__BUILT_AI_IMAGE__=${JSON.stringify(`boboddy/ai-worker:${cliVersion}`)}`;
+  const aiImageDefine = `--define:process.env.BOBODDY_BUILT_AI_IMAGE=${JSON.stringify(`boboddy/ai-worker:${cliVersion}`)}`;
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
