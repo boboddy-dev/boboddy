@@ -95,6 +95,7 @@ jobs:
           context: .
           file: packages/containers/ai-worker/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.resolve-version.outputs.tag }}
 
   build-cli-linux:
@@ -227,7 +228,7 @@ jobs:
 
       - name: Check npm version
         run: npm --version
-      
+
       - name: Publish SDK
         working-directory: packages/sdks/js
         run: |
