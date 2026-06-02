@@ -18,7 +18,7 @@
   },
   "scripts": {
     "build": "bun build src/plugin.ts --bundle --outfile dist/plugin.js --target bun --external @opencode-ai/plugin",
-    "declarations": "bunx tsgo -p tsconfig.build.json",
+    "declarations": "find dist -name '*.d.ts' -delete 2>/dev/null; bunx tsgo -p tsconfig.build.json",
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "test": "bun test"
   },
