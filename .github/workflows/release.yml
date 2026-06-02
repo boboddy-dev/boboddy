@@ -134,6 +134,7 @@ jobs:
       - name: Build CLI binaries
         env:
           CLI_BUILD_VERSION: ${{ needs.resolve-version.outputs.version }}
+          AI_IMAGE_REGISTRY: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         run: bun run --filter @boboddy/cli build
 
       - name: Upload binaries

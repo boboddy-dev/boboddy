@@ -50,16 +50,22 @@ if (binaryName === undefined) {
 
 const binaryPath = resolve(distDirectory, binaryName);
 const devFilePath = resolve(distDirectory, ".dev");
+const aiImageFilePath = resolve(distDirectory, ".ai-image");
 const isDevBuild = existsSync(devFilePath);
 const devSdkArtifactPath = isDevBuild ? readFileSync(devFilePath, "utf8").trim() : "";
+const builtAiImage = existsSync(aiImageFilePath) ? readFileSync(aiImageFilePath, "utf8").trim() : "";
 
 if (!existsSync(binaryPath)) {
   fail(`Missing compiled binary: ${binaryPath}`);
 }
 
+const extraEnv = {};
+if (devSdkArtifactPath) extraEnv["BOBODDY_SDK_ARTIFACT_PATH"] = devSdkArtifactPath;
+if (builtAiImage && !process.env["BOBODDY_BUILT_AI_IMAGE"]) extraEnv["BOBODDY_BUILT_AI_IMAGE"] = builtAiImage;
+
 const result = spawnSync(binaryPath, process.argv.slice(2), {
   stdio: "inherit",
-  env: devSdkArtifactPath ? { ...process.env, BOBODDY_SDK_ARTIFACT_PATH: devSdkArtifactPath } : process.env,
+  env: Object.keys(extraEnv).length > 0 ? { ...process.env, ...extraEnv } : process.env,
 });
 
 if (result.error instanceof Error) {

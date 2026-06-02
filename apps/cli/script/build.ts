@@ -85,16 +85,22 @@ async function buildTarget(
 async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
   const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
+  const aiImageRegistry = process.env["AI_IMAGE_REGISTRY"] ?? "boboddy/ai-worker";
   const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
-  const aiImageDefine = `--define:process.env.BOBODDY_BUILT_AI_IMAGE=${JSON.stringify(`boboddy/ai-worker:${cliVersion}`)}`;
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
 
   for (const target of allTargets) {
     process.stdout.write(`Building ${target.outputName}...\n`);
-    await buildTarget(target, [versionDefine, aiImageDefine]);
+    await buildTarget(target, [versionDefine]);
   }
+
+  await writeFile(
+    resolve(distDirectory, ".ai-image"),
+    `${aiImageRegistry}:v${cliVersion}`,
+    "utf8",
+  );
 
   if (isDev) {
     const artifactPath = process.env["BOBODDY_SDK_ARTIFACT_PATH"] ?? "";
