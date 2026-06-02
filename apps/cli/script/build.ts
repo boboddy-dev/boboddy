@@ -14,8 +14,16 @@ const distDirectory = resolve(projectRoot, "dist");
 const entrypoint = resolve(projectRoot, "src/index.ts");
 
 const allTargets: readonly BuildTarget[] = [
-  { bunTarget: "bun-darwin-arm64", outputName: `${CLI_NAME}-darwin-arm64`, codesign: true },
-  { bunTarget: "bun-darwin-x64", outputName: `${CLI_NAME}-darwin-x64`, codesign: true },
+  {
+    bunTarget: "bun-darwin-arm64",
+    outputName: `${CLI_NAME}-darwin-arm64`,
+    codesign: true,
+  },
+  {
+    bunTarget: "bun-darwin-x64",
+    outputName: `${CLI_NAME}-darwin-x64`,
+    codesign: true,
+  },
   { bunTarget: "bun-linux-x64", outputName: `${CLI_NAME}-linux-x64` },
   { bunTarget: "bun-linux-arm64", outputName: `${CLI_NAME}-linux-arm64` },
   { bunTarget: "bun-windows-x64", outputName: `${CLI_NAME}-windows-x64.exe` },
@@ -60,10 +68,13 @@ async function buildTarget(
       stderr: "inherit",
     });
     await stripProc.exited;
-    const signProc = Bun.spawn(["codesign", "--sign", "-", "--force", outfile], {
-      stdout: "inherit",
-      stderr: "inherit",
-    });
+    const signProc = Bun.spawn(
+      ["codesign", "--sign", "-", "--force", outfile],
+      {
+        stdout: "inherit",
+        stderr: "inherit",
+      },
+    );
     const signExit = await signProc.exited;
     if (signExit !== 0) {
       throw new Error(`codesign failed for ${target.outputName}.`);
@@ -75,13 +86,14 @@ async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
   const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
   const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
+  const aiImageDefine = `--define:process.env.PROJECT_RUNTIME_SESSION_AI_IMAGE=${JSON.stringify(`boboddy/ai-worker:${cliVersion}`)}`;
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
 
   for (const target of allTargets) {
     process.stdout.write(`Building ${target.outputName}...\n`);
-    await buildTarget(target, [versionDefine]);
+    await buildTarget(target, [versionDefine, aiImageDefine]);
   }
 
   if (isDev) {
