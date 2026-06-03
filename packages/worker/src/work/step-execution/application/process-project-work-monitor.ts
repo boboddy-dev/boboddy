@@ -1,4 +1,4 @@
-import { access, readdir, stat } from "node:fs/promises";
+import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { STEP_EXECUTION_AGENT } from "@boboddy/opencode-plugin";
 import { ProjectOpencodeRuntimeActions } from "../../opencode-runtime/application/project-opencode-runtime-actions";
@@ -68,6 +68,99 @@ function buildMissingFindingsError(input: {
       `OpenCode logs on disk: ${input.opencodeLogDirectory}`,
     ].join(" "),
   );
+}
+
+async function describeFile(filePath: string): Promise<{
+  path: string;
+  exists: boolean;
+  sizeBytes?: number;
+  modifiedAt?: string;
+  contentPreview?: string;
+}> {
+  try {
+    const fileStat = await stat(filePath);
+    const rawContent = fileStat.isFile()
+      ? await readFile(filePath, "utf8").catch((error) => {
+          return `Failed to read file: ${error instanceof Error ? error.message : String(error)}`;
+        })
+      : undefined;
+
+    return {
+      path: filePath,
+      exists: true,
+      sizeBytes: fileStat.size,
+      modifiedAt: fileStat.mtime.toISOString(),
+      contentPreview:
+        rawContent && rawContent.length > 2000
+          ? `${rawContent.slice(0, 2000)}\n...<truncated ${String(rawContent.length - 2000)} chars>`
+          : rawContent,
+    };
+  } catch {
+    return {
+      path: filePath,
+      exists: false,
+    };
+  }
+}
+
+async function captureOpencodeLogPreview(logDirectory: string): Promise<
+  Array<{
+    file: string;
+    contentPreview: string;
+  }>
+> {
+  try {
+    const entries = await readdir(logDirectory, { withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort()
+      .slice(-4);
+
+    return await Promise.all(
+      files.map(async (file) => {
+        const rawContent = await readFile(path.join(logDirectory, file), "utf8").catch(
+          (error) => {
+            return `Failed to read log: ${error instanceof Error ? error.message : String(error)}`;
+          },
+        );
+
+        return {
+          file,
+          contentPreview:
+            rawContent.length > 2000
+              ? `${rawContent.slice(0, 2000)}\n...<truncated ${String(rawContent.length - 2000)} chars>`
+              : rawContent,
+        };
+      }),
+    );
+  } catch (error) {
+    return [
+      {
+        file: "<opencode-log-dir>",
+        contentPreview: `Unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ];
+  }
+}
+
+async function captureMissingFindingsDiagnostics(input: {
+  workspacePath: string;
+  opencodeLogDirectory: string;
+}) {
+  const findingsPath = buildFindingsSubmissionPath(input.workspacePath);
+  const currentExecutionPath = path.join(
+    input.workspacePath,
+    ".boboddy",
+    "current-execution",
+    "execution.json",
+  );
+
+  return {
+    findingsFile: await describeFile(findingsPath),
+    currentExecutionFile: await describeFile(currentExecutionPath),
+    opencodeLogs: await captureOpencodeLogPreview(input.opencodeLogDirectory),
+  };
 }
 
 async function collectStepArtifacts(
@@ -229,6 +322,11 @@ export async function monitorStartedClaimedExecution(
         });
       } else if (submissionResult === "missing") {
         if (!hasWaitedForSessionStop) {
+          const diagnostics = await captureMissingFindingsDiagnostics({
+            workspacePath: startedExecution.environment.workspacePath,
+            opencodeLogDirectory:
+              startedExecution.environment.opencodeLogDirectory,
+          });
           hasWaitedForSessionStop = true;
           logger.log(
             "worker",
@@ -240,6 +338,9 @@ export async function monitorStartedClaimedExecution(
               localRuntimeSessionId: startedExecution.localRuntimeSessionId,
               status: stepExecution.status,
               agentSessionId: startedExecution.agentSessionId,
+              findingsFile: diagnostics.findingsFile,
+              currentExecutionFile: diagnostics.currentExecutionFile,
+              opencodeLogs: diagnostics.opencodeLogs,
             },
           );
           await deps.sleep(input.pollIntervalMs);
@@ -247,6 +348,11 @@ export async function monitorStartedClaimedExecution(
         }
 
         if (!hasRetriedFindingsSubmission) {
+          const diagnostics = await captureMissingFindingsDiagnostics({
+            workspacePath: startedExecution.environment.workspacePath,
+            opencodeLogDirectory:
+              startedExecution.environment.opencodeLogDirectory,
+          });
           hasRetriedFindingsSubmission = true;
           hasWaitedForRetriedFindingsSubmission = false;
           logger.log(
@@ -259,6 +365,9 @@ export async function monitorStartedClaimedExecution(
               localRuntimeSessionId: startedExecution.localRuntimeSessionId,
               status: stepExecution.status,
               agentSessionId: startedExecution.agentSessionId,
+              findingsFile: diagnostics.findingsFile,
+              currentExecutionFile: diagnostics.currentExecutionFile,
+              opencodeLogs: diagnostics.opencodeLogs,
             },
           );
 
@@ -273,6 +382,11 @@ export async function monitorStartedClaimedExecution(
         }
 
         if (!hasWaitedForRetriedFindingsSubmission) {
+          const diagnostics = await captureMissingFindingsDiagnostics({
+            workspacePath: startedExecution.environment.workspacePath,
+            opencodeLogDirectory:
+              startedExecution.environment.opencodeLogDirectory,
+          });
           hasWaitedForRetriedFindingsSubmission = true;
           logger.log(
             "worker",
@@ -284,6 +398,9 @@ export async function monitorStartedClaimedExecution(
               localRuntimeSessionId: startedExecution.localRuntimeSessionId,
               status: stepExecution.status,
               agentSessionId: startedExecution.agentSessionId,
+              findingsFile: diagnostics.findingsFile,
+              currentExecutionFile: diagnostics.currentExecutionFile,
+              opencodeLogs: diagnostics.opencodeLogs,
             },
           );
 

@@ -95,10 +95,12 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
 
     const statusResponse = await client.session.status();
     const statusBySession = statusResponse.data ?? {};
-    const running = isRunningSessionStatus(statusBySession[input.sessionId]);
+    const rawSessionStatus = statusBySession[input.sessionId];
+    const running = isRunningSessionStatus(rawSessionStatus);
     logWork("opencode", "Resolved OpenCode session status", {
       sessionId: input.sessionId,
       running,
+      rawSessionStatus,
     });
     return { running };
   }
