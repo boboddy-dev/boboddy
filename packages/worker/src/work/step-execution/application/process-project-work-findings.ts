@@ -32,7 +32,7 @@ export function buildCurrentExecutionInfoPath(workspacePath: string): string {
 export async function writeCurrentExecutionInfoFile(
   workspacePath: string,
   input: CurrentExecutionInfo,
-): Promise<void> {
+): Promise<string> {
   const currentExecutionInfoPath = buildCurrentExecutionInfoPath(workspacePath);
   await mkdir(path.dirname(currentExecutionInfoPath), { recursive: true });
   await writeFile(
@@ -45,6 +45,7 @@ export async function writeCurrentExecutionInfoFile(
     `${JSON.stringify(input, null, 2)}\n`,
     "utf8",
   );
+  return currentExecutionInfoPath;
 }
 
 async function tryReadFindingsSubmission(

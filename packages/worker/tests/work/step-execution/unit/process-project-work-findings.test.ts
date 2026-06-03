@@ -73,7 +73,7 @@ describe("processProjectWork findings persistence", () => {
         path.join(os.tmpdir(), "boboddy-current-execution-"),
       );
 
-      await writeCurrentExecutionInfoFile(workspacePath, {
+      const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(workspacePath, {
         stepExecutionId: "step-execution-id",
         resultSchemaJson: {
           type: "object",
@@ -83,6 +83,10 @@ describe("processProjectWork findings persistence", () => {
           },
         },
       });
+
+      expect(currentExecutionInfoPath).toBe(
+        buildCurrentExecutionInfoPath(workspacePath),
+      );
 
       expect(
         JSON.parse(

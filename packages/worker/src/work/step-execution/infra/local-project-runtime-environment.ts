@@ -185,13 +185,14 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         workspacePath,
       });
 
-      await writeCurrentExecutionInfoFile(
+      const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(
         workspacePath,
         input.currentExecutionInfo,
       );
       logWork("runtime", "Current execution metadata written", {
         sessionId: input.sessionId,
         workspacePath,
+        currentExecutionInfoPath,
         stepExecutionId: input.currentExecutionInfo.stepExecutionId,
       });
 

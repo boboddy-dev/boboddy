@@ -24,7 +24,7 @@ async function loadCurrentExecutionInfo(
     await access(currentExecutionInfoPath);
   } catch {
     throw new Error(
-      `Current execution metadata file not found at ${CURRENT_EXECUTION_INFO_RELATIVE_PATH}`,
+      `Current execution metadata file not found at ${currentExecutionInfoPath}`,
     );
   }
 
