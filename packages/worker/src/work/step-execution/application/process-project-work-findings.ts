@@ -16,7 +16,7 @@ const CURRENT_EXECUTION_GITIGNORE_RELATIVE_PATH =
   `${CURRENT_EXECUTION_DIRECTORY_RELATIVE_PATH}/.gitignore`;
 const CURRENT_EXECUTION_GITIGNORE_CONTENT = "*\n.*\n!.gitignore\n";
 
-type CurrentExecutionInfo = {
+export type CurrentExecutionInfo = {
   stepExecutionId: string;
   resultSchemaJson: Record<string, unknown> | null;
 };

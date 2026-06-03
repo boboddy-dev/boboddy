@@ -1,6 +1,7 @@
 import { buildOpencodeContext } from "@boboddy/opencode-plugin";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { writeCurrentExecutionInfoFile } from "../application/process-project-work-findings";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type {
@@ -135,6 +136,10 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
     agentPromptText: string;
+    currentExecutionInfo: {
+      stepExecutionId: string;
+      resultSchemaJson: Record<string, unknown> | null;
+    };
   }): Promise<LocalProjectRuntimeEnvironment> {
     let workspacePath: string | null = null;
     let devcontainerId: string | null = null;
@@ -178,6 +183,16 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       logWork("runtime", "OpenCode context built", {
         sessionId: input.sessionId,
         workspacePath,
+      });
+
+      await writeCurrentExecutionInfoFile(
+        workspacePath,
+        input.currentExecutionInfo,
+      );
+      logWork("runtime", "Current execution metadata written", {
+        sessionId: input.sessionId,
+        workspacePath,
+        stepExecutionId: input.currentExecutionInfo.stepExecutionId,
       });
 
       const devcontainerConfigPath =

@@ -1,8 +1,11 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { createUuidV7, parseUuidV7, type UuidV7 } from "../../../common/contracts/uuid-v7";
+import {
+  createUuidV7,
+  parseUuidV7,
+  type UuidV7,
+} from "../../../common/contracts/uuid-v7";
 import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
-import { writeCurrentExecutionInfoFile } from "./process-project-work-findings";
 import { resolveProjectWorkLogger } from "./process-project-work-logger";
 import type {
   ProcessProjectWorkDeps,
@@ -135,6 +138,10 @@ async function launchRuntimeEnvironment(
     ),
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     agentPromptText: input.workerContext.agentPrompt.promptText,
+    currentExecutionInfo: {
+      stepExecutionId: input.workerContext.stepExecution.id,
+      resultSchemaJson: input.workerContext.stepDefinition.resultSchemaJson,
+    },
   });
 }
 
@@ -244,10 +251,6 @@ export async function startProcessClaimedExecution(
     const resolvedPromptText = workerContext.agentPrompt.promptText
       .replaceAll("{{stepArtifactsDir}}/", `${containerStepArtifactsDir}/`)
       .replaceAll("{{stepArtifactsDir}}", `${containerStepArtifactsDir}/`);
-    await writeCurrentExecutionInfoFile(environment.workspacePath, {
-      stepExecutionId: workerContext.stepExecution.id,
-      resultSchemaJson: workerContext.stepDefinition.resultSchemaJson,
-    });
 
     logger.log("step", "Starting agent run", {
       stepExecutionId: input.claim.stepExecution.id,

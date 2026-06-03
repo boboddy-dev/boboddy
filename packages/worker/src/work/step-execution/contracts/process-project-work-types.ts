@@ -7,6 +7,7 @@ import type {
   StepExecutionContract,
   StepExecutionWorkerContextContract,
 } from "./step-execution-contracts";
+import type { CurrentExecutionInfo } from "../application/process-project-work-findings";
 
 export type ProcessProjectWorkInput = {
   projectId: UuidV7;
@@ -96,6 +97,7 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodeMcpJson"];
     agentPromptText: StepExecutionWorkerContextContract["agentPrompt"]["promptText"];
+    currentExecutionInfo: CurrentExecutionInfo;
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
 
