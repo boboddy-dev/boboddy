@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Config } from "@opencode-ai/sdk";
 import type { OpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
@@ -13,7 +13,8 @@ function parseJsoncConfig(content: string): Config {
 }
 
 async function prepareOpencodeDir(targetRoot: string): Promise<void> {
-  await mkdir(path.join(targetRoot, "plugins"), { recursive: true });
+  const pluginsRoot = path.join(targetRoot, "plugins");
+  await mkdir(pluginsRoot, { recursive: true });
   await Promise.all([
     writeFile(
       path.join(targetRoot, ".gitignore"),
@@ -26,6 +27,7 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
       "utf8",
     ),
   ]);
+  await Promise.all([chmod(targetRoot, 0o777), chmod(pluginsRoot, 0o777)]);
 }
 
 export async function buildOpencodeContext(input: {
