@@ -228,19 +228,63 @@ async function logAiContainerDiagnostics(input: {
     lastHealthResponseText: failureDetails?.lastResponseText,
     lastHealthError: failureDetails?.lastError,
     dockerInspectOk: inspect.ok,
-    dockerInspect: inspect.output,
     dockerPortBindingsOk: portBindings.ok,
-    dockerPortBindings: portBindings.output,
     dockerPsOk: processList.ok,
-    dockerPs: processList.output,
     dockerLogsOk: logs.ok,
-    dockerLogs: logs.output,
     dockerStateOk: state.ok,
-    dockerState: state.output,
     dockerExitCodeOk: exitCode.ok,
-    dockerExitCode: exitCode.output,
-    opencodeLogs,
   });
+
+  logWorkError("runtime", "AI container diagnostic: docker inspect", {
+    sessionId: input.sessionId,
+    aiContainerId: input.containerId,
+    ok: inspect.ok,
+    output: inspect.output,
+  });
+
+  logWorkError("runtime", "AI container diagnostic: docker port bindings", {
+    sessionId: input.sessionId,
+    aiContainerId: input.containerId,
+    ok: portBindings.ok,
+    output: portBindings.output,
+  });
+
+  logWorkError("runtime", "AI container diagnostic: docker ps", {
+    sessionId: input.sessionId,
+    aiContainerId: input.containerId,
+    ok: processList.ok,
+    output: processList.output,
+  });
+
+  logWorkError("runtime", "AI container diagnostic: docker logs", {
+    sessionId: input.sessionId,
+    aiContainerId: input.containerId,
+    ok: logs.ok,
+    output: logs.output,
+  });
+
+  logWorkError("runtime", "AI container diagnostic: docker state", {
+    sessionId: input.sessionId,
+    aiContainerId: input.containerId,
+    ok: state.ok,
+    output: state.output,
+  });
+
+  logWorkError("runtime", "AI container diagnostic: docker exit code", {
+    sessionId: input.sessionId,
+    aiContainerId: input.containerId,
+    ok: exitCode.ok,
+    output: exitCode.output,
+  });
+
+  for (const logEntry of opencodeLogs) {
+    logWorkError("runtime", "AI container diagnostic: opencode log", {
+      sessionId: input.sessionId,
+      aiContainerId: input.containerId,
+      file: logEntry.file,
+      output: logEntry.content,
+    });
+  }
 }
 
 async function waitForHealth(baseUrl: string): Promise<void> {
