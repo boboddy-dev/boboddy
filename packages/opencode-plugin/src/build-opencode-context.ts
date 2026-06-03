@@ -7,11 +7,6 @@ import { buildStepExecutionOpencodeConfig } from "./build-step-execution-opencod
 import embeddedOpencodeJsonc from "../opencode.jsonc" with { type: "text" };
 import embeddedOpencodeignore from "../opencodeignore.txt" with { type: "text" };
 import embeddedPlugin from "../dist/plugin.js" with { type: "text" };
-import packageJson from "../package.json" with { type: "json" };
-
-const PLUGIN_SDK_VERSION =
-  (packageJson as unknown as { dependencies?: Record<string, string> })
-    .dependencies?.["@opencode-ai/plugin"] ?? "*";
 
 function parseJsoncConfig(content: string): Config {
   return parseJsonc(content) as Config;
@@ -20,22 +15,6 @@ function parseJsoncConfig(content: string): Config {
 async function prepareOpencodeDir(targetRoot: string): Promise<void> {
   await mkdir(path.join(targetRoot, "plugins"), { recursive: true });
   await Promise.all([
-    writeFile(
-      path.join(targetRoot, "package.json"),
-      `${JSON.stringify(
-        {
-          name: "@boboddy/opencode-plugin-runtime",
-          private: true,
-          type: "module",
-          dependencies: {
-            "@opencode-ai/plugin": PLUGIN_SDK_VERSION,
-          },
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    ),
     writeFile(
       path.join(targetRoot, ".gitignore"),
       embeddedOpencodeignore as string,

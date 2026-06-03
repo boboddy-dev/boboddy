@@ -3,6 +3,7 @@ FROM mcr.microsoft.com/playwright/mcp:v0.0.68
 USER root
 
 ARG OPENCODE_NPM_PACKAGE=opencode-ai@1.15.13
+ARG OPENCODE_PLUGIN_SDK_PACKAGE=@opencode-ai/plugin@1.15.13
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV OPENCODE_HOME=/home/node
@@ -38,6 +39,10 @@ RUN arch="$(dpkg --print-architecture)" \
 RUN npm install --global "${OPENCODE_NPM_PACKAGE}" pnpm \
   && npm cache clean --force
 
+RUN mkdir -p /opt/boboddy/opencode-runtime \
+  && npm install --prefix /opt/boboddy/opencode-runtime --no-audit --no-fund --silent "${OPENCODE_PLUGIN_SDK_PACKAGE}" \
+  && npm cache clean --force
+
 RUN mkdir -p /opt/uv-python \
   && python3 -m pip install --no-cache-dir --break-system-packages uv \
   && UV_PYTHON_INSTALL_DIR=/opt/uv-python uv venv --python 3.12 /opt/postgres-mcp \
@@ -60,6 +65,7 @@ COPY packages/containers/ai-worker/entrypoint.sh /usr/local/bin/opencode-entrypo
 RUN chmod +x /usr/local/bin/opencode-entrypoint
 
 COPY packages/opencode-plugin/dist/plugin.js /opt/boboddy/plugin.js
+RUN chown -R node:node /opt/boboddy
 
 USER node
 WORKDIR /workspace

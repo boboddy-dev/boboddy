@@ -19,26 +19,20 @@ describe("buildOpencodeContext", () => {
     expect(config.plugin).toBeUndefined();
   });
 
-  test("creates .opencode/package.json with only plugin sdk dep", async () => {
+  test("does not create .opencode/package.json", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
     await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
-    const runtimePackageJson = JSON.parse(
-      await readFile(
-        path.join(workspacePath, ".opencode", "package.json"),
-        "utf8",
-      ),
-    ) as { dependencies?: Record<string, string> };
+    const packageJsonExists = await access(
+      path.join(workspacePath, ".opencode", "package.json"),
+    )
+      .then(() => true)
+      .catch(() => false);
 
-    expect(Object.keys(runtimePackageJson.dependencies ?? {})).toEqual([
-      "@opencode-ai/plugin",
-    ]);
-    expect(runtimePackageJson.dependencies).not.toHaveProperty("@boboddy/core");
-    expect(runtimePackageJson.dependencies).not.toHaveProperty("@boboddy/sdk");
-    expect(runtimePackageJson.dependencies).not.toHaveProperty("ajv");
+    expect(packageJsonExists).toBe(false);
   });
 
   test("creates .opencode/plugins/ directory", async () => {

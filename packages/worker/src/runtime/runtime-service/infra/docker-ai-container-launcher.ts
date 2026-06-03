@@ -177,7 +177,7 @@ async function logAiContainerDiagnostics(input: {
   baseUrl: string;
   failure: unknown;
 }) {
-  const [inspect, portBindings, processList, logs, opencodeLogs] =
+  const [inspect, portBindings, processList, logs, state, exitCode, opencodeLogs] =
     await Promise.all([
       captureCommandOutput("docker", ["inspect", input.containerId]),
       captureCommandOutput("docker", [
@@ -194,6 +194,18 @@ async function logAiContainerDiagnostics(input: {
         `id=${input.containerId}`,
       ]),
       captureCommandOutput("docker", ["logs", "--timestamps", input.containerId]),
+      captureCommandOutput("docker", [
+        "inspect",
+        "--format",
+        "{{json .State}}",
+        input.containerId,
+      ]),
+      captureCommandOutput("docker", [
+        "inspect",
+        "--format",
+        "{{.State.ExitCode}}",
+        input.containerId,
+      ]),
       captureOpencodeLogSnapshot(input.workspacePath),
     ]);
 
@@ -223,6 +235,10 @@ async function logAiContainerDiagnostics(input: {
     dockerPs: processList.output,
     dockerLogsOk: logs.ok,
     dockerLogs: logs.output,
+    dockerStateOk: state.ok,
+    dockerState: state.output,
+    dockerExitCodeOk: exitCode.ok,
+    dockerExitCode: exitCode.output,
     opencodeLogs,
   });
 }
@@ -309,7 +325,6 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
     await chmod(path.join(sessionHomePath, ".local", "state"), 0o777);
 
     const baseArgs = [
-      "--rm",
       "-v",
       `${input.workspacePath}:/workspace`,
       "-v",
