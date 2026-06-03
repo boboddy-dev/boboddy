@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { access, chmod, mkdir, writeFile } from "node:fs/promises";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -20,6 +21,7 @@ const RUNTIME_AI_HOME_DIR = "ai-home";
 const RUNTIME_BOBODDY_GITIGNORE_PATH = ".gitignore";
 const RUNTIME_BOBODDY_GITIGNORE_CONTENT =
   "*\n.*\n!.gitignore\n!boboddy.jsonc\n";
+const PORT_ALLOCATION_RETRIES = 5;
 
 export function getSessionOpencodeLogDirectory(workspacePath: string): string {
   return path.join(
@@ -52,24 +54,22 @@ export async function ensureBoboddyRuntimeWorkspaceRoot(
   );
 }
 
-async function getMappedPort(
-  containerId: string,
-  port: number,
-): Promise<number> {
-  const { stdout } = await execFileAsync("docker", [
-    "port",
-    containerId,
-    `${String(port)}/tcp`,
-  ]);
-  const portMatch = stdout.trim().match(/:(\d+)$/u);
-
-  if (!portMatch?.[1]) {
-    throw new Error(
-      `Failed to resolve host port for container ${containerId}: ${stdout}`,
-    );
-  }
-
-  return Number(portMatch[1]);
+function findFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : null;
+      server.close((err) => {
+        if (err ?? port === null) {
+          reject(err ?? new Error("Could not determine free port"));
+        } else {
+          resolve(port);
+        }
+      });
+    });
+    server.on("error", reject);
+  });
 }
 
 async function waitForHealth(baseUrl: string): Promise<void> {
@@ -134,11 +134,8 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
     );
     await chmod(path.join(sessionHomePath, ".local", "state"), 0o777);
 
-    const args = [
-      "create",
+    const baseArgs = [
       "--rm",
-      "-p",
-      `127.0.0.1::${String(AI_CONTAINER_PORT)}`,
       "-v",
       `${input.workspacePath}:/workspace`,
       "-v",
@@ -158,58 +155,77 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
     ];
 
     for (const [key, value] of Object.entries(input.extraEnv ?? {})) {
-      args.push("-e", `${key}=${value}`);
+      baseArgs.push("-e", `${key}=${value}`);
     }
 
     if (hasHostOpencodeConfig) {
-      args.push("-v", `${hostOpencodeConfigPath}:/home/node/.config/opencode`);
+      baseArgs.push("-v", `${hostOpencodeConfigPath}:/home/node/.config/opencode`);
     }
 
     if (hasHostOpencodeData) {
-      args.push("-v", `${hostOpencodeDataPath}:/opencode-host-share:ro`);
+      baseArgs.push("-v", `${hostOpencodeDataPath}:/opencode-host-share:ro`);
     }
 
     // On Linux, host.docker.internal is not automatically resolvable inside
     // containers the way it is on macOS/Windows Docker Desktop.
     if (os.platform() === "linux") {
-      args.push("--add-host", "host.docker.internal:host-gateway");
+      baseArgs.push("--add-host", "host.docker.internal:host-gateway");
     }
 
-    args.push(image);
+    baseArgs.push(image);
 
-    const { stdout } = await execFileAsync("docker", args);
-    const containerId = stdout.trim();
+    let lastError: unknown;
+    for (let attempt = 0; attempt < PORT_ALLOCATION_RETRIES; attempt++) {
+      const hostPort = await findFreePort();
+      const args = [
+        "create",
+        "-p",
+        `127.0.0.1:${String(hostPort)}:${String(AI_CONTAINER_PORT)}`,
+        ...baseArgs,
+      ];
 
-    if (!containerId) {
-      throw new Error("Failed to create AI container");
-    }
-
-    try {
-      for (const network of input.additionalNetworks ?? []) {
-        await execFileAsync("docker", ["network", "connect", network, containerId]);
+      let containerId: string;
+      try {
+        const { stdout } = await execFileAsync("docker", args);
+        containerId = stdout.trim();
+      } catch (error) {
+        // Port may have been claimed between findFreePort and docker create; retry.
+        lastError = error;
+        continue;
       }
 
-      await execFileAsync("docker", ["start", containerId]);
+      if (!containerId) {
+        throw new Error("Failed to create AI container");
+      }
 
-      const mappedPort = await getMappedPort(containerId, AI_CONTAINER_PORT);
-      const baseUrl = `http://127.0.0.1:${String(mappedPort)}`;
-      await waitForHealth(baseUrl);
+      try {
+        for (const network of input.additionalNetworks ?? []) {
+          await execFileAsync("docker", ["network", "connect", network, containerId]);
+        }
 
-      return {
-        containerId,
-        baseUrl,
-        image,
-        opencodeLogDirectory: getSessionOpencodeLogDirectory(
-          input.workspacePath,
-        ),
-        metadata: {
-          port: mappedPort,
-        },
-      };
-    } catch (error) {
-      await this.stop(containerId);
-      throw error;
+        await execFileAsync("docker", ["start", containerId]);
+
+        const baseUrl = `http://127.0.0.1:${String(hostPort)}`;
+        await waitForHealth(baseUrl);
+
+        return {
+          containerId,
+          baseUrl,
+          image,
+          opencodeLogDirectory: getSessionOpencodeLogDirectory(
+            input.workspacePath,
+          ),
+          metadata: {
+            port: hostPort,
+          },
+        };
+      } catch (error) {
+        await this.stop(containerId);
+        throw error;
+      }
     }
+
+    throw lastError ?? new Error("Failed to allocate a free port for the AI container");
   }
 
   async stop(containerId: string): Promise<void> {
