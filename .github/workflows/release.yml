@@ -12,6 +12,11 @@ on:
         required: true
         type: boolean
         default: false
+      release_docs:
+        description: "Force a GitHub Pages docs deploy?"
+        required: true
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -272,9 +277,64 @@ jobs:
           prerelease: ${{ needs.resolve-version.outputs.prerelease == 'true' }}
           files: apps/cli/dist/boboddy-*
 
-  deploy-docs:
+  resolve-docs-deploy:
     runs-on: ubuntu-latest
     needs: publish
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether docs should deploy
+        id: check
+        run: |
+          FORCE_DEPLOY="${{ github.event_name == 'workflow_dispatch' && inputs.release_docs || 'false' }}"
+
+          if [ "$FORCE_DEPLOY" = "true" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "reason=workflow input requested docs deploy" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --tags origin main
+
+          CURRENT_COMMIT="$(git rev-parse HEAD)"
+          BASE_COMMIT=""
+
+          while IFS= read -r commit; do
+            if [ "$commit" = "$CURRENT_COMMIT" ]; then
+              continue
+            fi
+
+            if git tag --points-at "$commit" | grep -qE '^v'; then
+              BASE_COMMIT="$commit"
+              break
+            fi
+          done <<EOF
+          $(git rev-list --first-parent origin/main)
+          EOF
+
+          if [ -z "$BASE_COMMIT" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no previous release tag found on main" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --quiet "$BASE_COMMIT" HEAD -- docs; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "reason=docs unchanged since previous release tag on main" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "reason=docs changed since previous release tag on main" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: [publish, resolve-docs-deploy]
+    if: needs.resolve-docs-deploy.outputs.should_deploy == 'true'
     permissions:
       pages: write
       id-token: write
