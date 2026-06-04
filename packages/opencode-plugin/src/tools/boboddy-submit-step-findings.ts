@@ -2,31 +2,18 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020";
 import { tool, type ToolDefinition } from "@opencode-ai/plugin";
+import { resolveWorktree } from "./_shared/resolve-worktree";
+
+export { resolveWorktree as resolveFindingsWorktree };
 
 const DEFAULT_OUTPUT_PATH = ".boboddy/step-findings-submission.json";
 const CURRENT_EXECUTION_INFO_RELATIVE_PATH =
   ".boboddy/current-execution/execution.json";
-const CONTAINER_WORKSPACE_ROOT = "/workspace";
 
 type CurrentExecutionInfo = {
   stepExecutionId: string;
   resultSchemaJson: Record<string, unknown> | null;
 };
-
-export async function resolveFindingsWorktree(worktree: string): Promise<string> {
-  if (worktree !== "/") {
-    return worktree;
-  }
-
-  try {
-    await access(
-      path.join(CONTAINER_WORKSPACE_ROOT, CURRENT_EXECUTION_INFO_RELATIVE_PATH),
-    );
-    return CONTAINER_WORKSPACE_ROOT;
-  } catch {
-    return worktree;
-  }
-}
 
 async function loadCurrentExecutionInfo(
   worktree: string,
@@ -88,7 +75,7 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
   },
   async execute(args, context) {
     try {
-      const worktree = await resolveFindingsWorktree(context.worktree);
+      const worktree = await resolveWorktree(context.worktree);
       console.log(
         `[boboddy-submit-step-findings] start worktree=${context.worktree} resolvedWorktree=${worktree}`,
       );

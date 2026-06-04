@@ -5,6 +5,7 @@ import {
   waitForRuntimeResponse,
   writeRuntimeRequest,
 } from "./_shared/runtime-request";
+import { resolveWorktree } from "./_shared/resolve-worktree";
 
 const POLL_INTERVAL_MS = 250;
 const TIMEOUT_MS = 60_000;
@@ -20,7 +21,7 @@ const boboddyRunRuntimeCommand: ToolDefinition = tool({
       ),
   },
   async execute(args, context) {
-    const workspacePath = context.worktree;
+    const workspacePath = await resolveWorktree(context.worktree);
     await assertWorkspaceReadable(workspacePath);
     const requestId = crypto.randomUUID();
     await writeRuntimeRequest({
