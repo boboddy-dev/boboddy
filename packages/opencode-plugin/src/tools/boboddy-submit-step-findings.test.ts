@@ -2,7 +2,9 @@ import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import boboddySubmitStepFindings from "./boboddy-submit-step-findings";
+import boboddySubmitStepFindings, {
+  resolveFindingsWorktree,
+} from "./boboddy-submit-step-findings";
 
 type SubmitStepFindingsTool = {
   execute(
@@ -34,6 +36,17 @@ function getTool(): SubmitStepFindingsTool {
 }
 
 describe("boboddySubmitStepFindings", () => {
+  test.concurrent(
+    "keeps non-root worktrees unchanged",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-submit-findings-"),
+      );
+
+      expect(await resolveFindingsWorktree(workspacePath)).toBe(workspacePath);
+    },
+  );
+
   test.concurrent(
     "throws when the current execution metadata file is missing",
     async () => {

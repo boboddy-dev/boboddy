@@ -6,11 +6,27 @@ import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 const DEFAULT_OUTPUT_PATH = ".boboddy/step-findings-submission.json";
 const CURRENT_EXECUTION_INFO_RELATIVE_PATH =
   ".boboddy/current-execution/execution.json";
+const CONTAINER_WORKSPACE_ROOT = "/workspace";
 
 type CurrentExecutionInfo = {
   stepExecutionId: string;
   resultSchemaJson: Record<string, unknown> | null;
 };
+
+export async function resolveFindingsWorktree(worktree: string): Promise<string> {
+  if (worktree !== "/") {
+    return worktree;
+  }
+
+  try {
+    await access(
+      path.join(CONTAINER_WORKSPACE_ROOT, CURRENT_EXECUTION_INFO_RELATIVE_PATH),
+    );
+    return CONTAINER_WORKSPACE_ROOT;
+  } catch {
+    return worktree;
+  }
+}
 
 async function loadCurrentExecutionInfo(
   worktree: string,
@@ -72,12 +88,11 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
   },
   async execute(args, context) {
     try {
+      const worktree = await resolveFindingsWorktree(context.worktree);
       console.log(
-        `[boboddy-submit-step-findings] start worktree=${context.worktree}`,
+        `[boboddy-submit-step-findings] start worktree=${context.worktree} resolvedWorktree=${worktree}`,
       );
-      const currentExecutionInfo = await loadCurrentExecutionInfo(
-        context.worktree,
-      );
+      const currentExecutionInfo = await loadCurrentExecutionInfo(worktree);
       console.log(
         `[boboddy-submit-step-findings] loaded current execution stepExecutionId=${currentExecutionInfo.stepExecutionId} hasResultSchema=${String(
           !!currentExecutionInfo.resultSchemaJson,
@@ -120,7 +135,7 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
         );
       }
 
-      const filePath = path.join(context.worktree, DEFAULT_OUTPUT_PATH);
+      const filePath = path.join(worktree, DEFAULT_OUTPUT_PATH);
       console.log(
         `[boboddy-submit-step-findings] writing findings outputPath=${filePath}`,
       );
