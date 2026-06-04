@@ -718,6 +718,9 @@ export type GetApiStepDefinitionsResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -774,6 +777,9 @@ export type PostApiStepDefinitionsData = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson?: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -947,6 +953,9 @@ export type PostApiStepDefinitionsResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1003,6 +1012,9 @@ export type PutApiStepDefinitionsData = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson?: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -1144,6 +1156,9 @@ export type PutApiStepDefinitionsResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1298,6 +1313,9 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1452,6 +1470,9 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -2260,6 +2281,9 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                     enabled: boolean;
                 };
             } | unknown;
+            opencodePluginJson: Array<string | [string, {
+                [key: string]: unknown;
+            }]> | unknown;
         };
         agentPrompt: {
             sessionTitle: string;
@@ -9141,6 +9165,9 @@ export type GetApiStepDefinitionTemplatesResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
@@ -9281,6 +9308,9 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
@@ -9478,6 +9508,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
                 enabled: boolean;
             };
         } | unknown;
+        opencodePluginJson: Array<string | [string, {
+            [key: string]: unknown;
+        }]> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;

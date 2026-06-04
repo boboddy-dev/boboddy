@@ -98,6 +98,7 @@ export default {
     resultSchemaJson: null,
     signalExtractorDefinitions: [],
     opencodeMcpJson: null,
+    opencodePluginJson: null,
   }],
 };
 `;
@@ -219,6 +220,7 @@ describe("pushFromDirectory route validation", () => {
           resultSchemaJson: null,
           signalExtractorDefinitions: [],
           opencodeMcpJson: null,
+          opencodePluginJson: null,
         }],
       };
     `;

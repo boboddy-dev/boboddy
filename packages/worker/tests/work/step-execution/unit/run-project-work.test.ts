@@ -64,6 +64,7 @@ function createWorkerClient(
           prompt: "Run the demo step.",
           resultSchemaJson: { type: "object" },
           opencodeMcpJson: null,
+          opencodePluginJson: null,
         },
         agentPrompt: {
           sessionTitle: "Demo Step",

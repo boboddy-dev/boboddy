@@ -2,6 +2,7 @@ import { chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Config } from "@opencode-ai/sdk";
 import type { OpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
+import type { OpenCodePlugins } from "@boboddy/sdk/opencode-plugin";
 import { parseJsonc } from "@boboddy/sdk/jsonc";
 import { buildStepExecutionOpencodeConfig } from "./build-step-execution-opencode-config";
 import embeddedOpencodeJsonc from "../opencode.jsonc" with { type: "text" };
@@ -33,6 +34,7 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
 export async function buildOpencodeContext(input: {
   workspacePath: string;
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
+  stepPlugins?: OpenCodePlugins | null | undefined;
   agentPromptText?: string | null | undefined;
 }): Promise<void> {
   const targetRoot = path.join(input.workspacePath, ".opencode");
@@ -47,6 +49,7 @@ export async function buildOpencodeContext(input: {
   const mergedConfig = buildStepExecutionOpencodeConfig({
     baseConfig: baselineConfig,
     stepMcpServers: input.stepMcpServers,
+    stepPlugins: input.stepPlugins,
     agentPromptText: input.agentPromptText,
   });
   await writeFile(

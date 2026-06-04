@@ -1,5 +1,6 @@
 import { OpencodeClient, type Config } from "@opencode-ai/sdk";
 import type { OpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
+import type { OpenCodePlugins } from "@boboddy/sdk/opencode-plugin";
 
 const STEP_EXECUTION_AGENT = "build";
 
@@ -156,9 +157,34 @@ function mergeAgentConfig(
   };
 }
 
+function mergePluginConfig(
+  basePlugin: OpenCodeConfig["plugin"],
+  stepPlugins: OpenCodePlugins | null | undefined,
+): OpenCodeConfig["plugin"] {
+  if (!stepPlugins || stepPlugins.length === 0) {
+    return basePlugin;
+  }
+
+  const merged = [...(basePlugin ?? [])];
+
+  for (const entry of stepPlugins) {
+    const entryName = Array.isArray(entry) ? entry[0] : entry;
+    const alreadyPresent = merged.some((existing) => {
+      const existingName = Array.isArray(existing) ? existing[0] : existing;
+      return existingName === entryName;
+    });
+    if (!alreadyPresent) {
+      merged.push(entry as NonNullable<OpenCodeConfig["plugin"]>[number]);
+    }
+  }
+
+  return merged;
+}
+
 export function buildStepExecutionOpencodeConfig(input: {
   baseConfig: OpenCodeConfig;
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
+  stepPlugins?: OpenCodePlugins | null | undefined;
   agentPromptText?: string | null | undefined;
 }): OpenCodeConfig {
   const baseConfig = cloneConfig(input.baseConfig);
@@ -170,6 +196,7 @@ export function buildStepExecutionOpencodeConfig(input: {
     requiredPrefixes,
     input.agentPromptText,
   );
+  const mergedPlugin = mergePluginConfig(baseConfig.plugin, input.stepPlugins);
   const model = process.env["AGENT_DEFAULT_MODEL"];
 
   return {
@@ -178,6 +205,7 @@ export function buildStepExecutionOpencodeConfig(input: {
     ...(mergedMcp ? { mcp: mergedMcp } : {}),
     ...(mergedTools ? { tools: mergedTools } : {}),
     ...(mergedAgent ? { agent: mergedAgent } : {}),
+    ...(mergedPlugin && mergedPlugin.length > 0 ? { plugin: mergedPlugin } : {}),
   };
 }
 

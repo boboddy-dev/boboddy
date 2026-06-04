@@ -35,6 +35,17 @@ type OpenCodeMcpServers = Record<
     }
 >;
 
+/**
+ * A single entry in the OpenCode `plugin` config array.
+ * Either a package name string or a [packageName, options] tuple.
+ */
+type OpenCodePluginEntry =
+  | string
+  | [string, Record<string, unknown>];
+
+/** Full value of the OpenCode `plugin` config field. */
+type OpenCodePlugins = OpenCodePluginEntry[];
+
 type SignalTypeStr = "string" | "number" | "boolean" | "object" | "array";
 
 // Produces dot-notation paths for an object type up to 4 levels deep.
@@ -119,6 +130,7 @@ export type DefineStepInput<
   signals?: SignalSpecInput<TResult["_output"]>[];
   features?: AnyStepFeature[];
   mcpServers?: OpenCodeMcpServers | null;
+  plugins?: OpenCodePlugins | null;
   status?: "draft" | "active";
 };
 
@@ -152,6 +164,7 @@ export type StepDefinitionSpec = {
     availableWhenResultStatusIn: string[] | null;
   }>;
   opencodeMcpJson: OpenCodeMcpServers | null;
+  opencodePluginJson: OpenCodePlugins | null;
 };
 
 // Maps a signal type string literal to its TypeScript type.
@@ -345,6 +358,7 @@ export function defineStep<
       })),
     ],
     opencodeMcpJson: config.mcpServers ?? null,
+    opencodePluginJson: config.plugins ?? null,
   };
   return spec as TypedStepDefinitionSpec<
     TInput["_output"],
