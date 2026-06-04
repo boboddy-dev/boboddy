@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access, chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -25,6 +25,11 @@ const RUNTIME_BOBODDY_GITIGNORE_CONTENT =
 const PORT_ALLOCATION_RETRIES = 5;
 const HEALTH_DIAGNOSTIC_TEXT_LIMIT = 8_000;
 const OPENCODE_LOG_FILE_LIMIT = 4;
+
+type WorkspaceOwnership = {
+  uid: number;
+  gid: number;
+};
 
 class AiContainerHealthTimeoutError extends Error {
   constructor(
@@ -69,6 +74,77 @@ export async function ensureBoboddyRuntimeWorkspaceRoot(
     path.join(boboddyRootPath, RUNTIME_BOBODDY_GITIGNORE_PATH),
     RUNTIME_BOBODDY_GITIGNORE_CONTENT,
   );
+}
+
+export async function resolveWorkspaceOwnership(
+  workspacePath: string,
+): Promise<WorkspaceOwnership> {
+  const workspaceStat = await stat(workspacePath);
+  return {
+    uid: workspaceStat.uid,
+    gid: workspaceStat.gid,
+  };
+}
+
+export function buildAiContainerBaseArgs(input: {
+  workspacePath: string;
+  sessionHomePath: string;
+  workspaceOwnership: WorkspaceOwnership;
+  projectId: string;
+  sessionId: string;
+  requestedByUserId: string;
+  extraEnv?: Record<string, string>;
+  hasHostOpencodeConfig: boolean;
+  hostOpencodeConfigPath: string;
+  hasHostOpencodeData: boolean;
+  hostOpencodeDataPath: string;
+  image: string;
+}): string[] {
+  const baseArgs = [
+    "--user",
+    `${String(input.workspaceOwnership.uid)}:${String(input.workspaceOwnership.gid)}`,
+    "-v",
+    `${input.workspacePath}:/workspace`,
+    "-v",
+    `${input.sessionHomePath}:/home/node`,
+    "-w",
+    "/workspace",
+    "-e",
+    "HOME=/home/node",
+    "--label",
+    `boboddy.ai-project-id=${input.projectId}`,
+    "--label",
+    `boboddy.ai-project-runtime-session-id=${input.sessionId}`,
+    "--label",
+    `boboddy.ai-requested-by-user-id=${input.requestedByUserId}`,
+    "--label",
+    "boboddy.runtime-role=ai",
+  ];
+
+  for (const [key, value] of Object.entries(input.extraEnv ?? {})) {
+    baseArgs.push("-e", `${key}=${value}`);
+  }
+
+  if (input.hasHostOpencodeConfig) {
+    baseArgs.push(
+      "-v",
+      `${input.hostOpencodeConfigPath}:/home/node/.config/opencode`,
+    );
+  }
+
+  if (input.hasHostOpencodeData) {
+    baseArgs.push("-v", `${input.hostOpencodeDataPath}:/opencode-host-share:ro`);
+  }
+
+  // On Linux, host.docker.internal is not automatically resolvable inside
+  // containers the way it is on macOS/Windows Docker Desktop.
+  if (os.platform() === "linux") {
+    baseArgs.push("--add-host", "host.docker.internal:host-gateway");
+  }
+
+  baseArgs.push(input.image);
+
+  return baseArgs;
 }
 
 function findFreePort(): Promise<number> {
@@ -335,6 +411,7 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
     const image = getAiImage();
     const sessionHomePath = getSessionHomePath(input.workspacePath);
     await ensureBoboddyRuntimeWorkspaceRoot(input.workspacePath);
+    const workspaceOwnership = await resolveWorkspaceOwnership(input.workspacePath);
     const hostOpencodeConfigPath = path.join(
       os.homedir(),
       ".config",
@@ -368,44 +445,20 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
     );
     await chmod(path.join(sessionHomePath, ".local", "state"), 0o777);
 
-    const baseArgs = [
-      "-v",
-      `${input.workspacePath}:/workspace`,
-      "-v",
-      `${sessionHomePath}:/home/node`,
-      "-w",
-      "/workspace",
-      "-e",
-      "HOME=/home/node",
-      "--label",
-      `boboddy.ai-project-id=${input.projectId}`,
-      "--label",
-      `boboddy.ai-project-runtime-session-id=${input.sessionId}`,
-      "--label",
-      `boboddy.ai-requested-by-user-id=${input.requestedByUserId}`,
-      "--label",
-      "boboddy.runtime-role=ai",
-    ];
-
-    for (const [key, value] of Object.entries(input.extraEnv ?? {})) {
-      baseArgs.push("-e", `${key}=${value}`);
-    }
-
-    if (hasHostOpencodeConfig) {
-      baseArgs.push("-v", `${hostOpencodeConfigPath}:/home/node/.config/opencode`);
-    }
-
-    if (hasHostOpencodeData) {
-      baseArgs.push("-v", `${hostOpencodeDataPath}:/opencode-host-share:ro`);
-    }
-
-    // On Linux, host.docker.internal is not automatically resolvable inside
-    // containers the way it is on macOS/Windows Docker Desktop.
-    if (os.platform() === "linux") {
-      baseArgs.push("--add-host", "host.docker.internal:host-gateway");
-    }
-
-    baseArgs.push(image);
+    const baseArgs = buildAiContainerBaseArgs({
+      workspacePath: input.workspacePath,
+      sessionHomePath,
+      workspaceOwnership,
+      projectId: input.projectId,
+      sessionId: input.sessionId,
+      requestedByUserId: input.requestedByUserId,
+      extraEnv: input.extraEnv,
+      hasHostOpencodeConfig,
+      hostOpencodeConfigPath,
+      hasHostOpencodeData,
+      hostOpencodeDataPath,
+      image,
+    });
 
     let lastError: unknown;
     for (let attempt = 0; attempt < PORT_ALLOCATION_RETRIES; attempt++) {
@@ -430,6 +483,7 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
           extraEnvKeys: Object.keys(input.extraEnv ?? {}).sort(),
           hasHostOpencodeConfig,
           hasHostOpencodeData,
+          workspaceOwnership,
           portAllocationAttempt: attempt + 1,
           portAllocationRetryLimit: PORT_ALLOCATION_RETRIES,
         });
