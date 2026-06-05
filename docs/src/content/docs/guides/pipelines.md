@@ -158,6 +158,34 @@ Pipeline-level bindings are defaults applied to every step automatically. Explic
 
 `additionalStepInput` on `pipeline(...)` compiles into default bindings applied to every step in the pipeline. Explicit `.step()` bindings override these defaults.
 
+## Plugins in pipeline steps
+
+Opencode plugins are configured on the `defineStep()` itself, not on the pipeline's `.step()` binding mapper. When that step runs inside a pipeline, Boboddy merges the step's `plugins` array into the generated Opencode config for that execution.
+
+Use plain package names for default plugin loading:
+
+```typescript
+import { defineStep } from "@boboddy/sdk/definitions/steps";
+
+export const reviewCodeStep = defineStep({
+  key: "review-code",
+  name: "Review Code",
+  agentPrompt: "Review the submitted code.",
+  plugins: ["opencode-wakatime", "opencode-helicone-session"],
+});
+```
+
+If a plugin needs configuration, use the tuple form `[packageName, options]`:
+
+```typescript
+plugins: [
+  "opencode-wakatime",
+  ["@my-org/plugin", { project: "platform" }],
+]
+```
+
+Plugin entries are deduplicated by package name when Boboddy combines your baseline Opencode config with the step-specific plugins.
+
 ## Advancement policies
 
 `.advance(callback)` attaches a policy to the most recently added step. The callback receives a context with `signal`, `all`, `any`, `route`, and every computed-signal factory. The signal keys are typed against the just-added step.

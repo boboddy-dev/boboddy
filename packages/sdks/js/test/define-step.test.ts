@@ -260,6 +260,20 @@ describe("defineStep", () => {
       ]);
     });
 
+    test("maps multiple string plugins to opencodePluginJson", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        plugins: ["opencode-wakatime", "opencode-helicone-session"],
+      });
+
+      expect(spec.opencodePluginJson).toEqual([
+        "opencode-wakatime",
+        "opencode-helicone-session",
+      ]);
+    });
+
     test("explicit null plugins stores null", () => {
       const spec = defineStep({
         key: "my-step",
