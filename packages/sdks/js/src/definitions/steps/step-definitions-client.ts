@@ -53,6 +53,7 @@ const buildStepDefinitionsClient = (stepDefinitions: StepDefinitions) => {
     ) => {
       const body = {
         ...spec,
+        prompt: spec.prompt ?? "",
         projectId,
       } satisfies UpsertStepDefinitionInput;
       const result = await stepDefinitions.upsertStepDefinition({

@@ -718,9 +718,7 @@ export type GetApiStepDefinitionsResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -745,7 +743,7 @@ export type PostApiStepDefinitionsData = {
         key: string;
         name: string;
         description: string | unknown;
-        prompt: string | unknown;
+        prompt: string;
         version: number;
         kind: 'built_in' | 'user_defined';
         inputSchemaJson: unknown;
@@ -777,9 +775,7 @@ export type PostApiStepDefinitionsData = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson?: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson?: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -953,9 +949,7 @@ export type PostApiStepDefinitionsResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -980,7 +974,7 @@ export type PutApiStepDefinitionsData = {
         key: string;
         name: string;
         description: string | unknown;
-        prompt: string | unknown;
+        prompt: string;
         version: number;
         kind: 'built_in' | 'user_defined';
         inputSchemaJson: unknown;
@@ -1012,9 +1006,7 @@ export type PutApiStepDefinitionsData = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson?: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson?: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -1156,9 +1148,7 @@ export type PutApiStepDefinitionsResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1313,9 +1303,7 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1470,9 +1458,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -2281,9 +2267,7 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                     enabled: boolean;
                 };
             } | unknown;
-            opencodePluginJson: Array<string | [string, {
-                [key: string]: unknown;
-            }]> | unknown;
+            opencodePluginJson: Array<string | Array<unknown>> | unknown;
         };
         agentPrompt: {
             sessionTitle: string;
@@ -5642,7 +5626,6 @@ export type GetApiLinearPipelineExecutionsResponses = {
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -5852,7 +5835,6 @@ export type PostApiLinearPipelineExecutionsResponses = {
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -6027,7 +6009,6 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -6202,7 +6183,6 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -6378,7 +6358,6 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -6558,7 +6537,6 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -6740,7 +6718,6 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -6917,7 +6894,6 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7092,7 +7068,6 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7267,7 +7242,6 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7442,7 +7416,6 @@ export type GetApiLinearPipelineExecutionsByDefinitionByLinearPipelineDefinition
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
-                inputJson: unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -9165,9 +9138,7 @@ export type GetApiStepDefinitionTemplatesResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
@@ -9308,9 +9279,7 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
@@ -9508,9 +9477,7 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
                 enabled: boolean;
             };
         } | unknown;
-        opencodePluginJson: Array<string | [string, {
-            [key: string]: unknown;
-        }]> | unknown;
+        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;

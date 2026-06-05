@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import type { Config } from "@opencode-ai/sdk";
+import type { OpenCodePlugins } from "@boboddy/sdk/opencode-plugin";
 import { buildStepExecutionOpencodeConfig } from "./build-step-execution-opencode-config";
 
 describe("buildStepExecutionOpencodeConfig", () => {
@@ -89,13 +90,17 @@ describe("buildStepExecutionOpencodeConfig", () => {
     const baseConfig: Config = {
       model: "openapi/gpt-5.4",
     };
+    const stepPlugins: OpenCodePlugins = [
+      "opencode-wakatime",
+      ["@my-org/plugin", { key: "val" }],
+    ];
 
     const config = buildStepExecutionOpencodeConfig({
       baseConfig,
-      stepPlugins: ["opencode-wakatime", ["@my-org/plugin", { key: "val" }]],
+      stepPlugins: [...stepPlugins],
     });
 
-    expect(config.plugin).toEqual([
+    expect(config.plugin as unknown).toEqual([
       "opencode-wakatime",
       ["@my-org/plugin", { key: "val" }],
     ]);
@@ -130,17 +135,17 @@ describe("buildStepExecutionOpencodeConfig", () => {
   });
 
   test.concurrent("preserves existing base plugins when step adds new ones", () => {
-    const baseConfig: Config = {
+    const baseConfig = {
       model: "openapi/gpt-5.4",
       plugin: [["opencode-helicone-session", { project: "abc" }]],
-    };
+    } as unknown as Config;
 
     const config = buildStepExecutionOpencodeConfig({
       baseConfig,
       stepPlugins: ["opencode-wakatime"],
     });
 
-    expect(config.plugin).toEqual([
+    expect(config.plugin as unknown).toEqual([
       ["opencode-helicone-session", { project: "abc" }],
       "opencode-wakatime",
     ]);

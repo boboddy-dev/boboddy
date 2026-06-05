@@ -2091,15 +2091,8 @@
                     ]
                   },
                   "prompt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   },
                   "version": {
                     "type": "integer",
@@ -2248,6 +2241,43 @@
                                 "enabled"
                               ],
                               "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opencodePluginJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
+                              ],
+                              "items": {
+                                "not": {}
+                              }
                             }
                           ]
                         }
@@ -2362,15 +2392,8 @@
                     ]
                   },
                   "prompt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   },
                   "version": {
                     "type": "integer",
@@ -2519,6 +2542,43 @@
                                 "enabled"
                               ],
                               "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opencodePluginJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
+                              ],
+                              "items": {
+                                "not": {}
+                              }
                             }
                           ]
                         }
@@ -2633,15 +2693,8 @@
                     ]
                   },
                   "prompt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   },
                   "version": {
                     "type": "integer",
@@ -2790,6 +2843,43 @@
                                 "enabled"
                               ],
                               "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opencodePluginJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
+                              ],
+                              "items": {
+                                "not": {}
+                              }
                             }
                           ]
                         }
@@ -3079,6 +3169,43 @@
                         }
                       ]
                     },
+                    "opencodePluginJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ],
+                                "items": {
+                                  "not": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -3178,6 +3305,7 @@
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
+                    "opencodePluginJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -3835,6 +3963,43 @@
                           }
                         ]
                       },
+                      "opencodePluginJson": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  ],
+                                  "items": {
+                                    "not": {}
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "status": {
                         "type": "string",
                         "enum": [
@@ -3934,6 +4099,7 @@
                       "inputSchemaJson",
                       "resultSchemaJson",
                       "opencodeMcpJson",
+                      "opencodePluginJson",
                       "status",
                       "signalExtractorDefinitions",
                       "createdAt",
@@ -4227,15 +4393,8 @@
                     ]
                   },
                   "prompt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   },
                   "version": {
                     "type": "integer",
@@ -4384,6 +4543,43 @@
                                 "enabled"
                               ],
                               "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opencodePluginJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
+                              ],
+                              "items": {
+                                "not": {}
+                              }
                             }
                           ]
                         }
@@ -4498,15 +4694,8 @@
                     ]
                   },
                   "prompt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   },
                   "version": {
                     "type": "integer",
@@ -4655,6 +4844,43 @@
                                 "enabled"
                               ],
                               "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opencodePluginJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
+                              ],
+                              "items": {
+                                "not": {}
+                              }
                             }
                           ]
                         }
@@ -4769,15 +4995,8 @@
                     ]
                   },
                   "prompt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   },
                   "version": {
                     "type": "integer",
@@ -4926,6 +5145,43 @@
                                 "enabled"
                               ],
                               "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opencodePluginJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
+                              ],
+                              "items": {
+                                "not": {}
+                              }
                             }
                           ]
                         }
@@ -5215,6 +5471,43 @@
                         }
                       ]
                     },
+                    "opencodePluginJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ],
+                                "items": {
+                                  "not": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -5314,6 +5607,7 @@
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
+                    "opencodePluginJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -5849,6 +6143,43 @@
                         }
                       ]
                     },
+                    "opencodePluginJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ],
+                                "items": {
+                                  "not": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -5948,6 +6279,7 @@
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
+                    "opencodePluginJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -6483,6 +6815,43 @@
                         }
                       ]
                     },
+                    "opencodePluginJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ],
+                                "items": {
+                                  "not": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -6582,6 +6951,7 @@
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
+                    "opencodePluginJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -10363,6 +10733,43 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "opencodePluginJson": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "array",
+                                    "prefixItems": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {}
+                                      }
+                                    ],
+                                    "items": {
+                                      "not": {}
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -10371,7 +10778,8 @@
                         "name",
                         "prompt",
                         "resultSchemaJson",
-                        "opencodeMcpJson"
+                        "opencodeMcpJson",
+                        "opencodePluginJson"
                       ],
                       "additionalProperties": false
                     },
@@ -13978,8 +14386,7 @@
                                         "const": "work_item"
                                       },
                                       "field": {
-                                        "type": "string",
-                                        "minLength": 1
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -14403,8 +14810,7 @@
                                         "const": "work_item"
                                       },
                                       "field": {
-                                        "type": "string",
-                                        "minLength": 1
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -14828,8 +15234,7 @@
                                         "const": "work_item"
                                       },
                                       "field": {
-                                        "type": "string",
-                                        "minLength": 1
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -15280,8 +15685,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -16208,8 +16612,7 @@
                                         "const": "work_item"
                                       },
                                       "field": {
-                                        "type": "string",
-                                        "minLength": 1
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -16633,8 +17036,7 @@
                                         "const": "work_item"
                                       },
                                       "field": {
-                                        "type": "string",
-                                        "minLength": 1
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -17058,8 +17460,7 @@
                                         "const": "work_item"
                                       },
                                       "field": {
-                                        "type": "string",
-                                        "minLength": 1
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -17510,8 +17911,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -18289,8 +18689,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -19192,8 +19591,7 @@
                                             "const": "work_item"
                                           },
                                           "field": {
-                                            "type": "string",
-                                            "minLength": 1
+                                            "type": "string"
                                           }
                                         },
                                         "required": [
@@ -19972,8 +20370,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -20812,8 +21209,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -21587,8 +21983,7 @@
                                   "const": "work_item"
                                 },
                                 "field": {
-                                  "type": "string",
-                                  "minLength": 1
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -21975,8 +22370,7 @@
                                   "const": "work_item"
                                 },
                                 "field": {
-                                  "type": "string",
-                                  "minLength": 1
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -22363,8 +22757,7 @@
                                   "const": "work_item"
                                 },
                                 "field": {
-                                  "type": "string",
-                                  "minLength": 1
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -22821,8 +23214,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -23604,8 +23996,7 @@
                                   "const": "work_item"
                                 },
                                 "field": {
-                                  "type": "string",
-                                  "minLength": 1
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -23992,8 +24383,7 @@
                                   "const": "work_item"
                                 },
                                 "field": {
-                                  "type": "string",
-                                  "minLength": 1
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -24380,8 +24770,7 @@
                                   "const": "work_item"
                                 },
                                 "field": {
-                                  "type": "string",
-                                  "minLength": 1
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -24838,8 +25227,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -25684,8 +26072,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -26846,8 +27233,7 @@
                                           "const": "work_item"
                                         },
                                         "field": {
-                                          "type": "string",
-                                          "minLength": 1
+                                          "type": "string"
                                         }
                                       },
                                       "required": [
@@ -27857,14 +28243,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -28003,7 +28381,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -28812,14 +29189,6 @@
                                       }
                                     ]
                                   },
-                                  "inputJson": {
-                                    "anyOf": [
-                                      {},
-                                      {
-                                        "type": "null"
-                                      }
-                                    ]
-                                  },
                                   "outputJson": {
                                     "anyOf": [
                                       {},
@@ -28958,7 +29327,6 @@
                                   "acceptedByUserId",
                                   "acceptedAt",
                                   "acceptanceReason",
-                                  "inputJson",
                                   "outputJson",
                                   "evaluation",
                                   "createdAt",
@@ -29585,14 +29953,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -29731,7 +30091,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -30418,14 +30777,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -30564,7 +30915,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -31259,14 +31609,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -31405,7 +31747,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -32195,14 +32536,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -32341,7 +32674,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -33137,14 +33469,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -33283,7 +33607,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -34014,14 +34337,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -34160,7 +34475,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -34847,14 +35161,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -34993,7 +35299,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -35680,14 +35985,6 @@
                                     }
                                   ]
                                 },
-                                "inputJson": {
-                                  "anyOf": [
-                                    {},
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -35826,7 +36123,6 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
-                                "inputJson",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -36515,14 +36811,6 @@
                                       }
                                     ]
                                   },
-                                  "inputJson": {
-                                    "anyOf": [
-                                      {},
-                                      {
-                                        "type": "null"
-                                      }
-                                    ]
-                                  },
                                   "outputJson": {
                                     "anyOf": [
                                       {},
@@ -36661,7 +36949,6 @@
                                   "acceptedByUserId",
                                   "acceptedAt",
                                   "acceptanceReason",
-                                  "inputJson",
                                   "outputJson",
                                   "evaluation",
                                   "createdAt",
@@ -44182,6 +44469,43 @@
                           }
                         ]
                       },
+                      "opencodePluginJson": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
+                                  ],
+                                  "items": {
+                                    "not": {}
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "signalExtractorDefinitions": {
                         "type": "array",
                         "items": {
@@ -44314,6 +44638,7 @@
                       "inputSchemaJson",
                       "resultSchemaJson",
                       "opencodeMcpJson",
+                      "opencodePluginJson",
                       "signalExtractorDefinitions",
                       "parameters",
                       "status",
@@ -44653,6 +44978,43 @@
                         }
                       ]
                     },
+                    "opencodePluginJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ],
+                                "items": {
+                                  "not": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "signalExtractorDefinitions": {
                       "type": "array",
                       "items": {
@@ -44785,6 +45147,7 @@
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
+                    "opencodePluginJson",
                     "signalExtractorDefinitions",
                     "parameters",
                     "status",
@@ -45358,6 +45721,43 @@
                         }
                       ]
                     },
+                    "opencodePluginJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ],
+                                "items": {
+                                  "not": {}
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -45457,6 +45857,7 @@
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
+                    "opencodePluginJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
