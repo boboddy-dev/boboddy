@@ -137,6 +137,7 @@ async function launchRuntimeEnvironment(
       input.workerContext.requestedBranch,
     ),
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
+    opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
     agentPromptText: input.workerContext.agentPrompt.promptText,
     currentExecutionInfo: {
       stepExecutionId: input.workerContext.stepExecution.id,

@@ -12,6 +12,7 @@
     "./defaults": "./src/defaults/index.ts",
     "./push": "./src/push/index.ts",
     "./opencode-mcp": "./src/opencode-mcp.ts",
+    "./opencode-plugin": "./src/opencode-plugin.ts",
     "./jsonc": "./src/jsonc.ts",
     "./boboddy-config-parser": "./src/boboddy-config-parser.ts"
   },

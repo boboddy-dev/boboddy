@@ -82,6 +82,7 @@ function makeSpec(overrides?: Partial<StepDefinitionSpec>): StepDefinitionSpec {
     resultSchemaJson: null,
     signalExtractorDefinitions: [],
     opencodeMcpJson: null,
+    opencodePluginJson: null,
     ...overrides,
   };
 }
@@ -124,6 +125,27 @@ describe("createStepDefinitionsClient.upsertFromSpec", () => {
         headers: AUTH_HEADER,
       });
       expect(result).toMatchObject({ id: "step-id", key: "investigate" });
+    } finally {
+      globalThis.fetch = prev;
+    }
+  });
+
+  test("normalizes a null prompt to an empty string in the request body", async () => {
+    const { mockFetch, captured } = createMockFetch([
+      { status: 200, body: { id: "step-id" } },
+    ]);
+    const prev = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+    try {
+      const client = createStepDefinitionsClient(BASE_URL);
+      await client.upsertFromSpec("proj-1", makeSpec({ prompt: null }), {
+        headers: AUTH_HEADER,
+      });
+
+      expect(captured[0]?.body).toMatchObject({
+        projectId: "proj-1",
+        prompt: "",
+      });
     } finally {
       globalThis.fetch = prev;
     }

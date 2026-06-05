@@ -50,6 +50,29 @@ describe("buildOpencodeContext", () => {
     expect(pluginsDirExists).toBe(true);
   });
 
+  test("writes step plugins into config.plugin", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      stepPlugins: ["opencode-wakatime", ["@my-org/plugin", { key: "val" }]],
+    });
+
+    const config = JSON.parse(
+      await readFile(path.join(workspacePath, "opencode.jsonc"), "utf8"),
+    ) as {
+      plugin?: unknown;
+    };
+
+    expect(config.plugin).toEqual([
+      "opencode-wakatime",
+      ["@my-org/plugin", { key: "val" }],
+    ]);
+  });
+
   test("writes the step agent prompt into agent.build.prompt", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),

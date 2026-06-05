@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import type { Config } from "@opencode-ai/sdk";
+import type { OpenCodePlugins } from "@boboddy/sdk/opencode-plugin";
 import { buildStepExecutionOpencodeConfig } from "./build-step-execution-opencode-config";
 
 describe("buildStepExecutionOpencodeConfig", () => {
@@ -84,4 +85,69 @@ describe("buildStepExecutionOpencodeConfig", () => {
       expect(config).toEqual(baseConfig);
     },
   );
+
+  test.concurrent("merges step plugins into config.plugin", () => {
+    const baseConfig: Config = {
+      model: "openapi/gpt-5.4",
+    };
+    const stepPlugins: OpenCodePlugins = [
+      "opencode-wakatime",
+      ["@my-org/plugin", { key: "val" }],
+    ];
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      stepPlugins: [...stepPlugins],
+    });
+
+    expect(config.plugin as unknown).toEqual([
+      "opencode-wakatime",
+      ["@my-org/plugin", { key: "val" }],
+    ]);
+  });
+
+  test.concurrent("deduplicates plugins by package name when base already has entry", () => {
+    const baseConfig: Config = {
+      model: "openapi/gpt-5.4",
+      plugin: ["opencode-wakatime"],
+    };
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      stepPlugins: ["opencode-wakatime", "opencode-helicone-session"],
+    });
+
+    // opencode-wakatime already present — should not be duplicated
+    expect(config.plugin).toEqual(["opencode-wakatime", "opencode-helicone-session"]);
+  });
+
+  test.concurrent("does not set config.plugin when step plugins are null", () => {
+    const baseConfig: Config = {
+      model: "openapi/gpt-5.4",
+    };
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      stepPlugins: null,
+    });
+
+    expect(config.plugin).toBeUndefined();
+  });
+
+  test.concurrent("preserves existing base plugins when step adds new ones", () => {
+    const baseConfig = {
+      model: "openapi/gpt-5.4",
+      plugin: [["opencode-helicone-session", { project: "abc" }]],
+    } as unknown as Config;
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      stepPlugins: ["opencode-wakatime"],
+    });
+
+    expect(config.plugin as unknown).toEqual([
+      ["opencode-helicone-session", { project: "abc" }],
+      "opencode-wakatime",
+    ]);
+  });
 });

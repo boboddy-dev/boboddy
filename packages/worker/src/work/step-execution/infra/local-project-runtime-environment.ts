@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { writeCurrentExecutionInfoFile } from "../application/process-project-work-findings";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
+import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type {
   StepExecutionRuntimeEnvironment,
@@ -135,6 +136,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     gitUrl: string;
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
+    opencodePluginJson?: OpenCodePlugins | null | undefined;
     agentPromptText: string;
     currentExecutionInfo: {
       stepExecutionId: string;
@@ -178,6 +180,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       await buildOpencodeContext({
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
+        stepPlugins: input.opencodePluginJson,
         agentPromptText: input.agentPromptText,
       });
       logWork("runtime", "OpenCode context built", {

@@ -1,4 +1,5 @@
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
+import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 
 export type StepExecutionStatus =
   | "queued"
@@ -58,6 +59,7 @@ export type StepExecutionWorkerContextContract = {
     prompt: string;
     resultSchemaJson: Record<string, unknown> | null;
     opencodeMcpJson: OpenCodeMcpServers | null;
+    opencodePluginJson: OpenCodePlugins | null;
   };
   agentPrompt: {
     sessionTitle: string;

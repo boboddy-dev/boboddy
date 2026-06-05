@@ -20,6 +20,7 @@ describe("defineStep", () => {
       resultSchemaJson: null,
       signalExtractorDefinitions: [],
       opencodeMcpJson: null,
+      opencodePluginJson: null,
     });
   });
 
@@ -233,6 +234,40 @@ describe("defineStep", () => {
         required: false,
         availableWhenResultStatusIn: null,
       });
+    });
+  });
+
+  describe("plugins", () => {
+    test("opencodePluginJson defaults to null when not provided", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+      });
+      expect(spec.opencodePluginJson).toBeNull();
+    });
+
+    test("maps plugins array to opencodePluginJson", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        plugins: ["opencode-wakatime", ["@my-org/plugin", { key: "val" }]],
+      });
+      expect(spec.opencodePluginJson).toEqual([
+        "opencode-wakatime",
+        ["@my-org/plugin", { key: "val" }],
+      ]);
+    });
+
+    test("explicit null plugins stores null", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        plugins: null,
+      });
+      expect(spec.opencodePluginJson).toBeNull();
     });
   });
 
