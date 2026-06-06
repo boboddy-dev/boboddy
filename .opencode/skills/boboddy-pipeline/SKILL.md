@@ -396,6 +396,64 @@ export default pipeline({
 
 ---
 
+## Default pipeline assignment
+
+A project can have a single routing policy that automatically starts a pipeline when a work item arrives. This lives in the reserved file `.boboddy/pipeline-builder/default-pipeline-assignment.ts`.
+
+**File rules:**
+- Reserved filename — the push scanner ignores it as a pipeline definition.
+- Only `defaultPipelineAssignment` is imported from the SDK; everything else comes from the callback context.
+- `boboddy pipelines push` syncs it to the server after pipelines are pushed. If the file is absent, server config is left unchanged.
+- `boboddy pipelines pull` writes or removes the file to match server state.
+
+### Authoring
+
+```typescript
+import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";
+import bugTriage from "./bug-triage";
+import regressionReview from "./regression-review";
+
+export default defaultPipelineAssignment(({ workItem, context, any, assign, skip }) => ({
+  default: assign(bugTriage),
+  rules: [
+    any(
+      workItem.field("status").eq("resolved"),
+      workItem.field("status").eq("manual support"),
+    ).then(skip()),
+    workItem.field("issueType").eq("bug").then(assign(bugTriage)),
+    workItem.field("labels").contains("regression").then(assign(regressionReview)),
+    context.isNew.eq(true).then(assign(bugTriage)),
+  ],
+}));
+```
+
+### Context helpers
+
+| Helper | Description |
+|--------|-------------|
+| `workItem.field(name)` | Comparator ref for the named work item field |
+| `context.isNew` | Comparator ref; `true` when the work item is being created for the first time |
+| `assign(pipeline)` | Outcome: start the given pipeline. Pass the default-exported spec from a pipeline file. |
+| `skip()` | Outcome: do not assign any pipeline |
+| `all(...refs)` | All nested conditions must match |
+| `any(...refs)` | Any nested condition must match |
+
+### Return shape
+
+```typescript
+{
+  default: assign(myPipeline) | skip(),  // fallback when no rule matches
+  rules: [                               // evaluated in order; first match wins
+    workItem.field("issueType").eq("bug").then(assign(myPipeline)),
+    workItem.field("status").eq("resolved").then(skip()),
+  ],
+}
+```
+
+All comparators from advancement policies work here: `.eq`, `.ne`, `.gt`, `.gte`, `.lt`, `.lte`, `.in`, `.notIn`, `.contains`, `.doesNotContain`.
+
+---
+
 ## Deploying
 
 Only push after the user has reviewed and approved the pipeline definition. Once approved, ask whether the user wants to push themselves or wants me to run the push.
@@ -408,6 +466,7 @@ boboddy pipelines init
 boboddy pipelines pull
 
 # Push all pipeline definitions (also pushes step definitions automatically)
+# Also syncs default-pipeline-assignment.ts if present
 boboddy pipelines push
 
 # Push to a specific project
