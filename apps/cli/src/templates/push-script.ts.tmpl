@@ -36,3 +36,7 @@ const result = await pushFromDirectory(dir, {
 console.log(
   `Pushed ${String(result.pushedSteps)} step(s) and ${String(result.pushedPipelines)} pipeline(s).`,
 );
+
+if (result.syncedDefaultPipelineAssignment) {
+  console.log("Default pipeline assignment synced.");
+}

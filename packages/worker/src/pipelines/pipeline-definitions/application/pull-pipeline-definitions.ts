@@ -1,14 +1,21 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createStepDefinitionsClient } from "@boboddy/sdk/definitions/steps";
 import { createPipelineDefinitionsClient } from "@boboddy/sdk/definitions/pipelines";
+import { createBoboddyClient } from "@boboddy/sdk/client";
 import { generateStepsFileContent, type StepDefContract } from "../../../steps/step-definitions/infra/step-file-generator";
 import { generatePipelineFileContent, type PipelineContract } from "../infra/pipeline-file-generator";
+import {
+  generateDefaultPipelineAssignmentFileContent,
+  UnsupportedRuleError,
+  type DefaultPipelineAssignmentContract,
+} from "../infra/default-pipeline-assignment-file-generator";
 import {
   buildPipelineBuilderPackageJson,
   PIPELINE_BUILDER_GITIGNORE,
   PIPELINE_BUILDER_TSCONFIG,
 } from "../infra/pipeline-builder-scaffolder";
+import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
 
 type Logger = {
   info: (obj: unknown, msg?: string) => void;
@@ -27,6 +34,8 @@ export interface PullPipelineDefinitionsOptions {
 export interface PullPipelineDefinitionsResult {
   stepFiles: number;
   pipelineFiles: number;
+  /** true if default-pipeline-assignment.ts was written. */
+  defaultPipelineAssignmentFile: boolean;
 }
 
 function ensureScaffold(dir: string, sdkVersion: string): void {
@@ -49,6 +58,9 @@ function resolveOutputFiles(dir: string, pipelineKeys: string[]): string[] {
     const name = `${key}.ts`;
     if (existsSync(join(dir, name))) files.push(name);
   }
+  if (existsSync(join(dir, DEFAULT_PIPELINE_ASSIGNMENT_FILENAME))) {
+    files.push(DEFAULT_PIPELINE_ASSIGNMENT_FILENAME);
+  }
   return files;
 }
 
@@ -59,16 +71,19 @@ export async function pullPipelineDefinitions(
 
   const stepDefsClient = createStepDefinitionsClient(baseUrl);
   const pipelineDefsClient = createPipelineDefinitionsClient(baseUrl);
-  const [rawSteps, pipelines] = await Promise.all([
+  const boboddyClient = createBoboddyClient(baseUrl);
+
+  const [rawSteps, pipelines, projectResult] = await Promise.all([
     stepDefsClient.listByProjectId(projectId, { headers }),
     pipelineDefsClient.listByProjectId(projectId, { headers }),
-  ]) as unknown as [StepDefContract[], PipelineContract[]];
+    boboddyClient.projects.getProject({ path: { projectId }, headers }),
+  ]) as unknown as [StepDefContract[], PipelineContract[], { data?: { defaultPipelineAssignment?: unknown }; error?: unknown }];
 
   const stepDefs = rawSteps;
 
   if (stepDefs.length === 0 && pipelines.length === 0) {
     logger.info({}, "No pipeline or step definitions found for this project. Nothing to pull.");
-    return { stepFiles: 0, pipelineFiles: 0 };
+    return { stepFiles: 0, pipelineFiles: 0, defaultPipelineAssignmentFile: false };
   }
 
   // Deduplicate steps: keep latest version per key
@@ -83,6 +98,15 @@ export async function pullPipelineDefinitions(
   const stepIdToKey = new Map<string, string>();
   for (const step of stepDefs) {
     stepIdToKey.set((step as unknown as { id: string }).id, step.key);
+  }
+
+  // Map linearPipelineDefinitionId → pipeline key for assignment reconstruction
+  const pipelineIdToKey = new Map<string, string>();
+  for (const pipeline of pipelines) {
+    const pipelineWithId = pipeline as unknown as { id: string; key: string };
+    if (pipelineWithId.id) {
+      pipelineIdToKey.set(pipelineWithId.id, pipeline.key);
+    }
   }
 
   ensureScaffold(dir, sdkVersion);
@@ -107,7 +131,65 @@ export async function pullPipelineDefinitions(
     pipelineFiles++;
   }
 
-  return { stepFiles, pipelineFiles };
+  // Handle default pipeline assignment
+  let defaultPipelineAssignmentFile = false;
+  const assignmentFilePath = join(dir, DEFAULT_PIPELINE_ASSIGNMENT_FILENAME);
+
+  const project = (projectResult as { data?: { defaultPipelineAssignment?: unknown } }).data;
+  const rawAssignment = project?.defaultPipelineAssignment;
+
+  const assignment = isDefaultPipelineAssignmentContract(rawAssignment)
+    ? rawAssignment
+    : null;
+
+  if (assignment) {
+    try {
+      const content = generateDefaultPipelineAssignmentFileContent(
+        assignment,
+        pipelineIdToKey,
+      );
+      writeFileSync(assignmentFilePath, content, "utf-8");
+      logger.info(
+        { file: DEFAULT_PIPELINE_ASSIGNMENT_FILENAME },
+        `✓ ${DEFAULT_PIPELINE_ASSIGNMENT_FILENAME}`,
+      );
+      defaultPipelineAssignmentFile = true;
+    } catch (err) {
+      if (err instanceof UnsupportedRuleError) {
+        throw new Error(
+          `Project default pipeline assignment contains rules that cannot be rendered ` +
+            `with the fluent SDK: ${err.message}\n` +
+            `Re-author the policy with the SDK and push again.`,
+        );
+      }
+      throw err;
+    }
+  } else {
+    // No server assignment — remove the generated reserved file if it exists
+    if (existsSync(assignmentFilePath)) {
+      unlinkSync(assignmentFilePath);
+      logger.info(
+        { file: DEFAULT_PIPELINE_ASSIGNMENT_FILENAME },
+        `Removed ${DEFAULT_PIPELINE_ASSIGNMENT_FILENAME} (no server assignment configured).`,
+      );
+    }
+  }
+
+  return { stepFiles, pipelineFiles, defaultPipelineAssignmentFile };
+}
+
+function isDefaultPipelineAssignmentContract(
+  value: unknown,
+): value is DefaultPipelineAssignmentContract {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj["linearPipelineDefinitionId"] === "string" &&
+    typeof obj["rulesJson"] === "object" &&
+    obj["rulesJson"] !== null &&
+    (obj["defaultEventType"] === "assign" || obj["defaultEventType"] === "skip") &&
+    Array.isArray(obj["allowedEventTypes"])
+  );
 }
 
 export function getExistingOutputFiles(dir: string, pipelineKeys: string[]): string[] {
