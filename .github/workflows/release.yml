@@ -256,6 +256,22 @@ jobs:
       - name: Check npm version
         run: npm --version
 
+      - name: Debug OIDC token claims
+        run: |
+          node -e "
+            const https = require('https');
+            const url = process.env.ACTIONS_ID_TOKEN_REQUEST_URL + '&audience=npm:registry.npmjs.org';
+            https.get(url, { headers: { Authorization: 'Bearer ' + process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN } }, r => {
+              let d = '';
+              r.on('data', c => d += c);
+              r.on('end', () => {
+                const token = JSON.parse(d).value;
+                const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+                console.log(JSON.stringify(payload, null, 2));
+              });
+            });
+          "
+
       - name: Publish SDK
         working-directory: packages/sdks/js
         run: bun run script/publish.ts "${{ needs.resolve-version.outputs.npm_tag }}"
