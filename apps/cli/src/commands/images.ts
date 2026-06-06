@@ -1,0 +1,55 @@
+import type { Argv, CommandModule } from "yargs";
+import { spawnSync } from "node:child_process";
+import { createCliLogger } from "../lib/logger";
+
+// pull
+
+async function runPull(): Promise<void> {
+  const logger = createCliLogger("images-pull");
+
+  const aiImage = process.env["BOBODDY_BUILT_AI_IMAGE"];
+  if (!aiImage) {
+    throw new Error(
+      "Could not determine the AI worker image. " +
+        "Make sure you are running a built boboddy CLI so that the image reference is available.",
+    );
+  }
+
+  logger.info({ image: aiImage }, `Pulling AI worker image: ${aiImage}`);
+
+  // On Windows, GitHub Actions runners use Windows container mode by default
+  // (no WSLv2 / Hyper-V). Passing --platform linux/amd64 makes Docker pull the
+  // Linux manifest regardless of the host container mode, which matches what a
+  // normal Windows user with Docker Desktop (WSLv2, Linux container mode) gets.
+  const pullArgs =
+    process.platform === "win32"
+      ? ["pull", "--platform", "linux/amd64", aiImage]
+      : ["pull", aiImage];
+
+  const result = spawnSync("docker", pullArgs, { stdio: "inherit" });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== 0) {
+    throw new Error(`docker pull exited with status ${String(result.status)}`);
+  }
+}
+
+const pullCommand: CommandModule<object, object> = {
+  command: "pull",
+  describe: "Pull the AI worker Docker image bundled with this CLI version",
+  builder: (argv: Argv<object>) => argv,
+  handler: runPull,
+};
+
+// parent
+
+export const imagesCommand: CommandModule<object, object> = {
+  command: "images <command>",
+  describe: "Manage Boboddy Docker images",
+  builder: (argv: Argv<object>) =>
+    argv.command(pullCommand).demandCommand(1, "An images command is required."),
+  handler: () => {},
+};
