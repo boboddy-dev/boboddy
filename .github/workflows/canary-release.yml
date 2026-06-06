@@ -81,6 +81,9 @@ jobs:
       - name: Build CLI binaries
         env:
           CLI_BUILD_VERSION: ${{ steps.version.outputs.version }}
+        # AI image tag is read from apps/cli/ai-image.txt — canary reuses the
+        # currently pinned stable image. Update ai-image.txt and cut a new
+        # manual Docker release if a canary needs a different image.
         run: bun run --filter @boboddy/cli build
 
       - name: Publish SDK canary
