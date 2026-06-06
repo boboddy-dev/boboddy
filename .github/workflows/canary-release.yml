@@ -3,15 +3,55 @@ name: Canary Release
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
 
 concurrency:
   group: canary-release-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
+  cleanup-canary:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Delete previous canary versions
+        shell: bash
+        run: |
+          # On synchronize: delete the version built from the previous HEAD SHA
+          # On closed: delete the version built from the current HEAD SHA
+          if [ "${{ github.event.action }}" = "synchronize" ]; then
+            SHA="${{ github.event.before }}"
+          else
+            SHA="${{ github.event.pull_request.head.sha }}"
+          fi
+          VERSION="0.0.0-canary.${SHA}"
+          echo "Attempting to delete canary versions: ${VERSION}"
+          if npm unpublish "@boboddy/sdk@${VERSION}" --registry https://registry.npmjs.org 2>/dev/null; then
+            echo "Successfully unpublished @boboddy/sdk@${VERSION}"
+          else
+            echo "@boboddy/sdk@${VERSION} was not unpublished (may not have existed)"
+          fi
+          if npm unpublish "@boboddy/cli@${VERSION}" --registry https://registry.npmjs.org 2>/dev/null; then
+            echo "Successfully unpublished @boboddy/cli@${VERSION}"
+          else
+            echo "@boboddy/cli@${VERSION} was not unpublished (may not have existed)"
+          fi
+
   publish-canary:
-    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    if: >
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.action != 'closed'
+    needs: cleanup-canary
     runs-on: ubuntu-latest
     permissions:
       contents: read
