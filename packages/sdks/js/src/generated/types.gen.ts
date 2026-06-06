@@ -9609,6 +9609,58 @@ export type GetApiProjectsByProjectIdIntegrationsResponses = {
             email: string;
             projectKeys: Array<string>;
         };
+        defaultPipelineAssignment: {
+            linearPipelineDefinitionId: string;
+            rulesJson: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            };
+            defaultEventType: 'assign' | 'skip';
+            defaultEventParamsJson: {
+                [key: string]: unknown;
+            } | unknown;
+            allowedEventTypes: Array<'assign' | 'skip'>;
+        } | unknown;
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
         lastError: string | unknown;
@@ -9748,6 +9800,58 @@ export type PostApiProjectsByProjectIdIntegrationsResponses = {
             email: string;
             projectKeys: Array<string>;
         };
+        defaultPipelineAssignment: {
+            linearPipelineDefinitionId: string;
+            rulesJson: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            };
+            defaultEventType: 'assign' | 'skip';
+            defaultEventParamsJson: {
+                [key: string]: unknown;
+            } | unknown;
+            allowedEventTypes: Array<'assign' | 'skip'>;
+        } | unknown;
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
         lastError: string | unknown;
@@ -9757,6 +9861,251 @@ export type PostApiProjectsByProjectIdIntegrationsResponses = {
 };
 
 export type PostApiProjectsByProjectIdIntegrationsResponse = PostApiProjectsByProjectIdIntegrationsResponses[keyof PostApiProjectsByProjectIdIntegrationsResponses];
+
+export type PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentData = {
+    body: {
+        defaultPipelineAssignment: {
+            linearPipelineDefinitionId: string;
+            rulesJson: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            };
+            defaultEventType: 'assign' | 'skip';
+            defaultEventParamsJson: {
+                [key: string]: unknown;
+            } | unknown;
+            allowedEventTypes: Array<'assign' | 'skip'>;
+        } | unknown;
+    };
+    path: {
+        projectId: string;
+        integrationId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/integrations/{integrationId}/default-pipeline-assignment';
+};
+
+export type PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentError = PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentErrors[keyof PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentErrors];
+
+export type PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        installationId: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        } | {
+            baseUrl: string;
+            email: string;
+            projectKeys: Array<string>;
+        };
+        defaultPipelineAssignment: {
+            linearPipelineDefinitionId: string;
+            rulesJson: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            };
+            defaultEventType: 'assign' | 'skip';
+            defaultEventParamsJson: {
+                [key: string]: unknown;
+            } | unknown;
+            allowedEventTypes: Array<'assign' | 'skip'>;
+        } | unknown;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentResponse = PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentResponses[keyof PutApiProjectsByProjectIdIntegrationsByIntegrationIdDefaultPipelineAssignmentResponses];
 
 export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncData = {
     body: {
