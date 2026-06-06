@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       version:
@@ -21,8 +24,8 @@ on:
     tags: ["v*"]
 
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request_target' && format('release-pr-{0}', github.event.pull_request.number) || 'release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
 
 env:
   REGISTRY: ghcr.io
@@ -34,39 +37,53 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
       tag: ${{ steps.v.outputs.tag }}
+      npm_tag: ${{ steps.v.outputs.npm_tag }}
       prerelease: ${{ steps.v.outputs.prerelease }}
     steps:
       - name: Resolve version
         id: v
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            BASE_VERSION="0.0.0"
+            SHA="${{ github.event.pull_request.head.sha }}"
+            VERSION="${BASE_VERSION}-canary.${SHA}"
+            TAG="$VERSION"
+            PRERELEASE="true"
+            NPM_TAG="canary"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
             PRERELEASE="${{ inputs.prerelease }}"
+            TAG="v$VERSION"
+            if [ "$PRERELEASE" = "true" ]; then
+              NPM_TAG="next"
+            else
+              NPM_TAG="latest"
+            fi
           else
             RAW_TAG="${{ github.ref_name }}"
             VERSION="${RAW_TAG#v}"
+            TAG="${{ github.ref_name }}"
             if echo "$VERSION" | grep -qE '-(alpha|beta|rc|next)'; then
               PRERELEASE="true"
+              NPM_TAG="next"
             else
               PRERELEASE="false"
+              NPM_TAG="latest"
             fi
           fi
           if [ -z "$VERSION" ]; then
             echo "Version is empty." >&2
             exit 1
           fi
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="v$VERSION"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "npm_tag=$NPM_TAG" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
   build-push-docker:
     runs-on: ubuntu-latest
     needs: resolve-version
+    if: github.event_name != 'pull_request_target'
     permissions:
       contents: read
       packages: write
@@ -110,6 +127,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -178,11 +197,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: [resolve-version, sign-cli-macos]
+    if: github.event_name != 'pull_request_target' || (github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -236,12 +258,7 @@ jobs:
 
       - name: Publish SDK
         working-directory: packages/sdks/js
-        run: |
-          if [ "${{ needs.resolve-version.outputs.prerelease }}" = "true" ]; then
-            bun run script/publish.ts next
-          else
-            bun run script/publish.ts latest
-          fi
+        run: bun run script/publish.ts "${{ needs.resolve-version.outputs.npm_tag }}"
 
       # - name: Publish opencode plugin
       #   working-directory: packages/opencode-plugin
@@ -254,12 +271,7 @@ jobs:
 
       - name: Publish CLI
         working-directory: apps/cli
-        run: |
-          if [ "${{ needs.resolve-version.outputs.prerelease }}" = "true" ]; then
-            npm publish --access public --tag next
-          else
-            npm publish --access public --tag latest
-          fi
+        run: npm publish --access public --tag "${{ needs.resolve-version.outputs.npm_tag }}"
 
       - name: Create git tag
         if: github.event_name == 'workflow_dispatch'
@@ -270,6 +282,7 @@ jobs:
           git push origin "v${{ needs.resolve-version.outputs.version }}"
 
       - name: Create GitHub Release
+        if: github.event_name != 'pull_request_target'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ needs.resolve-version.outputs.version }}"
@@ -280,6 +293,7 @@ jobs:
   resolve-docs-deploy:
     runs-on: ubuntu-latest
     needs: publish
+    if: github.event_name != 'pull_request_target'
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
       reason: ${{ steps.check.outputs.reason }}
@@ -334,7 +348,7 @@ jobs:
   deploy-docs:
     runs-on: ubuntu-latest
     needs: [publish, resolve-docs-deploy]
-    if: needs.resolve-docs-deploy.outputs.should_deploy == 'true'
+    if: github.event_name != 'pull_request_target' && needs.resolve-docs-deploy.outputs.should_deploy == 'true'
     permissions:
       pages: write
       id-token: write
@@ -370,7 +384,7 @@ jobs:
   tag-docker-latest:
     runs-on: ubuntu-latest
     needs: [resolve-version, build-push-docker, publish]
-    if: needs.resolve-version.outputs.prerelease == 'false'
+    if: github.event_name != 'pull_request_target' && needs.resolve-version.outputs.prerelease == 'false'
     permissions:
       contents: read
       packages: write

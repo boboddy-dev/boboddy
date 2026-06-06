@@ -24,7 +24,7 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
     ),
     writeFile(
       path.join(targetRoot, "plugins", "boboddy.js"),
-      embeddedPluginSource as string,
+      String(embeddedPluginSource),
       "utf8",
     ),
   ]);

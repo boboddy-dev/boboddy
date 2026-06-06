@@ -35436,6 +35436,13 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "failed"
+                    ]
+                  },
                   "fromStepKey": {
                     "type": "string",
                     "minLength": 1
@@ -35449,6 +35456,13 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "failed"
+                    ]
+                  },
                   "fromStepKey": {
                     "type": "string",
                     "minLength": 1
@@ -35462,6 +35476,13 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "failed"
+                    ]
+                  },
                   "fromStepKey": {
                     "type": "string",
                     "minLength": 1
