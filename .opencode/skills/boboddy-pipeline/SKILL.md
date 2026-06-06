@@ -39,17 +39,20 @@ Each step represents one unit of agent work. Define every step before the pipeli
 
 ```typescript
 export const myStep = defineStep({
-  key: "my-step",           // lowercase kebab-case, unique per project
-  name: "My Step",          // display name
-  description: "...",       // optional
-  version: 1,               // increment when schema changes
-  status: "active",         // "draft" | "active" (default: "active")
+  key: "my-step", // lowercase kebab-case, unique per project
+  name: "My Step", // display name
+  description: "...", // optional
+  version: 1, // increment when schema changes
+  status: "active", // "draft" | "active" (default: "active")
 
-  // Required string prompt for the executing agent:
+  // Static prompt text for the step agent:
   agentPrompt: "You are an analyst. Evaluate the input and return a score.",
 
-  // Optional: Zod schema for additional inputs beyond the built-in work item fields.
-  // Fields are bound in the pipeline mapper.
+  // Optional Zod schema for extra step fields beyond the default work item context.
+  // Every step already receives `workItemTitle` and `workItemDescription`
+  // automatically in the mapper context. Only use `additionalInput` for extra
+  // fields you want to bind, such as prior-step signals, literals, or
+  // pipeline-level input.
   additionalInput: z.object({
     content: z.string(),
   }),
@@ -66,8 +69,8 @@ export const myStep = defineStep({
   // key defaults to sourcePath if omitted.
   // type is inferred from the result schema if omitted.
   signals: [
-    { sourcePath: "confidence" },             // key = "confidence", type = "number"
-    { key: "ok", sourcePath: "approved" },    // explicit key
+    { sourcePath: "confidence" }, // key = "confidence", type = "number"
+    { key: "ok", sourcePath: "approved" }, // explicit key
   ],
 
   // Optional: MCP servers available as tools during this step
@@ -85,9 +88,11 @@ export const myStep = defineStep({
 ```
 
 ### Signal types
+
 `"string"` | `"number"` | `"boolean"` | `"object"` | `"array"`
 
 ### `Features.feedbackRequests()`
+
 Adds a `feedbackRequests?: FeedbackRequestItem[]` field to the result and injects a prompt instructing the agent to surface questions for human review. Use when a step may need to escalate unclear cases.
 
 ---
@@ -100,27 +105,12 @@ Pipelines use a fluent builder. The chain is: `pipeline(meta)` → `.step(step, 
 
 ```typescript
 export default pipeline({
-  key: "my-pipeline",       // lowercase kebab-case, unique per project
+  key: "my-pipeline", // lowercase kebab-case, unique per project
   name: "My Pipeline",
-  description: null,        // optional
+  description: null, // optional
   version: 1,
-  status: "active",         // "draft" | "active" (default: "active")
-  // Optional: define custom pipeline input fields beyond the built-in work item fields.
-  // Both schema and bindings are required when this object is provided.
-  additionalPipelineInput: {
-    schema: z.object({ body: z.string(), userId: z.string() }),
-    bindings: ({ workItem, literal }) => ({
-      body: workItem.description,      // bind from the work item
-      userId: literal("system"),       // or a hardcoded constant
-    }),
-  },
-  // Optional: define default step bindings applied to every step in this pipeline.
-  additionalStepInput: {
-    schema: z.object({ priority: z.string().nullable() }),
-    bindings: ({ workItemField }) => ({
-      priority: workItemField("Priority"),
-    }),
-  },
+  status: "active", // "draft" | "active" (default: "active")
+  input: z.object({ body: z.string(), userId: z.string() }),
 })
   .step(stepOne, ({ input }) => ({
     content: input.body,
@@ -143,22 +133,58 @@ export default pipeline({
 
 Each `.step(step, mapper)` mapper receives a context object `{ input, signal, output, literal }` and must return a record mapping the step's input fields to bindings.
 
-### `input.<path>` — work item fields and additional pipeline input
+### `input.<path>` — pipeline-level input plus default work item fields
 
-`input` is a typed proxy that always exposes two built-in fields:
-- `input.workItemTitle` — the title of the work item triggering this run
-- `input.workItemDescription` — the description of the work item (may be null)
+`input` is a typed proxy bound to the schema passed to `pipeline(...)`. It also
+always includes `input.workItemTitle` and `input.workItemDescription`.
 
-It also exposes any custom fields defined in `additionalPipelineInput.schema`. Drill into fields — each access returns a binding for that path.
+Important distinction:
+
+- `workItemTitle` and `workItemDescription` are default context available to every step mapper automatically.
+- `additionalInput` on `defineStep(...)` is only for extra named fields that the step needs beyond that default context.
+
+If a step only needs the work item title/description, omit `additionalInput`
+entirely. If it needs another field like `summary`, `userId`, or
+`browserReproductionSummary`, declare only those fields in `additionalInput`.
+
+Each `input.<path>` access returns a binding for that path.
 
 ```typescript
 .step(investigate, ({ input }) => ({
-  title: input.workItemTitle,
-  body: input.workItemDescription,
-  // custom field from additionalPipelineInput.schema:
+  // pipeline-level fields also work when declared on pipeline(...):
   userId: input.userId,
-  // nested paths also work:
-  ticketTitle: input.meta.title,
+}))
+```
+
+Minimal step with no `additionalInput`:
+
+```typescript
+export const summarizeTicket = defineStep({
+  key: "summarize-ticket",
+  name: "Summarize Ticket",
+  version: 1,
+  agentPrompt: "Summarize the work item.",
+  result: z.object({ summary: z.string() }),
+  signals: [{ sourcePath: "summary" }],
+});
+```
+
+Step with extra inputs declared via `additionalInput`:
+
+```typescript
+export const triage = defineStep({
+  key: "triage",
+  name: "Triage",
+  version: 1,
+  agentPrompt: "Triage the issue.",
+  additionalInput: z.object({
+    priorSummary: z.string(),
+  }),
+  result: z.object({ priority: z.string() }),
+});
+
+.step(triage, ({ signal }) => ({
+  priorSummary: signal(investigate, "summary"),
 }))
 ```
 
@@ -184,13 +210,15 @@ Do **not** spread or coerce the accessor (`${input.code}`, `{ ...input.metadata 
 
 Prefer `signal` for stability; use `output` when you need the full object.
 
-### `literal(value)` — a hardcoded constant
+### `literal(value)` — hard-coded step input
 
 ```typescript
 .step(myStep, ({ literal }) => ({
-  model: literal("gpt-4o"),
+  retryCount: literal(3),
 }))
 ```
+
+Use `literal(...)` when a step input should receive a fixed value.
 
 ---
 
@@ -209,16 +237,19 @@ Prefer `signal` for stability; use `output` when you need the full object.
 
 ### Outcomes
 
-| Outcome | Meaning |
-|---|---|
-| `"continue"` | Advance to the next step automatically |
-| `"block"` | Pause; wait for human intervention |
-| `"needs_review"` | Flag for review before proceeding |
-| `"complete"` | End the pipeline here |
+| Outcome          | Meaning                                |
+| ---------------- | -------------------------------------- |
+| `"continue"`     | Advance to the next step automatically |
+| `"block"`        | Pause; wait for human intervention     |
+| `"needs_review"` | Flag for review before proceeding      |
+| `"complete"`     | End the pipeline here                  |
 
 To route to another pipeline:
+
 ```typescript
-signal("flagged").eq(true).then(route("triage-pipeline", { reason: "flagged" }))
+signal("flagged")
+  .eq(true)
+  .then(route("triage-pipeline", { reason: "flagged" }));
 ```
 
 ### Signal references
@@ -226,30 +257,31 @@ signal("flagged").eq(true).then(route("triage-pipeline", { reason: "flagged" }))
 `signal(key)` returns a `SignalRef`. Chain a comparator, then `.then(outcome)` to produce a rule:
 
 ```typescript
-signal("score").gte(0.8).then("continue")
+signal("score").gte(0.8).then("continue");
 ```
 
 The `stepSignals` property map is an alternative shorthand — both are equivalent:
+
 ```typescript
 // These are identical:
-signal("score").gte(0.8).then("continue")
-stepSignals.score.gte(0.8).then("continue")
+signal("score").gte(0.8).then("continue");
+stepSignals.score.gte(0.8).then("continue");
 ```
 
 ### Comparators on `SignalRef`
 
-| Method | Operator |
-|---|---|
-| `.eq(value)` | `equal` |
-| `.ne(value)` | `notEqual` |
-| `.gt(n)` | `greaterThan` |
-| `.gte(n)` | `greaterThanInclusive` |
-| `.lt(n)` | `lessThan` |
-| `.lte(n)` | `lessThanInclusive` |
-| `.in(values)` | `in` |
-| `.notIn(values)` | `notIn` |
-| `.contains(value)` | `contains` |
-| `.doesNotContain(v)` | `doesNotContain` |
+| Method               | Operator               |
+| -------------------- | ---------------------- |
+| `.eq(value)`         | `equal`                |
+| `.ne(value)`         | `notEqual`             |
+| `.gt(n)`             | `greaterThan`          |
+| `.gte(n)`            | `greaterThanInclusive` |
+| `.lt(n)`             | `lessThan`             |
+| `.lte(n)`            | `lessThanInclusive`    |
+| `.in(values)`        | `in`                   |
+| `.notIn(values)`     | `notIn`                |
+| `.contains(value)`   | `contains`             |
+| `.doesNotContain(v)` | `doesNotContain`       |
 
 ### Grouping with `all` and `any`
 
@@ -285,16 +317,16 @@ Aggregate multiple signals into a derived value inline — no separate declarati
 
 The same call across multiple rules is deduplicated into a single computed-signal definition at build time.
 
-| Factory | Description | Signal types |
-|---|---|---|
-| `avg(...)` | Arithmetic mean | `number` |
-| `weightedAvg(...)` | Weighted mean | `number` |
-| `sum(...)` | Sum | `number` |
-| `min(...)` | Minimum | `number` |
-| `max(...)` | Maximum | `number` |
-| `count(...)` | Count of truthy/present values | any |
-| `booleanAny(...)` | `true` if any input is truthy | `boolean` |
-| `booleanAll(...)` | `true` only if all inputs are truthy | `boolean` |
+| Factory            | Description                          | Signal types |
+| ------------------ | ------------------------------------ | ------------ |
+| `avg(...)`         | Arithmetic mean                      | `number`     |
+| `weightedAvg(...)` | Weighted mean                        | `number`     |
+| `sum(...)`         | Sum                                  | `number`     |
+| `min(...)`         | Minimum                              | `number`     |
+| `max(...)`         | Maximum                              | `number`     |
+| `count(...)`       | Count of truthy/present values       | any          |
+| `booleanAny(...)`  | `true` if any input is truthy        | `boolean`    |
+| `booleanAll(...)`  | `true` only if all inputs are truthy | `boolean`    |
 
 ---
 
@@ -323,20 +355,20 @@ export const investigate = defineStep({
   key: "investigate",
   name: "Investigate",
   version: 1,
-  agentPrompt: "Analyze the provided issue title and body, then return a concise summary and confidence score.",
-  additionalInput: z.object({ title: z.string(), body: z.string() }),
+  agentPrompt: "Analyze the work item and produce a summary with confidence.",
+  additionalInput: z.object({
+    reporterId: z.string(),
+  }),
   result: z.object({ summary: z.string(), confidence: z.number() }),
-  signals: [
-    { sourcePath: "confidence" },
-    { sourcePath: "summary" },
-  ],
+  signals: [{ sourcePath: "confidence" }, { sourcePath: "summary" }],
 });
 
 export const triage = defineStep({
   key: "triage",
   name: "Triage",
   version: 1,
-  agentPrompt: "Given the investigation summary, assign a priority: low, medium, or high.",
+  agentPrompt:
+    "Given the investigation summary, assign a priority: low, medium, or high.",
   additionalInput: z.object({ summary: z.string() }),
   result: z.object({ priority: z.string() }),
   signals: [{ sourcePath: "priority" }],
@@ -346,10 +378,10 @@ export default pipeline({
   key: "issue-pipeline",
   name: "Issue Pipeline",
   version: 1,
+  input: z.object({ userId: z.string() }),
 })
   .step(investigate, ({ input }) => ({
-    title: input.workItemTitle,
-    body: input.workItemDescription,
+    reporterId: input.userId,
   }))
   .advance(({ signal }) => ({
     default: "block",
