@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
 
@@ -85,7 +85,14 @@ async function buildTarget(
 async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
   const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
-  const aiImageRegistry = process.env["AI_IMAGE_REGISTRY"] ?? "boboddy/ai-worker";
+  const aiImageRegistry = process.env["AI_IMAGE_REGISTRY"] ?? "ghcr.io/boboddy-dev/boboddy/ai-worker";
+
+  // AI image tag is pinned in ai-image.txt, decoupled from CLI version.
+  // Override with AI_IMAGE_TAG env var when needed (e.g. during Docker release workflow).
+  const pinnedTagFile = resolve(import.meta.dir, "../ai-image.txt");
+  const pinnedTag = (process.env["AI_IMAGE_TAG"] ?? (await readFile(pinnedTagFile, "utf8"))).trim();
+  const aiImageRef = `${aiImageRegistry}:${pinnedTag}`;
+
   const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
 
   await rm(distDirectory, { recursive: true, force: true });
@@ -96,9 +103,10 @@ async function main(): Promise<void> {
     await buildTarget(target, [versionDefine]);
   }
 
+  process.stdout.write(`AI image ref: ${aiImageRef}\n`);
   await writeFile(
     resolve(distDirectory, ".ai-image"),
-    `${aiImageRegistry}:v${cliVersion}`,
+    aiImageRef,
     "utf8",
   );
 
