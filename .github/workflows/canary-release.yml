@@ -46,7 +46,7 @@ jobs:
           # fi
 
           # SHORT_SHA="$(git rev-parse --short HEAD)"
-          # SHA="$(git rev-parse HEAD)"
+          SHA="$(git rev-parse HEAD)"
           # VERSION="${BASE_VERSION}-canary.pr.${{ github.event.pull_request.number }}.${{ github.run_number }}.${{ github.run_attempt }}.${SHORT_SHA}"
           VERSION="${BASE_VERSION}-canary.${SHA}"
 

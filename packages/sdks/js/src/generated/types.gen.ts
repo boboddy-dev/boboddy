@@ -6762,6 +6762,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
 
 export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunData = {
     body: {
+        mode?: 'all' | 'failed';
         fromStepKey?: string;
     };
     path: {
