@@ -55,8 +55,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     env:
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    outputs:
+      canary_version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -133,3 +136,54 @@ jobs:
       - name: Publish CLI canary
         working-directory: apps/cli
         run: npm publish --access public --tag canary
+
+      - name: Post canary metadata comment
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CANARY_VERSION: ${{ steps.version.outputs.version }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          MARKER="<!-- boboddy-canary-version -->"
+          BODY="${MARKER}
+          **Canary published** \`${CANARY_VERSION}\`
+
+          | Field | Value |
+          |---|---|
+          | cli_version | \`${CANARY_VERSION}\` |
+          | branch | \`${HEAD_BRANCH}\` |
+          | sha | \`${HEAD_SHA}\` |
+
+          _Updated by the Canary Release workflow._"
+
+          # Find and update an existing marker comment, or create a new one.
+          COMMENT_ID="$(gh api \
+            "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" \
+            | head -n 1 || echo "")"
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api \
+              --method PATCH \
+              "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" \
+              -f body="$BODY"
+          else
+            gh api \
+              --method POST \
+              "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+              -f body="$BODY"
+          fi
+
+  e2e-smoke-tests:
+    name: E2E smoke tests
+    needs: publish-canary
+    uses: boboddy-dev/boboddy-e2e-tests/.github/workflows/smoke-tests.yml@main
+    with:
+      source_repo: "boboddy-dev/boboddy"
+      source_branch: ${{ github.event.pull_request.head.ref }}
+      known_cli_version: ${{ needs.publish-canary.outputs.canary_version }}
+    secrets:
+      CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
