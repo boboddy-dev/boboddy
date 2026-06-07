@@ -104,12 +104,13 @@ boboddy pipelines pull <projectId>
 | `.gitignore` | Ignores `node_modules` (only on first pull) |
 | `steps.ts` | One `defineStep()` export per step definition (latest version of each key) |
 | `<pipeline-key>.ts` | One pipeline export per pipeline (uses the fluent `pipeline()` builder) |
+| `default-pipeline-assignment.ts` | Project routing policy (written if configured on the server; removed if not) |
 
 After pulling, run `npm install` or `bun install` inside `.boboddy/pipeline-builder/` to install dependencies.
 
 ### `boboddy pipelines push [projectId]`
 
-Push step and pipeline definitions from `.boboddy/pipeline-builder/` to the server. Both `steps.ts` and all pipeline files are read; steps are pushed first, then pipelines.
+Push step and pipeline definitions from `.boboddy/pipeline-builder/` to the server. Steps are pushed first, then pipelines. If `default-pipeline-assignment.ts` is present it is synced to the server last. Absent files are ignored; they do not clear server configuration.
 
 ```bash
 boboddy pipelines push

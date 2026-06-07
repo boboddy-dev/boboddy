@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -7,9 +7,17 @@ import {
   type StepDefinitionRef,
 } from "../definitions/pipelines";
 import {
+  DEFAULT_PIPELINE_ASSIGNMENT_FILENAME,
+  isDefaultPipelineAssignmentSpec,
+  serializeDefaultPipelineAssignment,
+  type DefaultPipelineAssignmentSpec,
+} from "../definitions/pipelines/define-default-pipeline-assignment";
+import {
   createStepDefinitionsClient,
   type StepDefinitionSpec,
 } from "../definitions/steps";
+import { createClient } from "../generated/client";
+import { Projects } from "../generated/sdk.gen";
 
 export interface PushFromDirectoryOptions {
   baseUrl: string;
@@ -22,6 +30,8 @@ export interface PushFromDirectoryOptions {
 export interface PushFromDirectoryResult {
   pushedSteps: number;
   pushedPipelines: number;
+  /** true if the default pipeline assignment was synced to the server. */
+  syncedDefaultPipelineAssignment: boolean;
 }
 
 function isStepDefinitionSpec(value: unknown): value is StepDefinitionSpec {
@@ -76,9 +86,13 @@ function extractRoutePipelineKeys(policy: {
 const PUSH_SCRIPT_NAMES = new Set(["push.ts", "push.mjs", "push.js"]);
 
 /**
- * Imports every `.ts`/`.js` file in `dir` (except the push script itself),
- * collects all pipeline and step definitions, then upserts them via the
- * strongly-typed SDK clients.
+ * Imports every `.ts`/`.js` file in `dir` (except the push script itself and
+ * `default-pipeline-assignment.ts`), collects all pipeline and step
+ * definitions, then upserts them via the strongly-typed SDK clients.
+ *
+ * If `default-pipeline-assignment.ts` is present, it is imported separately
+ * after pipelines are pushed, and the project default pipeline assignment is
+ * updated on the server.
  *
  * Designed to run on the user's native runtime (bun, node-with-tsx, deno),
  * NOT inside a `bun --compile`'d binary — that runtime can't resolve scoped
@@ -92,9 +106,18 @@ export async function pushFromDirectory(
   const headers = { Authorization: `Bearer ${opts.accessToken}` };
   const absDir = resolve(dir);
 
-  const sourceFiles = readdirSync(absDir).filter(
+  const allFiles = readdirSync(absDir).filter(
+    (f) => f.endsWith(".ts") || f.endsWith(".js"),
+  );
+
+  // Separate the special assignment file from normal pipeline definition files
+  const hasAssignmentFile = existsSync(
+    join(absDir, DEFAULT_PIPELINE_ASSIGNMENT_FILENAME),
+  );
+
+  const sourceFiles = allFiles.filter(
     (f) =>
-      (f.endsWith(".ts") || f.endsWith(".js")) && !PUSH_SCRIPT_NAMES.has(f),
+      !PUSH_SCRIPT_NAMES.has(f) && f !== DEFAULT_PIPELINE_ASSIGNMENT_FILENAME,
   );
 
   const pipelineSpecs: PipelineDefinitionSpec[] = [];
@@ -141,53 +164,196 @@ export async function pushFromDirectory(
     log(`✓ step ${spec.key} v${String(spec.version)} → upserted`);
   }
 
-  if (pipelineSpecs.length === 0) {
-    return { pushedSteps: stepMap.size, pushedPipelines: 0 };
-  }
-
   const pipelinesClient = createPipelineDefinitionsClient(opts.baseUrl);
 
-  // Fetch existing pipelines once for route-key validation, then list step
-  // defs to resolve `stepDefinitionId` for each pipeline step.
-  const existingPipelines = await pipelinesClient.listByProjectId(
-    opts.projectId,
-    { headers },
-  );
-  const knownPipelineKeys = new Set<string>([
-    ...pipelineSpecs.map((s) => s.key),
-    ...existingPipelines.map((p) => p.key),
-  ]);
+  let pushedPipelinesCount = 0;
 
-  for (const spec of pipelineSpecs) {
-    for (const step of spec.steps) {
-      const routeKeys = extractRoutePipelineKeys(step.advancementPolicyDefinition);
-      for (const routeKey of routeKeys) {
-        if (!knownPipelineKeys.has(routeKey)) {
-          throw new Error(
-            `Pipeline "${spec.key}" step "${step.stepKey}" routes to pipeline "${routeKey}", ` +
-              `but no pipeline with that key was found on the server or in the current push batch. ` +
-              `Push the target pipeline first.`,
-          );
+  if (pipelineSpecs.length > 0) {
+    // Fetch existing pipelines once for route-key validation, then list step
+    // defs to resolve `stepDefinitionId` for each pipeline step.
+    const existingPipelines = await pipelinesClient.listByProjectId(
+      opts.projectId,
+      { headers },
+    );
+    const knownPipelineKeys = new Set<string>([
+      ...pipelineSpecs.map((s) => s.key),
+      ...existingPipelines.map((p) => p.key),
+    ]);
+
+    for (const spec of pipelineSpecs) {
+      for (const step of spec.steps) {
+        const routeKeys = extractRoutePipelineKeys(step.advancementPolicyDefinition);
+        for (const routeKey of routeKeys) {
+          if (!knownPipelineKeys.has(routeKey)) {
+            throw new Error(
+              `Pipeline "${spec.key}" step "${step.stepKey}" routes to pipeline "${routeKey}", ` +
+                `but no pipeline with that key was found on the server or in the current push batch. ` +
+                `Push the target pipeline first.`,
+            );
+          }
         }
       }
     }
-  }
 
-  const serverSteps = await stepsClient.listByProjectId(opts.projectId, {
-    headers,
-  });
-  const stepDefs: StepDefinitionRef[] = (serverSteps ?? []).map((s) => ({
-    id: s.id,
-    key: s.key,
-    version: s.version,
-  }));
-
-  for (const spec of pipelineSpecs) {
-    await pipelinesClient.upsertFromSpec(opts.projectId, spec, stepDefs, {
+    const serverSteps = await stepsClient.listByProjectId(opts.projectId, {
       headers,
     });
-    log(`✓ pipeline ${spec.key} v${String(spec.version)} → upserted`);
+    const stepDefs: StepDefinitionRef[] = (serverSteps ?? []).map((s) => ({
+      id: s.id,
+      key: s.key,
+      version: s.version,
+    }));
+
+    for (const spec of pipelineSpecs) {
+      await pipelinesClient.upsertFromSpec(opts.projectId, spec, stepDefs, {
+        headers,
+      });
+      log(`✓ pipeline ${spec.key} v${String(spec.version)} → upserted`);
+    }
+
+    pushedPipelinesCount = pipelineSpecs.length;
   }
 
-  return { pushedSteps: stepMap.size, pushedPipelines: pipelineSpecs.length };
+  // Handle default pipeline assignment file
+  let syncedDefaultPipelineAssignment = false;
+
+  if (hasAssignmentFile) {
+    const assignmentFilePath = join(
+      absDir,
+      DEFAULT_PIPELINE_ASSIGNMENT_FILENAME,
+    );
+    const assignmentMod = (await import(
+      pathToFileURL(assignmentFilePath).href
+    )) as Record<string, unknown>;
+
+    const assignmentSpec = assignmentMod["default"];
+    if (!isDefaultPipelineAssignmentSpec(assignmentSpec)) {
+      throw new Error(
+        `${DEFAULT_PIPELINE_ASSIGNMENT_FILENAME} must have a default export produced by ` +
+          `defaultPipelineAssignment(({ assign, skip, ... }) => ({ default: ..., rules: [...] })). ` +
+          `Got: ${typeof assignmentSpec}`,
+      );
+    }
+
+    syncedDefaultPipelineAssignment = await syncDefaultPipelineAssignment(
+      assignmentSpec,
+      opts,
+      headers,
+      pipelinesClient,
+      log,
+    );
+  }
+
+  return {
+    pushedSteps: stepMap.size,
+    pushedPipelines: pushedPipelinesCount,
+    syncedDefaultPipelineAssignment,
+  };
+}
+
+async function syncDefaultPipelineAssignment(
+  spec: DefaultPipelineAssignmentSpec,
+  opts: PushFromDirectoryOptions,
+  headers: { Authorization: string },
+  pipelinesClient: ReturnType<typeof createPipelineDefinitionsClient>,
+  log: (msg: string) => void,
+): Promise<boolean> {
+  const serialized = serializeDefaultPipelineAssignment(spec);
+
+  // Fetch all server pipelines to resolve pipeline key → linearPipelineDefinitionId
+  const serverPipelines = await pipelinesClient.listByProjectId(opts.projectId, {
+    headers,
+  });
+
+  // Build key → id map from all referenced pipeline keys (assign outcomes)
+  const pipelineKeyToId = new Map<string, string>(
+    (serverPipelines as Array<{ key: string; id: string }>).map((p) => [
+      p.key,
+      p.id,
+    ]),
+  );
+
+  // Collect all pipeline keys referenced in the spec (assign outcomes)
+  const referencedKeys = new Set<string>();
+  referencedKeys.add(serialized.linearPipelineDefinitionKey);
+  for (const rule of serialized.rulesJson.rules) {
+    if (
+      rule.event.type === "assign" &&
+      typeof rule.event.params?.["pipelineKey"] === "string"
+    ) {
+      referencedKeys.add(rule.event.params["pipelineKey"] as string);
+    }
+  }
+
+  // Validate all referenced pipeline keys exist on the server
+  for (const key of referencedKeys) {
+    if (!pipelineKeyToId.has(key)) {
+      throw new Error(
+        `default-pipeline-assignment.ts references pipeline "${key}", ` +
+          `but no pipeline with that key was found on the server. ` +
+          `Push the pipeline first with \`boboddy pipelines push\`.`,
+      );
+    }
+  }
+
+  // Resolve the primary linearPipelineDefinitionId
+  const linearPipelineDefinitionId = pipelineKeyToId.get(
+    serialized.linearPipelineDefinitionKey,
+  )!;
+
+  // Rewrite assign event params: replace pipelineKey → pipelineDefinitionId
+  const resolvedRules = serialized.rulesJson.rules.map((rule) => {
+    if (
+      rule.event.type === "assign" &&
+      typeof rule.event.params?.["pipelineKey"] === "string"
+    ) {
+      const pKey = rule.event.params["pipelineKey"] as string;
+      const pId = pipelineKeyToId.get(pKey);
+      if (!pId) {
+        throw new Error(
+          `default-pipeline-assignment.ts assign() references pipeline "${pKey}" ` +
+            `which was not found on the server.`,
+        );
+      }
+      return {
+        ...rule,
+        event: {
+          ...rule.event,
+          params: {
+            ...rule.event.params,
+            pipelineDefinitionId: pId,
+          },
+        },
+      };
+    }
+    return rule;
+  });
+
+  // Call the server API
+  const projectsClient = new Projects({
+    client: createClient({ baseUrl: opts.baseUrl }),
+  });
+
+  const result = await projectsClient.updateProjectDefaultPipelineAssignment({
+    path: { projectId: opts.projectId },
+    body: {
+      defaultPipelineAssignment: {
+        linearPipelineDefinitionId,
+        rulesJson: { rules: resolvedRules },
+        defaultEventType: serialized.defaultEventType,
+        defaultEventParamsJson: serialized.defaultEventParamsJson,
+        allowedEventTypes: serialized.allowedEventTypes,
+      },
+    },
+    headers,
+  });
+
+  if (result.error) {
+    throw new Error(
+      `Failed to update project default pipeline assignment: ${JSON.stringify(result.error)}`,
+    );
+  }
+
+  log(`✓ default pipeline assignment → synced (primary pipeline: ${serialized.linearPipelineDefinitionKey})`);
+  return true;
 }

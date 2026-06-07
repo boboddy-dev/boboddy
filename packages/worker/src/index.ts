@@ -61,6 +61,8 @@ export {
 export type { StepInfo, StepSignalInfo } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
 export { pullPipelineDefinitions, listExistingPipelineBuilderFiles } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
 export type { PullPipelineDefinitionsResult } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
+export { UnsupportedRuleError, generateDefaultPipelineAssignmentFileContent } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
+export type { DefaultPipelineAssignmentContract } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
 export { DefaultOpencodeStepRunner } from "./work/step-execution/infra/opencode-step-runner";
 export { processProjectWork, runProjectWork } from "./work/step-execution/application/run-project-work";
 export type {

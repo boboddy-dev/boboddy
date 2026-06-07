@@ -226,7 +226,7 @@ const runPull = async (args: ArgumentsCamelCase<PullArguments>): Promise<void> =
 
   const result = await pullPipelineDefinitions({ projectId, baseUrl, headers, logger, dir, sdkVersion: CLI_VERSION });
 
-  if (result.stepFiles === 0 && result.pipelineFiles === 0) return;
+  if (result.stepFiles === 0 && result.pipelineFiles === 0 && !result.defaultPipelineAssignmentFile) return;
 
   const freshlyScaffolded = existingFiles.length === 0;
   if (freshlyScaffolded) {
@@ -236,9 +236,12 @@ const runPull = async (args: ArgumentsCamelCase<PullArguments>): Promise<void> =
     );
   }
 
+  const assignmentMsg = result.defaultPipelineAssignmentFile
+    ? ", default-pipeline-assignment.ts"
+    : "";
   logger.info(
-    { pipelineFiles: result.pipelineFiles, stepFiles: result.stepFiles },
-    `Pull complete. ${String(result.pipelineFiles)} pipeline file(s), ${String(result.stepFiles)} step file(s).`,
+    { pipelineFiles: result.pipelineFiles, stepFiles: result.stepFiles, defaultPipelineAssignmentFile: result.defaultPipelineAssignmentFile },
+    `Pull complete. ${String(result.pipelineFiles)} pipeline file(s), ${String(result.stepFiles)} step file(s)${assignmentMsg}.`,
   );
 };
 

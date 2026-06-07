@@ -134,6 +134,54 @@ Inside the `.advance()` callback:
 
 ---
 
+## `defaultPipelineAssignment(callback)`
+
+Define which pipeline is automatically started when a work item arrives. This goes in the reserved file `.boboddy/pipeline-builder/default-pipeline-assignment.ts`.
+
+```typescript
+import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";
+import bugTriage from "./bug-triage";
+import regressionReview from "./regression-review";
+
+export default defaultPipelineAssignment(({ workItem, any, assign, skip }) => ({
+  default: assign(bugTriage),
+  rules: [
+    any(
+      workItem.field("status").eq("resolved"),
+      workItem.field("status").eq("manual support"),
+    ).then(skip()),
+    workItem.field("issueType").eq("bug").then(assign(bugTriage)),
+    workItem.field("labels").contains("regression").then(assign(regressionReview)),
+  ],
+}));
+```
+
+The callback receives a context object. Only `defaultPipelineAssignment` needs to be imported.
+
+### Callback context
+
+| Property | Description |
+|----------|-------------|
+| `workItem.field(name)` | Returns a comparator ref for the named work item field |
+| `context.isNew` | Comparator ref; `true` when the work item is new |
+| `assign(pipeline)` | Outcome: start the given pipeline (`PipelineDefinitionSpec`) |
+| `skip()` | Outcome: do not assign any pipeline |
+| `all(...refs)` | All nested conditions must match |
+| `any(...refs)` | Any nested condition must match |
+
+### Return value shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `default` | `AssignOutcome \| SkipOutcome` | Outcome when no rule matches; `assign(pipeline)` or `skip()` |
+| `rules` | `AssignmentRule[]` | Ordered rules; first match wins |
+
+### Comparators
+
+All comparators available on advancement `SignalRef`s are also available here: `.eq`, `.ne`, `.gt`, `.gte`, `.lt`, `.lte`, `.in`, `.notIn`, `.contains`, `.doesNotContain`.
+
+---
+
 ## Legacy `definePipeline(options)`
 
 The original object-based API. Still supported; produces identical wire output. New pipelines should prefer the `pipeline()` builder above.

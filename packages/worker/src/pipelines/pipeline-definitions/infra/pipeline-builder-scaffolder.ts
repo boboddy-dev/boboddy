@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
 
 export const PIPELINE_BUILDER_DIR = ".boboddy/pipeline-builder";
 
@@ -215,6 +216,24 @@ ${stepChain}
 `;
 }
 
+function buildDefaultPipelineAssignmentFile(examplePipelineKey: string): string {
+  const varName = kebabToCamel(examplePipelineKey);
+  return `import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";
+import ${varName} from "./${examplePipelineKey}";
+
+export default defaultPipelineAssignment(({ workItem, any, assign, skip }) => ({
+  default: assign(${varName}),
+  rules: [
+    any(
+      workItem.field("status").eq("resolved"),
+      workItem.field("status").eq("manual support"),
+    ).then(skip()),
+    workItem.field("issueType").eq("bug").then(assign(${varName})),
+  ],
+}));
+`;
+}
+
 export function scaffoldPipelineBuilderDirectory(
   dir: string,
   steps: StepInfo[],
@@ -240,6 +259,11 @@ export function scaffoldPipelineBuilderDirectory(
   writeFile("tsconfig.json", PIPELINE_BUILDER_TSCONFIG);
   writeFile(".gitignore", PIPELINE_BUILDER_GITIGNORE);
   writeFile("example-pipeline.ts", buildCombinedFile(steps));
+  // Scaffold the reserved default pipeline assignment file
+  writeFile(
+    DEFAULT_PIPELINE_ASSIGNMENT_FILENAME,
+    buildDefaultPipelineAssignmentFile("example-pipeline"),
+  );
 
   return result;
 }
