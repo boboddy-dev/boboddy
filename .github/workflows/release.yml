@@ -104,6 +104,7 @@ jobs:
         with:
           name: cli-dist
           path: apps/cli/dist/
+          include-hidden-files: true
 
   sign-cli-macos:
     runs-on: macos-latest
@@ -130,6 +131,7 @@ jobs:
         with:
           name: cli-dist-signed
           path: dist/
+          include-hidden-files: true
 
   publish:
     runs-on: ubuntu-latest
@@ -168,6 +170,14 @@ jobs:
 
       - name: Restore binary permissions
         run: chmod +x apps/cli/dist/boboddy-darwin-* apps/cli/dist/boboddy-linux-*
+
+      - name: Verify bundled AI image reference
+        run: |
+          if [ ! -f apps/cli/dist/.ai-image ]; then
+            echo "Missing apps/cli/dist/.ai-image in release artifact." >&2
+            exit 1
+          fi
+          echo "Bundled AI image: $(cat apps/cli/dist/.ai-image)"
 
       - name: Stamp package versions
         env:
