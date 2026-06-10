@@ -176,4 +176,3 @@ jobs:
               "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
               -f body="$BODY"
           fi
-
