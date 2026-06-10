@@ -160,6 +160,7 @@ export async function pullPipelineDefinitions(
           `Project default pipeline assignment contains rules that cannot be rendered ` +
             `with the fluent SDK: ${err.message}\n` +
             `Re-author the policy with the SDK and push again.`,
+          { cause: err },
         );
       }
       throw err;

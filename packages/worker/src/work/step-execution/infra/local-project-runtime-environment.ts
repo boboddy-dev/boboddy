@@ -177,7 +177,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         resolvedBranch: cloneResult.resolvedBranch,
       });
 
-      await buildOpencodeContext({
+      const finalOpencodeConfig = await buildOpencodeContext({
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
         stepPlugins: input.opencodePluginJson,
@@ -221,7 +221,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         devcontainerId,
       });
 
-      const varNames = extractReferencedEnvVarNames(input.opencodeMcpJson);
+      const varNames = extractReferencedEnvVarNames(
+        finalOpencodeConfig.mcp as OpenCodeMcpServers | null | undefined,
+      );
       const devcontainerEnv = await getDevcontainerEnv(
         devcontainerId,
         varNames,

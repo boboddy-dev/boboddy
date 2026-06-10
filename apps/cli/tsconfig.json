@@ -5,7 +5,8 @@
     "noEmit": true,
     "exactOptionalPropertyTypes": false,
     "paths": {
-      "@boboddy/worker": ["../../packages/worker/src/index.ts"]
+      "@boboddy/worker": ["../../packages/worker/src/index.ts"],
+      "@boboddy/worker/*": ["../../packages/worker/src/*"]
     }
   },
   "include": ["src/**/*.ts", "script/**/*.ts", "test/**/*.ts"],

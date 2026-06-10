@@ -157,6 +157,40 @@ function mergeAgentConfig(
   };
 }
 
+function mergeUserConfig(
+  baseConfig: OpenCodeConfig,
+  userConfig: OpenCodeConfig | null | undefined,
+): OpenCodeConfig {
+  if (!userConfig) return baseConfig;
+
+  const mergedPlugin = mergePluginConfig(
+    baseConfig.plugin,
+    userConfig.plugin as OpenCodePlugins | undefined,
+  );
+
+  const result: OpenCodeConfig = {
+    ...baseConfig,
+    ...userConfig,
+    // mcp: deep merge, user keys override same-named base keys
+    mcp: { ...(baseConfig.mcp ?? {}), ...(userConfig.mcp ?? {}) },
+  };
+
+  // Boboddy's embedded permission block wins — security boundary
+  if (baseConfig.permission !== undefined) {
+    result.permission = baseConfig.permission;
+  } else {
+    delete result.permission;
+  }
+
+  if (mergedPlugin && mergedPlugin.length > 0) {
+    result.plugin = mergedPlugin;
+  } else {
+    delete result.plugin;
+  }
+
+  return result;
+}
+
 function mergePluginConfig(
   basePlugin: OpenCodeConfig["plugin"],
   stepPlugins: OpenCodePlugins | null | undefined,
@@ -183,24 +217,26 @@ function mergePluginConfig(
 
 export function buildStepExecutionOpencodeConfig(input: {
   baseConfig: OpenCodeConfig;
+  userConfig?: OpenCodeConfig | null | undefined;
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
   stepPlugins?: OpenCodePlugins | null | undefined;
   agentPromptText?: string | null | undefined;
 }): OpenCodeConfig {
   const baseConfig = cloneConfig(input.baseConfig);
+  const configWithUser = mergeUserConfig(baseConfig, input.userConfig);
   const requiredPrefixes = getRequiredMcpToolPrefixes(input.stepMcpServers);
-  const mergedMcp = mergeMcpConfig(baseConfig.mcp, input.stepMcpServers);
-  const mergedTools = mergeToolsConfig(baseConfig.tools, requiredPrefixes);
+  const mergedMcp = mergeMcpConfig(configWithUser.mcp, input.stepMcpServers);
+  const mergedTools = mergeToolsConfig(configWithUser.tools, requiredPrefixes);
   const mergedAgent = mergeAgentConfig(
-    baseConfig.agent,
+    configWithUser.agent,
     requiredPrefixes,
     input.agentPromptText,
   );
-  const mergedPlugin = mergePluginConfig(baseConfig.plugin, input.stepPlugins);
+  const mergedPlugin = mergePluginConfig(configWithUser.plugin, input.stepPlugins);
   const model = process.env["AGENT_DEFAULT_MODEL"];
 
   return {
-    ...baseConfig,
+    ...configWithUser,
     ...(model ? { model: model } : {}),
     ...(mergedMcp ? { mcp: mergedMcp } : {}),
     ...(mergedTools ? { tools: mergedTools } : {}),

@@ -7,13 +7,8 @@ import { createCliLogger } from "../lib/logger";
 async function runPull(): Promise<void> {
   const logger = createCliLogger("images-pull");
 
-  const aiImage = process.env["BOBODDY_BUILT_AI_IMAGE"];
-  if (!aiImage) {
-    throw new Error(
-      "Could not determine the AI worker image. " +
-        "Make sure you are running a built boboddy CLI so that the image reference is available.",
-    );
-  }
+  const { resolveAiImage } = await import("@boboddy/worker/runtime/runtime-service/domain/ai-image");
+  const aiImage = resolveAiImage().ref;
 
   logger.info({ image: aiImage }, `Pulling AI worker image: ${aiImage}`);
 

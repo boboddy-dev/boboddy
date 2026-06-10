@@ -5,10 +5,11 @@
     "noEmit": true,
     "paths": {
       "@boboddy/worker": ["./src/index.ts"],
-      "@boboddy/worker/*": ["./src/*"]
+      "@boboddy/worker/*": ["./src/*"],
+      "@boboddy/opencode-plugin": ["../opencode-plugin/src/index.ts"]
     },
     "exactOptionalPropertyTypes": false
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "../opencode-plugin/src/ambient.d.ts"],
   "exclude": ["node_modules"]
 }

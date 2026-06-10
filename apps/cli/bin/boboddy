@@ -61,7 +61,7 @@ if (!existsSync(binaryPath)) {
 
 const extraEnv = {};
 if (devSdkArtifactPath) extraEnv["BOBODDY_SDK_ARTIFACT_PATH"] = devSdkArtifactPath;
-if (builtAiImage && !process.env["BOBODDY_BUILT_AI_IMAGE"]) extraEnv["BOBODDY_BUILT_AI_IMAGE"] = builtAiImage;
+if (builtAiImage && !process.env["PROJECT_RUNTIME_SESSION_AI_IMAGE"]) extraEnv["PROJECT_RUNTIME_SESSION_AI_IMAGE"] = builtAiImage;
 
 const result = spawnSync(binaryPath, process.argv.slice(2), {
   stdio: "inherit",
