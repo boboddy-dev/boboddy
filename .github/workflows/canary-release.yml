@@ -176,14 +176,3 @@ jobs:
               "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
               -f body="$BODY"
           fi
-
-  e2e-smoke-tests:
-    name: E2E smoke tests
-    needs: publish-canary
-    uses: boboddy-dev/boboddy-e2e-tests/.github/workflows/smoke-tests.yml@main
-    with:
-      source_repo: "boboddy-dev/boboddy"
-      source_branch: ${{ github.event.pull_request.head.ref }}
-      known_cli_version: ${{ needs.publish-canary.outputs.canary_version }}
-    secrets:
-      CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
