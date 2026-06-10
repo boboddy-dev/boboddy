@@ -1,4 +1,4 @@
-import { chmod, mkdir, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Config } from "@opencode-ai/sdk";
 import type { OpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
@@ -11,6 +11,26 @@ import embeddedPluginSource from "../dist/plugin.js" with { type: "text" };
 
 function parseJsoncConfig(content: string): Config {
   return parseJsonc(content) as Config;
+}
+
+async function readUserOpencodeConfig(
+  workspacePath: string,
+): Promise<Config | null> {
+  const candidates = [
+    path.join(workspacePath, ".opencode", "opencode.json"),
+    path.join(workspacePath, ".opencode", "opencode.jsonc"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const content = await readFile(candidate, "utf8");
+      return parseJsoncConfig(content);
+    } catch {
+      // File doesn't exist or is unreadable — try next candidate
+    }
+  }
+
+  return null;
 }
 
 async function prepareOpencodeDir(targetRoot: string): Promise<void> {
@@ -36,18 +56,22 @@ export async function buildOpencodeContext(input: {
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
   stepPlugins?: OpenCodePlugins | null | undefined;
   agentPromptText?: string | null | undefined;
-}): Promise<void> {
+}): Promise<Config> {
   const targetRoot = path.join(input.workspacePath, ".opencode");
-  const targetConfigPath = path.join(input.workspacePath, "opencode.jsonc");
+  const targetConfigPath = path.join(targetRoot, "opencode.json");
 
   const baselineConfig = JSON.parse(
     JSON.stringify(parseJsoncConfig(embeddedOpencodeJsonc as string)),
   ) as Config;
 
-  await prepareOpencodeDir(targetRoot);
+  const [userConfig] = await Promise.all([
+    readUserOpencodeConfig(input.workspacePath),
+    prepareOpencodeDir(targetRoot),
+  ]);
 
   const mergedConfig = buildStepExecutionOpencodeConfig({
     baseConfig: baselineConfig,
+    userConfig,
     stepMcpServers: input.stepMcpServers,
     stepPlugins: input.stepPlugins,
     agentPromptText: input.agentPromptText,
@@ -57,4 +81,6 @@ export async function buildOpencodeContext(input: {
     `${JSON.stringify(mergedConfig, null, 2)}\n`,
     "utf8",
   );
+
+  return mergedConfig;
 }

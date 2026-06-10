@@ -150,4 +150,114 @@ describe("buildStepExecutionOpencodeConfig", () => {
       "opencode-wakatime",
     ]);
   });
+
+  test.concurrent("userConfig MCP servers are merged into output", () => {
+    const baseConfig: Config = { model: "openapi/gpt-5.4" };
+    const userConfig: Config = {
+      mcp: {
+        postgres: {
+          type: "local",
+          command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+          enabled: true,
+          environment: { DATABASE_URI: "{env:DATABASE_URI}" },
+        },
+      },
+    };
+
+    const config = buildStepExecutionOpencodeConfig({ baseConfig, userConfig });
+
+    expect(config.mcp?.["postgres"]).toEqual({
+      type: "local",
+      command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+      enabled: true,
+      environment: { DATABASE_URI: "{env:DATABASE_URI}" },
+    });
+  });
+
+  test.concurrent("step MCP servers override same-named userConfig MCP servers", () => {
+    const baseConfig: Config = { model: "openapi/gpt-5.4" };
+    const userConfig: Config = {
+      mcp: {
+        postgres: {
+          type: "local",
+          command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+          enabled: true,
+        },
+      },
+    };
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      userConfig,
+      stepMcpServers: {
+        postgres: {
+          type: "local",
+          command: ["uvx", "postgres-mcp", "--access-mode=read-write"],
+          enabled: true,
+        },
+      },
+    });
+
+    expect((config.mcp?.["postgres"] as { command?: string[] })?.command).toEqual([
+      "uvx",
+      "postgres-mcp",
+      "--access-mode=read-write",
+    ]);
+  });
+
+  test.concurrent("userConfig plugins are merged and deduplicated with step plugins", () => {
+    const baseConfig: Config = { model: "openapi/gpt-5.4" };
+    const userConfig = { plugin: ["@datadog/opencode-plugin"] } as Config;
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      userConfig,
+      stepPlugins: ["@datadog/opencode-plugin", "opencode-wakatime"],
+    });
+
+    expect(config.plugin).toEqual(["@datadog/opencode-plugin", "opencode-wakatime"]);
+  });
+
+  test.concurrent("Boboddy embedded permission wins over userConfig permission", () => {
+    const baseConfig = {
+      model: "openapi/gpt-5.4",
+      permission: { "*": "allow", "boboddy*": "allow", "question": "deny" },
+    } as Config;
+    const userConfig = { permission: { "*": "deny" } } as Config;
+
+    const config = buildStepExecutionOpencodeConfig({ baseConfig, userConfig });
+
+    expect(config.permission).toEqual(baseConfig.permission);
+  });
+
+  test.concurrent("userConfig: null leaves output unchanged", () => {
+    const baseConfig: Config = {
+      model: "openapi/gpt-5.4",
+      mcp: { playwright: { type: "local", command: ["npx", "@playwright/mcp"], enabled: true } },
+    };
+
+    const config = buildStepExecutionOpencodeConfig({
+      baseConfig,
+      userConfig: null,
+      stepMcpServers: null,
+    });
+
+    expect(config.mcp?.["playwright"]).toEqual(baseConfig.mcp?.["playwright"]);
+  });
+
+  test.concurrent("userConfig top-level fields (e.g. model) override baseline", () => {
+    const baseConfig: Config = { model: "openapi/gpt-5.4" };
+    const userConfig: Config = { model: "anthropic/claude-opus-4" };
+
+    // AGENT_DEFAULT_MODEL is set in beforeAll so it takes final precedence;
+    // clear it temporarily to test user model passthrough
+    const saved = process.env["AGENT_DEFAULT_MODEL"];
+    delete process.env["AGENT_DEFAULT_MODEL"];
+
+    const config = buildStepExecutionOpencodeConfig({ baseConfig, userConfig });
+
+    process.env["AGENT_DEFAULT_MODEL"] = saved;
+
+    expect(config.model).toBe("anthropic/claude-opus-4");
+  });
 });

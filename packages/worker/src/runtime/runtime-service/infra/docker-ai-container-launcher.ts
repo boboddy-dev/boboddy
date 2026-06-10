@@ -1,21 +1,35 @@
 import { execFile } from "node:child_process";
-import { access, chmod, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  mkdir,
+  readdir,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { logWork, logWorkError } from "../../../work/step-execution/application/work-logger";
+import {
+  logWork,
+  logWorkError,
+} from "../../../work/step-execution/application/work-logger";
 import type {
   AiContainerLauncher,
   LaunchAiContainerInput,
   LaunchAiContainerResult,
 } from "../application/ai-container-launcher";
+import { resolveAiImage } from "../domain/ai-image";
+export type { AiImage } from "../domain/ai-image";
+export { resolveAiImage } from "../domain/ai-image";
 
 const execFileAsync = promisify(execFile);
 const AI_CONTAINER_PORT = 4096;
 const AI_CONTAINER_HEALTH_TIMEOUT_MS = 60_000;
 const AI_CONTAINER_HEALTH_INTERVAL_MS = 500;
-const DEFAULT_AI_IMAGE = process.env["BOBODDY_BUILT_AI_IMAGE"] ?? "boboddy/ai-worker:local";
+
 const AI_CONTAINER_HEALTH_PATH = "/global/health";
 const RUNTIME_HOME_ROOT_DIR = ".boboddy";
 const RUNTIME_AI_HOME_DIR = "ai-home";
@@ -52,12 +66,6 @@ export function getSessionOpencodeLogDirectory(workspacePath: string): string {
     "share",
     "opencode",
     "log",
-  );
-}
-
-function getAiImage(): string {
-  return (
-    process.env["PROJECT_RUNTIME_SESSION_AI_IMAGE"]?.trim() || DEFAULT_AI_IMAGE
   );
 }
 
@@ -133,7 +141,10 @@ export function buildAiContainerBaseArgs(input: {
   }
 
   if (input.hasHostOpencodeData) {
-    baseArgs.push("-v", `${input.hostOpencodeDataPath}:/opencode-host-share:ro`);
+    baseArgs.push(
+      "-v",
+      `${input.hostOpencodeDataPath}:/opencode-host-share:ro`,
+    );
   }
 
   // On Linux, host.docker.internal is not automatically resolvable inside
@@ -165,7 +176,10 @@ function findFreePort(): Promise<number> {
   });
 }
 
-function truncateText(value: string, limit = HEALTH_DIAGNOSTIC_TEXT_LIMIT): string {
+function truncateText(
+  value: string,
+  limit = HEALTH_DIAGNOSTIC_TEXT_LIMIT,
+): string {
   if (value.length <= limit) return value;
   return `${value.slice(0, limit)}\n...<truncated ${String(value.length - limit)} chars>`;
 }
@@ -190,25 +204,32 @@ async function captureCommandOutput(
       "stdout" in error &&
       "stderr" in error
     ) {
-      const err = error as { stdout?: string; stderr?: string; message?: string };
+      const err = error as {
+        stdout?: string;
+        stderr?: string;
+        message?: string;
+      };
       return {
         ok: false,
         output: truncateText(
-          [err.message, err.stdout, err.stderr].filter(Boolean).join("\n").trim(),
+          [err.message, err.stdout, err.stderr]
+            .filter(Boolean)
+            .join("\n")
+            .trim(),
         ),
       };
     }
 
     return {
       ok: false,
-      output: truncateText(error instanceof Error ? error.message : String(error)),
+      output: truncateText(
+        error instanceof Error ? error.message : String(error),
+      ),
     };
   }
 }
 
-async function captureOpencodeLogSnapshot(
-  workspacePath: string,
-): Promise<
+async function captureOpencodeLogSnapshot(workspacePath: string): Promise<
   Array<{
     file: string;
     content: string;
@@ -253,37 +274,44 @@ async function logAiContainerDiagnostics(input: {
   baseUrl: string;
   failure: unknown;
 }) {
-  const [inspect, portBindings, processList, logs, state, exitCode, opencodeLogs] =
-    await Promise.all([
-      captureCommandOutput("docker", ["inspect", input.containerId]),
-      captureCommandOutput("docker", [
-        "inspect",
-        "--format",
-        "{{json .NetworkSettings.Ports}}",
-        input.containerId,
-      ]),
-      captureCommandOutput("docker", [
-        "ps",
-        "-a",
-        "--no-trunc",
-        "--filter",
-        `id=${input.containerId}`,
-      ]),
-      captureCommandOutput("docker", ["logs", "--timestamps", input.containerId]),
-      captureCommandOutput("docker", [
-        "inspect",
-        "--format",
-        "{{json .State}}",
-        input.containerId,
-      ]),
-      captureCommandOutput("docker", [
-        "inspect",
-        "--format",
-        "{{.State.ExitCode}}",
-        input.containerId,
-      ]),
-      captureOpencodeLogSnapshot(input.workspacePath),
-    ]);
+  const [
+    inspect,
+    portBindings,
+    processList,
+    logs,
+    state,
+    exitCode,
+    opencodeLogs,
+  ] = await Promise.all([
+    captureCommandOutput("docker", ["inspect", input.containerId]),
+    captureCommandOutput("docker", [
+      "inspect",
+      "--format",
+      "{{json .NetworkSettings.Ports}}",
+      input.containerId,
+    ]),
+    captureCommandOutput("docker", [
+      "ps",
+      "-a",
+      "--no-trunc",
+      "--filter",
+      `id=${input.containerId}`,
+    ]),
+    captureCommandOutput("docker", ["logs", "--timestamps", input.containerId]),
+    captureCommandOutput("docker", [
+      "inspect",
+      "--format",
+      "{{json .State}}",
+      input.containerId,
+    ]),
+    captureCommandOutput("docker", [
+      "inspect",
+      "--format",
+      "{{.State.ExitCode}}",
+      input.containerId,
+    ]),
+    captureOpencodeLogSnapshot(input.workspacePath),
+  ]);
 
   const failureDetails =
     input.failure instanceof AiContainerHealthTimeoutError
@@ -298,7 +326,9 @@ async function logAiContainerDiagnostics(input: {
     hostPort: input.hostPort,
     healthPath: AI_CONTAINER_HEALTH_PATH,
     failureMessage:
-      input.failure instanceof Error ? input.failure.message : String(input.failure),
+      input.failure instanceof Error
+        ? input.failure.message
+        : String(input.failure),
     healthAttempts: failureDetails?.attempts,
     lastHealthStatusCode: failureDetails?.lastStatusCode,
     lastHealthResponseText: failureDetails?.lastResponseText,
@@ -408,10 +438,12 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
   async launch(
     input: LaunchAiContainerInput,
   ): Promise<LaunchAiContainerResult> {
-    const image = getAiImage();
+    const image = resolveAiImage().ref;
     const sessionHomePath = getSessionHomePath(input.workspacePath);
     await ensureBoboddyRuntimeWorkspaceRoot(input.workspacePath);
-    const workspaceOwnership = await resolveWorkspaceOwnership(input.workspacePath);
+    const workspaceOwnership = await resolveWorkspaceOwnership(
+      input.workspacePath,
+    );
     const hostOpencodeConfigPath = path.join(
       os.homedir(),
       ".config",
@@ -516,7 +548,12 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
         });
 
         for (const network of input.additionalNetworks ?? []) {
-          await execFileAsync("docker", ["network", "connect", network, containerId]);
+          await execFileAsync("docker", [
+            "network",
+            "connect",
+            network,
+            containerId,
+          ]);
         }
 
         if ((input.additionalNetworks ?? []).length > 0) {
@@ -574,7 +611,10 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
       }
     }
 
-    throw lastError ?? new Error("Failed to allocate a free port for the AI container");
+    throw (
+      lastError ??
+      new Error("Failed to allocate a free port for the AI container")
+    );
   }
 
   async stop(containerId: string): Promise<void> {

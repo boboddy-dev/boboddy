@@ -1,6 +1,7 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
+import { AI_IMAGE_REGISTRY, AI_IMAGE_TAG } from "@boboddy/worker/runtime/runtime-service/domain/ai-image";
 
 interface BuildTarget {
   readonly bunTarget: string;
@@ -85,12 +86,10 @@ async function buildTarget(
 async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
   const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
-  const aiImageRegistry = process.env["AI_IMAGE_REGISTRY"] ?? "ghcr.io/boboddy-dev/boboddy/ai-worker";
-
-  // AI image tag is pinned in ai-image.txt, decoupled from CLI version.
-  // Override with AI_IMAGE_TAG env var when needed (e.g. during Docker release workflow).
-  const pinnedTagFile = resolve(import.meta.dir, "../ai-image.txt");
-  const pinnedTag = (process.env["AI_IMAGE_TAG"] ?? (await readFile(pinnedTagFile, "utf8"))).trim();
+  // AI image registry and tag are defined in the worker domain object.
+  // Override with env vars when needed (e.g. during Docker release workflow).
+  const aiImageRegistry = process.env["AI_IMAGE_REGISTRY"] ?? AI_IMAGE_REGISTRY;
+  const pinnedTag = process.env["AI_IMAGE_TAG"] ?? AI_IMAGE_TAG;
   const aiImageRef = `${aiImageRegistry}:${pinnedTag}`;
 
   const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
