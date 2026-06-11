@@ -88,6 +88,41 @@ async function readStartupLog(
 }
 
 /**
+ * Resolve the path to the workspace directory *inside* the devcontainer.
+ *
+ * The devcontainer CLI mounts the host workspace at /workspaces/<basename>,
+ * not at /workspace (which is the AI container's path). We inspect the
+ * container's mounts to find the destination for the host workspacePath.
+ */
+async function resolveWorkspacePathInContainer(
+  containerId: string,
+  hostWorkspacePath: string,
+): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("docker", [
+      "inspect",
+      "--format",
+      "{{json .Mounts}}",
+      containerId,
+    ]);
+    const mounts = JSON.parse(stdout.trim()) as Array<{
+      Source?: string;
+      Destination?: string;
+    }>;
+    // Find the mount whose Source matches our workspace path
+    for (const mount of mounts) {
+      if (mount.Source === hostWorkspacePath && mount.Destination) {
+        return mount.Destination;
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+  // Fallback: devcontainer CLI convention is /workspaces/<basename>
+  return `/workspaces/${path.basename(hostWorkspacePath)}`;
+}
+
+/**
  * Allocate a free port in the devcontainer by asking the OS to bind :0.
  *
  * We run a tiny sh snippet that binds a TCP socket and prints the port.
@@ -229,11 +264,12 @@ export class LocalDevcontainerMcpHostManager {
     executionTarget: ProjectRuntimeSessionExecutionTarget,
     plugins: OpenCodePlugins,
   ): Promise<number> {
-    const { containerId } = readLocalExecutionMetadata(executionTarget);
+    const { containerId, workspacePath } = readLocalExecutionMetadata(executionTarget);
 
-    const [binaryData, port] = await Promise.all([
+    const [binaryData, port, workspaceInContainer] = await Promise.all([
       getMcpHostBinaryData(containerId),
       allocateFreePortInContainer(containerId),
+      resolveWorkspacePathInContainer(containerId, workspacePath ?? ""),
     ]);
 
     const pluginsJson = JSON.stringify(plugins, null, 2) + "\n";
@@ -244,26 +280,19 @@ export class LocalDevcontainerMcpHostManager {
       injectIntoContainer(containerId, pluginsJson, MCP_HOST_DIRECTORY_PATH, MCP_HOST_PLUGINS_JSON_PATH),
     ]);
 
-    // Kill any previously running instance, then start a fresh one
+    // The user tools live at .opencode/tools/ in the devcontainer — their original location.
+    // The AI container has this path shadowed by a tmpfs mount so opencode never auto-scans them.
+    // Use the resolved workspace path (e.g. /workspaces/<sessionId>) not the hardcoded /workspace.
+    const userToolsDirInContainer = `${workspaceInContainer}/.opencode/tools`;
+
+    // Kill any previously running instance, then start a fresh one.
+    // Use semicolons throughout — this is a single-line sh -c command, newlines are not separators.
     await execFileAsync("docker", [
       "exec",
       containerId,
       "sh",
       "-lc",
-      [
-        `if [ -f '${MCP_HOST_PID_PATH}' ]; then`,
-        `  pid=$(cat '${MCP_HOST_PID_PATH}')`,
-        `  kill "$pid" 2>/dev/null || true`,
-        `  rm -f '${MCP_HOST_PID_PATH}'`,
-        `fi`,
-        `chmod +x '${MCP_HOST_BINARY_PATH}'`,
-        `nohup '${MCP_HOST_BINARY_PATH}' mcp-host`,
-        `  --workspace /workspace`,
-        `  --port ${port}`,
-        `  --plugins-json '${MCP_HOST_PLUGINS_JSON_PATH}'`,
-        `  >'${MCP_HOST_LOG_PATH}' 2>&1 < /dev/null &`,
-        `echo $! >'${MCP_HOST_PID_PATH}'`,
-      ].join(" "),
+      `if [ -f '${MCP_HOST_PID_PATH}' ]; then pid=$(cat '${MCP_HOST_PID_PATH}'); kill "$pid" 2>/dev/null || true; rm -f '${MCP_HOST_PID_PATH}'; fi; chmod +x '${MCP_HOST_BINARY_PATH}'; nohup '${MCP_HOST_BINARY_PATH}' mcp-host --workspace '${workspaceInContainer}' --port ${port} --plugins-json '${MCP_HOST_PLUGINS_JSON_PATH}' --user-tools-dir '${userToolsDirInContainer}' >'${MCP_HOST_LOG_PATH}' 2>&1 < /dev/null & echo $! >'${MCP_HOST_PID_PATH}'`,
     ]);
 
     await delay(MCP_HOST_BOOT_WAIT_MS);

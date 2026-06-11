@@ -114,6 +114,11 @@ export function buildAiContainerBaseArgs(input: {
     `${String(input.workspaceOwnership.uid)}:${String(input.workspaceOwnership.gid)}`,
     "-v",
     `${input.workspacePath}:/workspace`,
+    // Shadow .opencode/tools/ with an empty tmpfs so opencode never auto-scans
+    // user-authored tool files inside the AI container. The devcontainer MCP host
+    // reads the real files directly from the shared workspace bind-mount.
+    "--tmpfs",
+    "/workspace/.opencode/tools:uid=0,gid=0",
     "-v",
     `${input.sessionHomePath}:/home/node`,
     "-w",

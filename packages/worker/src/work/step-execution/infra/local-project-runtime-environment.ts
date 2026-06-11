@@ -1,4 +1,6 @@
-import { buildOpencodeContext } from "@boboddy/opencode-plugin";
+import { readdir } from "node:fs/promises";
+import path from "node:path";
+import { buildOpencodeContext, USER_TOOLS_DIR } from "@boboddy/opencode-plugin";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { writeCurrentExecutionInfoFile } from "../application/process-project-work-findings";
@@ -217,9 +219,21 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         devcontainerId,
       });
 
-      // Step 2: Start MCP host in devcontainer — must happen before AI container launch
-      // so that the MCP server URL is available when we write opencode.json.
-      //
+      // Step 2: Build OpenCode context — scrubs user plugin files and writes opencode.json.
+      // We do this before the MCP host check so we know whether tool files exist before
+      // deciding to start the host. We'll re-call once more after the host starts to inject the URL.
+      await buildOpencodeContext({
+        workspacePath,
+        stepMcpServers: input.opencodeMcpJson,
+        stepPlugins: null,
+        agentPromptText: input.agentPromptText,
+        // No URL yet — will be injected in Step 4 once host is running
+      });
+      logWork("runtime", "OpenCode context built (pre-MCP-host pass)", {
+        sessionId: input.sessionId,
+        workspacePath,
+      });
+
       // Build the execution target for the devcontainer (agentContainerId not yet known).
       mcpHostExecutionTarget = createProjectRuntimeSessionExecutionTarget({
         environmentRole: "project",
@@ -235,14 +249,18 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         },
       });
 
-      // Resolve which plugins need to be forwarded to the host.
-      // User/npm plugin entries are NOT sent to the AI container; their tools come back via MCP.
+      // Step 3: Decide whether to start the MCP host.
+      // Start it if there are npm plugins OR if .opencode/tools/ has any tool files.
       const userPlugins: OpenCodePlugins = input.opencodePluginJson ?? [];
+      const userToolsDir = path.join(workspacePath, USER_TOOLS_DIR);
+      const hasUserToolFiles = await readdir(userToolsDir)
+        .then((entries) => entries.some((e) => e.endsWith(".ts") || e.endsWith(".js")))
+        .catch(() => false);
 
       let mcpHostPort: number | null = null;
       let userToolsMcpUrl: string | undefined;
 
-      if (userPlugins.length > 0) {
+      if (userPlugins.length > 0 || hasUserToolFiles) {
         try {
           mcpHostPort = await this.deps.mcpHostManager.ensure(
             mcpHostExecutionTarget,
@@ -253,36 +271,35 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
             sessionId: input.sessionId,
             mcpHostPort,
             userToolsMcpUrl,
+            hasUserToolFiles,
+            npmPluginCount: userPlugins.length,
           });
         } catch (error) {
-          // Degrade gracefully: log the failure but don't abort the session.
-          // The step will proceed without user-defined tools.
+          // Degrade gracefully — step continues without user-defined tools.
           logWork("runtime", "MCP host failed to start — proceeding without user tools", {
             sessionId: input.sessionId,
             error: error instanceof Error ? error.message : String(error),
           });
         }
       } else {
-        logWork("runtime", "No user plugins — skipping MCP host", {
+        logWork("runtime", "No user tools or plugins — skipping MCP host", {
           sessionId: input.sessionId,
         });
       }
 
-      // Step 3: Build OpenCode context with the MCP host URL (if available).
-      // User/npm plugins are NOT forwarded to the AI container's config.plugin[].
-      // Only the boboddy.js plugin (embedded) remains in .opencode/plugins/.
+      // Step 4: Re-write opencode.json now that we know the MCP host URL.
+      // If the host didn't start, userToolsMcpUrl is undefined and no bridge entry is written.
       const finalOpencodeConfig = await buildOpencodeContext({
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
-        // userPlugins are intentionally omitted here — they go through the MCP host
         stepPlugins: null,
         agentPromptText: input.agentPromptText,
         userToolsMcpUrl,
       });
-      logWork("runtime", "OpenCode context built", {
+      logWork("runtime", "OpenCode context written with MCP host URL", {
         sessionId: input.sessionId,
         workspacePath,
-        userToolsMcpUrl,
+        userToolsMcpUrl: userToolsMcpUrl ?? null,
       });
 
       const varNames = extractReferencedEnvVarNames(

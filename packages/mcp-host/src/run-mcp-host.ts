@@ -1,26 +1,39 @@
 import pino from "pino";
 import type { McpHostOptions } from "./types";
-import { loadPluginTools } from "./plugin-loader";
+import { loadPluginTools, loadToolFiles } from "./plugin-loader";
 import { createMcpHttpServer } from "./mcp-server";
 
 /**
  * Start the MCP host server.
  *
- * Loads all user tools from npm plugins and starts an HTTP MCP server
- * on `0.0.0.0:<port>`.
+ * Loads user tools from:
+ *   1. Tool files in `userToolsDir` (relocated from `.opencode/tools/`)
+ *   2. npm plugins listed in `plugins`
  *
- * Returns a stop function that shuts down the server.
+ * Starts an HTTP MCP server on `0.0.0.0:<port>` and returns a stop function.
  */
 export async function runMcpHost(options: McpHostOptions): Promise<() => void> {
-  const { workspacePath, port, plugins } = options;
+  const { workspacePath, port, plugins, userToolsDir } = options;
   const logger = options.logger ?? pino({
     name: "mcp-host",
     level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
   });
 
-  logger.info({ workspacePath, port, pluginCount: plugins.length }, "Starting MCP host");
+  logger.info(
+    { workspacePath, port, pluginCount: plugins.length, userToolsDir: userToolsDir ?? null },
+    "Starting MCP host",
+  );
 
-  const { tools, warnings } = await loadPluginTools(workspacePath, plugins, logger);
+  // Load tool files and npm plugin tools in parallel
+  const [toolFileResults, pluginResults] = await Promise.all([
+    userToolsDir
+      ? loadToolFiles(userToolsDir, workspacePath, logger)
+      : Promise.resolve([]),
+    loadPluginTools(workspacePath, plugins, logger),
+  ]);
+
+  const { tools: pluginTools, warnings } = pluginResults;
+  const allTools = [...toolFileResults, ...pluginTools];
 
   for (const warning of warnings) {
     logger.warn(
@@ -30,11 +43,11 @@ export async function runMcpHost(options: McpHostOptions): Promise<() => void> {
   }
 
   logger.info(
-    { toolCount: tools.length, tools: tools.map((t) => t.name) },
+    { toolCount: allTools.length, tools: allTools.map((t) => t.name) },
     "MCP host tools loaded",
   );
 
-  const toolMap = new Map(tools.map((t) => [t.name, t]));
+  const toolMap = new Map(allTools.map((t) => [t.name, t]));
   const server = createMcpHttpServer({ tools: toolMap, warnings }, port);
 
   logger.info({ port: server.port }, "MCP host listening");

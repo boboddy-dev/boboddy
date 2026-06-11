@@ -7,6 +7,7 @@ export interface McpHostArguments {
   workspace: string;
   port: number;
   pluginsJson?: string;
+  userToolsDir?: string;
 }
 
 const logger = createCliLogger("mcp-host");
@@ -30,7 +31,7 @@ async function handler(
     workspacePath: arguments_.workspace,
     port: arguments_.port,
     plugins,
-    logger,
+    userToolsDir: arguments_.userToolsDir,
   });
 
   // Wait for SIGINT or SIGTERM to gracefully shut down
@@ -67,6 +68,12 @@ export const mcpHostCommand: CommandModule<object, McpHostArguments> = {
       .option("pluginsJson", {
         alias: "plugins-json",
         describe: "Path to a JSON file containing the resolved plugin list",
+        type: "string",
+        demandOption: false,
+      })
+      .option("userToolsDir", {
+        alias: "user-tools-dir",
+        describe: "Path to the relocated user tool files directory (.boboddy/user-tools/)",
         type: "string",
         demandOption: false,
       }),

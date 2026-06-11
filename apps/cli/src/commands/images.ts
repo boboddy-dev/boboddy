@@ -4,11 +4,22 @@ import { createCliLogger } from "../lib/logger";
 
 // pull
 
-async function runPull(): Promise<void> {
+interface PullArgs {
+  "dry-run": boolean;
+  dryRun: boolean;
+}
+
+async function runPull(args: PullArgs): Promise<void> {
   const logger = createCliLogger("images-pull");
 
   const { resolveAiImage } = await import("@boboddy/worker/runtime/runtime-service/domain/ai-image");
   const aiImage = resolveAiImage().ref;
+
+  if (args.dryRun) {
+    logger.info({ image: aiImage }, `Would pull AI worker image: ${aiImage}`);
+    console.log(aiImage);
+    return;
+  }
 
   logger.info({ image: aiImage }, `Pulling AI worker image: ${aiImage}`);
 
@@ -32,10 +43,16 @@ async function runPull(): Promise<void> {
   }
 }
 
-const pullCommand: CommandModule<object, object> = {
+const pullCommand: CommandModule<object, PullArgs> = {
   command: "pull",
   describe: "Pull the AI worker Docker image bundled with this CLI version",
-  builder: (argv: Argv<object>) => argv,
+  builder: (argv: Argv<object>) =>
+    argv.option("dry-run", {
+      alias: "d",
+      type: "boolean",
+      default: false,
+      describe: "Show the image that would be pulled without downloading it",
+    }) as Argv<PullArgs>,
   handler: runPull,
 };
 

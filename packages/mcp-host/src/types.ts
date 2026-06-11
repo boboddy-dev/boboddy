@@ -22,6 +22,18 @@ export type McpHostOptions = {
   plugins: OpenCodePlugins;
 
   /**
+   * Absolute path to the directory containing user tool files
+   * (`.ts`/`.js` files using `tool()` from `@opencode-ai/plugin`).
+   *
+   * This is the relocated `.boboddy/user-tools/` directory — the original
+   * `.opencode/tools/` was moved there by `buildOpencodeContext` to prevent
+   * the AI container from auto-loading untrusted code.
+   *
+   * Omit if there are no user tool files.
+   */
+  userToolsDir?: string | undefined;
+
+  /**
    * Pino logger instance. Defaults to a new logger named "mcp-host" if omitted.
    * The CLI command passes in createCliLogger("mcp-host") so output flows through
    * the shared CLI transport.

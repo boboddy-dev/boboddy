@@ -1,7 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
-import { AI_IMAGE_REGISTRY, AI_IMAGE_TAG } from "@boboddy/worker/runtime/runtime-service/domain/ai-image";
 
 interface BuildTarget {
   readonly bunTarget: string;
@@ -86,11 +85,6 @@ async function buildTarget(
 async function main(): Promise<void> {
   const isDev = process.argv.includes("--dev");
   const cliVersion = process.env["CLI_BUILD_VERSION"] ?? packageVersion;
-  // AI image registry and tag are defined in the worker domain object.
-  // Override with env vars when needed (e.g. during Docker release workflow).
-  const aiImageRegistry = process.env["AI_IMAGE_REGISTRY"] ?? AI_IMAGE_REGISTRY;
-  const pinnedTag = process.env["AI_IMAGE_TAG"] ?? AI_IMAGE_TAG;
-  const aiImageRef = `${aiImageRegistry}:${pinnedTag}`;
 
   const versionDefine = `--define:process.env.CLI_BUILD_VERSION=${JSON.stringify(cliVersion)}`;
 
@@ -101,13 +95,6 @@ async function main(): Promise<void> {
     process.stdout.write(`Building ${target.outputName}...\n`);
     await buildTarget(target, [versionDefine]);
   }
-
-  process.stdout.write(`AI image ref: ${aiImageRef}\n`);
-  await writeFile(
-    resolve(distDirectory, ".ai-image"),
-    aiImageRef,
-    "utf8",
-  );
 
   if (isDev) {
     const artifactPath = process.env["BOBODDY_SDK_ARTIFACT_PATH"] ?? "";

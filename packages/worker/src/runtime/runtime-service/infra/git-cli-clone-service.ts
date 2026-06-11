@@ -46,6 +46,14 @@ export class GitCliCloneService implements GitCloneService {
 
     try {
       await execFileAsync("git", args);
+      await execFileAsync("git", [
+        "-C",
+        input.workspacePath,
+        "submodule",
+        "update",
+        "--init",
+        "--recursive",
+      ]);
       return {
         resolvedBranch: await resolveBranchName(input.workspacePath),
       };

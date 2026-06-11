@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Config } from "@opencode-ai/sdk";
 import type { OpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
@@ -33,9 +33,50 @@ async function readUserOpencodeConfig(
   return null;
 }
 
+/**
+ * OpenCode 1.15.13 auto-scans these two glob patterns inside any `.opencode/` dir:
+ *   {tool,tools}/*.{js,ts}    → loaded as plugin tool files
+ *   {plugin,plugins}/*.{ts,js} → loaded as plugin modules
+ *
+ * To prevent untrusted user code from running inside the AI container, we must
+ * ensure neither of those directories contains user-authored files before the
+ * AI container starts.
+ *
+ * For `.opencode/tools/`: the AI container has this path shadowed by a `--tmpfs`
+ * mount (see docker-ai-container-launcher.ts), so opencode never sees any files
+ * there regardless of what the user put in `.opencode/tools/`. No relocation needed.
+ * The devcontainer MCP host reads the real files directly from the shared workspace.
+ *
+ * For `.opencode/plugins/`: we still scrub user-authored plugin files here, keeping
+ * only `boboddy.js` (the single trusted plugin).
+ */
+async function scrubUserPlugins(opencodeRoot: string): Promise<void> {
+  const pluginsDir = path.join(opencodeRoot, "plugins");
+  try {
+    const pluginEntries = await readdir(pluginsDir);
+    const removePromises: Promise<void>[] = [];
+    for (const entry of pluginEntries) {
+      if (entry === "boboddy.js") continue; // keep the trusted plugin
+      if (entry.endsWith(".ts") || entry.endsWith(".js")) {
+        removePromises.push(
+          rm(path.join(pluginsDir, entry), { force: true }),
+        );
+      }
+    }
+    await Promise.all(removePromises);
+  } catch {
+    // plugins/ doesn't exist yet — will be created by prepareOpencodeDir
+  }
+}
+
 async function prepareOpencodeDir(targetRoot: string): Promise<void> {
   const pluginsRoot = path.join(targetRoot, "plugins");
   await mkdir(pluginsRoot, { recursive: true });
+
+  // Scrub user-authored plugin files before writing boboddy.js.
+  // .opencode/tools/ is protected by a --tmpfs mount on the AI container instead.
+  await scrubUserPlugins(targetRoot);
+
   await Promise.all([
     writeFile(
       path.join(targetRoot, ".gitignore"),
@@ -43,7 +84,7 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
       "utf8",
     ),
     writeFile(
-      path.join(targetRoot, "plugins", "boboddy.js"),
+      path.join(pluginsRoot, "boboddy.js"),
       String(embeddedPluginSource),
       "utf8",
     ),
@@ -57,6 +98,14 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
  * gating (mergeToolsConfig / mergeAgentConfig) cover it automatically.
  */
 export const USER_TOOLS_MCP_SERVER_NAME = "boboddy-user-tools";
+
+/**
+ * The workspace-relative path where user tool files live.
+ * These are the original .opencode/tools/ files — they stay in place and the
+ * AI container has this path shadowed by a --tmpfs mount so opencode never
+ * auto-scans them. The devcontainer MCP host reads directly from this path.
+ */
+export const USER_TOOLS_DIR = ".opencode/tools";
 
 export async function buildOpencodeContext(input: {
   workspacePath: string;
@@ -110,9 +159,20 @@ export async function buildOpencodeContext(input: {
     };
   }
 
+  // Strip plugin[] from userConfig before merging into the AI config.
+  // User/npm plugins are forwarded to the devcontainer MCP host instead —
+  // their tools reach the AI container via the boboddy-user-tools remote MCP server.
+  // Leaving plugin[] here would cause OpenCode to auto-load untrusted npm packages
+  // inside the AI container.
+  let sanitizedUserConfig = userConfig;
+  if (userConfig?.plugin && (userConfig.plugin as unknown[]).length > 0) {
+    const { plugin: _dropped, ...rest } = userConfig;
+    sanitizedUserConfig = Object.keys(rest).length > 0 ? rest as typeof userConfig : null;
+  }
+
   const mergedConfig = buildStepExecutionOpencodeConfig({
     baseConfig: baselineConfig,
-    userConfig,
+    userConfig: sanitizedUserConfig,
     stepMcpServers: effectiveStepMcpServers,
     // stepPlugins are NOT forwarded to the AI container — they run in the devcontainer
     // MCP host and their tools arrive via boboddy-user-tools remote MCP server.
