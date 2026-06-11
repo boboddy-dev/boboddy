@@ -20,7 +20,7 @@
     "@boboddy/opencode-plugin": "workspace:*",
     "@boboddy/sdk": "workspace:*",
     "@devcontainers/cli": "0.86.0",
-    "@opencode-ai/sdk": "1.15.13",
+    "@opencode-ai/sdk": "1.17.3",
     "ajv": "^8.20.0",
     "better-auth": "^1.6.7",
     "json-schema-to-zod": "^2.8.1",
