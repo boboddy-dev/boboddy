@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, writeFile, access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { buildOpencodeContext } from "./build-opencode-context";
+import { buildOpencodeContext, USER_TOOLS_MCP_SERVER_NAME } from "./build-opencode-context";
 
 const CONFIG_PATH = (workspacePath: string) =>
   path.join(workspacePath, ".opencode", "opencode.json");
@@ -256,5 +256,112 @@ describe("buildOpencodeContext", () => {
     });
 
     expect((result.mcp as Record<string, unknown> | undefined)?.["postgres"]).toBeDefined();
+  });
+
+  test("injects boboddy-user-tools remote MCP server when userToolsMcpUrl is provided", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    const mcpUrl = "http://devcontainer:40751/mcp";
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      userToolsMcpUrl: mcpUrl,
+    });
+
+    const config = JSON.parse(
+      await readFile(CONFIG_PATH(workspacePath), "utf8"),
+    ) as { mcp?: Record<string, unknown> };
+
+    const bridgeServer = config.mcp?.[USER_TOOLS_MCP_SERVER_NAME] as
+      | { type: string; url: string; enabled: boolean }
+      | undefined;
+    expect(bridgeServer).toBeDefined();
+    expect(bridgeServer?.type).toBe("remote");
+    expect(bridgeServer?.url).toBe(mcpUrl);
+    expect(bridgeServer?.enabled).toBe(true);
+  });
+
+  test("boboddy-user-tools is gated for the build agent when userToolsMcpUrl is provided", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      userToolsMcpUrl: "http://devcontainer:40751/mcp",
+    });
+
+    const config = JSON.parse(
+      await readFile(CONFIG_PATH(workspacePath), "utf8"),
+    ) as {
+      tools?: Record<string, unknown>;
+      agent?: { build?: { tools?: Record<string, unknown> } };
+    };
+
+    // Tool prefix is disabled globally
+    expect(config.tools?.[`${USER_TOOLS_MCP_SERVER_NAME}*`]).toBe(false);
+    // Tool prefix is enabled for the build agent
+    expect(config.agent?.build?.tools?.[`${USER_TOOLS_MCP_SERVER_NAME}*`]).toBe(true);
+  });
+
+  test("no boboddy-user-tools entry when userToolsMcpUrl is not provided", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+    });
+
+    const config = JSON.parse(
+      await readFile(CONFIG_PATH(workspacePath), "utf8"),
+    ) as { mcp?: Record<string, unknown> };
+
+    expect(config.mcp?.[USER_TOOLS_MCP_SERVER_NAME]).toBeUndefined();
+  });
+
+  test("user/npm plugin entries are NOT written to config.plugin when stepPlugins is null", async () => {
+    // This verifies the security invariant: user plugins go through the MCP host,
+    // not into the AI container's config.plugin[] array.
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      // stepPlugins intentionally omitted (null) — user plugins must not reach the AI config
+    });
+
+    const config = JSON.parse(
+      await readFile(CONFIG_PATH(workspacePath), "utf8"),
+    ) as { plugin?: unknown };
+
+    // No plugin[] array in AI config — user tools come via MCP host
+    expect(config.plugin).toBeUndefined();
+  });
+
+  test("Boboddy permission block is preserved in output when userToolsMcpUrl is provided", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      userToolsMcpUrl: "http://devcontainer:40751/mcp",
+    });
+
+    const config = JSON.parse(
+      await readFile(CONFIG_PATH(workspacePath), "utf8"),
+    ) as { permission?: Record<string, unknown> };
+
+    // Permission block from embedded opencode.jsonc must be present
+    expect(config.permission).toBeDefined();
+    expect(config.permission?.["boboddy*"]).toBe("allow");
   });
 });

@@ -14,6 +14,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
   logWork,
+  logWorkDebug,
   logWorkError,
 } from "../../../work/step-execution/application/work-logger";
 import type {
@@ -403,8 +404,17 @@ async function waitForHealth(baseUrl: string): Promise<void> {
   while (Date.now() < deadline) {
     attempts += 1;
 
+    logWorkDebug("runtime", "Polling AI container health", {
+      baseUrl,
+      healthPath: AI_CONTAINER_HEALTH_PATH,
+      attempt: attempts,
+      remainingMs: deadline - Date.now(),
+    });
+
     try {
-      const response = await fetch(`${baseUrl}${AI_CONTAINER_HEALTH_PATH}`);
+      const response = await fetch(`${baseUrl}${AI_CONTAINER_HEALTH_PATH}`, {
+        signal: AbortSignal.timeout(AI_CONTAINER_HEALTH_INTERVAL_MS),
+      });
       lastStatusCode = response.status;
 
       if (response.ok) {
@@ -414,7 +424,7 @@ async function waitForHealth(baseUrl: string): Promise<void> {
       lastResponseText = truncateText(await response.text());
       lastError = null;
     } catch (error) {
-      // The container may still be starting.
+      // The container may still be starting, or the request timed out.
       lastError = error instanceof Error ? error.message : String(error);
     }
 

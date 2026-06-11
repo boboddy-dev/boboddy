@@ -25,6 +25,7 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@boboddy/mcp-host": "workspace:*",
     "@boboddy/opencode-plugin": "workspace:*",
     "@boboddy/runtime-proxy": "workspace:*",
     "@boboddy/sdk": "workspace:*",

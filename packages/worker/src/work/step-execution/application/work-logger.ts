@@ -15,6 +15,14 @@ export function logWork(
   workLogger.info({ ...details, workScope: scope }, message);
 }
 
+export function logWorkDebug(
+  scope: string,
+  message: string,
+  details?: WorkLogDetails,
+): void {
+  workLogger.debug({ ...details, workScope: scope }, message);
+}
+
 export function logWorkError(
   scope: string,
   message: string,

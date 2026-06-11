@@ -51,11 +51,34 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
   await Promise.all([chmod(targetRoot, 0o777), chmod(pluginsRoot, 0o777)]);
 }
 
+/**
+ * The bridge MCP server name used to expose user tools from the devcontainer.
+ * Must start with "boboddy" so the existing permission allow-rule and agent
+ * gating (mergeToolsConfig / mergeAgentConfig) cover it automatically.
+ */
+export const USER_TOOLS_MCP_SERVER_NAME = "boboddy-user-tools";
+
 export async function buildOpencodeContext(input: {
   workspacePath: string;
   stepMcpServers?: OpenCodeMcpServers | null | undefined;
+  /**
+   * User/npm plugins. These are intentionally NOT forwarded into config.plugin[]
+   * on the AI side — their tools reach the AI container via the devcontainer MCP host.
+   * Pass null or omit when calling from the orchestrator (it handles the forwarding
+   * separately via mcpHostManager).
+   */
   stepPlugins?: OpenCodePlugins | null | undefined;
   agentPromptText?: string | null | undefined;
+  /**
+   * If the devcontainer MCP host is running, the HTTP URL to its /mcp endpoint,
+   * e.g. "http://devcontainer:40751/mcp".
+   *
+   * When provided, a remote MCP server entry named "boboddy-user-tools" is injected
+   * into the merged config, and the tool prefix is gated for the build agent.
+   *
+   * Omit or pass undefined to skip injection (no user tools or host didn't start).
+   */
+  userToolsMcpUrl?: string | undefined;
 }): Promise<Config> {
   const targetRoot = path.join(input.workspacePath, ".opencode");
   const targetConfigPath = path.join(targetRoot, "opencode.json");
@@ -69,11 +92,31 @@ export async function buildOpencodeContext(input: {
     prepareOpencodeDir(targetRoot),
   ]);
 
+  // Inject the bridge MCP server if the host is available.
+  // We merge it into the stepMcpServers so it flows through the existing
+  // mergeMcpConfig / mergeToolsConfig / mergeAgentConfig pipeline and gets
+  // added to the build agent's allowed tools automatically.
+  let effectiveStepMcpServers: OpenCodeMcpServers | null | undefined =
+    input.stepMcpServers;
+
+  if (input.userToolsMcpUrl) {
+    effectiveStepMcpServers = {
+      ...(effectiveStepMcpServers ?? {}),
+      [USER_TOOLS_MCP_SERVER_NAME]: {
+        type: "remote" as const,
+        url: input.userToolsMcpUrl,
+        enabled: true,
+      },
+    };
+  }
+
   const mergedConfig = buildStepExecutionOpencodeConfig({
     baseConfig: baselineConfig,
     userConfig,
-    stepMcpServers: input.stepMcpServers,
-    stepPlugins: input.stepPlugins,
+    stepMcpServers: effectiveStepMcpServers,
+    // stepPlugins are NOT forwarded to the AI container — they run in the devcontainer
+    // MCP host and their tools arrive via boboddy-user-tools remote MCP server.
+    stepPlugins: null,
     agentPromptText: input.agentPromptText,
   });
   await writeFile(

@@ -24,6 +24,7 @@ import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-c
 import { LocalDockerRuntimeSessionNetworkManager } from "../../../runtime/runtime-service/infra/local-docker-runtime-session-network-manager";
 import { LocalWorkspaceManager } from "../../../runtime/runtime-service/infra/local-workspace-manager";
 import { LocalDevcontainerPortForwardManager } from "../../../runtime/runtime-service/infra/local-devcontainer-port-forward-manager";
+import { LocalDevcontainerMcpHostManager } from "../../../runtime/runtime-service/infra/local-devcontainer-mcp-host-manager";
 import { createProjectRuntimeSessionExecutionTarget } from "../../../runtime/runtime-service/domain/project-runtime-session-execution-target";
 import { logWork } from "../application/work-logger";
 
@@ -118,6 +119,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       aiContainerLauncher: AiContainerLauncher;
       runtimeSessionNetworkManager: RuntimeSessionNetworkManager;
       portForwardManager: LocalDevcontainerPortForwardManager;
+      mcpHostManager: LocalDevcontainerMcpHostManager;
     } = {
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService: new GitCliCloneService(),
@@ -126,6 +128,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       runtimeSessionNetworkManager:
         new LocalDockerRuntimeSessionNetworkManager(),
       portForwardManager: new LocalDevcontainerPortForwardManager(),
+      mcpHostManager: new LocalDevcontainerMcpHostManager(),
     },
   ) {}
 
@@ -147,6 +150,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     let devcontainerId: string | null = null;
     let aiContainerId: string | null = null;
     let networkName: string | null = null;
+    // portForwardExecutionTarget captured for cleanup
+    let mcpHostExecutionTarget: ReturnType<typeof createProjectRuntimeSessionExecutionTarget> | null = null;
+    let portForwardExecutionTarget: ReturnType<typeof createProjectRuntimeSessionExecutionTarget> | null = null;
 
     try {
       logWork("runtime", "Creating local runtime environment", {
@@ -177,17 +183,6 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         resolvedBranch: cloneResult.resolvedBranch,
       });
 
-      const finalOpencodeConfig = await buildOpencodeContext({
-        workspacePath,
-        stepMcpServers: input.opencodeMcpJson,
-        stepPlugins: input.opencodePluginJson,
-        agentPromptText: input.agentPromptText,
-      });
-      logWork("runtime", "OpenCode context built", {
-        sessionId: input.sessionId,
-        workspacePath,
-      });
-
       const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(
         workspacePath,
         input.currentExecutionInfo,
@@ -208,6 +203,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         devcontainerConfigPath,
       });
 
+      // Step 1: Launch devcontainer
       const devcontainerResult = await this.deps.devcontainerLauncher.launch({
         sessionId: input.sessionId,
         projectId: input.projectId,
@@ -219,6 +215,74 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       logWork("runtime", "Devcontainer launched", {
         sessionId: input.sessionId,
         devcontainerId,
+      });
+
+      // Step 2: Start MCP host in devcontainer — must happen before AI container launch
+      // so that the MCP server URL is available when we write opencode.json.
+      //
+      // Build the execution target for the devcontainer (agentContainerId not yet known).
+      mcpHostExecutionTarget = createProjectRuntimeSessionExecutionTarget({
+        environmentRole: "project",
+        runnerAssignment: "local:devcontainer",
+        environmentRef: "local:session",
+        metadata: {
+          localExecution: {
+            containerId: devcontainerId,
+            workspacePath,
+            devcontainerConfigPath,
+            // agentContainerId intentionally absent — MCP host only runs in devcontainer
+          },
+        },
+      });
+
+      // Resolve which plugins need to be forwarded to the host.
+      // User/npm plugin entries are NOT sent to the AI container; their tools come back via MCP.
+      const userPlugins: OpenCodePlugins = input.opencodePluginJson ?? [];
+
+      let mcpHostPort: number | null = null;
+      let userToolsMcpUrl: string | undefined;
+
+      if (userPlugins.length > 0) {
+        try {
+          mcpHostPort = await this.deps.mcpHostManager.ensure(
+            mcpHostExecutionTarget,
+            userPlugins,
+          );
+          userToolsMcpUrl = `http://devcontainer:${mcpHostPort}/mcp`;
+          logWork("runtime", "MCP host started in devcontainer", {
+            sessionId: input.sessionId,
+            mcpHostPort,
+            userToolsMcpUrl,
+          });
+        } catch (error) {
+          // Degrade gracefully: log the failure but don't abort the session.
+          // The step will proceed without user-defined tools.
+          logWork("runtime", "MCP host failed to start — proceeding without user tools", {
+            sessionId: input.sessionId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      } else {
+        logWork("runtime", "No user plugins — skipping MCP host", {
+          sessionId: input.sessionId,
+        });
+      }
+
+      // Step 3: Build OpenCode context with the MCP host URL (if available).
+      // User/npm plugins are NOT forwarded to the AI container's config.plugin[].
+      // Only the boboddy.js plugin (embedded) remains in .opencode/plugins/.
+      const finalOpencodeConfig = await buildOpencodeContext({
+        workspacePath,
+        stepMcpServers: input.opencodeMcpJson,
+        // userPlugins are intentionally omitted here — they go through the MCP host
+        stepPlugins: null,
+        agentPromptText: input.agentPromptText,
+        userToolsMcpUrl,
+      });
+      logWork("runtime", "OpenCode context built", {
+        sessionId: input.sessionId,
+        workspacePath,
+        userToolsMcpUrl,
       });
 
       const varNames = extractReferencedEnvVarNames(
@@ -239,6 +303,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         (n) => !SYSTEM_NETWORKS.has(n),
       );
 
+      // Step 4: Launch AI container (now that opencode.json references the remote MCP server)
       const aiContainerResult = await this.deps.aiContainerLauncher.launch({
         sessionId: input.sessionId,
         projectId: input.projectId,
@@ -288,7 +353,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         alias: PROJECT_RUNTIME_SESSION_AGENT_NETWORK_ALIAS,
       });
 
-      const portForwardExecutionTarget =
+      portForwardExecutionTarget =
         createProjectRuntimeSessionExecutionTarget({
           environmentRole: "project",
           runnerAssignment: "local:devcontainer",
@@ -333,6 +398,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         );
       }
 
+      const capturedMcpHostExecutionTarget = mcpHostExecutionTarget;
+      const capturedPortForwardExecutionTarget = portForwardExecutionTarget;
+
       return {
         workspacePath,
         opencodeLogDirectory: aiContainerResult.opencodeLogDirectory,
@@ -353,7 +421,12 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         }),
         cleanup: async () => {
           await Promise.allSettled([
-            this.deps.portForwardManager.stop(portForwardExecutionTarget),
+            capturedPortForwardExecutionTarget
+              ? this.deps.portForwardManager.stop(capturedPortForwardExecutionTarget)
+              : Promise.resolve(),
+            capturedMcpHostExecutionTarget
+              ? this.deps.mcpHostManager.stop(capturedMcpHostExecutionTarget)
+              : Promise.resolve(),
             cleanupEnvironment({
               workspacePath,
               devcontainerId,
@@ -369,13 +442,18 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         sessionId: input.sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
-      await cleanupEnvironment({
-        workspacePath,
-        devcontainerId,
-        aiContainerId,
-        networkName,
-        deps: this.deps,
-      });
+      await Promise.allSettled([
+        mcpHostExecutionTarget
+          ? this.deps.mcpHostManager.stop(mcpHostExecutionTarget)
+          : Promise.resolve(),
+        cleanupEnvironment({
+          workspacePath,
+          devcontainerId,
+          aiContainerId,
+          networkName,
+          deps: this.deps,
+        }),
+      ]);
       throw error;
     }
   }
