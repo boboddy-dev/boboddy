@@ -14,6 +14,13 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const publishTag = args.find((arg) => !arg.startsWith("-")) ?? "latest";
 
+function resolvePublishDependencies() {
+  const dependencies = pkg.dependencies ?? {};
+  return Object.fromEntries(
+    Object.entries(dependencies).filter(([, version]) => !version.startsWith("workspace:")),
+  );
+}
+
 async function published(name: string, version: string) {
   return (await $`npm view ${name}@${version} version`.nothrow()).exitCode === 0;
 }
@@ -110,6 +117,7 @@ process.exit(1);
         files: ["README.md", "bin", "dist"],
         repository: pkg.repository,
         publishConfig: pkg.publishConfig,
+        dependencies: resolvePublishDependencies(),
       },
       null,
       2,
