@@ -172,17 +172,7 @@ jobs:
         run: chmod +x apps/cli/dist/boboddy-darwin-* apps/cli/dist/boboddy-linux-*
 
       - name: Stamp package versions
-        env:
-          VERSION: ${{ needs.resolve-version.outputs.version }}
-        run: |
-          npm pkg set version="$VERSION" --prefix packages/sdks/js
-
-          npm pkg set version="$VERSION" --prefix packages/opencode-plugin
-          npm pkg set dependencies."@boboddy/sdk"="^$VERSION" --prefix packages/opencode-plugin
-          npm pkg delete dependencies."@opencode-ai/sdk" --prefix packages/opencode-plugin
-          npm pkg delete dependencies."ajv" --prefix packages/opencode-plugin
-
-          npm pkg set version="$VERSION" --prefix apps/cli
+        run: bun run scripts/stamp-versions.ts ${{ needs.resolve-version.outputs.version }}
 
       - name: Check npm version
         run: npm --version
