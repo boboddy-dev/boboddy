@@ -26,6 +26,15 @@ export function keyToVarName(key: string): string {
     .replace(/[^a-zA-Z0-9_$]/g, "_");
 }
 
+export function promptToLiteral(prompt: string): string {
+  if (!prompt.includes("\n")) return JSON.stringify(prompt);
+  const escaped = prompt
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\$\{/g, "\\${");
+  return `\`${escaped}\``;
+}
+
 function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
   if (!schemaJson) return "z.unknown()";
   try {
@@ -62,7 +71,7 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
       `  status: ${JSON.stringify(step.status)} as const`,
     ];
     if (step.description) fields.push(`  description: ${JSON.stringify(step.description)}`);
-    fields.push(`  agentPrompt: ${JSON.stringify(step.prompt ?? "")}`);
+    fields.push(`  agentPrompt: ${promptToLiteral(step.prompt ?? "")}`);
     fields.push(`  input: ${inputExpr}`);
     fields.push(`  result: ${resultExpr}`);
     if (signalLines.length > 0) {

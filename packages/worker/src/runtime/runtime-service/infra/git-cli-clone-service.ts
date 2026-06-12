@@ -55,18 +55,18 @@ export class GitCliCloneService implements GitCloneService {
         { workspacePath: input.workspacePath },
         "initializing submodules",
       );
-      await execFileAsync(
-        "git",
-        [
-          "-C",
-          input.workspacePath,
-          "submodule",
-          "update",
-          "--init",
-          "--recursive",
-        ],
-        { timeout: 60_000 },
-      );
+      // await execFileAsync(
+      //   "git",
+      //   [
+      //     "-C",
+      //     input.workspacePath,
+      //     "submodule",
+      //     "update",
+      //     "--init",
+      //     "--recursive",
+      //   ],
+      //   { timeout: 60_000 },
+      // );
       log.info(
         { workspacePath: input.workspacePath },
         "submodules initialized",

@@ -53,7 +53,7 @@ export type { RepoAnalysis } from "./project/project-setup/application/repo-anal
 export { recommendPipelines } from "./project/project-setup/application/recommend-pipelines";
 export { verifyRequirements } from "./project/project-setup/application/verify-requirements";
 export { RuntimeNetworkGarbageCollector } from "./runtime/runtime-gc/application/runtime-network-garbage-collector";
-export { DevcontainerCliLauncher, buildDevcontainerCliCommand, resolveDevcontainerCliPackageJsonPath } from "./runtime/runtime-service/infra/devcontainer-cli-launcher";
+export { DevcontainerCliLauncher, buildDevcontainerCliCommand, resolveDevcontainerCliScriptPath } from "./runtime/runtime-service/infra/devcontainer-cli-launcher";
 export {
   PIPELINE_BUILDER_DIR,
   scaffoldPipelineBuilderDirectory,

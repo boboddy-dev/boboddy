@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
+import { promptToLiteral } from "../../../steps/step-definitions/infra/step-file-generator";
 
 export const PIPELINE_BUILDER_DIR = ".boboddy/pipeline-builder";
 
@@ -153,7 +154,7 @@ ${signalLines}
 `;
 
       const promptLine = step.prompt
-        ? `  agentPrompt: ${JSON.stringify(step.prompt)},
+        ? `  agentPrompt: ${promptToLiteral(step.prompt)},
 `
         : `  agentPrompt: "Review the input and return the requested result.",
 `;
