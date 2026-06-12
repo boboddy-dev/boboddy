@@ -1,6 +1,9 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
+
+const require = createRequire(import.meta.url);
 
 interface BuildTarget {
   readonly bunTarget: string;
@@ -95,6 +98,14 @@ async function main(): Promise<void> {
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
+
+  // Copy the @devcontainers/cli bundle into dist/ so that the shim can set
+  // BOBODDY_DEVCONTAINER_SCRIPT pointing at it — matching the published layout
+  // exactly. This means local dev builds behave identically to published ones.
+  const devcontainerSrc = require.resolve(
+    "@devcontainers/cli/dist/spec-node/devContainersSpecCLI.js",
+  );
+  await copyFile(devcontainerSrc, resolve(distDirectory, "devcontainers-cli.js"));
 
   for (const target of allTargets) {
     process.stdout.write(`Building ${target.outputName}...\n`);

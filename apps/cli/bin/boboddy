@@ -57,12 +57,17 @@ if (!existsSync(binaryPath)) {
   fail(`Missing compiled binary: ${binaryPath}`);
 }
 
-const extraEnv = {};
+const extraEnv = {
+  // Pass the devcontainer CLI bundle path so the worker can invoke it using
+  // the compiled binary as the JS runtime (no separate node/bun required).
+  // build.ts copies this file into dist/ for every build (local and CI alike).
+  BOBODDY_DEVCONTAINER_SCRIPT: process.env["BOBODDY_DEVCONTAINER_SCRIPT"] ?? resolve(distDirectory, "devcontainers-cli.js"),
+};
 if (devSdkArtifactPath) extraEnv["BOBODDY_SDK_ARTIFACT_PATH"] = devSdkArtifactPath;
 
 const result = spawnSync(binaryPath, process.argv.slice(2), {
   stdio: "inherit",
-  env: Object.keys(extraEnv).length > 0 ? { ...process.env, ...extraEnv } : process.env,
+  env: { ...process.env, ...extraEnv },
 });
 
 if (result.error instanceof Error) {

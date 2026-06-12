@@ -1,5 +1,5 @@
 export const AI_IMAGE_REGISTRY = "ghcr.io/boboddy-dev/boboddy/ai-worker";
-export const AI_IMAGE_TAG = "v0.1.38-alpha";
+export const AI_IMAGE_TAG = "v0.1.42-alpha";
 
 const PINNED_IMAGE = `${AI_IMAGE_REGISTRY}:${AI_IMAGE_TAG}`;
 
