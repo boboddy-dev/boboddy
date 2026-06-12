@@ -249,6 +249,16 @@ describe("Devcontainer MCP host — project tools exposed to agent (e2e)", () =>
     await devcontainer?.stop().catch(() => {});
     await network?.stop().catch(() => {});
     if (workspacePath) {
+      // The workspace is mounted into containers that run as root, so files
+      // written by the container are root-owned and cannot be removed by the
+      // unprivileged CI runner. Use a throwaway Alpine container (running as
+      // root) to delete the directory from inside Docker instead.
+      await new GenericContainer("alpine")
+        .withBindMounts([{ source: workspacePath, target: "/cleanup", mode: "rw" }])
+        .withCommand(["sh", "-c", "rm -rf /cleanup && mkdir /cleanup"])
+        .start()
+        .then((c) => c.stop())
+        .catch(() => {});
       await rm(workspacePath, { recursive: true, force: true });
     }
   });
