@@ -462,6 +462,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         error: error instanceof Error ? error.message : String(error),
       });
       await Promise.allSettled([
+        portForwardExecutionTarget
+          ? this.deps.portForwardManager.stop(portForwardExecutionTarget)
+          : Promise.resolve(),
         mcpHostExecutionTarget
           ? this.deps.mcpHostManager.stop(mcpHostExecutionTarget)
           : Promise.resolve(),

@@ -171,14 +171,6 @@ jobs:
       - name: Restore binary permissions
         run: chmod +x apps/cli/dist/boboddy-darwin-* apps/cli/dist/boboddy-linux-*
 
-      - name: Verify bundled AI image reference
-        run: |
-          if [ ! -f apps/cli/dist/.ai-image ]; then
-            echo "Missing apps/cli/dist/.ai-image in release artifact." >&2
-            exit 1
-          fi
-          echo "Bundled AI image: $(cat apps/cli/dist/.ai-image)"
-
       - name: Stamp package versions
         env:
           VERSION: ${{ needs.resolve-version.outputs.version }}
@@ -191,12 +183,6 @@ jobs:
           npm pkg delete dependencies."ajv" --prefix packages/opencode-plugin
 
           npm pkg set version="$VERSION" --prefix apps/cli
-          npm pkg delete private --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/mcp-host" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/opencode-plugin" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/runtime-proxy" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/sdk" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/worker" --prefix apps/cli
 
       - name: Check npm version
         run: npm --version
@@ -223,9 +209,9 @@ jobs:
         working-directory: apps/cli
         run: |
           if [ "${{ needs.resolve-version.outputs.prerelease }}" = "true" ]; then
-            npm publish --access public --tag next
+            bun run script/publish.ts next
           else
-            npm publish --access public --tag latest
+            bun run script/publish.ts latest
           fi
 
       - name: Create git tag

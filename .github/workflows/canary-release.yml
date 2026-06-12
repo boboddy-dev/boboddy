@@ -112,12 +112,6 @@ jobs:
           npm pkg delete dependencies."ajv" --prefix packages/opencode-plugin
 
           npm pkg set version="$VERSION" --prefix apps/cli
-          npm pkg delete private --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/mcp-host" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/opencode-plugin" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/runtime-proxy" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/sdk" --prefix apps/cli
-          npm pkg delete dependencies."@boboddy/worker" --prefix apps/cli
 
       - name: Build SDK
         run: bun run --filter @boboddy/sdk build
@@ -136,7 +130,7 @@ jobs:
 
       - name: Publish CLI canary
         working-directory: apps/cli
-        run: npm publish --access public --tag canary
+        run: bun run script/publish.ts canary
 
       - name: Post canary metadata comment
         env:
