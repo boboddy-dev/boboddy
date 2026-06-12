@@ -27,7 +27,7 @@
  *   bun test tests/runtime/runtime-service/integration/devcontainer-mcp-host.integration.test.ts
  */
 
-import { mkdir, mkdtemp, rm, writeFile, access } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, rmdir, writeFile, access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -252,14 +252,15 @@ describe("Devcontainer MCP host — project tools exposed to agent (e2e)", () =>
       // The workspace is mounted into containers that run as root, so files
       // written by the container are root-owned and cannot be removed by the
       // unprivileged CI runner. Use a throwaway Alpine container (running as
-      // root) to delete the directory from inside Docker instead.
+      // root) to wipe all contents from inside Docker, then rmdir the now-empty
+      // host directory (which the runner owns and can remove).
       await new GenericContainer("alpine")
         .withBindMounts([{ source: workspacePath, target: "/cleanup", mode: "rw" }])
-        .withCommand(["sh", "-c", "rm -rf /cleanup && mkdir /cleanup"])
+        .withCommand(["sh", "-c", "find /cleanup -mindepth 1 -delete"])
         .start()
         .then((c) => c.stop())
         .catch(() => {});
-      await rm(workspacePath, { recursive: true, force: true });
+      await rmdir(workspacePath).catch(() => {});
     }
   });
 
