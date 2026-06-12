@@ -125,10 +125,32 @@ async function resolveWorkspacePathInContainer(
 /**
  * Allocate a free port in the devcontainer by asking the OS to bind :0.
  *
- * We run a tiny sh snippet that binds a TCP socket and prints the port.
- * If that fails (container lacks socat/python), fall back to a static pick.
+ * Primary method: the injected boboddy binary as a Bun runtime (always present,
+ * no PATH deps). Falls back to python3, then a `/dev/tcp` scan, then a fixed
+ * port — for resilience across minimal devcontainer images.
  */
 async function allocateFreePortInContainer(containerId: string): Promise<number> {
+  // Preferred: use the already-injected boboddy binary (Bun) to bind :0 and
+  // report the OS-assigned port. Guaranteed available; no curl/python needed.
+  try {
+    const { stdout } = await execFileAsync("docker", [
+      "exec",
+      "-e",
+      "BUN_BE_BUN=1",
+      containerId,
+      MCP_HOST_BINARY_PATH,
+      "-e",
+      `const s = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } }); ` +
+        `process.stdout.write(String(s.port)); s.stop();`,
+    ]);
+    const port = Number(stdout.trim());
+    if (Number.isInteger(port) && port > 0 && port <= 65535) {
+      return port;
+    }
+  } catch {
+    // boboddy binary not injected yet or Bun listen unavailable — fall back
+  }
+
   // Try python3 (available in most devcontainers via the AI base image)
   try {
     const { stdout } = await execFileAsync("docker", [
@@ -171,6 +193,12 @@ async function allocateFreePortInContainer(containerId: string): Promise<number>
 
 /**
  * Poll GET http://127.0.0.1:<port>/health inside the container until it returns 200.
+ *
+ * The probe must not assume the user's devcontainer ships `curl` (slim base
+ * images frequently don't). We use the already-injected boboddy binary as a
+ * generic Bun runtime (`BUN_BE_BUN=1 <binary> -e '<fetch>'`) to perform the
+ * HTTP check — the same binary that runs the MCP host, so it is guaranteed to
+ * be present. `curl` is tried first as a fast path when available.
  */
 async function waitForMcpHostHealth(
   containerId: string,
@@ -178,19 +206,43 @@ async function waitForMcpHostHealth(
 ): Promise<void> {
   const deadline = Date.now() + MCP_HOST_HEALTH_TIMEOUT_MS;
 
+  const healthUrl = `http://127.0.0.1:${port}/health`;
+  // A self-contained Bun one-liner: exit 0 only when /health returns 2xx.
+  const bunProbe =
+    `const r = await fetch(${JSON.stringify(healthUrl)}); ` +
+    `if (!r.ok) process.exit(1); process.stdout.write("OK");`;
+
   while (Date.now() < deadline) {
+    // Fast path: curl, if present.
     try {
       const { stdout } = await execFileAsync("docker", [
         "exec",
         containerId,
         "sh",
         "-lc",
-        `curl -sf http://127.0.0.1:${port}/health && echo OK`,
+        `command -v curl >/dev/null 2>&1 && curl -sf ${healthUrl} >/dev/null && echo OK`,
+      ]);
+      if (stdout.includes("OK")) return;
+    } catch {
+      // curl missing or not ready — fall through to the Bun probe
+    }
+
+    // Portable path: use the injected boboddy binary as a Bun runtime.
+    try {
+      const { stdout } = await execFileAsync("docker", [
+        "exec",
+        "-e",
+        "BUN_BE_BUN=1",
+        containerId,
+        MCP_HOST_BINARY_PATH,
+        "-e",
+        bunProbe,
       ]);
       if (stdout.includes("OK")) return;
     } catch {
       // Not ready yet
     }
+
     await delay(MCP_HOST_HEALTH_POLL_MS);
   }
 
@@ -211,10 +263,12 @@ async function loadMcpHostBinaryData(
   const candidatePaths = [
     // Production: sibling of the running CLI binary
     path.join(path.dirname(process.execPath), binaryName),
-    // Dev: built CLI binaries in apps/cli/dist relative to this source file
+    // Dev: built CLI binaries in apps/cli/dist relative to this source file.
+    // This file lives at packages/worker/src/runtime/runtime-service/infra/,
+    // so apps/cli/dist is six levels up.
     path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
-      "../../../dist",
+      "../../../../../../apps/cli/dist",
       binaryName,
     ),
   ];
@@ -266,19 +320,33 @@ export class LocalDevcontainerMcpHostManager {
   ): Promise<number> {
     const { containerId, workspacePath } = readLocalExecutionMetadata(executionTarget);
 
-    const [binaryData, port, workspaceInContainer] = await Promise.all([
+    const [binaryData, workspaceInContainer] = await Promise.all([
       getMcpHostBinaryData(containerId),
-      allocateFreePortInContainer(containerId),
       resolveWorkspacePathInContainer(containerId, workspacePath ?? ""),
     ]);
 
     const pluginsJson = JSON.stringify(plugins, null, 2) + "\n";
 
-    // Inject binary and plugins config into the devcontainer
+    // Inject binary and plugins config into the devcontainer. We inject the
+    // binary BEFORE allocating a port so the port allocator can use it (the
+    // binary doubles as a Bun runtime — no curl/python needed in the
+    // devcontainer).
     await Promise.all([
       injectIntoContainer(containerId, binaryData, MCP_HOST_DIRECTORY_PATH, MCP_HOST_BINARY_PATH),
       injectIntoContainer(containerId, pluginsJson, MCP_HOST_DIRECTORY_PATH, MCP_HOST_PLUGINS_JSON_PATH),
     ]);
+
+    // chmod the binary so the Bun-based port allocator (and the host launch
+    // below) can execute it.
+    await execFileAsync("docker", [
+      "exec",
+      containerId,
+      "sh",
+      "-lc",
+      `chmod +x '${MCP_HOST_BINARY_PATH}'`,
+    ]);
+
+    const port = await allocateFreePortInContainer(containerId);
 
     // The user tools live at .opencode/tools/ in the devcontainer — their original location.
     // The AI container has this path shadowed by a tmpfs mount so opencode never auto-scans them.
@@ -292,7 +360,7 @@ export class LocalDevcontainerMcpHostManager {
       containerId,
       "sh",
       "-lc",
-      `if [ -f '${MCP_HOST_PID_PATH}' ]; then pid=$(cat '${MCP_HOST_PID_PATH}'); kill "$pid" 2>/dev/null || true; rm -f '${MCP_HOST_PID_PATH}'; fi; chmod +x '${MCP_HOST_BINARY_PATH}'; nohup '${MCP_HOST_BINARY_PATH}' mcp-host --workspace '${workspaceInContainer}' --port ${port} --plugins-json '${MCP_HOST_PLUGINS_JSON_PATH}' --user-tools-dir '${userToolsDirInContainer}' >'${MCP_HOST_LOG_PATH}' 2>&1 < /dev/null & echo $! >'${MCP_HOST_PID_PATH}'`,
+      `if [ -f '${MCP_HOST_PID_PATH}' ]; then pid=$(cat '${MCP_HOST_PID_PATH}'); kill "$pid" 2>/dev/null || true; rm -f '${MCP_HOST_PID_PATH}'; fi; chmod +x '${MCP_HOST_BINARY_PATH}'; cd '${workspaceInContainer}/.opencode'; nohup '${MCP_HOST_BINARY_PATH}' mcp-host --workspace '${workspaceInContainer}' --port ${port} --plugins-json '${MCP_HOST_PLUGINS_JSON_PATH}' --user-tools-dir '${userToolsDirInContainer}' >'${MCP_HOST_LOG_PATH}' 2>&1 < /dev/null & echo $! >'${MCP_HOST_PID_PATH}'`,
     ]);
 
     await delay(MCP_HOST_BOOT_WAIT_MS);

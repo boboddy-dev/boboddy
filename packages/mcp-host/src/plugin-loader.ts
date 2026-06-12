@@ -1,14 +1,185 @@
 import { execFile, spawn } from "node:child_process";
-import { mkdir, readdir, symlink, rm, access } from "node:fs/promises";
+import { mkdir, readdir, access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { Logger } from "pino";
 import type { OpenCodePlugins } from "@boboddy/sdk/opencode-plugin";
 import type { DiscoveredTool } from "./types";
 import { zodShapeToJsonSchema } from "./zod-to-json-schema";
-import arboristInstallScript from "./arborist-install.js" with { type: "text" };
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Run a self-contained ESM script in a child process using the embedded Bun
+ * runtime (`BUN_BE_BUN=1 <self-binary> -`), reading the script from stdin.
+ *
+ * Why a subprocess instead of in-process `import()`:
+ * A compiled Bun standalone binary resolves module specifiers against the
+ * modules embedded at compile time — it does NOT resolve bare specifiers (or
+ * `createRequire`) against on-disk `node_modules` for files imported at
+ * runtime. User tool files / plugins live on disk and import their own deps
+ * (e.g. `@opencode-ai/plugin`, `pg`) from `.opencode/node_modules`. Running them
+ * via the embedded Bun as a *generic runtime* (`BUN_BE_BUN=1`) restores normal
+ * on-disk resolution relative to `cwd`, without requiring `node`/`bun` on PATH.
+ * This mirrors how OpenCode reuses its embedded Bun (mcp/index.ts: BUN_BE_BUN).
+ *
+ * The script must read its input from the `__MCP_HOST_INPUT__` global, which is
+ * injected as a JSON string constant prepended to the script source.
+ */
+function runBunSelfScript(
+  script: string,
+  input: unknown,
+  timeoutMs: number,
+  cwd: string,
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const preamble = `globalThis.__MCP_HOST_INPUT__ = ${JSON.stringify(JSON.stringify(input))};\n`;
+    const fullScript = preamble + script;
+
+    const proc = spawn(process.execPath, ["-"], {
+      cwd,
+      env: { ...process.env, BUN_BE_BUN: "1" },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill("SIGKILL");
+      reject(new Error(`Bun subprocess timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    proc.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    proc.stdin.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code !== "EPIPE") reject(err);
+    });
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      if (timedOut) return;
+      try {
+        const lastLine = stdout.trim().split("\n").at(-1) ?? "";
+        resolve(JSON.parse(lastLine));
+      } catch {
+        reject(
+          new Error(
+            `Bun subprocess (exit ${code ?? "?"}) produced no parseable output. stderr: ${stderr.slice(0, 800)}`,
+          ),
+        );
+      }
+    });
+
+    proc.stdin.end(fullScript);
+  });
+}
+
+/**
+ * ESM script (run via the embedded Bun runtime) that imports a single tool
+ * file and reports its tool-like exports.
+ *
+ * Input: { filePath }
+ * Output (last stdout line): { tools: [{ exportName, description, inputSchema }] }
+ *                            or { error: string }
+ */
+const DISCOVER_SCRIPT = `
+import { pathToFileURL } from "node:url";
+const { filePath } = JSON.parse(globalThis.__MCP_HOST_INPUT__);
+try {
+  const mod = await import(pathToFileURL(filePath).href);
+  const tools = [];
+  for (const [exportName, value] of Object.entries(mod)) {
+    if (!value || typeof value !== "object") continue;
+    if (typeof value.execute !== "function") continue;
+    let inputSchema = { type: "object", properties: {} };
+    if (value.args && typeof value.args === "object") {
+      try {
+        const zod = await import("zod").catch(() => null);
+        const z = zod?.z ?? zod?.default ?? zod;
+        if (z && typeof z.toJSONSchema === "function") {
+          const full = z.toJSONSchema(z.object(value.args));
+          inputSchema = {
+            type: "object",
+            properties: full.properties ?? {},
+            ...(Array.isArray(full.required) ? { required: full.required } : {}),
+            additionalProperties: false,
+          };
+        }
+      } catch {}
+    }
+    tools.push({
+      exportName,
+      description: typeof value.description === "string" ? value.description : ("Tool " + exportName),
+      inputSchema,
+    });
+  }
+  process.stdout.write(JSON.stringify({ tools }) + "\\n");
+} catch (err) {
+  process.stdout.write(JSON.stringify({ error: err?.message ?? String(err) }) + "\\n");
+}
+`.trim();
+
+/**
+ * ESM script (run via the embedded Bun runtime) that imports a tool file and
+ * executes one of its exported tools.
+ *
+ * Input: { filePath, exportName, args, workspacePath }
+ * Output (last stdout line): { output: string } or { error: string }
+ */
+const EXECUTE_SCRIPT = `
+import { pathToFileURL } from "node:url";
+const { filePath, exportName, args, workspacePath } = JSON.parse(globalThis.__MCP_HOST_INPUT__);
+try {
+  const mod = await import(pathToFileURL(filePath).href);
+  const def = exportName === "default" ? mod.default : mod[exportName];
+  if (!def || typeof def.execute !== "function") {
+    throw new Error('Export "' + exportName + '" is not a tool');
+  }
+  const ctx = {
+    sessionID: "mcp-host",
+    messageID: "mcp-host",
+    agent: "build",
+    directory: workspacePath,
+    worktree: workspacePath,
+    abort: new AbortController().signal,
+    metadata: () => undefined,
+    ask: async () => undefined,
+  };
+  const result = await def.execute(args, ctx);
+  let output;
+  if (typeof result === "string") output = result;
+  else if (result && typeof result === "object" && "output" in result) output = String(result.output);
+  else output = String(result);
+  process.stdout.write(JSON.stringify({ output }) + "\\n");
+} catch (err) {
+  process.stdout.write(JSON.stringify({ error: err?.message ?? String(err) }) + "\\n");
+}
+`.trim();
+
+type ToolDiscoveryResult = {
+  tools?: Array<{ exportName: string; description: string; inputSchema: DiscoveredTool["inputSchema"] }>;
+  error?: string;
+};
+
+type ToolExecutionResult = {
+  output?: string;
+  error?: string;
+};
+
+/**
+ * Per-file timeout for tool discovery (ms).
+ */
+const TOOL_DISCOVERY_TIMEOUT_MS = 30_000;
 
 /**
  * Per-call timeout for user tool execution (ms).
@@ -124,7 +295,12 @@ async function installNpmPlugins(
   await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n", "utf8");
 
   logger.info({ packages: pluginPackageNames }, "Installing npm plugins");
-  await execFileAsync("bun", ["install", "--no-save"], { cwd: PLUGIN_INSTALL_DIR });
+  // Use the embedded Bun runtime (BUN_BE_BUN=1 <self> install) so we don't
+  // require `bun` or `node` to be on PATH inside the devcontainer.
+  await execFileAsync(process.execPath, ["install", "--no-save"], {
+    cwd: PLUGIN_INSTALL_DIR,
+    env: { ...process.env, BUN_BE_BUN: "1" },
+  });
   logger.info("npm plugin install complete");
 }
 
@@ -150,189 +326,13 @@ type ToolDefinition = {
 };
 
 /**
- * Inline Node.js script used to discover tool exports from a single tool file.
- *
- * Spawned as: node --input-type=module
- * Environment: NODE_PATH=<workspace>/.opencode/node_modules
- * Stdin: JSON { filePath, workspacePath }
- * Stdout: JSON { tools: [{ exportName, description, inputSchema }] } or { error: string }
- *
- * We use `z.toJSONSchema` if available (Zod v4) or fall back to an empty schema.
- */
-const DISCOVER_SCRIPT = `
-import { createRequire } from 'module';
-import { pathToFileURL } from 'url';
-import { readFileSync } from 'fs';
-
-const input = JSON.parse(readFileSync('/dev/stdin', 'utf8'));
-const { filePath, workspacePath } = input;
-
-// Extend module resolution to include .opencode/node_modules
-// Node's NODE_PATH env handles this, but we also override createRequire for safety.
-
-try {
-  const fileUrl = pathToFileURL(filePath).href;
-  const mod = await import(fileUrl);
-  const tools = [];
-
-  for (const [exportName, exportValue] of Object.entries(mod)) {
-    if (!exportValue || typeof exportValue !== 'object') continue;
-    const def = exportValue._def ?? exportValue;
-    // A tool() result has .execute, .description, .args
-    if (typeof exportValue.execute !== 'function') continue;
-
-    let inputSchema = { type: 'object', properties: {} };
-    if (exportValue.args && typeof exportValue.args === 'object') {
-      try {
-        // Try Zod v4 toJSONSchema
-        const zod = await import('zod').catch(() => null);
-        if (zod && typeof zod.z?.toJSONSchema === 'function') {
-          const fullSchema = zod.z.toJSONSchema(zod.z.object(exportValue.args));
-          inputSchema = {
-            type: 'object',
-            properties: fullSchema.properties ?? {},
-            ...(Array.isArray(fullSchema.required) ? { required: fullSchema.required } : {}),
-            additionalProperties: false,
-          };
-        }
-      } catch {}
-    }
-
-    tools.push({
-      exportName,
-      description: typeof exportValue.description === 'string' ? exportValue.description : \`Tool \${exportName}\`,
-      inputSchema,
-    });
-  }
-
-  process.stdout.write(JSON.stringify({ tools }) + '\\n');
-} catch (err) {
-  process.stdout.write(JSON.stringify({ error: err?.message ?? String(err) }) + '\\n');
-}
-`.trim();
-
-/**
- * Inline Node.js script used to execute a single tool call.
- *
- * Spawned as: node --input-type=module
- * Environment: NODE_PATH=<workspace>/.opencode/node_modules
- * Stdin: JSON { filePath, exportName, args, workspacePath }
- * Stdout: JSON { output: string } or { error: string }
- */
-const EXECUTE_SCRIPT = `
-import { pathToFileURL } from 'url';
-import { readFileSync } from 'fs';
-
-const input = JSON.parse(readFileSync('/dev/stdin', 'utf8'));
-const { filePath, exportName, args, workspacePath } = input;
-
-try {
-  const mod = await import(pathToFileURL(filePath).href);
-  const toolDef = exportName === 'default' ? mod.default : mod[exportName];
-  if (!toolDef || typeof toolDef.execute !== 'function') {
-    throw new Error(\`Export "\${exportName}" is not a tool\`);
-  }
-
-  const ctx = {
-    sessionID: 'mcp-host',
-    messageID: 'mcp-host',
-    agent: 'build',
-    directory: workspacePath,
-    worktree: workspacePath,
-    abort: new AbortController().signal,
-    metadata: () => undefined,
-    ask: async () => undefined,
-  };
-
-  const result = await toolDef.execute(args, ctx);
-
-  let output;
-  if (typeof result === 'string') {
-    output = result;
-  } else if (result && typeof result === 'object' && 'output' in result) {
-    output = String(result.output);
-  } else {
-    output = String(result);
-  }
-
-  process.stdout.write(JSON.stringify({ output }) + '\\n');
-} catch (err) {
-  process.stdout.write(JSON.stringify({ error: err?.message ?? String(err) }) + '\\n');
-}
-`.trim();
-
-/**
- * Run a Node.js ESM script with the given input embedded directly as a JSON string constant.
- * The script references `readFileSync('/dev/stdin', 'utf8')` which gets replaced with
- * the serialized input, so the subprocess needs no stdin plumbing.
- */
-function runNodeScriptWithInput(
-  script: string,
-  input: unknown,
-  timeoutMs: number,
-  cwd?: string,
-): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const inputJson = JSON.stringify(input);
-    // Embed the JSON input directly into the script so the subprocess is fully self-contained.
-    const scriptWithInput = script.replace(
-      "readFileSync('/dev/stdin', 'utf8')",
-      `${JSON.stringify(inputJson)}`,
-    );
-
-    const proc = spawn("node", ["--input-type=module"], {
-      env: process.env,
-      stdio: ["pipe", "pipe", "pipe"],
-      ...(cwd ? { cwd } : {}),
-    });
-
-    let stdout = "";
-    let stderr = "";
-    let timedOut = false;
-
-    const timer = setTimeout(() => {
-      timedOut = true;
-      proc.kill();
-      reject(new Error(`Node subprocess timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    proc.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
-    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-    proc.on("error", (err) => { clearTimeout(timer); reject(err); });
-    proc.on("close", (code) => {
-      clearTimeout(timer);
-      if (timedOut) return;
-      try {
-        const lastLine = stdout.trim().split("\n").at(-1) ?? "";
-        resolve(JSON.parse(lastLine));
-      } catch {
-        reject(new Error(`node subprocess (exit ${code ?? "?"}) stderr: ${stderr.slice(0, 500)}`));
-      }
-    });
-
-    proc.stdin.end(scriptWithInput);
-  });
-}
-
-type ToolDiscoveryResult = {
-  tools?: Array<{ exportName: string; description: string; inputSchema: DiscoveredTool["inputSchema"] }>;
-  error?: string;
-};
-
-type ToolExecutionResult = {
-  output?: string;
-  error?: string;
-};
-
-
-
-/**
  * Ensure `.opencode/node_modules` is populated using arborist if
  * `.opencode/package.json` exists but `node_modules` is absent.
  *
- * Arborist is loaded from npm's bundled copy via a Node.js subprocess so it
- * never needs to be bundled into the Bun binary (which breaks due to
- * node-gyp path baking) and never requires npm to be on PATH.
+ * Mirrors OpenCode's in-process install (packages/core/src/npm.ts): arborist is
+ * imported and `reify()` is run directly inside the embedded Bun runtime — no
+ * `node`/`npm` subprocess and no PATH dependency. `ignoreScripts: true` means
+ * arborist never invokes lifecycle scripts or `node-gyp`.
  */
 async function ensureOpencodeNodeModules(
   workspacePath: string,
@@ -359,19 +359,19 @@ async function ensureOpencodeNodeModules(
 
   logger.info({ opencodeDir }, "Installing .opencode dependencies before loading tool files");
   try {
-    const result = await runNodeScriptWithInput(
-      arboristInstallScript,
-      { opencodeDir },
-      120_000,
-    ) as { ok?: boolean; error?: string };
-
-    if (result.error) {
-      throw new Error(result.error);
-    }
+    const { default: Arborist } = await import("@npmcli/arborist");
+    const arborist = new Arborist({
+      path: opencodeDir,
+      binLinks: true,
+      progress: false,
+      savePrefix: "",
+      ignoreScripts: true,
+    });
+    await arborist.reify();
 
     logger.info({ opencodeDir }, ".opencode dependency install complete");
   } catch (err) {
-    // Non-fatal — log and continue; tools that need the deps will fail at discovery time
+    // Non-fatal — log and continue; tools that need the deps will fail at load time
     logger.warn(
       { opencodeDir, err: err instanceof Error ? err.message : String(err) },
       "Failed to install .opencode dependencies — tool files may fail to load",
@@ -380,14 +380,18 @@ async function ensureOpencodeNodeModules(
 }
 
 /**
- * Load tools from `.opencode/tools/`-style files in `userToolsDir`.
+ * Load tools from `.opencode/{tool,tools}/`-style files in `userToolsDir`.
  *
- * Uses a Node.js subprocess for each file so that user tool files can resolve
- * their own dependencies (e.g. `@opencode-ai/plugin`, `pg`) from the workspace's
- * `.opencode/node_modules` via NODE_PATH — something that isn't possible from
- * inside a compiled Bun binary.
+ * Each file is imported and executed in a child process that runs the embedded
+ * Bun runtime as a generic runtime (`BUN_BE_BUN=1 <self-binary> -`). This is
+ * required because a compiled Bun standalone binary cannot resolve a tool
+ * file's on-disk dependencies (e.g. `@opencode-ai/plugin`, `pg`) via in-process
+ * `import()` — its module resolver is bound to the modules embedded at compile
+ * time. Running the file via the embedded Bun as a subprocess (cwd = the tool
+ * file's directory) restores normal `node_modules` resolution from the
+ * `.opencode/node_modules` ancestor, without needing `node`/`bun` on PATH.
  *
- * OpenCode 1.15.13 naming convention:
+ * OpenCode naming convention:
  *   - default export → `<filename>`
  *   - named export   → `<filename>_<exportName>`
  */
@@ -409,59 +413,56 @@ export async function loadToolFiles(
     (e) => (e.endsWith(".ts") || e.endsWith(".js")) && !e.startsWith("_"),
   );
 
-  // Ensure .opencode/node_modules is installed before symlinking and loading.
-  // This handles the race where the MCP host starts before the AI container
-  // has had a chance to run npm install for .opencode/package.json.
-  await ensureOpencodeNodeModules(workspacePath, logger);
-
-  // Symlink .opencode/node_modules into userToolsDir so Node's ESM resolver finds
-  // the workspace's dependencies (e.g. @opencode-ai/plugin, pg) when importing tool files.
-  const opencodeNodeModules = path.join(workspacePath, ".opencode", "node_modules");
-  const userToolsNodeModules = path.join(userToolsDir, "node_modules");
-  try {
-    await rm(userToolsNodeModules, { force: true });
-    await symlink(opencodeNodeModules, userToolsNodeModules);
-  } catch {
-    // Non-fatal — tools may still load if deps are available elsewhere
+  if (toolFiles.length === 0) {
+    return tools;
   }
+
+  // Ensure .opencode/node_modules is installed before loading. This handles the
+  // race where the MCP host starts before the AI container has had a chance to
+  // run an install for .opencode/package.json.
+  await ensureOpencodeNodeModules(workspacePath, logger);
 
   for (const filename of toolFiles) {
     const filePath = path.join(userToolsDir, filename);
     const baseName = filename.replace(/\.(ts|js)$/, "");
 
     try {
-      const result = await runNodeScriptWithInput(
+      const result = (await runBunSelfScript(
         DISCOVER_SCRIPT,
-        { filePath, workspacePath },
-        15_000,
+        { filePath },
+        TOOL_DISCOVERY_TIMEOUT_MS,
         userToolsDir,
-      ) as ToolDiscoveryResult;
+      )) as ToolDiscoveryResult;
 
       if (result.error) {
-        logger.error({ file: filename, nodeError: result.error }, "Failed to discover tool file — skipping");
+        logger.error({ file: filename, error: result.error }, "Failed to discover tool file — skipping");
         continue;
       }
 
-      for (const toolDesc of result.tools ?? []) {
-        const mcpName = toolDesc.exportName === "default"
-          ? baseName
-          : `${baseName}_${toolDesc.exportName}`;
+      const discovered = result.tools ?? [];
+      if (discovered.length === 0) {
+        logger.warn({ file: filename }, "Tool file exported no tool definitions — skipping");
+        continue;
+      }
+
+      for (const toolDesc of discovered) {
+        const mcpName =
+          toolDesc.exportName === "default" ? baseName : `${baseName}_${toolDesc.exportName}`;
 
         const capturedFilePath = filePath;
         const capturedExportName = toolDesc.exportName;
-        const capturedMcpName = mcpName;
 
         tools.push({
           name: mcpName,
           description: toolDesc.description,
           inputSchema: toolDesc.inputSchema,
           execute: async (args: Record<string, unknown>): Promise<string> => {
-            const execResult = await runNodeScriptWithInput(
+            const execResult = (await runBunSelfScript(
               EXECUTE_SCRIPT,
               { filePath: capturedFilePath, exportName: capturedExportName, args, workspacePath },
               TOOL_EXECUTION_TIMEOUT_MS,
               userToolsDir,
-            ) as ToolExecutionResult;
+            )) as ToolExecutionResult;
 
             if (execResult.error) {
               throw new Error(execResult.error);
@@ -469,8 +470,9 @@ export async function loadToolFiles(
 
             let output = execResult.output ?? "";
             if (Buffer.byteLength(output, "utf8") > MAX_OUTPUT_BYTES) {
-              output = Buffer.from(output, "utf8").subarray(0, MAX_OUTPUT_BYTES).toString("utf8")
-                + `\n[mcp-host: output truncated at ${MAX_OUTPUT_BYTES} bytes]`;
+              output =
+                Buffer.from(output, "utf8").subarray(0, MAX_OUTPUT_BYTES).toString("utf8") +
+                `\n[mcp-host: output truncated at ${MAX_OUTPUT_BYTES} bytes]`;
             }
             return output;
           },
@@ -479,7 +481,13 @@ export async function loadToolFiles(
         logger.info({ file: filename, toolName: mcpName }, "Tool file registered");
       }
     } catch (error) {
-      logger.error({ err: error, file: filename }, "Failed to load tool file — skipping");
+      logger.error(
+        {
+          file: filename,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "Failed to load tool file — skipping",
+      );
     }
   }
 

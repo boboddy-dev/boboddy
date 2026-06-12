@@ -42,6 +42,11 @@ async function buildTarget(
       "--compile",
       `--target=${target.bunTarget}`,
       `--outfile=${outfile}`,
+      // node-gyp is referenced by @npmcli/arborist for native rebuilds, but the
+      // MCP host runs arborist with `ignoreScripts: true`, so it is never
+      // invoked. Externalize it so `bun build --compile` doesn't try to bundle
+      // its bin paths (matches OpenCode's build, packages/opencode/script/build.ts).
+      "--external=node-gyp",
       ...extraDefines,
     ],
     {

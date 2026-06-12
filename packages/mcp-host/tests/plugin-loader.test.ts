@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import pino from "pino";
 
 const silentLogger = pino({ level: "silent" });
-import { z } from "zod";
 
 /**
  * These tests validate the plugin loading logic, tool name derivation, hook
@@ -93,5 +92,74 @@ describe("loadPluginTools file-based plugin warning", () => {
     expect(result.tools).toHaveLength(0);
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]?.pluginName).toBe("./my-local-plugin.js");
+  });
+});
+
+describe("loadToolFiles via embedded Bun runtime (no node)", () => {
+  test("discovers and executes default + named exports from a tool file", async () => {
+    const { mkdtemp, mkdir, writeFile, symlink, rm } = await import("node:fs/promises");
+    const os = await import("node:os");
+    const path = await import("node:path");
+
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "mcp-host-tools-"));
+    try {
+      const opencodeDir = path.join(workspace, ".opencode");
+      const toolsDir = path.join(opencodeDir, "tools");
+      await mkdir(toolsDir, { recursive: true });
+
+      // Simulate the production layout: deps resolve from `.opencode/node_modules`,
+      // an ancestor of `.opencode/tools/`. In prod arborist creates this; here we
+      // link this package's own `zod` so the in-process import resolves it.
+      const opencodeNodeModules = path.join(opencodeDir, "node_modules");
+      await mkdir(opencodeNodeModules, { recursive: true });
+      const require = (await import("node:module")).createRequire(import.meta.url);
+      const zodPkgJson = require.resolve("zod/package.json");
+      const zodRoot = path.dirname(zodPkgJson);
+      await symlink(zodRoot, path.join(opencodeNodeModules, "zod"));
+
+      // A tool file using the plain-object contract ({ description, args, execute }).
+      // Default export → "echo"; named export → "echo_shout".
+      const toolSource = `
+import { z } from "zod";
+export default {
+  description: "Echo the message back",
+  args: { message: z.string() },
+  async execute(args) {
+    return "echo:" + args.message;
+  },
+};
+export const shout = {
+  description: "Echo in uppercase",
+  args: { message: z.string() },
+  async execute(args) {
+    return { output: ("echo:" + args.message).toUpperCase() };
+  },
+};
+`;
+      await writeFile(path.join(toolsDir, "echo.ts"), toolSource, "utf8");
+
+      const { loadToolFiles } = await import("../src/plugin-loader");
+      const tools = await loadToolFiles(toolsDir, workspace, silentLogger);
+
+      const byName = new Map(tools.map((t) => [t.name, t]));
+      expect([...byName.keys()].sort()).toEqual(["echo", "echo_shout"]);
+
+      const echo = byName.get("echo")!;
+      expect(echo.description).toBe("Echo the message back");
+      expect(echo.inputSchema.properties).toHaveProperty("message");
+      expect(await echo.execute({ message: "hi" })).toBe("echo:hi");
+
+      const shout = byName.get("echo_shout")!;
+      // Object results with { output } are normalized to the string output.
+      expect(await shout.execute({ message: "hi" })).toBe("ECHO:HI");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("returns empty when tools dir does not exist", async () => {
+    const { loadToolFiles } = await import("../src/plugin-loader");
+    const tools = await loadToolFiles("/nonexistent/.opencode/tools", "/nonexistent", silentLogger);
+    expect(tools).toHaveLength(0);
   });
 });
