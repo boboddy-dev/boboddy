@@ -1,6 +1,6 @@
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
 
 const require = createRequire(import.meta.url);
@@ -99,13 +99,36 @@ async function main(): Promise<void> {
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
 
-  // Copy the @devcontainers/cli bundle into dist/ so that the shim can set
-  // BOBODDY_DEVCONTAINER_SCRIPT pointing at it — matching the published layout
-  // exactly. This means local dev builds behave identically to published ones.
+  // Copy the @devcontainers/cli bundle and its companion assets into dist/ at the
+  // same relative depth as in the original package. The bundle computes:
+  //
+  //   extensionPath = join(__dirname, "..", "..")
+  //
+  // where __dirname is the directory containing the bundle. In the original
+  // package the bundle lives at dist/spec-node/devContainersSpecCLI.js, so
+  // __dirname = dist/spec-node/ and extensionPath = <package-root>/.
+  //
+  // We mirror that layout inside our own dist/:
+  //
+  //   dist/spec-node/devcontainers-cli.js   ← bundle (__dirname = dist/spec-node/)
+  //   dist/scripts/updateUID.Dockerfile     ← looked up as extensionPath/scripts/…
+  //                                            extensionPath = dist/
+  //
+  // BOBODDY_DEVCONTAINER_SCRIPT is updated in publish.ts and the dev shim to
+  // point at the new dist/spec-node/ path.
   const devcontainerSrc = require.resolve(
     "@devcontainers/cli/dist/spec-node/devContainersSpecCLI.js",
   );
-  await copyFile(devcontainerSrc, resolve(distDirectory, "devcontainers-cli.js"));
+  const devcontainerDest = resolve(distDirectory, "spec-node", "devcontainers-cli.js");
+  await mkdir(dirname(devcontainerDest), { recursive: true });
+  await copyFile(devcontainerSrc, devcontainerDest);
+
+  const updateUIDSrc = require.resolve(
+    "@devcontainers/cli/scripts/updateUID.Dockerfile",
+  );
+  const updateUIDDest = resolve(distDirectory, "scripts", "updateUID.Dockerfile");
+  await mkdir(dirname(updateUIDDest), { recursive: true });
+  await copyFile(updateUIDSrc, updateUIDDest);
 
   for (const target of allTargets) {
     process.stdout.write(`Building ${target.outputName}...\n`);

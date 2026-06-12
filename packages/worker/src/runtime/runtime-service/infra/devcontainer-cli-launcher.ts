@@ -19,8 +19,10 @@ const DEVCONTAINER_CONFIG_CANDIDATES = [
 /**
  * Returns the path to the devcontainer CLI bundle script set by the shim via
  * BOBODDY_DEVCONTAINER_SCRIPT. The shim always sets this to
- * dist/devcontainers-cli.js, which build.ts copies from @devcontainers/cli for
- * every build (local and CI alike), so it is always present.
+ * dist/spec-node/devcontainers-cli.js, which build.ts copies from
+ * @devcontainers/cli for every build (local and CI alike), so it is always
+ * present. The bundle is placed at that depth so that its __dirname-based
+ * extensionPath computation finds dist/scripts/updateUID.Dockerfile correctly.
  */
 export function resolveDevcontainerCliScriptPath(): string {
   const scriptPath = process.env["BOBODDY_DEVCONTAINER_SCRIPT"];

@@ -60,8 +60,9 @@ if (!existsSync(binaryPath)) {
 const extraEnv = {
   // Pass the devcontainer CLI bundle path so the worker can invoke it using
   // the compiled binary as the JS runtime (no separate node/bun required).
-  // build.ts copies this file into dist/ for every build (local and CI alike).
-  BOBODDY_DEVCONTAINER_SCRIPT: process.env["BOBODDY_DEVCONTAINER_SCRIPT"] ?? resolve(distDirectory, "devcontainers-cli.js"),
+  // build.ts copies this file into dist/spec-node/ to preserve the two-level
+  // __dirname depth that @devcontainers/cli needs when resolving extensionPath.
+  BOBODDY_DEVCONTAINER_SCRIPT: process.env["BOBODDY_DEVCONTAINER_SCRIPT"] ?? resolve(distDirectory, "spec-node", "devcontainers-cli.js"),
 };
 if (devSdkArtifactPath) extraEnv["BOBODDY_SDK_ARTIFACT_PATH"] = devSdkArtifactPath;
 
