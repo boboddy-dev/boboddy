@@ -9,7 +9,5 @@ export type CloneRepositoryResult = {
 };
 
 export type GitCloneService = {
-  cloneRepository(
-    input: CloneRepositoryInput,
-  ): Promise<CloneRepositoryResult>;
+  cloneRepository(input: CloneRepositoryInput): Promise<CloneRepositoryResult>;
 };

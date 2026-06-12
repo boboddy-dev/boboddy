@@ -29,6 +29,7 @@ import { LocalDevcontainerPortForwardManager } from "../../../runtime/runtime-se
 import { LocalDevcontainerMcpHostManager } from "../../../runtime/runtime-service/infra/local-devcontainer-mcp-host-manager";
 import { createProjectRuntimeSessionExecutionTarget } from "../../../runtime/runtime-service/domain/project-runtime-session-execution-target";
 import { logWork } from "../application/work-logger";
+import { noopLogger, type Logger } from "../../../lib/logger";
 
 const execFileAsync = promisify(execFile);
 
@@ -114,6 +115,7 @@ export type LocalProjectRuntimeEnvironmentOrchestrator =
 
 export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalProjectRuntimeEnvironmentOrchestrator {
   constructor(
+    private readonly logger: Logger = noopLogger,
     private readonly deps: {
       workspaceManager: WorkspaceManager;
       gitCloneService: GitCloneService;
@@ -124,7 +126,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       mcpHostManager: LocalDevcontainerMcpHostManager;
     } = {
       workspaceManager: new LocalWorkspaceManager(),
-      gitCloneService: new GitCliCloneService(),
+      gitCloneService: new GitCliCloneService(logger),
       devcontainerLauncher: new DevcontainerCliLauncher(),
       aiContainerLauncher: new DockerAiContainerLauncher(),
       runtimeSessionNetworkManager:
