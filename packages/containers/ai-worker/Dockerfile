@@ -2,8 +2,8 @@ FROM mcr.microsoft.com/playwright/mcp:v0.0.68
 
 USER root
 
-ARG OPENCODE_NPM_PACKAGE=opencode-ai@1.15.13
-ARG OPENCODE_PLUGIN_SDK_PACKAGE=@opencode-ai/plugin@1.15.13
+ARG OPENCODE_NPM_PACKAGE=opencode-ai@1.17.3
+ARG OPENCODE_PLUGIN_SDK_PACKAGE=@opencode-ai/plugin@1.17.3
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV OPENCODE_HOME=/home/node

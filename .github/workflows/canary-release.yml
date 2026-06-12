@@ -113,6 +113,7 @@ jobs:
 
           npm pkg set version="$VERSION" --prefix apps/cli
           npm pkg delete private --prefix apps/cli
+          npm pkg delete dependencies."@boboddy/mcp-host" --prefix apps/cli
           npm pkg delete dependencies."@boboddy/opencode-plugin" --prefix apps/cli
           npm pkg delete dependencies."@boboddy/runtime-proxy" --prefix apps/cli
           npm pkg delete dependencies."@boboddy/sdk" --prefix apps/cli

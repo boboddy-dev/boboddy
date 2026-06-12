@@ -73,7 +73,9 @@ function loadDefaultDeps(dest?: DestinationStream): ProcessProjectWorkDeps {
     createWorkerClient: createStepExecutionPlaneWorkerClient,
     createRunTracker: () => new SqliteLocalRuntimeSessionStore(),
     runtimeEnvironmentOrchestrator:
-      new DefaultLocalProjectRuntimeEnvironmentOrchestrator(),
+      new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
+        logger.child({ scope: "runtime-environment-orchestrator" }),
+      ),
     agentRunner: new DefaultOpencodeStepRunner(),
     runtimeCommandRunner: new LocalRuntimeCommandRunner(
       logger.child({ scope: "runtime-command-runner" }),

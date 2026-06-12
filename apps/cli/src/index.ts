@@ -7,6 +7,7 @@ import { authCommand } from "./commands/auth";
 import { helloCommand } from "./commands/hello";
 import { imagesCommand } from "./commands/images";
 import { initCommand } from "./commands/init";
+import { mcpHostCommand } from "./commands/mcp-host";
 import { proxyCommand } from "./commands/proxy";
 import { reportBugCommand } from "./commands/report-bug";
 import { runtimeCommand } from "./commands/runtime";
@@ -45,6 +46,7 @@ export function createCli(argv: readonly string[]) {
     .command(helloCommand)
     .command(imagesCommand)
     .command(initCommand)
+    .command(mcpHostCommand)
     .command(proxyCommand)
     .command(reportBugCommand)
     .command(runtimeCommand)
