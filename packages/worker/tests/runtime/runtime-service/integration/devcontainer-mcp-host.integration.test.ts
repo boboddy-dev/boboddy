@@ -27,7 +27,7 @@
  *   bun test tests/runtime/runtime-service/integration/devcontainer-mcp-host.integration.test.ts
  */
 
-import { mkdir, mkdtemp, rm, rmdir, writeFile, access } from "node:fs/promises";
+import { mkdir, mkdtemp, rmdir, writeFile, access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
