@@ -99,34 +99,51 @@ async function main(): Promise<void> {
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
 
-  // Copy the @devcontainers/cli bundle and its companion assets into dist/ at the
-  // same relative depth as in the original package. The bundle computes:
+  // Copy the @devcontainers/cli bundle and its companion assets into dist/.
+  //
+  // The bundle resolves sibling assets (notably scripts/updateUID.Dockerfile,
+  // which it uses on Linux when remapping the container user's UID/GID) via:
   //
   //   extensionPath = join(__dirname, "..", "..")
   //
-  // where __dirname is the directory containing the bundle. In the original
-  // package the bundle lives at dist/spec-node/devContainersSpecCLI.js, so
-  // __dirname = dist/spec-node/ and extensionPath = <package-root>/.
+  // where __dirname is the directory containing the bundle. In the upstream
+  // package the bundle lives at <root>/dist/spec-node/devContainersSpecCLI.js,
+  // so extensionPath resolves to <root>/ and the Dockerfile is found at
+  // <root>/scripts/updateUID.Dockerfile.
   //
-  // We mirror that layout inside our own dist/:
+  // To keep every generated asset self-contained under our own dist/ (rather
+  // than leaking a scripts/ dir into the package root / apps/cli/scripts), we
+  // nest the bundle one level deeper so extensionPath stays inside dist/:
   //
-  //   dist/spec-node/devcontainers-cli.js   ← bundle (__dirname = dist/spec-node/)
-  //   dist/scripts/updateUID.Dockerfile     ← looked up as extensionPath/scripts/…
-  //                                            extensionPath = dist/
+  //   dist/devcontainer/dist/spec-node/devcontainers-cli.js  ← bundle
+  //       __dirname        = dist/devcontainer/dist/spec-node/
+  //       extensionPath    = dist/devcontainer/        (join(__dirname,"..",".."))
+  //   dist/devcontainer/scripts/updateUID.Dockerfile         ← resolved asset
   //
-  // BOBODDY_DEVCONTAINER_SCRIPT is updated in publish.ts and the dev shim to
-  // point at the new dist/spec-node/ path.
+  // BOBODDY_DEVCONTAINER_SCRIPT (set by publish.ts and the dev shim) points at
+  // the nested dist/devcontainer/dist/spec-node/devcontainers-cli.js path.
   const devcontainerSrc = require.resolve(
     "@devcontainers/cli/dist/spec-node/devContainersSpecCLI.js",
   );
-  const devcontainerDest = resolve(distDirectory, "spec-node", "devcontainers-cli.js");
+  const devcontainerDest = resolve(
+    distDirectory,
+    "devcontainer",
+    "dist",
+    "spec-node",
+    "devcontainers-cli.js",
+  );
   await mkdir(dirname(devcontainerDest), { recursive: true });
   await copyFile(devcontainerSrc, devcontainerDest);
 
   const updateUIDSrc = require.resolve(
     "@devcontainers/cli/scripts/updateUID.Dockerfile",
   );
-  const updateUIDDest = resolve(distDirectory, "scripts", "updateUID.Dockerfile");
+  const updateUIDDest = resolve(
+    distDirectory,
+    "devcontainer",
+    "scripts",
+    "updateUID.Dockerfile",
+  );
   await mkdir(dirname(updateUIDDest), { recursive: true });
   await copyFile(updateUIDSrc, updateUIDDest);
 

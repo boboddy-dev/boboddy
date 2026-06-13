@@ -37,9 +37,10 @@ async function preparePublishPackage() {
     await cp(`./dist/${entry}`, `${publishDir}/dist/${entry}`, { recursive: true });
   }
 
-  // Note: dist/spec-node/devcontainers-cli.js and dist/scripts/updateUID.Dockerfile
-  // are copied into dist/ by build.ts, so they are already included above via
-  // the readdir loop (which recurses with { recursive: true }). No separate copy needed.
+  // Note: dist/devcontainer/ (the @devcontainers/cli bundle and its
+  // scripts/updateUID.Dockerfile companion) is created by build.ts, so it is
+  // already included above via the readdir loop (which recurses with
+  // { recursive: true }). No separate copy needed.
 
   const wrapper = `#!/usr/bin/env node
 
@@ -83,9 +84,11 @@ if (!existsSync(binaryPath)) {
 const extraEnv = {
   // Pass the devcontainer CLI bundle path so the worker can invoke it using
   // the compiled binary as the JS runtime (no separate node/bun required).
-  // The bundle lives at dist/spec-node/ to preserve the two-level __dirname
-  // depth that @devcontainers/cli expects when resolving extensionPath.
-  BOBODDY_DEVCONTAINER_SCRIPT: resolve(distDirectory, "spec-node", "devcontainers-cli.js"),
+  // The bundle is nested under dist/devcontainer/dist/spec-node/ so that the
+  // CLI's extensionPath (join(__dirname, "..", "..")) resolves to
+  // dist/devcontainer/, where build.ts also places scripts/updateUID.Dockerfile
+  // (used on Linux when remapping the container user's UID/GID).
+  BOBODDY_DEVCONTAINER_SCRIPT: resolve(distDirectory, "devcontainer", "dist", "spec-node", "devcontainers-cli.js"),
 };
 if (devSdkArtifactPath) extraEnv.BOBODDY_SDK_ARTIFACT_PATH = devSdkArtifactPath;
 

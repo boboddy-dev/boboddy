@@ -19,10 +19,12 @@ const DEVCONTAINER_CONFIG_CANDIDATES = [
 /**
  * Returns the path to the devcontainer CLI bundle script set by the shim via
  * BOBODDY_DEVCONTAINER_SCRIPT. The shim always sets this to
- * dist/spec-node/devcontainers-cli.js, which build.ts copies from
- * @devcontainers/cli for every build (local and CI alike), so it is always
- * present. The bundle is placed at that depth so that its __dirname-based
- * extensionPath computation finds dist/scripts/updateUID.Dockerfile correctly.
+ * dist/devcontainer/dist/spec-node/devcontainers-cli.js, which build.ts copies
+ * from @devcontainers/cli for every build (local and CI alike), so it is always
+ * present. The bundle is nested at that depth so that its __dirname-based
+ * extensionPath computation (join(__dirname, "..", "..")) resolves to
+ * dist/devcontainer/, where build.ts also places scripts/updateUID.Dockerfile
+ * (used on Linux when remapping the container user's UID/GID).
  */
 export function resolveDevcontainerCliScriptPath(): string {
   const scriptPath = process.env["BOBODDY_DEVCONTAINER_SCRIPT"];
@@ -33,7 +35,7 @@ export function resolveDevcontainerCliScriptPath(): string {
   throw new ConfigurationError(
     "BOBODDY_DEVCONTAINER_SCRIPT is not set. This is normally injected by the " +
       "CLI shim (bin/boboddy). If running the worker directly, set this env var " +
-      "to the path of dist/devcontainers-cli.js.",
+      "to the path of dist/devcontainer/dist/spec-node/devcontainers-cli.js.",
     "DEVCONTAINER_CLI_NOT_FOUND",
   );
 }
