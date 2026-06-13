@@ -41,15 +41,20 @@ npm install   # or bun install
 Edit `steps.ts` to define your steps:
 
 ```typescript
-import { defineStep } from '@boboddy/sdk/definitions/steps';
-import { z } from 'zod';
+import { defineStep } from "@boboddy/sdk/definitions/steps";
+import { z } from "zod";
 
 export const reviewCodeStep = defineStep({
-  key: 'review-code',
-  name: 'Review Code',
-  description: 'Analyze a code snippet and return a clarity score.',
-  agentPrompt: `Review the provided code snippet. Return structured feedback and a clarity score from 0 to 10.`,
-  input: z.object({
+  key: "review-code",
+  name: "Review Code",
+  description: "Analyze a code snippet and return a clarity score.",
+  agentPrompt: ({ input, boboddy }) => `
+Review the provided code snippet.
+Language: ${input.language}
+Return structured feedback and a clarity score from 0 to 10.
+If you generate any files, write them to ${boboddy.artifactsDir}.
+`,
+  additionalInput: z.object({
     code: z.string(),
     language: z.string().optional(),
   }),
@@ -58,9 +63,14 @@ export const reviewCodeStep = defineStep({
     score: z.number().min(0).max(10),
   }),
   signals: [
-    { sourcePath: 'score', key: 'clarity_score', type: 'number', required: true },
+    {
+      sourcePath: "score",
+      key: "clarity_score",
+      type: "number",
+      required: true,
+    },
   ],
-  status: 'active',
+  status: "active",
 });
 ```
 
