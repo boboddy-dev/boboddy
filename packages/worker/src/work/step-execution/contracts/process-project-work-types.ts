@@ -97,7 +97,6 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodeMcpJson"];
     opencodePluginJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodePluginJson"];
-    agentPromptText: StepExecutionWorkerContextContract["agentPrompt"]["promptText"];
     currentExecutionInfo: CurrentExecutionInfo;
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
@@ -113,6 +112,17 @@ export type StepExecutionAgentRunner = {
   }>;
   getSessionStatus(input: { aiBaseUrl: string; sessionId: string }): Promise<{
     running: boolean;
+    /**
+     * Present when opencode reports the session is retrying an upstream AI
+     * request (e.g. an OpenAI `server_error`). Surfaced so the monitor can log
+     * provider failures distinctly instead of burying them in the raw status.
+     */
+    providerError?:
+      | {
+          attempt: number;
+          message: string;
+        }
+      | undefined;
   }>;
   sendRetryPrompt(input: {
     aiBaseUrl: string;

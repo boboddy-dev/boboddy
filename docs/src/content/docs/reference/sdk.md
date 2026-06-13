@@ -18,47 +18,93 @@ bun add @boboddy/sdk
 Define a reusable, versioned step with typed input/output schemas.
 
 ```typescript
-import { defineStep } from '@boboddy/sdk';
-import { z } from 'zod';
+import { defineStep } from "@boboddy/sdk";
+import { z } from "zod";
 
 const myStep = defineStep({
-  key: 'my-step',
-  name: 'My Step',
+  key: "my-step",
+  name: "My Step",
   version: 1,
-  description: 'Does something useful.',
+  description: "Does something useful.",
   additionalInput: z.object({ text: z.string() }),
   result: z.object({ summary: z.string(), score: z.number() }),
   signals: [
-    { sourcePath: 'score', key: 'quality_score', type: 'number', required: true },
+    {
+      sourcePath: "score",
+      key: "quality_score",
+      type: "number",
+      required: true,
+    },
   ],
-  agentPrompt: 'Analyze the provided text and return a summary and quality score.',
-  status: 'active',
+  agentPrompt: ({ input, env, boboddy }) => `
+Analyze the provided text from ${input.text}.
+Base URL: ${env.BASE_URL}
+Write any generated files to ${boboddy.artifactsDir}
+Return a summary and quality score.
+`,
+  status: "active",
 });
 ```
 
 ### `StepDefinition` options
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `key` | `string` | Yes | Unique step key within the project |
-| `name` | `string` | Yes | Display name |
-| `version` | `number` | No | Version (default: `1`) |
-| `description` | `string` | No | Short description |
-| `agentPrompt` | `string` | Yes | AI instruction given to the executing agent |
-| `additionalInput` | `ZodType` | No | Additional input payload schema; fields are bound via the pipeline mapper |
-| `result` | `ZodType` | No | Output payload schema |
-| `signals` | `Signal[]` | No | Values to extract from the result |
-| `mcpServers` | `OpenCodeMcpServers` | No | MCP server configs for tool-using agents |
-| `status` | `"draft" \| "active"` | No | Draft steps are skipped by workers |
+| Field             | Type                              | Required | Description                                                               |
+| ----------------- | --------------------------------- | -------- | ------------------------------------------------------------------------- |
+| `key`             | `string`                          | Yes      | Unique step key within the project                                        |
+| `name`            | `string`                          | Yes      | Display name                                                              |
+| `version`         | `number`                          | No       | Version (default: `1`)                                                    |
+| `description`     | `string`                          | No       | Short description                                                         |
+| `agentPrompt`     | `string \| ((context) => string)` | Yes      | AI instruction given to the executing agent                               |
+| `additionalInput` | `ZodType`                         | No       | Additional input payload schema; fields are bound via the pipeline mapper |
+| `result`          | `ZodType`                         | No       | Output payload schema                                                     |
+| `signals`         | `Signal[]`                        | No       | Values to extract from the result                                         |
+| `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configs for tool-using agents                                  |
+| `status`          | `"draft" \| "active"`             | No       | Draft steps are skipped by workers                                        |
+
+### `agentPrompt`
+
+`agentPrompt` accepts either a raw string or a function that receives a typed prompt context. The function form is recommended because it gives autocomplete for supported prompt variables and keeps prompt tokens consistent with your step schema.
+
+```typescript
+const browserReproStep = defineStep({
+  key: "browser-repro",
+  name: "Browser Repro",
+  additionalInput: z.object({
+    title: z.string(),
+    description: z.string(),
+  }),
+  agentPrompt: ({ input, env, boboddy }) => `
+Open ${env.BASE_URL}.
+Reproduce the issue described in ${input.title}.
+Save traces to ${boboddy.artifactsDir}trace.zip.
+`,
+});
+```
+
+#### Prompt context scopes
+
+| Scope     | Example                   | Source                                                   |
+| --------- | ------------------------- | -------------------------------------------------------- |
+| `input`   | `${input.title}`          | Step execution input bound through the pipeline          |
+| `env`     | `${env.BASE_URL}`         | Any defined environment variable available to the worker |
+| `boboddy` | `${boboddy.artifactsDir}` | Boboddy-provided runtime values                          |
+
+At runtime these become `{{input.title}}`, `{{env.BASE_URL}}`, and `{{boboddy.artifactsDir}}` inside the stored prompt template.
+
+Boboddy currently provides:
+
+- `boboddy.artifactsDir` for files that should be uploaded as step artifacts.
+
+Legacy raw prompt tokens such as `{{title}}` and `{{stepArtifactsDir}}` still resolve, but new steps should prefer the scoped form.
 
 ### `Signal`
 
 ```typescript
 type Signal = {
-  sourcePath: string;        // dot-notation path into result, e.g. "metrics.score"
-  key?: string;              // signal name used in advancement rules (defaults to sourcePath)
-  type?: 'number' | 'string' | 'boolean' | 'object' | 'array';
-  required?: boolean;        // fail execution if signal is missing
+  sourcePath: string; // dot-notation path into result, e.g. "metrics.score"
+  key?: string; // signal name used in advancement rules (defaults to sourcePath)
+  type?: "number" | "string" | "boolean" | "object" | "array";
+  required?: boolean; // fail execution if signal is missing
 };
 ```
 
@@ -69,36 +115,36 @@ type Signal = {
 Define an ordered sequence of steps using the fluent builder.
 
 ```typescript
-import { pipeline } from '@boboddy/sdk/definitions/pipelines';
-import { z } from 'zod';
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { z } from "zod";
 
 const inputSchema = z.object({ text: z.string() });
 
 const myPipeline = pipeline({
-  key: 'my-pipeline',
-  name: 'My Pipeline',
-  status: 'active',
+  key: "my-pipeline",
+  name: "My Pipeline",
+  status: "active",
   additionalPipelineInput: {
     schema: z.object({ text: z.string() }),
-    bindings: ({ workItem }) => ({ text: workItem.field('Text') }),
+    bindings: ({ workItem }) => ({ text: workItem.field("Text") }),
   },
 })
   .step(myStep, ({ input }) => ({ text: input.text }))
-  .advance(() => ({ default: 'continue' }))
+  .advance(() => ({ default: "continue" }))
   .build();
 ```
 
 ### `PipelineMeta` options
 
-| Field                     | Type                  | Required | Description                                                  |
-| ------------------------- | --------------------- | -------- | ------------------------------------------------------------ |
-| `key`                     | `string`              | Yes      | Unique pipeline key                                          |
-| `name`                    | `string`              | Yes      | Display name                                                 |
-| `version`                 | `number`              | No       | Version (default: `1`)                                       |
-| `description`             | `string`              | No       | Short description                                            |
-| `status`                  | `"draft" \| "active"` | No       | Draft pipelines are not executed                             |
-| `additionalPipelineInput` | `object`              | No       | Custom input fields; requires both `schema` and `bindings`   |
-| `additionalStepInput`     | `object`              | No       | Default bindings applied to every step in the pipeline       |
+| Field                     | Type                  | Required | Description                                                |
+| ------------------------- | --------------------- | -------- | ---------------------------------------------------------- |
+| `key`                     | `string`              | Yes      | Unique pipeline key                                        |
+| `name`                    | `string`              | Yes      | Display name                                               |
+| `version`                 | `number`              | No       | Version (default: `1`)                                     |
+| `description`             | `string`              | No       | Short description                                          |
+| `status`                  | `"draft" \| "active"` | No       | Draft pipelines are not executed                           |
+| `additionalPipelineInput` | `object`              | No       | Custom input fields; requires both `schema` and `bindings` |
+| `additionalStepInput`     | `object`              | No       | Default bindings applied to every step in the pipeline     |
 
 `additionalPipelineInput.schema` is a Zod object schema for extra pipeline input fields. `additionalPipelineInput.bindings` receives `{ workItem, literal }` and returns their bindings.
 
@@ -106,11 +152,11 @@ const myPipeline = pipeline({
 
 ### Builder methods
 
-| Method | Description |
-|--------|-------------|
-| `.step(step, mapper, configFn?)` | Append a step. `mapper` receives `{ input, signal, output, literal }` and returns a record of input bindings keyed by the step's input fields. Optional `configFn` receives `{ timeout }` — set `cfg.timeout` (seconds) to cap execution time. |
-| `.advance(callback)` | Attach an advancement policy to the most recently added step. `callback` receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`. **Required** before adding another step or calling `.build()`. |
-| `.build()` | Finalize and return a `PipelineDefinitionSpec`. |
+| Method                           | Description                                                                                                                                                                                                                                                                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.step(step, mapper, configFn?)` | Append a step. `mapper` receives `{ input, signal, output, literal }` and returns a record of input bindings keyed by the step's input fields. Optional `configFn` receives `{ timeout }` — set `cfg.timeout` (seconds) to cap execution time.                                                 |
+| `.advance(callback)`             | Attach an advancement policy to the most recently added step. `callback` receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`. **Required** before adding another step or calling `.build()`. |
+| `.build()`                       | Finalize and return a `PipelineDefinitionSpec`.                                                                                                                                                                                                                                                |
 
 ### Step input bindings
 
@@ -151,7 +197,10 @@ export default defaultPipelineAssignment(({ workItem, any, assign, skip }) => ({
       workItem.field("status").eq("manual support"),
     ).then(skip()),
     workItem.field("issueType").eq("bug").then(assign(bugTriage)),
-    workItem.field("labels").contains("regression").then(assign(regressionReview)),
+    workItem
+      .field("labels")
+      .contains("regression")
+      .then(assign(regressionReview)),
   ],
 }));
 ```
@@ -160,21 +209,21 @@ The callback receives a context object. Only `defaultPipelineAssignment` needs t
 
 ### Callback context
 
-| Property | Description |
-|----------|-------------|
-| `workItem.field(name)` | Returns a comparator ref for the named work item field |
-| `context.isNew` | Comparator ref; `true` when the work item is new |
-| `assign(pipeline)` | Outcome: start the given pipeline (`PipelineDefinitionSpec`) |
-| `skip()` | Outcome: do not assign any pipeline |
-| `all(...refs)` | All nested conditions must match |
-| `any(...refs)` | Any nested condition must match |
+| Property               | Description                                                  |
+| ---------------------- | ------------------------------------------------------------ |
+| `workItem.field(name)` | Returns a comparator ref for the named work item field       |
+| `context.isNew`        | Comparator ref; `true` when the work item is new             |
+| `assign(pipeline)`     | Outcome: start the given pipeline (`PipelineDefinitionSpec`) |
+| `skip()`               | Outcome: do not assign any pipeline                          |
+| `all(...refs)`         | All nested conditions must match                             |
+| `any(...refs)`         | Any nested condition must match                              |
 
 ### Return value shape
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field     | Type                           | Description                                                  |
+| --------- | ------------------------------ | ------------------------------------------------------------ |
 | `default` | `AssignOutcome \| SkipOutcome` | Outcome when no rule matches; `assign(pipeline)` or `skip()` |
-| `rules` | `AssignmentRule[]` | Ordered rules; first match wins |
+| `rules`   | `AssignmentRule[]`             | Ordered rules; first match wins                              |
 
 ### Comparators
 
@@ -187,18 +236,18 @@ All comparators available on advancement `SignalRef`s are also available here: `
 The original object-based API. Still supported; produces identical wire output. New pipelines should prefer the `pipeline()` builder above.
 
 ```typescript
-import { definePipeline, fromPipelineInput } from '@boboddy/sdk';
-import { z } from 'zod';
+import { definePipeline, fromPipelineInput } from "@boboddy/sdk";
+import { z } from "zod";
 
 const myPipeline = definePipeline({
-  key: 'my-pipeline',
-  name: 'My Pipeline',
-  status: 'active',
+  key: "my-pipeline",
+  name: "My Pipeline",
+  status: "active",
   steps: [
     {
       step: myStep,
       input: {
-        text: fromPipelineInput(z.string(), 'text'),
+        text: fromPipelineInput(z.string(), "text"),
       },
     },
   ],
@@ -207,23 +256,23 @@ const myPipeline = definePipeline({
 
 ### `PipelineDefinition` options
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `key` | `string` | Yes | Unique pipeline key |
-| `name` | `string` | Yes | Display name |
-| `version` | `number` | No | Version (default: `1`) |
-| `description` | `string` | No | Short description |
-| `status` | `"draft" \| "active"` | No | Draft pipelines are not executed |
-| `steps` | `PipelineStep[]` | Yes | Ordered step entries |
+| Field         | Type                  | Required | Description                      |
+| ------------- | --------------------- | -------- | -------------------------------- |
+| `key`         | `string`              | Yes      | Unique pipeline key              |
+| `name`        | `string`              | Yes      | Display name                     |
+| `version`     | `number`              | No       | Version (default: `1`)           |
+| `description` | `string`              | No       | Short description                |
+| `status`      | `"draft" \| "active"` | No       | Draft pipelines are not executed |
+| `steps`       | `PipelineStep[]`      | Yes      | Ordered step entries             |
 
 ### `PipelineStep`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `step` | `TypedStepDefinitionSpec` | Step definition returned by `defineStep` |
-| `input` | `InputBindingMap` | Map of input field names to binding helpers |
-| `timeout` | `number` | Milliseconds before the step is marked timed out |
-| `advancement` | `Rule<SignalKeys>` | Boolean signal rule; pipeline halts if not satisfied |
+| Field         | Type                      | Description                                          |
+| ------------- | ------------------------- | ---------------------------------------------------- |
+| `step`        | `TypedStepDefinitionSpec` | Step definition returned by `defineStep`             |
+| `input`       | `InputBindingMap`         | Map of input field names to binding helpers          |
+| `timeout`     | `number`                  | Milliseconds before the step is marked timed out     |
+| `advancement` | `Rule<SignalKeys>`        | Boolean signal rule; pipeline halts if not satisfied |
 
 ---
 
@@ -268,17 +317,17 @@ input: {
 The SDK ships an auto-generated API client built from the OpenAPI spec.
 
 ```typescript
-import { createBoboddyClient } from '@boboddy/sdk';
+import { createBoboddyClient } from "@boboddy/sdk";
 
-const client = createBoboddyClient('https://app.boboddy.dev');
+const client = createBoboddyClient("https://app.boboddy.dev");
 ```
 
 Use `createStepDefinitionsClient` for CRUD operations on step definitions:
 
 ```typescript
-import { createStepDefinitionsClient } from '@boboddy/sdk';
+import { createStepDefinitionsClient } from "@boboddy/sdk";
 
-const stepClient = createStepDefinitionsClient('https://app.boboddy.dev');
+const stepClient = createStepDefinitionsClient("https://app.boboddy.dev");
 ```
 
 ---
@@ -290,7 +339,7 @@ const stepClient = createStepDefinitionsClient('https://app.boboddy.dev');
 Parse `.boboddy/boboddy.jsonc` files (JSON with comments):
 
 ```typescript
-import { parseJsonc } from '@boboddy/sdk';
+import { parseJsonc } from "@boboddy/sdk";
 
 const config = parseJsonc(rawString);
 ```
@@ -300,7 +349,7 @@ const config = parseJsonc(rawString);
 Read the Boboddy project config from disk:
 
 ```typescript
-import { readProjectConfig } from '@boboddy/sdk';
+import { readProjectConfig } from "@boboddy/sdk";
 
 const { projectId } = await readProjectConfig();
 ```

@@ -29,12 +29,17 @@ describe("DefaultOpencodeStepRunner", () => {
       expect(await runner.getSessionStatus({
         aiBaseUrl: "http://127.0.0.1:4096",
         sessionId: "session-busy",
-      })).toEqual({ running: true });
+      })).toEqual({ running: true, providerError: undefined });
 
+      // A retry status carries the upstream provider error, which is surfaced
+      // so the worker can log AI-provider failures distinctly.
       expect(await runner.getSessionStatus({
         aiBaseUrl: "http://127.0.0.1:4096",
         sessionId: "session-retry",
-      })).toEqual({ running: true });
+      })).toEqual({
+        running: true,
+        providerError: { attempt: 1, message: "Retry" },
+      });
     } finally {
       globalThis.fetch = previousFetch;
     }

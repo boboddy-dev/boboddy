@@ -37,6 +37,31 @@ function isRunningSessionStatus(sessionStatus: SessionStatus | undefined): boole
   return false;
 }
 
+/**
+ * When opencode is retrying an upstream AI request it reports a `retry` status
+ * carrying the provider's error message (e.g. an OpenAI `server_error` with its
+ * request id) and the current attempt count. Pull those out so the worker can
+ * log AI-provider failures as a distinct, actionable signal.
+ */
+function extractProviderError(
+  sessionStatus: SessionStatus | undefined,
+): { attempt: number; message: string } | undefined {
+  if (!sessionStatus || sessionStatus.type !== "retry") {
+    return undefined;
+  }
+
+  const message =
+    typeof sessionStatus.message === "string" ? sessionStatus.message : "";
+  if (!message) {
+    return undefined;
+  }
+
+  const attempt =
+    typeof sessionStatus.attempt === "number" ? sessionStatus.attempt : 0;
+
+  return { attempt, message };
+}
+
 export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
   async promptAsync(
     input: PromptAsyncOpencodeStepInput,
@@ -86,7 +111,10 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
   async getSessionStatus(input: {
     aiBaseUrl: string;
     sessionId: string;
-  }): Promise<{ running: boolean }> {
+  }): Promise<{
+    running: boolean;
+    providerError?: { attempt: number; message: string } | undefined;
+  }> {
     const client = createClient(input.aiBaseUrl);
     logWork("opencode", "Checking OpenCode session status", {
       aiBaseUrl: input.aiBaseUrl,
@@ -97,12 +125,13 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
     const statusBySession = statusResponse.data ?? {};
     const rawSessionStatus = statusBySession[input.sessionId];
     const running = isRunningSessionStatus(rawSessionStatus);
+    const providerError = extractProviderError(rawSessionStatus);
     logWork("opencode", "Resolved OpenCode session status", {
       sessionId: input.sessionId,
       running,
       rawSessionStatus,
     });
-    return { running };
+    return { running, providerError };
   }
 
   async sendRetryPrompt(input: {

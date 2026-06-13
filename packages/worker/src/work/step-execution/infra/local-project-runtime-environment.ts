@@ -144,7 +144,6 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     requestedBranch?: string | null | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
     opencodePluginJson?: OpenCodePlugins | null | undefined;
-    agentPromptText: string;
     currentExecutionInfo: {
       stepExecutionId: string;
       resultSchemaJson: Record<string, unknown> | null;
@@ -228,7 +227,8 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
         stepPlugins: null,
-        agentPromptText: input.agentPromptText,
+        // No agent system prompt: the step prompt is delivered as the user
+        // message, so opencode keeps its default build agent prompt.
         // No URL yet — will be injected in Step 4 once host is running
       });
       logWork("runtime", "OpenCode context built (pre-MCP-host pass)", {
@@ -295,7 +295,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
         stepPlugins: null,
-        agentPromptText: input.agentPromptText,
+        // See note above: no agent system prompt override for step execution.
         userToolsMcpUrl,
       });
       logWork("runtime", "OpenCode context written with MCP host URL", {

@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { renderPromptTemplate } from "@boboddy/sdk/definitions/steps";
 import {
   createUuidV7,
   parseUuidV7,
@@ -14,6 +15,38 @@ import type {
   StepExecutionWorkerClaim,
   StepExecutionWorkerClient,
 } from "../contracts/process-project-work-types";
+
+const CONTAINER_STEP_ARTIFACTS_DIR = "/workspace/.boboddy/step-artifacts";
+
+function buildPromptRenderContext(input: {
+  inputJson: unknown;
+  env: NodeJS.ProcessEnv;
+  artifactsDir: string;
+}): Record<string, unknown> {
+  const rootInput =
+    input.inputJson &&
+    typeof input.inputJson === "object" &&
+    !Array.isArray(input.inputJson)
+      ? input.inputJson
+      : {};
+
+  const definedEnv = Object.fromEntries(
+    Object.entries(input.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
+
+  return {
+    ...rootInput,
+    input: input.inputJson,
+    env: definedEnv,
+    boboddy: {
+      artifactsDir: input.artifactsDir,
+    },
+    // Preserve legacy prompt tokens while scoped names are adopted.
+    stepArtifactsDir: input.artifactsDir,
+  };
+}
 
 function buildRunningMetadata(environment: {
   resolvedBranch: string;
@@ -138,7 +171,15 @@ async function launchRuntimeEnvironment(
     ),
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
-    agentPromptText: input.workerContext.agentPrompt.promptText,
+    // The step prompt is delivered solely as the user message via promptAsync
+    // below. We deliberately do NOT also set it as the build agent's system
+    // prompt: doing so duplicated the entire prompt in every request (system +
+    // user). On the OpenAI ChatGPT/OAuth path (store:false + encrypted
+    // reasoning), that whole payload is re-uploaded on every turn and retry,
+    // which inflates requests enough to trip mid-stream `server_error`s that
+    // never occur for the smaller, single-message prompts used directly on a
+    // workstation. Leaving this unset keeps opencode's default build agent
+    // system prompt, matching local usage.
     currentExecutionInfo: {
       stepExecutionId: input.workerContext.stepExecution.id,
       resultSchemaJson: input.workerContext.stepDefinition.resultSchemaJson,
@@ -197,6 +238,19 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
+    const renderedStepInstructions = renderPromptTemplate(
+      workerContext.stepDefinition.prompt,
+      buildPromptRenderContext({
+        inputJson: workerContext.stepExecution.inputJson,
+        env: process.env,
+        artifactsDir: `${CONTAINER_STEP_ARTIFACTS_DIR}/`,
+      }),
+    );
+    const resolvedPromptText = workerContext.agentPrompt.promptText.replaceAll(
+      workerContext.agentPrompt.stepInstructionsPlaceholder,
+      renderedStepInstructions,
+    );
+
     logger.log("step", "Launching runtime environment", {
       stepExecutionId: input.claim.stepExecution.id,
       localRuntimeSessionId,
@@ -247,11 +301,21 @@ export async function startProcessClaimedExecution(
       "step-artifacts",
     );
     await mkdir(stepArtifactsDir, { recursive: true });
-    // The agent runs inside a container where the host workspacePath is mounted at /workspace.
-    const containerStepArtifactsDir = "/workspace/.boboddy/step-artifacts";
-    const resolvedPromptText = workerContext.agentPrompt.promptText
-      .replaceAll("{{stepArtifactsDir}}/", `${containerStepArtifactsDir}/`)
-      .replaceAll("{{stepArtifactsDir}}", `${containerStepArtifactsDir}/`);
+
+    // Request-size diagnostic: the OpenAI ChatGPT/OAuth path is far more likely
+    // to fail mid-stream on large requests, and request size here is dominated
+    // by the user prompt plus every configured MCP server's tool schemas. Log a
+    // profile so oversized runs are identifiable from worker logs alone.
+    const stepMcpServerNames = Object.keys(
+      workerContext.stepDefinition.opencodeMcpJson ?? {},
+    );
+    logger.log("step", "Prepared step prompt request profile", {
+      stepExecutionId: input.claim.stepExecution.id,
+      localRuntimeSessionId,
+      userPromptChars: resolvedPromptText.length,
+      mcpServerCount: stepMcpServerNames.length,
+      mcpServerNames: stepMcpServerNames,
+    });
 
     logger.log("step", "Starting agent run", {
       stepExecutionId: input.claim.stepExecution.id,

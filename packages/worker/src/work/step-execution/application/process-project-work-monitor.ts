@@ -217,6 +217,7 @@ export async function monitorStartedClaimedExecution(
   let hasSubmittedFindings = false;
   let hasCollectedArtifacts = false;
   let hasWaitedForSessionStop = false;
+  let lastLoggedProviderErrorAttempt = -1;
   const runtimeActions =
     deps.runtimeCommandRunner && deps.runtimeServiceRunner && deps.timeProvider
       ? new ProjectOpencodeRuntimeActions({
@@ -295,6 +296,25 @@ export async function monitorStartedClaimedExecution(
         aiBaseUrl: startedExecution.environment.aiBaseUrl,
         sessionId: startedExecution.agentSessionId,
       });
+
+      // Surface upstream AI-provider errors (e.g. OpenAI `server_error`) as a
+      // distinct signal. Throttle to once per attempt so a long retry storm
+      // does not flood the logs.
+      if (
+        sessionStatus.providerError &&
+        sessionStatus.providerError.attempt !== lastLoggedProviderErrorAttempt
+      ) {
+        lastLoggedProviderErrorAttempt = sessionStatus.providerError.attempt;
+        logger.log("worker", "AI provider error while running step", {
+          projectId: input.projectId,
+          workerId: input.workerId,
+          stepExecutionId: startedExecution.stepExecutionId,
+          localRuntimeSessionId: startedExecution.localRuntimeSessionId,
+          agentSessionId: startedExecution.agentSessionId,
+          attempt: sessionStatus.providerError.attempt,
+          providerMessage: sessionStatus.providerError.message,
+        });
+      }
 
       await tryProcessRuntimeRequest(deps, startedExecution, runtimeActions);
 
