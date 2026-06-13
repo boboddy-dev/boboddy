@@ -2,6 +2,7 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "exactOptionalPropertyTypes": false,
+    "noPropertyAccessFromIndexSignature": false,
     "paths": {
       "@boboddy/sdk": ["./src/index.ts"],
       "@boboddy/sdk/*": ["./src/*"]

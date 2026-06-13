@@ -35,6 +35,56 @@ export function promptToLiteral(prompt: string): string {
   return `\`${escaped}\``;
 }
 
+const SCOPED_PROMPT_TOKEN = /\{\{(input|env|boboddy)\.([^}]+)\}\}/g;
+
+function isValidIdentifier(part: string): boolean {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(part);
+}
+
+function promptPathToJsExpr(scope: string, path: string): string {
+  return path
+    .split(".")
+    .filter((part) => part.length > 0)
+    .reduce(
+      (expr, part) =>
+        isValidIdentifier(part)
+          ? `${expr}.${part}`
+          : `${expr}[${JSON.stringify(part)}]`,
+      scope,
+    );
+}
+
+export function promptToSource(prompt: string): string {
+  const matches = [...prompt.matchAll(SCOPED_PROMPT_TOKEN)];
+  if (matches.length === 0) return promptToLiteral(prompt);
+
+  const usedScopes = new Set(matches.map((match) => match[1]));
+  const placeholders = matches.map((match, index) => ({
+    token: match[0],
+    marker: `__BOBODDY_PROMPT_EXPR_${String(index)}__`,
+    expr: `\${${promptPathToJsExpr(match[1]!, match[2]!)}}`,
+  }));
+
+  let template = prompt;
+  for (const placeholder of placeholders) {
+    template = template.replace(placeholder.token, placeholder.marker);
+  }
+
+  template = template
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\$\{/g, "\\${");
+
+  for (const placeholder of placeholders) {
+    template = template.replaceAll(placeholder.marker, placeholder.expr);
+  }
+
+  const destructuredScopes = ["input", "env", "boboddy"].filter((scope) =>
+    usedScopes.has(scope),
+  );
+  return `({ ${destructuredScopes.join(", ")} }) => \`${template}\``;
+}
+
 function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
   if (!schemaJson) return "z.unknown()";
   try {
@@ -44,13 +94,17 @@ function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
   }
 }
 
-function buildSignalLine(sig: StepDefContract["signalExtractorDefinitions"][number]): string {
+function buildSignalLine(
+  sig: StepDefContract["signalExtractorDefinitions"][number],
+): string {
   const parts: string[] = [`sourcePath: ${JSON.stringify(sig.sourcePath)}`];
   if (sig.key !== sig.sourcePath) parts.push(`key: ${JSON.stringify(sig.key)}`);
   parts.push(`type: ${JSON.stringify(sig.type)} as const`);
   if (!sig.required) parts.push("required: false");
   if (sig.availableWhenResultStatusIn !== null) {
-    parts.push(`availableWhenResultStatusIn: ${JSON.stringify(sig.availableWhenResultStatusIn)}`);
+    parts.push(
+      `availableWhenResultStatusIn: ${JSON.stringify(sig.availableWhenResultStatusIn)}`,
+    );
   }
   return `    { ${parts.join(", ")} }`;
 }
@@ -70,8 +124,9 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
       `  version: ${String(step.version)}`,
       `  status: ${JSON.stringify(step.status)} as const`,
     ];
-    if (step.description) fields.push(`  description: ${JSON.stringify(step.description)}`);
-    fields.push(`  agentPrompt: ${promptToLiteral(step.prompt ?? "")}`);
+    if (step.description)
+      fields.push(`  description: ${JSON.stringify(step.description)}`);
+    fields.push(`  agentPrompt: ${promptToSource(step.prompt ?? "")}`);
     fields.push(`  input: ${inputExpr}`);
     fields.push(`  result: ${resultExpr}`);
     if (signalLines.length > 0) {
@@ -80,11 +135,18 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
       fields.push("  signals: []");
     }
     if (step.opencodeMcpJson && Object.keys(step.opencodeMcpJson).length > 0) {
-      const mcpJson = JSON.stringify(step.opencodeMcpJson, null, 2).replace(/\n/g, "\n  ");
+      const mcpJson = JSON.stringify(step.opencodeMcpJson, null, 2).replace(
+        /\n/g,
+        "\n  ",
+      );
       fields.push(`  mcpServers: ${mcpJson}`);
     }
     if (step.opencodePluginJson && step.opencodePluginJson.length > 0) {
-      const pluginJson = JSON.stringify(step.opencodePluginJson, null, 2).replace(/\n/g, "\n  ");
+      const pluginJson = JSON.stringify(
+        step.opencodePluginJson,
+        null,
+        2,
+      ).replace(/\n/g, "\n  ");
       fields.push(`  plugins: ${pluginJson}`);
     }
 
