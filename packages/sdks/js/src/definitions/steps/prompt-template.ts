@@ -8,7 +8,17 @@ export type PromptInputProxy<T> = {
   [K in keyof T]-?: PromptInputProxy<NonNullable<T[K]>>;
 } & string;
 
-export function createPromptInputProxy<T>(path: string[] = []): PromptInputProxy<T> {
+export type PromptTemplateContext<TInput> = {
+  input: PromptInputProxy<TInput>;
+  env: PromptInputProxy<Record<string, string | undefined>>;
+  boboddy: {
+    artifactsDir: string;
+  };
+};
+
+export function createPromptInputProxy<T>(
+  path: string[] = [],
+): PromptInputProxy<T> {
   const token = () => (path.length ? `{{${path.join(".")}}}` : "");
 
   return new Proxy(Object.freeze({}), {
@@ -25,14 +35,29 @@ export function createPromptInputProxy<T>(path: string[] = []): PromptInputProxy
   }) as unknown as PromptInputProxy<T>;
 }
 
+export function createPromptTemplateContext<
+  TInput,
+>(): PromptTemplateContext<TInput> {
+  return {
+    input: createPromptInputProxy(["input"]),
+    env: createPromptInputProxy(["env"]),
+    boboddy: {
+      artifactsDir: createPromptInputProxy([
+        "boboddy",
+        "artifactsDir",
+      ]) as unknown as string,
+    },
+  };
+}
+
 /**
  * Renders a prompt template string by replacing `{{dot.path}}` tokens with
- * values resolved from the provided input object. Missing or null values
+ * values resolved from the provided context object. Missing or null values
  * are replaced with an empty string.
  */
 export function renderPromptTemplate(
   template: string,
-  inputJson: unknown,
+  contextJson: unknown,
 ): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
     const value = path
@@ -40,7 +65,7 @@ export function renderPromptTemplate(
       .reduce<unknown>(
         (curr, key) =>
           curr != null ? (curr as Record<string, unknown>)[key] : undefined,
-        inputJson,
+        contextJson,
       );
     return value != null ? String(value) : "";
   });

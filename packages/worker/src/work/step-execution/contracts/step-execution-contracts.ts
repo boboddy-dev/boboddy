@@ -64,5 +64,6 @@ export type StepExecutionWorkerContextContract = {
   agentPrompt: {
     sessionTitle: string;
     promptText: string;
+    stepInstructionsPlaceholder: string;
   };
 };

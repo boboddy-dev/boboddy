@@ -69,6 +69,7 @@ function createWorkerClient(
         agentPrompt: {
           sessionTitle: "Demo Step",
           promptText: "Run it.",
+          stepInstructionsPlaceholder: "__BOBODDY_STEP_INSTRUCTIONS__",
         },
       } satisfies StepExecutionWorkerContext),
     );

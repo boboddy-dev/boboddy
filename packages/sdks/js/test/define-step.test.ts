@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { defineStep } from "../src/definitions/steps/define-step";
-import { Features, type AnyStepFeature } from "../src/definitions/steps/step-features";
+import {
+  Features,
+  type AnyStepFeature,
+} from "../src/definitions/steps/step-features";
 
 describe("defineStep", () => {
   test("applies sensible defaults", () => {
@@ -22,6 +25,20 @@ describe("defineStep", () => {
       opencodeMcpJson: null,
       opencodePluginJson: null,
     });
+  });
+
+  test("supports function agent prompts with scoped prompt tokens", () => {
+    const spec = defineStep({
+      key: "my-step",
+      name: "My Step",
+      additionalInput: z.object({ title: z.string() }),
+      agentPrompt: ({ input, env, boboddy }) =>
+        `Open ${env.BASE_URL} for ${input.title} and save artifacts to ${boboddy.artifactsDir}`,
+    });
+
+    expect(spec.prompt).toBe(
+      "Open {{env.BASE_URL}} for {{input.title}} and save artifacts to {{boboddy.artifactsDir}}",
+    );
   });
 
   test("converts a complex nested result schema to JSON Schema", () => {
@@ -57,20 +74,27 @@ describe("defineStep", () => {
       name: "Debug Issue",
       agentPrompt: "Analyze the issue.",
       result: resultSchema,
-      signals: [
-        { sourcePath: "outcome" },
-        { sourcePath: "summaryOfFindings" },
-      ],
+      signals: [{ sourcePath: "outcome" }, { sourcePath: "summaryOfFindings" }],
     });
 
     expect(spec.resultSchemaJson).toMatchObject({
       type: "object",
-       
-      required: expect.arrayContaining(["outcome", "summaryOfFindings", "stepsTried"]),
+
+      required: expect.arrayContaining([
+        "outcome",
+        "summaryOfFindings",
+        "stepsTried",
+      ]),
       properties: {
         outcome: {
           type: "string",
-          enum: ["reproduced", "not_reproducible", "needs_user_feedback", "agent_error", "cancelled"],
+          enum: [
+            "reproduced",
+            "not_reproducible",
+            "needs_user_feedback",
+            "agent_error",
+            "cancelled",
+          ],
         },
         summaryOfFindings: { type: "string", minLength: 1 },
         stepsTried: {
@@ -81,8 +105,12 @@ describe("defineStep", () => {
           type: "array",
           items: {
             type: "object",
-             
-            required: expect.arrayContaining(["question", "category", "suggestedKey"]),
+
+            required: expect.arrayContaining([
+              "question",
+              "category",
+              "suggestedKey",
+            ]),
             properties: {
               question: { type: "string" },
               category: { type: "string" },
@@ -98,12 +126,16 @@ describe("defineStep", () => {
     const mockFeatureA: AnyStepFeature = {
       _resultExtension: z.object({ flagA: z.boolean() }),
       _promptAddition: "Feature A instructions",
-      _signals: [{ key: "sig_a", sourcePath: "flagA", type: "boolean", required: true }],
+      _signals: [
+        { key: "sig_a", sourcePath: "flagA", type: "boolean", required: true },
+      ],
     };
     const mockFeatureB: AnyStepFeature = {
       _resultExtension: z.object({ labelB: z.string() }),
       _promptAddition: "Feature B instructions",
-      _signals: [{ key: "sig_b", sourcePath: "labelB", type: "string", required: false }],
+      _signals: [
+        { key: "sig_b", sourcePath: "labelB", type: "string", required: false },
+      ],
     };
 
     test("merges feature result extension into resultSchemaJson", () => {
@@ -158,6 +190,20 @@ describe("defineStep", () => {
       expect(spec.prompt).toBe("Base prompt.\n\nFeature A instructions");
     });
 
+    test("appends feature prompt additions after function prompt normalization", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        additionalInput: z.object({ title: z.string() }),
+        agentPrompt: ({ input }) => `Use ${input.title}.`,
+        features: [mockFeatureA],
+      });
+
+      expect(spec.prompt).toBe(
+        "Use {{input.title}}.\n\nFeature A instructions",
+      );
+    });
+
     test("injects feature signals into signalExtractorDefinitions", () => {
       const spec = defineStep({
         key: "my-step",
@@ -167,7 +213,13 @@ describe("defineStep", () => {
       });
 
       expect(spec.signalExtractorDefinitions).toEqual([
-        { key: "sig_a", sourcePath: "flagA", type: "boolean", required: true, availableWhenResultStatusIn: null },
+        {
+          key: "sig_a",
+          sourcePath: "flagA",
+          type: "boolean",
+          required: true,
+          availableWhenResultStatusIn: null,
+        },
       ]);
     });
 
@@ -222,7 +274,7 @@ describe("defineStep", () => {
       expect(spec.resultSchemaJson).toMatchObject({
         properties: {
           outcome: { type: "string" },
-          "$boboddy_feedbackRequests_v1": { type: "array" },
+          $boboddy_feedbackRequests_v1: { type: "array" },
         },
       });
       expect(spec.prompt).toContain("## Feedback Requests");
@@ -309,12 +361,48 @@ describe("defineStep", () => {
       });
 
       const defs = spec.signalExtractorDefinitions;
-      expect(defs[0]).toEqual({ key: "score",      sourcePath: "score",      type: "number",  required: true, availableWhenResultStatusIn: null });
-      expect(defs[1]).toEqual({ key: "label",      sourcePath: "label",      type: "string",  required: true, availableWhenResultStatusIn: null });
-      expect(defs[2]).toEqual({ key: "active",     sourcePath: "active",     type: "boolean", required: true, availableWhenResultStatusIn: null });
-      expect(defs[3]).toEqual({ key: "tags",       sourcePath: "tags",       type: "array",   required: true, availableWhenResultStatusIn: null });
-      expect(defs[4]).toEqual({ key: "meta",       sourcePath: "meta",       type: "object",  required: true, availableWhenResultStatusIn: null });
-      expect(defs[5]).toEqual({ key: "meta.value", sourcePath: "meta.value", type: "number",  required: true, availableWhenResultStatusIn: null });
+      expect(defs[0]).toEqual({
+        key: "score",
+        sourcePath: "score",
+        type: "number",
+        required: true,
+        availableWhenResultStatusIn: null,
+      });
+      expect(defs[1]).toEqual({
+        key: "label",
+        sourcePath: "label",
+        type: "string",
+        required: true,
+        availableWhenResultStatusIn: null,
+      });
+      expect(defs[2]).toEqual({
+        key: "active",
+        sourcePath: "active",
+        type: "boolean",
+        required: true,
+        availableWhenResultStatusIn: null,
+      });
+      expect(defs[3]).toEqual({
+        key: "tags",
+        sourcePath: "tags",
+        type: "array",
+        required: true,
+        availableWhenResultStatusIn: null,
+      });
+      expect(defs[4]).toEqual({
+        key: "meta",
+        sourcePath: "meta",
+        type: "object",
+        required: true,
+        availableWhenResultStatusIn: null,
+      });
+      expect(defs[5]).toEqual({
+        key: "meta.value",
+        sourcePath: "meta.value",
+        type: "number",
+        required: true,
+        availableWhenResultStatusIn: null,
+      });
     });
 
     test("explicit key and required override auto-derivation", () => {
@@ -335,5 +423,4 @@ describe("defineStep", () => {
       });
     });
   });
-
 });

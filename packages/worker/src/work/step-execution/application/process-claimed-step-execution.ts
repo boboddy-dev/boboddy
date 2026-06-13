@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { renderPromptTemplate } from "@boboddy/sdk/definitions/steps";
 import {
   createUuidV7,
   parseUuidV7,
@@ -14,6 +15,38 @@ import type {
   StepExecutionWorkerClaim,
   StepExecutionWorkerClient,
 } from "../contracts/process-project-work-types";
+
+const CONTAINER_STEP_ARTIFACTS_DIR = "/workspace/.boboddy/step-artifacts";
+
+function buildPromptRenderContext(input: {
+  inputJson: unknown;
+  env: NodeJS.ProcessEnv;
+  artifactsDir: string;
+}): Record<string, unknown> {
+  const rootInput =
+    input.inputJson &&
+    typeof input.inputJson === "object" &&
+    !Array.isArray(input.inputJson)
+      ? input.inputJson
+      : {};
+
+  const definedEnv = Object.fromEntries(
+    Object.entries(input.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
+
+  return {
+    ...rootInput,
+    input: input.inputJson,
+    env: definedEnv,
+    boboddy: {
+      artifactsDir: input.artifactsDir,
+    },
+    // Preserve legacy prompt tokens while scoped names are adopted.
+    stepArtifactsDir: input.artifactsDir,
+  };
+}
 
 function buildRunningMetadata(environment: {
   resolvedBranch: string;
@@ -126,6 +159,7 @@ async function launchRuntimeEnvironment(
     localRuntimeSessionId: UuidV7;
     workerContext: Awaited<ReturnType<typeof fetchWorkerContext>>;
     requestedByUserId: UuidV7;
+    resolvedPromptText: string;
   },
 ) {
   return await deps.runtimeEnvironmentOrchestrator.launch({
@@ -138,7 +172,7 @@ async function launchRuntimeEnvironment(
     ),
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
-    agentPromptText: input.workerContext.agentPrompt.promptText,
+    agentPromptText: input.resolvedPromptText,
     currentExecutionInfo: {
       stepExecutionId: input.workerContext.stepExecution.id,
       resultSchemaJson: input.workerContext.stepDefinition.resultSchemaJson,
@@ -197,6 +231,19 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
+    const renderedStepInstructions = renderPromptTemplate(
+      workerContext.stepDefinition.prompt,
+      buildPromptRenderContext({
+        inputJson: workerContext.stepExecution.inputJson,
+        env: process.env,
+        artifactsDir: `${CONTAINER_STEP_ARTIFACTS_DIR}/`,
+      }),
+    );
+    const resolvedPromptText = workerContext.agentPrompt.promptText.replaceAll(
+      workerContext.agentPrompt.stepInstructionsPlaceholder,
+      renderedStepInstructions,
+    );
+
     logger.log("step", "Launching runtime environment", {
       stepExecutionId: input.claim.stepExecution.id,
       localRuntimeSessionId,
@@ -205,6 +252,7 @@ export async function startProcessClaimedExecution(
       localRuntimeSessionId,
       workerContext,
       requestedByUserId: input.requestedByUserId,
+      resolvedPromptText,
     });
     cleanup = async () => {
       await environment.cleanup();
@@ -247,11 +295,6 @@ export async function startProcessClaimedExecution(
       "step-artifacts",
     );
     await mkdir(stepArtifactsDir, { recursive: true });
-    // The agent runs inside a container where the host workspacePath is mounted at /workspace.
-    const containerStepArtifactsDir = "/workspace/.boboddy/step-artifacts";
-    const resolvedPromptText = workerContext.agentPrompt.promptText
-      .replaceAll("{{stepArtifactsDir}}/", `${containerStepArtifactsDir}/`)
-      .replaceAll("{{stepArtifactsDir}}", `${containerStepArtifactsDir}/`);
 
     logger.log("step", "Starting agent run", {
       stepExecutionId: input.claim.stepExecution.id,

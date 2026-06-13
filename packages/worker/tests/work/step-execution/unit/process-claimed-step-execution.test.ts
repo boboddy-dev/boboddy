@@ -30,21 +30,23 @@ function createWorkerContext(): StepExecutionWorkerContext {
     stepExecution: {
       id: stepExecutionId,
       status: "running",
-      inputJson: null,
+      inputJson: { title: "Checkout bug" },
       executionTimeoutSeconds: 120,
     },
     stepDefinition: {
       id: stepDefinitionId,
       key: "demo-step",
       name: "Demo Step",
-      prompt: "Run the demo step.",
+      prompt:
+        "Open {{env.BASE_URL}} for {{input.title}} and save to {{boboddy.artifactsDir}}trace.zip. Legacy: {{title}} and {{stepArtifactsDir}}trace.zip.",
       resultSchemaJson: { type: "object" },
       opencodeMcpJson: null,
       opencodePluginJson: null,
     },
     agentPrompt: {
       sessionTitle: "Demo Step",
-      promptText: "Run it.",
+      promptText: "Header\n__BOBODDY_STEP_INSTRUCTIONS__\nFooter",
+      stepInstructionsPlaceholder: "__BOBODDY_STEP_INSTRUCTIONS__",
     },
   };
 }
@@ -68,7 +70,9 @@ function createWorkerClient(): StepExecutionWorkerClient {
     failStepExecution: vi.fn(),
     completeStepExecution: vi.fn(),
     getStepExecution: vi.fn(),
-    getStepExecutionWorkerContext: vi.fn(() => Promise.resolve(createWorkerContext())),
+    getStepExecutionWorkerContext: vi.fn(() =>
+      Promise.resolve(createWorkerContext()),
+    ),
   };
 }
 
@@ -76,10 +80,12 @@ describe("startProcessClaimedExecution", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     delete process.env["BOBODDY_WORK_REQUESTED_BRANCH"];
+    delete process.env["BASE_URL"];
   });
 
   test("falls back to the worker branch env var when worker context omits requestedBranch", async () => {
     process.env["BOBODDY_WORK_REQUESTED_BRANCH"] = "upgrade-ajv";
+    process.env["BASE_URL"] = "https://app.example.com";
 
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "boboddy-claimed-step-"),
@@ -104,7 +110,9 @@ describe("startProcessClaimedExecution", () => {
       createRunTracker,
       runtimeEnvironmentOrchestrator: { launch },
       agentRunner: {
-        promptAsync: vi.fn(() => Promise.resolve({ sessionId: "agent-session-id" })),
+        promptAsync: vi.fn(() =>
+          Promise.resolve({ sessionId: "agent-session-id" }),
+        ),
         getSessionStatus: vi.fn(),
         sendRetryPrompt: vi.fn(),
       },
@@ -136,6 +144,12 @@ describe("startProcessClaimedExecution", () => {
     expect(launch).toHaveBeenCalledWith(
       expect.objectContaining({
         requestedBranch: "upgrade-ajv",
+      }),
+    );
+    expect(deps.agentRunner.promptAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promptText:
+          "Header\nOpen https://app.example.com for Checkout bug and save to /workspace/.boboddy/step-artifacts/trace.zip. Legacy: Checkout bug and /workspace/.boboddy/step-artifacts/trace.zip.\nFooter",
       }),
     );
   });

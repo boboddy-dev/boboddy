@@ -6,6 +6,10 @@ import type {
   FeatureResultExtensions,
   FeatureSignalKeys,
 } from "./step-features";
+import {
+  createPromptTemplateContext,
+  type PromptTemplateContext,
+} from "./prompt-template";
 type OpenCodeMcpServers = Record<
   string,
   | {
@@ -39,9 +43,7 @@ type OpenCodeMcpServers = Record<
  * A single entry in the OpenCode `plugin` config array.
  * Either a package name string or a [packageName, options] tuple.
  */
-type OpenCodePluginEntry =
-  | string
-  | [string, Record<string, unknown>];
+type OpenCodePluginEntry = string | [string, Record<string, unknown>];
 
 /** Full value of the OpenCode `plugin` config field. */
 type OpenCodePlugins = OpenCodePluginEntry[];
@@ -124,7 +126,9 @@ export type DefineStepInput<
   name: string;
   description?: string | null;
   version?: number;
-  agentPrompt: string;
+  agentPrompt:
+    | string
+    | ((context: PromptTemplateContext<TInput["_output"]>) => string);
   additionalInput?: TInput;
   result?: TResult;
   signals?: SignalSpecInput<TResult["_output"]>[];
@@ -314,8 +318,13 @@ export function defineStep<
       : feature._resultExtension;
   }
 
+  const basePrompt =
+    typeof config.agentPrompt === "function"
+      ? config.agentPrompt(createPromptTemplateContext<TInput["_output"]>())
+      : config.agentPrompt;
+
   // Append each feature's prompt addition.
-  let effectivePrompt: string = config.agentPrompt;
+  let effectivePrompt: string = basePrompt;
   for (const feature of features) {
     if (feature._promptAddition) {
       effectivePrompt = effectivePrompt
