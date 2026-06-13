@@ -636,6 +636,100 @@ export type GetApiProjectsByProjectIdResponses = {
 
 export type GetApiProjectsByProjectIdResponse = GetApiProjectsByProjectIdResponses[keyof GetApiProjectsByProjectIdResponses];
 
+export type GetApiProjectsByProjectIdWorkItemSignalScoresData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query: {
+        pipelineDefinitionId: string;
+        stepKey: string;
+        signalKey: string;
+    };
+    url: '/api/projects/{projectId}/work-item-signal-scores';
+};
+
+export type GetApiProjectsByProjectIdWorkItemSignalScoresErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectsByProjectIdWorkItemSignalScoresError = GetApiProjectsByProjectIdWorkItemSignalScoresErrors[keyof GetApiProjectsByProjectIdWorkItemSignalScoresErrors];
+
+export type GetApiProjectsByProjectIdWorkItemSignalScoresResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        workItemId: string;
+        score: number | unknown;
+    }>;
+};
+
+export type GetApiProjectsByProjectIdWorkItemSignalScoresResponse = GetApiProjectsByProjectIdWorkItemSignalScoresResponses[keyof GetApiProjectsByProjectIdWorkItemSignalScoresResponses];
+
 export type PutApiProjectsByProjectIdDefaultPipelineAssignmentData = {
     body: {
         defaultPipelineAssignment: {
@@ -2702,6 +2796,7 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
         agentPrompt: {
             sessionTitle: string;
             promptText: string;
+            stepInstructionsPlaceholder: string;
         };
     };
 };
@@ -10456,3 +10551,587 @@ export type PostApiIntegrationsGithubWebhookData = {
     query?: never;
     url: '/api/integrations/github/webhook';
 };
+
+export type GetApiProjectInvitesByTokenData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/api/project-invites/{token}';
+};
+
+export type GetApiProjectInvitesByTokenErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectInvitesByTokenError = GetApiProjectInvitesByTokenErrors[keyof GetApiProjectInvitesByTokenErrors];
+
+export type GetApiProjectInvitesByTokenResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        inviteId: string;
+        projectId: string;
+        projectName: string;
+        role: 'admin' | 'contributor' | 'reviewer';
+        restriction: 'specific_email' | 'any_authenticated_user';
+        permissions: Array<string>;
+        status: 'pending' | 'accepted' | 'revoked' | 'expired';
+        expiresAt: string;
+    };
+};
+
+export type GetApiProjectInvitesByTokenResponse = GetApiProjectInvitesByTokenResponses[keyof GetApiProjectInvitesByTokenResponses];
+
+export type GetApiProjectsByProjectIdInvitesData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/invites';
+};
+
+export type GetApiProjectsByProjectIdInvitesErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectsByProjectIdInvitesError = GetApiProjectsByProjectIdInvitesErrors[keyof GetApiProjectsByProjectIdInvitesErrors];
+
+export type GetApiProjectsByProjectIdInvitesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        projectId: string;
+        email: string | unknown;
+        role: 'admin' | 'contributor' | 'reviewer';
+        restriction: 'specific_email' | 'any_authenticated_user';
+        permissions: Array<string>;
+        invitedByUserId: string;
+        status: 'pending' | 'accepted' | 'revoked' | 'expired';
+        expiresAt: string;
+        acceptedAt: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiProjectsByProjectIdInvitesResponse = GetApiProjectsByProjectIdInvitesResponses[keyof GetApiProjectsByProjectIdInvitesResponses];
+
+export type PostApiProjectsByProjectIdInvitesData = {
+    body: {
+        email?: string;
+        role: 'admin' | 'contributor' | 'reviewer';
+        restriction: 'specific_email' | 'any_authenticated_user';
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/invites';
+};
+
+export type PostApiProjectsByProjectIdInvitesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdInvitesError = PostApiProjectsByProjectIdInvitesErrors[keyof PostApiProjectsByProjectIdInvitesErrors];
+
+export type PostApiProjectsByProjectIdInvitesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        invite: {
+            id: string;
+            projectId: string;
+            email: string | unknown;
+            role: 'admin' | 'contributor' | 'reviewer';
+            restriction: 'specific_email' | 'any_authenticated_user';
+            permissions: Array<string>;
+            invitedByUserId: string;
+            status: 'pending' | 'accepted' | 'revoked' | 'expired';
+            expiresAt: string;
+            acceptedAt: string | unknown;
+            createdAt: string;
+            updatedAt: string;
+        };
+        inviteUrl: string;
+    };
+};
+
+export type PostApiProjectsByProjectIdInvitesResponse = PostApiProjectsByProjectIdInvitesResponses[keyof PostApiProjectsByProjectIdInvitesResponses];
+
+export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeData = {
+    body?: never;
+    path: {
+        projectId: string;
+        inviteId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/invites/{inviteId}/revoke';
+};
+
+export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeError = PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors[keyof PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors];
+
+export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        email: string | unknown;
+        role: 'admin' | 'contributor' | 'reviewer';
+        restriction: 'specific_email' | 'any_authenticated_user';
+        permissions: Array<string>;
+        invitedByUserId: string;
+        status: 'pending' | 'accepted' | 'revoked' | 'expired';
+        expiresAt: string;
+        acceptedAt: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeResponse = PostApiProjectsByProjectIdInvitesByInviteIdRevokeResponses[keyof PostApiProjectsByProjectIdInvitesByInviteIdRevokeResponses];
+
+export type PostApiProjectInvitesByTokenAcceptData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/api/project-invites/{token}/accept';
+};
+
+export type PostApiProjectInvitesByTokenAcceptErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 410
+     */
+    410: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectInvitesByTokenAcceptError = PostApiProjectInvitesByTokenAcceptErrors[keyof PostApiProjectInvitesByTokenAcceptErrors];
+
+export type PostApiProjectInvitesByTokenAcceptResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        email: string | unknown;
+        role: 'admin' | 'contributor' | 'reviewer';
+        restriction: 'specific_email' | 'any_authenticated_user';
+        permissions: Array<string>;
+        invitedByUserId: string;
+        status: 'pending' | 'accepted' | 'revoked' | 'expired';
+        expiresAt: string;
+        acceptedAt: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiProjectInvitesByTokenAcceptResponse = PostApiProjectInvitesByTokenAcceptResponses[keyof PostApiProjectInvitesByTokenAcceptResponses];
