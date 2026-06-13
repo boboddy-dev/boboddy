@@ -159,7 +159,6 @@ async function launchRuntimeEnvironment(
     localRuntimeSessionId: UuidV7;
     workerContext: Awaited<ReturnType<typeof fetchWorkerContext>>;
     requestedByUserId: UuidV7;
-    resolvedPromptText: string;
   },
 ) {
   return await deps.runtimeEnvironmentOrchestrator.launch({
@@ -172,7 +171,15 @@ async function launchRuntimeEnvironment(
     ),
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
-    agentPromptText: input.resolvedPromptText,
+    // The step prompt is delivered solely as the user message via promptAsync
+    // below. We deliberately do NOT also set it as the build agent's system
+    // prompt: doing so duplicated the entire prompt in every request (system +
+    // user). On the OpenAI ChatGPT/OAuth path (store:false + encrypted
+    // reasoning), that whole payload is re-uploaded on every turn and retry,
+    // which inflates requests enough to trip mid-stream `server_error`s that
+    // never occur for the smaller, single-message prompts used directly on a
+    // workstation. Leaving this unset keeps opencode's default build agent
+    // system prompt, matching local usage.
     currentExecutionInfo: {
       stepExecutionId: input.workerContext.stepExecution.id,
       resultSchemaJson: input.workerContext.stepDefinition.resultSchemaJson,
@@ -252,7 +259,6 @@ export async function startProcessClaimedExecution(
       localRuntimeSessionId,
       workerContext,
       requestedByUserId: input.requestedByUserId,
-      resolvedPromptText,
     });
     cleanup = async () => {
       await environment.cleanup();
@@ -295,6 +301,21 @@ export async function startProcessClaimedExecution(
       "step-artifacts",
     );
     await mkdir(stepArtifactsDir, { recursive: true });
+
+    // Request-size diagnostic: the OpenAI ChatGPT/OAuth path is far more likely
+    // to fail mid-stream on large requests, and request size here is dominated
+    // by the user prompt plus every configured MCP server's tool schemas. Log a
+    // profile so oversized runs are identifiable from worker logs alone.
+    const stepMcpServerNames = Object.keys(
+      workerContext.stepDefinition.opencodeMcpJson ?? {},
+    );
+    logger.log("step", "Prepared step prompt request profile", {
+      stepExecutionId: input.claim.stepExecution.id,
+      localRuntimeSessionId,
+      userPromptChars: resolvedPromptText.length,
+      mcpServerCount: stepMcpServerNames.length,
+      mcpServerNames: stepMcpServerNames,
+    });
 
     logger.log("step", "Starting agent run", {
       stepExecutionId: input.claim.stepExecution.id,

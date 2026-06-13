@@ -120,4 +120,88 @@ describe("monitorStartedClaimedExecution", () => {
       expect(failStepExecution).toHaveBeenCalledTimes(1);
     },
   );
+
+  test.concurrent(
+    "logs a distinct diagnostic when the AI provider reports an error",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-monitor-provider-error-"),
+      );
+      const startedExecution = createStartedExecution(workspacePath);
+      const tracker = createTracker();
+      const log = vi.fn();
+      const input: ProcessProjectWorkInput = {
+        projectId: startedExecution.projectId,
+        batchSize: 1,
+        concurrency: 1,
+        pollIntervalMs: 0,
+        leaseDurationSeconds: 30,
+        workerId: "worker-1",
+        preserveRuntimeOnComplete: true,
+        once: true,
+      };
+      let statusCall = 0;
+      const deps: ProcessProjectWorkDeps = {
+        workerClient: {
+          userId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe004"),
+          claimStepExecutions: vi.fn(),
+          heartbeatStepExecution: vi.fn(),
+          failStepExecution: vi.fn(() => Promise.resolve(undefined)),
+          completeStepExecution: vi.fn(),
+          getStepExecution: vi.fn(() =>
+            Promise.resolve({ status: "running" as const }),
+          ),
+          getStepExecutionWorkerContext: vi.fn(),
+        },
+        createRunTracker: vi.fn(),
+        runtimeEnvironmentOrchestrator: {
+          launch: vi.fn(),
+        },
+        agentRunner: {
+          promptAsync: vi.fn(),
+          getSessionStatus: vi.fn(() => {
+            statusCall += 1;
+            // First poll: provider is retrying after a server error. Later
+            // polls: session stopped, driving the run to its terminal failure.
+            return statusCall === 1
+              ? Promise.resolve({
+                  running: true,
+                  providerError: {
+                    attempt: 7,
+                    message:
+                      "An error occurred while processing your request. Please include the request ID req-123.",
+                  },
+                })
+              : Promise.resolve({ running: false });
+          }),
+          sendRetryPrompt: vi.fn(() => Promise.resolve(undefined)),
+        },
+        artifactStore: {
+          saveArtifact: vi.fn(),
+        },
+        sleep: vi.fn(() => Promise.resolve(undefined)),
+        logger: {
+          log,
+          error: vi.fn(),
+        },
+      };
+
+      await expect(
+        monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
+          stop: vi.fn(() => Promise.resolve()),
+        }),
+      ).rejects.toThrow(
+        /without findings submission via boboddy-submit-step-findings/,
+      );
+
+      expect(log).toHaveBeenCalledWith(
+        "worker",
+        "AI provider error while running step",
+        expect.objectContaining({
+          attempt: 7,
+          providerMessage: expect.stringContaining("request ID req-123"),
+        }),
+      );
+    },
+  );
 });
