@@ -1,6 +1,9 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
+
+const require = createRequire(import.meta.url);
 
 interface BuildTarget {
   readonly bunTarget: string;
@@ -95,6 +98,54 @@ async function main(): Promise<void> {
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
+
+  // Copy the @devcontainers/cli bundle and its companion assets into dist/.
+  //
+  // The bundle resolves sibling assets (notably scripts/updateUID.Dockerfile,
+  // which it uses on Linux when remapping the container user's UID/GID) via:
+  //
+  //   extensionPath = join(__dirname, "..", "..")
+  //
+  // where __dirname is the directory containing the bundle. In the upstream
+  // package the bundle lives at <root>/dist/spec-node/devContainersSpecCLI.js,
+  // so extensionPath resolves to <root>/ and the Dockerfile is found at
+  // <root>/scripts/updateUID.Dockerfile.
+  //
+  // To keep every generated asset self-contained under our own dist/ (rather
+  // than leaking a scripts/ dir into the package root / apps/cli/scripts), we
+  // nest the bundle one level deeper so extensionPath stays inside dist/:
+  //
+  //   dist/devcontainer/dist/spec-node/devcontainers-cli.js  ← bundle
+  //       __dirname        = dist/devcontainer/dist/spec-node/
+  //       extensionPath    = dist/devcontainer/        (join(__dirname,"..",".."))
+  //   dist/devcontainer/scripts/updateUID.Dockerfile         ← resolved asset
+  //
+  // BOBODDY_DEVCONTAINER_SCRIPT (set by publish.ts and the dev shim) points at
+  // the nested dist/devcontainer/dist/spec-node/devcontainers-cli.js path.
+  const devcontainerSrc = require.resolve(
+    "@devcontainers/cli/dist/spec-node/devContainersSpecCLI.js",
+  );
+  const devcontainerDest = resolve(
+    distDirectory,
+    "devcontainer",
+    "dist",
+    "spec-node",
+    "devcontainers-cli.js",
+  );
+  await mkdir(dirname(devcontainerDest), { recursive: true });
+  await copyFile(devcontainerSrc, devcontainerDest);
+
+  const updateUIDSrc = require.resolve(
+    "@devcontainers/cli/scripts/updateUID.Dockerfile",
+  );
+  const updateUIDDest = resolve(
+    distDirectory,
+    "devcontainer",
+    "scripts",
+    "updateUID.Dockerfile",
+  );
+  await mkdir(dirname(updateUIDDest), { recursive: true });
+  await copyFile(updateUIDSrc, updateUIDDest);
 
   for (const target of allTargets) {
     process.stdout.write(`Building ${target.outputName}...\n`);

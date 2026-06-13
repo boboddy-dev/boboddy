@@ -37,6 +37,11 @@ async function preparePublishPackage() {
     await cp(`./dist/${entry}`, `${publishDir}/dist/${entry}`, { recursive: true });
   }
 
+  // Note: dist/devcontainer/ (the @devcontainers/cli bundle and its
+  // scripts/updateUID.Dockerfile companion) is created by build.ts, so it is
+  // already included above via the readdir loop (which recurses with
+  // { recursive: true }). No separate copy needed.
+
   const wrapper = `#!/usr/bin/env node
 
 const { spawnSync } = require("node:child_process");
@@ -76,12 +81,20 @@ if (!existsSync(binaryPath)) {
   fail("Missing compiled binary: " + binaryPath);
 }
 
-const extraEnv = {};
+const extraEnv = {
+  // Pass the devcontainer CLI bundle path so the worker can invoke it using
+  // the compiled binary as the JS runtime (no separate node/bun required).
+  // The bundle is nested under dist/devcontainer/dist/spec-node/ so that the
+  // CLI's extensionPath (join(__dirname, "..", "..")) resolves to
+  // dist/devcontainer/, where build.ts also places scripts/updateUID.Dockerfile
+  // (used on Linux when remapping the container user's UID/GID).
+  BOBODDY_DEVCONTAINER_SCRIPT: resolve(distDirectory, "devcontainer", "dist", "spec-node", "devcontainers-cli.js"),
+};
 if (devSdkArtifactPath) extraEnv.BOBODDY_SDK_ARTIFACT_PATH = devSdkArtifactPath;
 
 const result = spawnSync(binaryPath, process.argv.slice(2), {
   stdio: "inherit",
-  env: Object.keys(extraEnv).length > 0 ? { ...process.env, ...extraEnv } : process.env,
+  env: { ...process.env, ...extraEnv },
 });
 
 if (result.error instanceof Error) {

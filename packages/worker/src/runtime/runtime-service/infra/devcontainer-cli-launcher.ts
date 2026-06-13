@@ -1,8 +1,6 @@
 import { execFile } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { access } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { ConfigurationError } from "../../../lib/errors";
 import type {
@@ -13,71 +11,59 @@ import type {
 } from "../application/devcontainer-launcher";
 
 const execFileAsync = promisify(execFile);
-const require = createRequire(import.meta.url);
 const DEVCONTAINER_CONFIG_CANDIDATES = [
   ".devcontainer/devcontainer.json",
   "devcontainer.json",
 ] as const;
 
-let cachedDevcontainerCliScriptPath: string | null = null;
-
-export function resolveDevcontainerCliPackageJsonPath(
-  basePaths: readonly string[] = [
-    path.join(path.resolve(path.dirname(process.execPath), ".."), "package.json"),
-    path.join(
-      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.."),
-      "package.json",
-    ),
-  ],
-): string {
-  const attemptedBasePaths = new Set<string>();
-
-  for (const basePath of basePaths) {
-    attemptedBasePaths.add(basePath);
-
-    try {
-      return createRequire(basePath).resolve("@devcontainers/cli/package.json");
-    } catch {
-      // Try the next candidate.
-    }
+/**
+ * Returns the path to the devcontainer CLI bundle script set by the shim via
+ * BOBODDY_DEVCONTAINER_SCRIPT. The shim always sets this to
+ * dist/devcontainer/dist/spec-node/devcontainers-cli.js, which build.ts copies
+ * from @devcontainers/cli for every build (local and CI alike), so it is always
+ * present. The bundle is nested at that depth so that its __dirname-based
+ * extensionPath computation (join(__dirname, "..", "..")) resolves to
+ * dist/devcontainer/, where build.ts also places scripts/updateUID.Dockerfile
+ * (used on Linux when remapping the container user's UID/GID).
+ */
+export function resolveDevcontainerCliScriptPath(): string {
+  const scriptPath = process.env["BOBODDY_DEVCONTAINER_SCRIPT"];
+  if (scriptPath) {
+    return scriptPath;
   }
 
-  try {
-    return require.resolve("@devcontainers/cli/package.json");
-  } catch {
-    throw new ConfigurationError(
-      "Could not resolve @devcontainers/cli from the installed CLI package. Tried:\n" +
-        [...attemptedBasePaths].map((basePath) => `  - ${basePath}`).join("\n"),
-      "DEVCONTAINER_CLI_NOT_FOUND",
-    );
-  }
+  throw new ConfigurationError(
+    "BOBODDY_DEVCONTAINER_SCRIPT is not set. This is normally injected by the " +
+      "CLI shim (bin/boboddy). If running the worker directly, set this env var " +
+      "to the path of dist/devcontainer/dist/spec-node/devcontainers-cli.js.",
+    "DEVCONTAINER_CLI_NOT_FOUND",
+  );
 }
 
-async function resolveDevcontainerCliScriptPath(): Promise<string> {
-  if (cachedDevcontainerCliScriptPath) {
-    return cachedDevcontainerCliScriptPath;
-  }
+export function buildDevcontainerCliCommand(
+  cliScriptPath: string,
+  args: readonly string[],
+): readonly [string, ...string[]] {
+  // Use the current executable (the compiled Bun binary) as the JS runtime.
+  // BUN_BE_BUN=1 (set in runDevcontainerCli) instructs the compiled binary to
+  // act as the Bun CLI and execute the script rather than its own entrypoint.
+  // This means users do not need a separate Node.js or Bun installation.
+  return [process.execPath, cliScriptPath, ...args];
+}
 
-  const packageJsonPath = resolveDevcontainerCliPackageJsonPath();
-  const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as {
-    bin?: string | Record<string, string>;
-  };
-  const packageDir = path.dirname(packageJsonPath);
-  const binField = packageJson.bin;
-  const binPath =
-    typeof binField === "string"
-      ? binField
-      : (binField?.["devcontainer"] ?? binField?.["@devcontainers/cli"]);
+async function runDevcontainerCli(args: string[]): Promise<string> {
+  const cliScriptPath = resolveDevcontainerCliScriptPath();
+  const [command, ...commandArgs] = buildDevcontainerCliCommand(
+    cliScriptPath,
+    args,
+  );
+  // BUN_BE_BUN=1 instructs the compiled Bun binary to act as the Bun CLI and
+  // execute the script passed as argv[1] rather than its own bundled entrypoint.
+  const { stdout, stderr } = await execFileAsync(command, commandArgs, {
+    env: { ...process.env, BUN_BE_BUN: "1" },
+  });
 
-  if (!binPath) {
-    throw new ConfigurationError(
-      "Could not resolve the devcontainer CLI binary",
-      "DEVCONTAINER_CLI_NOT_FOUND",
-    );
-  }
-
-  cachedDevcontainerCliScriptPath = path.join(packageDir, binPath);
-  return cachedDevcontainerCliScriptPath;
+  return [stdout, stderr].filter(Boolean).join("\n");
 }
 
 function extractContainerId(output: string): string | null {
@@ -87,24 +73,6 @@ function extractContainerId(output: string): string | null {
   }
 
   return null;
-}
-
-export function buildDevcontainerCliCommand(
-  cliScriptPath: string,
-  args: readonly string[],
-): readonly [string, ...string[]] {
-  return ["node", cliScriptPath, ...args];
-}
-
-async function runDevcontainerCli(args: string[]): Promise<string> {
-  const cliScriptPath = await resolveDevcontainerCliScriptPath();
-  const [command, ...commandArgs] = buildDevcontainerCliCommand(
-    cliScriptPath,
-    args,
-  );
-  const { stdout, stderr } = await execFileAsync(command, commandArgs);
-
-  return [stdout, stderr].filter(Boolean).join("\n");
 }
 
 export class DevcontainerCliLauncher implements DevcontainerLauncher {
