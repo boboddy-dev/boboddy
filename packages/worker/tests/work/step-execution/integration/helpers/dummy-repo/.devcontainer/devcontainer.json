@@ -1,0 +1,5 @@
+{
+  "name": "boboddy-integration-dummy",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "overrideCommand": true
+}
