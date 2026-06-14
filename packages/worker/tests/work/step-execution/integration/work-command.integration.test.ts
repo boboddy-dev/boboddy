@@ -24,6 +24,15 @@
  *
  * Run with:
  *   BOBODDY_INTEGRATION=true bun test tests/work/step-execution/integration
+ *
+ * Env flags:
+ *   BOBODDY_INTEGRATION=true            enable this suite (otherwise skipped)
+ *   BOBODDY_INTEGRATION_VERBOSE=true    print worker logs during the run
+ *   BOBODDY_INTEGRATION_KEEP_CONTAINERS=true
+ *       leave the spun-up devcontainer + AI container (and their network and
+ *       workspace) running after the test instead of tearing them down, so you
+ *       can inspect them with `docker ps` / `docker logs`. Remove them later:
+ *         docker rm -f $(docker ps -aq --filter label=boboddy.runtime-role)
  */
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -38,6 +47,12 @@ import { buildSingleStepScenario } from "./helpers/scenario";
 import type { ContainerRegistry } from "./helpers/containers/container-registry";
 
 const integrationEnabled = process.env["BOBODDY_INTEGRATION"] === "true";
+// When set, the spun-up containers (and their network/workspace) are preserved
+// after the run for manual inspection: the orchestrator skips post-completion
+// cleanup (preserveRuntimeOnComplete) and the test skips ContainerRegistry
+// teardown. With the Ryuk reaper disabled by default, nothing reaps them.
+const keepContainers =
+  process.env["BOBODDY_INTEGRATION_KEEP_CONTAINERS"] === "true";
 const TEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 function resolveFakeAiHost(): string {
@@ -49,10 +64,10 @@ function resolveFakeAiHost(): string {
 }
 
 async function seedOpencodeConfig(
-  homeDir: string,
+  configHomeDir: string,
   fakeAiPort: number,
 ): Promise<void> {
-  const configDir = path.join(homeDir, ".config", "opencode");
+  const configDir = path.join(configHomeDir, ".config", "opencode");
   await mkdir(configDir, { recursive: true });
   const config = {
     model: "anthropic/claude-3-5-haiku-latest",
@@ -96,6 +111,22 @@ describe.skipIf(!integrationEnabled)("work command (integration)", () => {
   });
 
   afterEach(async () => {
+    if (keepContainers) {
+      // Intentionally leave the spun-up containers, network, and workspace in
+      // place for inspection. List them with:
+      //   docker ps --filter label=boboddy.runtime-role
+      // and remove them when done with:
+      //   docker rm -f $(docker ps -aq --filter label=boboddy.runtime-role)
+      containerRegistry = undefined;
+      await fakeAi.stop().catch(() => undefined);
+      if (originalHome === undefined) {
+        delete process.env["HOME"];
+      } else {
+        process.env["HOME"] = originalHome;
+      }
+      return;
+    }
+
     await containerRegistry?.stopAll();
     containerRegistry = undefined;
     await fakeAi.stop().catch(() => undefined);
@@ -146,6 +177,9 @@ describe.skipIf(!integrationEnabled)("work command (integration)", () => {
           pollIntervalMs: 5_000,
           leaseDurationSeconds: 60,
           once: true,
+          // When keeping containers, skip the orchestrator's post-completion
+          // cleanup so the devcontainer + AI container survive the run.
+          preserveRuntimeOnComplete: keepContainers,
         },
         built.deps,
       );

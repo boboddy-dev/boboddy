@@ -26,7 +26,11 @@ export type IntegrationDeps = {
  *
  *   - workerClient: injected fake (no platform server required)
  *   - gitCloneService: fake (materializes a dummy repo, no network)
- *   - devcontainer + AI container launchers: testcontainers-backed (auto-reaped)
+ *   - devcontainer + AI container launchers: testcontainers-backed. They
+ *     produce real Docker containers tracked in the ContainerRegistry for
+ *     teardown. To make containers persist after a run, the test skips
+ *     registry teardown and sets preserveRuntimeOnComplete (see the
+ *     BOBODDY_INTEGRATION_KEEP_CONTAINERS flag).
  *   - everything else (run tracker, agent runner, network manager, port
  *     forward, mcp host, runtime command/service runners, time, sleep,
  *     logger): the real production implementations.
