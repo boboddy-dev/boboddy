@@ -9,6 +9,8 @@ import type {
   GitCloneService,
 } from "../../../../../src/runtime/runtime-service/application/git-clone-service";
 
+export type { CloneRepositoryInput, CloneRepositoryResult };
+
 const execFileAsync = promisify(execFile);
 
 const DUMMY_REPO_DIR = path.join(

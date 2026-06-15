@@ -5,6 +5,7 @@ import { parseUuidV7 } from "../../../common/contracts/uuid-v7";
 import type { RuntimeCommandRunner } from "../../../runtime/runtime-service/application/runtime-command-runner";
 import { systemTimeProvider } from "../../../lib/time-provider";
 import type { TimeProvider } from "../../../lib/time-provider";
+import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
 import { LocalArtifactStore } from "../../../artifacts/artifact-store/infra/local-artifact-store";
 import { LocalRuntimeCommandRunner } from "../../../runtime/runtime-service/infra/local-runtime-command-runner";
 import { LocalDevcontainerPortForwardManager } from "../../../runtime/runtime-service/infra/local-devcontainer-port-forward-manager";
@@ -56,6 +57,8 @@ export type ProcessProjectWorkDeps = {
   createRunTracker(): StepExecutionRunTracker;
   runtimeEnvironmentOrchestrator: StepExecutionRuntimeEnvironmentOrchestrator;
   agentRunner: StepExecutionAgentRunner;
+  /** Override the artifact store (defaults to LocalArtifactStore under ~/.boboddy/artifacts). */
+  artifactStore?: ArtifactStore | undefined;
   runtimeCommandRunner: RuntimeCommandRunner;
   runtimeServiceRunner: RuntimeServiceRunner;
   timeProvider: TimeProvider;
@@ -165,9 +168,9 @@ export async function runProjectWork(
   const batchSize = parsePositiveInt(options.batchSize, concurrency);
   const workerId = resolveWorkerId(projectId, options.workerId);
 
-  const artifactStore = new LocalArtifactStore(
-    path.join(os.homedir(), ".boboddy", "artifacts"),
-  );
+  const artifactStore =
+    resolvedDeps.artifactStore ??
+    new LocalArtifactStore(path.join(os.homedir(), ".boboddy", "artifacts"));
 
   return await processProjectWorkInCore(
     {

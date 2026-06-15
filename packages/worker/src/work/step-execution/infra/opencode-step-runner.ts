@@ -18,11 +18,49 @@ export type OpencodeStepRunner = StepExecutionAgentRunner;
 
 const DEFAULT_DIRECTORY = "/workspace";
 
+/** Max attempts for the initial session.create call (1 original + retries). */
+const SESSION_CREATE_MAX_ATTEMPTS = 5;
+/** Base back-off delay in ms; doubles on each retry (100, 200, 400, 800 …). */
+const SESSION_CREATE_BACKOFF_BASE_MS = 100;
+
 function createClient(aiBaseUrl: string) {
   return createOpencodeClient({
     baseUrl: aiBaseUrl,
     directory: DEFAULT_DIRECTORY,
   });
+}
+
+/**
+ * The OpenCode server logs "opencode server listening on" when it binds the
+ * port, but on slow runners (e.g. CI Linux) the HTTP stack may not be ready
+ * to handle the very first request before that log line appears. Retry the
+ * initial session.create call a handful of times with exponential back-off to
+ * absorb that small window.
+ */
+async function createSessionWithRetry(
+  client: ReturnType<typeof createClient>,
+  title: string,
+): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= SESSION_CREATE_MAX_ATTEMPTS; attempt++) {
+    try {
+      const sessionResponse = await client.session.create({
+        body: { title },
+      });
+      const sessionId = sessionResponse.data?.id;
+      if (!sessionId) {
+        throw new Error("OpenCode did not return a session id");
+      }
+      return sessionId;
+    } catch (error) {
+      lastError = error;
+      if (attempt < SESSION_CREATE_MAX_ATTEMPTS) {
+        const delayMs = SESSION_CREATE_BACKOFF_BASE_MS * Math.pow(2, attempt - 1);
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
 }
 
 function isRunningSessionStatus(sessionStatus: SessionStatus | undefined): boolean {
@@ -71,16 +109,7 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
       sessionTitle: input.sessionTitle,
     });
     const client = createClient(input.aiBaseUrl);
-    const sessionResponse = await client.session.create({
-      body: {
-        title: input.sessionTitle,
-      },
-    });
-    const sessionId = sessionResponse.data?.id;
-
-    if (!sessionId) {
-      throw new Error("OpenCode did not return a session id");
-    }
+    const sessionId = await createSessionWithRetry(client, input.sessionTitle);
 
     logWork("opencode", "Created OpenCode session", {
       sessionId,
