@@ -24,6 +24,14 @@ const execFileAsync = promisify(execFile);
 const AI_CONTAINER_PORT = 4096;
 const AI_READY_LOG = "opencode server listening on";
 const AI_STARTUP_TIMEOUT_MS = 120_000;
+// The opencode server logs AI_READY_LOG when it binds the port, but on slower
+// runners (notably Linux CI) the HTTP stack is not necessarily ready to serve
+// the first request by the time that line is emitted. The production launcher
+// (DockerAiContainerLauncher) gates readiness on an actual HTTP health probe
+// against this path; mirror that here so session.create does not race an
+// unready server and fail (which previously surfaced as processedCount 0 in
+// CI). The health endpoint returns 200 once opencode can serve requests.
+const AI_HEALTH_PATH = "/global/health";
 
 type BindMount = { source: string; target: string; mode: "rw" | "ro" };
 
@@ -97,9 +105,20 @@ export class TestcontainersAiContainerLauncher implements AiContainerLauncher {
     const container = new GenericContainer(image)
       .withExposedPorts(AI_CONTAINER_PORT)
       .withStartupTimeout(AI_STARTUP_TIMEOUT_MS)
-      // The opencode server logs this once ready. We wait on the log instead
-      // of the port because startup takes longer than the port-wait timeout.
-      .withWaitStrategy(Wait.forLogMessage(AI_READY_LOG))
+      // Wait for both signals before considering the container ready:
+      //   1. the "listening" log line opencode emits when it binds the port, and
+      //   2. a successful HTTP health probe against the mapped port, so we know
+      //      the server is actually serving requests (not just bound).
+      // Waiting on the log alone leaves a window where session.create can hit an
+      // unready HTTP stack and fail its retry budget — the cause of the CI-only
+      // processedCount 0 failures. The HTTP probe closes that window and matches
+      // the production launcher's health gate.
+      .withWaitStrategy(
+        Wait.forAll([
+          Wait.forLogMessage(AI_READY_LOG),
+          Wait.forHttp(AI_HEALTH_PATH, AI_CONTAINER_PORT).forStatusCode(200),
+        ]).withStartupTimeout(AI_STARTUP_TIMEOUT_MS),
+      )
       .withLabels({
         "boboddy.runtime-role": "ai",
         "boboddy.ai-project-runtime-session-id": input.sessionId,

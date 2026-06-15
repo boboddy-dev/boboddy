@@ -23,6 +23,26 @@ import { ContainerRegistry } from "./containers/container-registry";
 import { TestcontainersAiContainerLauncher } from "./containers/testcontainers-ai-container-launcher";
 import { TestcontainersDevcontainerLauncher } from "./containers/testcontainers-devcontainer-launcher";
 
+/**
+ * Make an Error under `details.error` visible in pino output. Pino's default
+ * serializer only renders Error objects passed under the `err` key; an Error
+ * under any other key (here, `error`) serializes to `{}`, which is exactly what
+ * hid the real failure cause in CI. Replace it with a plain message string and
+ * also attach an `err` field so pino's std serializer captures the stack.
+ */
+function normalizeErrorDetails(
+  details?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!details || !("error" in details)) {
+    return details;
+  }
+  const { error, ...rest } = details;
+  if (error instanceof Error) {
+    return { ...rest, error: error.message, err: error };
+  }
+  return { ...rest, error: String(error) };
+}
+
 export type ArtifactSeed = {
   /** Relative path inside .boboddy/step-artifacts/ (e.g. "report.txt" or "logs/run.log"). */
   relativePath: string;
@@ -113,9 +133,14 @@ export function buildIntegrationDeps(input: {
    */
   artifactStore?: ArtifactStore | undefined;
 }): IntegrationDeps {
+  // Even when not running verbose, keep error-level logging on. The job and
+  // monitor failure paths log through this injected logger; silencing it
+  // entirely (the previous "silent" default) hid the real cause of failures in
+  // CI and left only an unexplained processedCount 0. "error" surfaces those
+  // failures without the noisy info-level run chatter.
   const logger = createLogger({
     name: "@boboddy/worker-integration",
-    level: input.verbose ? "debug" : "silent",
+    level: input.verbose ? "debug" : "error",
   });
 
   const containerRegistry = new ContainerRegistry();
@@ -166,7 +191,13 @@ export function buildIntegrationDeps(input: {
         logger.info({ ...details, workScope: scope }, message);
       },
       error: (scope, message, details) => {
-        logger.error({ ...details, workScope: scope }, message);
+        // The work code passes the underlying failure under `details.error`.
+        // Pino only special-cases the `err` key for Error serialization, so a
+        // raw Error under `error` renders as an empty object and hides the
+        // cause. Normalize it to a readable message/stack (and mirror to `err`)
+        // so CI logs actually show why a step failed.
+        const normalized = normalizeErrorDetails(details);
+        logger.error({ ...normalized, workScope: scope }, message);
       },
     },
   };
