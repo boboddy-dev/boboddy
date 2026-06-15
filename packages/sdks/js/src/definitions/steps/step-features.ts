@@ -45,13 +45,109 @@ export type FeatureResultExtensions<
 export type FeatureSignalKeys<TFeatures extends readonly AnyStepFeature[]> =
   NonNullable<TFeatures[number]["__signalKeys"]>;
 
-// ─── Built-in: feedbackRequests ───────────────────────────────────────────────
+// ─── Built-in: notifications (general user notification primitive) ─────────────
+
+export type NotificationKind =
+  | "feedback_request"
+  | "status_update"
+  | "blocked"
+  | "result_ready"
+  | "warning";
+
+export type NotificationPriority = "low" | "normal" | "high" | "urgent";
+
+export type NotificationChannel =
+  | "in_app"
+  | "jira_comment"
+  | "email"
+  | "slack";
 
 export type FeedbackRequestUrgency =
   | "blocking"
   | "clarification"
   | "assumption"
   | "informational";
+
+export type NotificationItem = {
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  priority: NotificationPriority;
+  suggestedChannels?: NotificationChannel[];
+  /**
+   * Kind-specific structured payload. For `feedback_request`:
+   * `{ category, urgency, suggestedKey? }`.
+   */
+  payload?: Record<string, unknown>;
+};
+
+const NOTIFICATION_SIGNAL_KEY = "$boboddy_notifications_v1" as const;
+const NOTIFICATION_RESULT_KEY = "$boboddy_notifications_v1" as const;
+
+const notificationItemSchema = z
+  .object({
+    kind: z
+      .enum([
+        "feedback_request",
+        "status_update",
+        "blocked",
+        "result_ready",
+        "warning",
+      ])
+      .describe("The kind of user notification."),
+    title: z.string().describe("Short, human-readable notification title."),
+    body: z.string().describe("The notification body / details."),
+    priority: z
+      .enum(["low", "normal", "high", "urgent"])
+      .describe("How important this notification is for the user."),
+    suggestedChannels: z
+      .array(z.enum(["in_app", "jira_comment", "email", "slack"]))
+      .optional()
+      .describe(
+        "Channels the agent thinks are worth using. The platform policy decides the final channels.",
+      ),
+    payload: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe(
+        'Kind-specific structured data. For "feedback_request": { category, urgency, suggestedKey? }.',
+      ),
+  })
+  .describe("A single user notification emitted by the agent.");
+
+type NotificationsFeature = StepFeature<
+  { [NOTIFICATION_RESULT_KEY]?: NotificationItem[] },
+  typeof NOTIFICATION_SIGNAL_KEY
+>;
+
+const notificationsFeature: NotificationsFeature = {
+  _resultExtension: z.object({
+    [NOTIFICATION_RESULT_KEY]: z.array(notificationItemSchema).optional(),
+  }),
+  _promptAddition: [
+    "## User Notifications",
+    "",
+    `If you need to communicate something to a human, populate the \`${NOTIFICATION_RESULT_KEY}\` array.`,
+    "Each item must include:",
+    "- **kind**: One of `feedback_request`, `status_update`, `blocked`, `result_ready`, `warning`.",
+    "- **title**: A short, human-readable title.",
+    "- **body**: The details of the notification.",
+    "- **priority**: One of `low`, `normal`, `high`, `urgent`.",
+    "- **suggestedChannels** *(optional)*: Channels you think are worth using (e.g. `[\"in_app\", \"jira_comment\"]`).",
+    "  You only *suggest* channels — the platform policy decides the final delivery channels.",
+    '- **payload** *(optional)*: Kind-specific data. For `feedback_request`, include `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational", "suggestedKey"?: string }`.',
+  ].join("\n"),
+  _signals: [
+    {
+      key: NOTIFICATION_SIGNAL_KEY,
+      sourcePath: NOTIFICATION_RESULT_KEY,
+      type: "array",
+      required: false,
+    },
+  ],
+};
+
+// ─── Built-in: feedbackRequests (convenience wrapper over notifications) ───────
 
 export type FeedbackRequestItem = {
   question: string;
@@ -60,92 +156,36 @@ export type FeedbackRequestItem = {
   suggestedKey?: string;
 };
 
-const FEEDBACK_REQUEST_SIGNAL_KEY = "$boboddy_feedback_request_v1" as const;
-const FEEDBACK_REQUEST_RESULT_KEY = "$boboddy_feedbackRequests_v1" as const;
-
-const feedbackRequestItemSchema = z
-  .object({
-    question: z
-      .string()
-      .describe("The specific question to pose to a human reviewer."),
-    category: z
-      .string()
-      .describe(
-        'A grouping label for the feedback (e.g. "accuracy", "completeness").',
-      ),
-    urgency: z
-      .enum(["blocking", "clarification", "assumption", "informational"])
-      .describe(
-        [
-          "How urgently a human response is needed:",
-          '- "blocking": cannot proceed at all without an answer.',
-          '- "clarification": genuinely ambiguous — unsure how to interpret, but not fully blocked.',
-          '- "assumption": proceeded with a guess; please verify the assumption.',
-          '- "informational": FYI only — agent proceeded fine and no reply is required.',
-        ].join("\n"),
-      ),
-    suggestedKey: z
-      .string()
-      .optional()
-      .describe("An optional suggested answer key for reference."),
-  })
-  .describe("A single feedback request item for human review.");
-
-type FeedbackRequestsFeature = StepFeature<
-  { [FEEDBACK_REQUEST_RESULT_KEY]?: FeedbackRequestItem[] },
-  typeof FEEDBACK_REQUEST_SIGNAL_KEY
->;
-
-const feedbackRequestsFeature: FeedbackRequestsFeature = {
-  _resultExtension: z.object({
-    [FEEDBACK_REQUEST_RESULT_KEY]: z
-      .array(feedbackRequestItemSchema)
-      .optional(),
-  }),
-  _promptAddition: [
-    "## Feedback Requests",
-    "",
-    `If you encounter anything that warrants human review, populate the \`${FEEDBACK_REQUEST_RESULT_KEY}\` array.`,
-    "Each item must include:",
-    "- **question**: The specific question to pose to a human reviewer.",
-    '- **category**: A grouping label for the feedback (e.g. `"accuracy"`, `"completeness"`).',
-    "- **urgency**: How urgently a human response is needed. Must be one of:",
-    '  - `"blocking"`: Cannot proceed at all without an answer.',
-    '  - `"clarification"`: Genuinely ambiguous — unsure how to interpret, but not fully blocked.',
-    '  - `"assumption"`: Proceeded with a guess; please verify the assumption.',
-    '  - `"informational"`: FYI only — agent proceeded fine and no reply is required.',
-    "- **suggestedKey** *(optional)*: A suggested answer key for reference.",
-  ].join("\n"),
-  _signals: [
-    {
-      key: FEEDBACK_REQUEST_SIGNAL_KEY,
-      sourcePath: FEEDBACK_REQUEST_RESULT_KEY,
-      type: "array",
-      required: false,
-    },
-  ],
-};
-
 // ─── Features namespace ───────────────────────────────────────────────────────
 
 export const Features = {
-  feedbackRequests: Object.assign(
-    (): FeedbackRequestsFeature => feedbackRequestsFeature,
+  notifications: Object.assign(
+    (): NotificationsFeature => notificationsFeature,
     {
       signal: {
-        key: FEEDBACK_REQUEST_SIGNAL_KEY,
+        key: NOTIFICATION_SIGNAL_KEY,
         find(
           signals: Array<{ key: string; valueJson: unknown }>,
-        ): FeedbackRequestItem[] | undefined {
-          const match = signals.find(
-            (s) => s.key === FEEDBACK_REQUEST_SIGNAL_KEY,
-          );
+        ): NotificationItem[] | undefined {
+          const match = signals.find((s) => s.key === NOTIFICATION_SIGNAL_KEY);
           if (!match) return undefined;
           const parsed = z
-            .array(feedbackRequestItemSchema)
+            .array(notificationItemSchema)
             .safeParse(match.valueJson);
           return parsed.success ? parsed.data : undefined;
         },
+      },
+    },
+  ),
+  /**
+   * Convenience wrapper that emits `feedback_request` notifications.
+   * Backed by the same `$boboddy_notifications_v1` signal.
+   */
+  feedbackRequests: Object.assign(
+    (): NotificationsFeature => notificationsFeature,
+    {
+      signal: {
+        key: NOTIFICATION_SIGNAL_KEY,
       },
     },
   ),
