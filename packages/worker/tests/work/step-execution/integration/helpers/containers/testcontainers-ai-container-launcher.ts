@@ -139,7 +139,16 @@ export class TestcontainersAiContainerLauncher implements AiContainerLauncher {
     this.registry.register(started);
 
     const hostPort = started.getMappedPort(AI_CONTAINER_PORT);
-    const baseUrl = `http://127.0.0.1:${String(hostPort)}`;
+    // Do NOT hardcode 127.0.0.1. testcontainers publishes the mapped port and
+    // resolves the reachable host address itself (getHost()): on a plain Linux
+    // CI runner this is "localhost", but when the job runs inside a container
+    // (e.g. GitHub Actions with /.dockerenv present) testcontainers resolves the
+    // Docker bridge gateway IP instead — and 127.0.0.1 is then NOT reachable,
+    // producing the ConnectionRefused on http://127.0.0.1:<port>/session seen in
+    // CI. Using getHost() connects to the same address testcontainers verified
+    // with its HTTP health probe.
+    const host = started.getHost();
+    const baseUrl = `http://${host}:${String(hostPort)}`;
 
     return {
       containerId: started.getId(),
