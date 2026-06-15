@@ -34,6 +34,14 @@ function resolveSdkDependency(sdkVersion: string): string {
     return `file:${artifactPath}`;
   }
 
+  // Prerelease versions (e.g. canary) must be pinned exactly: npm's `^`
+  // operator matches any prerelease sharing the same major.minor.patch tuple,
+  // which can resolve to a different prerelease than the one shipped with this
+  // CLI version and cause runtime mismatches (e.g. missing Features.notifications).
+  if (sdkVersion.includes("canary")) {
+    return sdkVersion;
+  }
+
   return `^${sdkVersion}`;
 }
 
@@ -217,7 +225,9 @@ ${stepChain}
 `;
 }
 
-function buildDefaultPipelineAssignmentFile(examplePipelineKey: string): string {
+function buildDefaultPipelineAssignmentFile(
+  examplePipelineKey: string,
+): string {
   const varName = kebabToCamel(examplePipelineKey);
   return `import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";
 import ${varName} from "./${examplePipelineKey}";
