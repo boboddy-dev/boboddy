@@ -1,9 +1,13 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test, vi } from "bun:test";
 import { STEP_EXECUTION_AGENT } from "@boboddy/opencode-plugin";
 import { parseUuidV7 } from "../../../../src/common/contracts/uuid-v7";
+import {
+  buildFindingsSubmissionPath,
+  writeCurrentExecutionInfoFile,
+} from "../../../../src/work/step-execution/application/process-project-work-findings";
 import { monitorStartedClaimedExecution } from "../../../../src/work/step-execution/application/process-project-work-monitor";
 import type {
   ProcessProjectWorkDeps,
@@ -66,6 +70,7 @@ describe("monitorStartedClaimedExecution", () => {
         preserveRuntimeOnComplete: true,
         once: true,
       };
+      let statusCall = 0;
       const deps: ProcessProjectWorkDeps = {
         workerClient: {
           userId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe004"),
@@ -84,7 +89,14 @@ describe("monitorStartedClaimedExecution", () => {
         },
         agentRunner: {
           promptAsync: vi.fn(),
-          getSessionStatus: vi.fn(() => Promise.resolve({ running: false })),
+          // Poll 1: session has actually started (busy). Later polls: stopped
+          // without findings, driving the retry-then-fail flow.
+          getSessionStatus: vi.fn(() => {
+            statusCall += 1;
+            return statusCall === 1
+              ? Promise.resolve({ running: true })
+              : Promise.resolve({ running: false });
+          }),
           sendRetryPrompt,
         },
         artifactStore: {
@@ -202,6 +214,226 @@ describe("monitorStartedClaimedExecution", () => {
           providerMessage: expect.stringContaining("request ID req-123"),
         }),
       );
+    },
+  );
+
+  test.concurrent(
+    "collects step artifacts written after a transient stop, once findings are submitted",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-monitor-artifacts-"),
+      );
+      const startedExecution = createStartedExecution(workspacePath);
+      const tracker = createTracker();
+
+      await writeCurrentExecutionInfoFile(workspacePath, {
+        stepExecutionId: startedExecution.stepExecutionId,
+        resultSchemaJson: {
+          type: "object",
+          required: ["summary"],
+          additionalProperties: false,
+          properties: {
+            summary: { type: "string" },
+          },
+        },
+      });
+
+      const stepArtifactsDir = path.join(
+        workspacePath,
+        ".boboddy",
+        "step-artifacts",
+      );
+
+      const saveArtifact = vi.fn(() =>
+        Promise.resolve({ storeRef: "store-ref", sizeBytes: 1 }),
+      );
+
+      const input: ProcessProjectWorkInput = {
+        projectId: startedExecution.projectId,
+        batchSize: 1,
+        concurrency: 1,
+        pollIntervalMs: 0,
+        leaseDurationSeconds: 30,
+        workerId: "worker-1",
+        preserveRuntimeOnComplete: true,
+        once: true,
+      };
+
+      let statusCall = 0;
+      const deps: ProcessProjectWorkDeps = {
+        workerClient: {
+          userId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe004"),
+          claimStepExecutions: vi.fn(),
+          heartbeatStepExecution: vi.fn(),
+          failStepExecution: vi.fn(() => Promise.resolve(undefined)),
+          completeStepExecution: vi.fn(() => Promise.resolve(undefined)),
+          getStepExecution: vi.fn(() =>
+            Promise.resolve({ status: "succeeded" as const }),
+          ),
+          getStepExecutionWorkerContext: vi.fn(),
+        },
+        createRunTracker: vi.fn(),
+        runtimeEnvironmentOrchestrator: {
+          launch: vi.fn(),
+        },
+        agentRunner: {
+          promptAsync: vi.fn(),
+          getSessionStatus: vi.fn(async () => {
+            statusCall += 1;
+            // Poll 1: the session has actually started (busy). Poll 2: it
+            // briefly reports stopped before it has written any artifacts
+            // (mirrors the worker's "wait one poll for late writes" behavior).
+            // Poll 3: the agent has finished, writing its artifacts and findings
+            // just before stopping.
+            if (statusCall === 1) {
+              return { running: true };
+            }
+            if (statusCall === 2) {
+              return { running: false };
+            }
+            await mkdir(stepArtifactsDir, { recursive: true });
+            await writeFile(
+              path.join(stepArtifactsDir, "trace.zip"),
+              "trace-bytes",
+              "utf8",
+            );
+            await writeFile(
+              buildFindingsSubmissionPath(workspacePath),
+              `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
+              "utf8",
+            );
+            return { running: false };
+          }),
+          sendRetryPrompt: vi.fn(() => Promise.resolve(undefined)),
+        },
+        artifactStore: {
+          saveArtifact,
+        },
+        sleep: vi.fn(() => Promise.resolve(undefined)),
+        logger: {
+          log: vi.fn(),
+          error: vi.fn(),
+        },
+      };
+
+      await monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
+        stop: vi.fn(() => Promise.resolve()),
+      });
+
+      expect(saveArtifact).toHaveBeenCalledTimes(1);
+      expect(saveArtifact).toHaveBeenCalledWith({
+        stepExecutionId: startedExecution.stepExecutionId,
+        sourcePath: path.join(stepArtifactsDir, "trace.zip"),
+        relativeStorePath: "trace.zip",
+      });
+      expect(tracker.markSucceeded).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  test.concurrent(
+    "does not misfire the missing-findings flow before the agent session starts",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-monitor-slow-start-"),
+      );
+      const startedExecution = createStartedExecution(workspacePath);
+      const tracker = createTracker();
+
+      await writeCurrentExecutionInfoFile(workspacePath, {
+        stepExecutionId: startedExecution.stepExecutionId,
+        resultSchemaJson: {
+          type: "object",
+          required: ["summary"],
+          additionalProperties: false,
+          properties: { summary: { type: "string" } },
+        },
+      });
+
+      const log = vi.fn();
+      const sendRetryPrompt = vi.fn(() => Promise.resolve(undefined));
+
+      const input: ProcessProjectWorkInput = {
+        projectId: startedExecution.projectId,
+        batchSize: 1,
+        concurrency: 1,
+        pollIntervalMs: 0,
+        leaseDurationSeconds: 30,
+        workerId: "worker-1",
+        preserveRuntimeOnComplete: true,
+        once: true,
+      };
+
+      let statusCall = 0;
+      const deps: ProcessProjectWorkDeps = {
+        workerClient: {
+          userId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe004"),
+          claimStepExecutions: vi.fn(),
+          heartbeatStepExecution: vi.fn(),
+          failStepExecution: vi.fn(() => Promise.resolve(undefined)),
+          completeStepExecution: vi.fn(() => Promise.resolve(undefined)),
+          getStepExecution: vi.fn(() =>
+            Promise.resolve({ status: "succeeded" as const }),
+          ),
+          getStepExecutionWorkerContext: vi.fn(),
+        },
+        createRunTracker: vi.fn(),
+        runtimeEnvironmentOrchestrator: {
+          launch: vi.fn(),
+        },
+        agentRunner: {
+          promptAsync: vi.fn(),
+          // Poll 1: prompt was queued but the session has not begun streaming
+          // yet, so it still reports "not running" (the startup race). Poll 2:
+          // the agent is now busy. Poll 3: the agent finished and wrote findings
+          // just before stopping.
+          getSessionStatus: vi.fn(async () => {
+            statusCall += 1;
+            if (statusCall === 1) {
+              return { running: false };
+            }
+            if (statusCall === 2) {
+              return { running: true };
+            }
+            await writeFile(
+              buildFindingsSubmissionPath(workspacePath),
+              `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
+              "utf8",
+            );
+            return { running: false };
+          }),
+          sendRetryPrompt,
+        },
+        artifactStore: {
+          saveArtifact: vi.fn(() =>
+            Promise.resolve({ storeRef: "store-ref", sizeBytes: 1 }),
+          ),
+        },
+        sleep: vi.fn(() => Promise.resolve(undefined)),
+        logger: {
+          log,
+          error: vi.fn(),
+        },
+      };
+
+      await monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
+        stop: vi.fn(() => Promise.resolve()),
+      });
+
+      // The startup "not running yet" poll must not be mistaken for a finished
+      // run: no missing-findings wait/retry should fire, and no retry prompt
+      // should be sent.
+      expect(log).not.toHaveBeenCalledWith(
+        "worker",
+        "OpenCode session stopped without findings submission; waiting one poll for late file writes before retrying",
+        expect.anything(),
+      );
+      expect(sendRetryPrompt).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledWith(
+        "worker",
+        "Waiting for agent session to start",
+        expect.anything(),
+      );
+      expect(tracker.markSucceeded).toHaveBeenCalledTimes(1);
     },
   );
 });
