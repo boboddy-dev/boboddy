@@ -9366,17 +9366,19 @@ export type DeleteApiProjectsByProjectIdContextEntriesByEntryIdResponses = {
     200: unknown;
 };
 
-export type GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsData = {
+export type GetApiProjectsByProjectIdNotificationsData = {
     body?: never;
     path: {
         projectId: string;
-        stepSignalId: string;
     };
-    query?: never;
-    url: '/api/projects/{projectId}/step-signals/{stepSignalId}/feedback-requests';
+    query?: {
+        workItemId?: string;
+        status?: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
+    };
+    url: '/api/projects/{projectId}/notifications';
 };
 
-export type GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsErrors = {
+export type GetApiProjectsByProjectIdNotificationsErrors = {
     /**
      * Response for status 401
      */
@@ -9459,37 +9461,46 @@ export type GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsEr
     };
 };
 
-export type GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsError = GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsErrors[keyof GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsErrors];
+export type GetApiProjectsByProjectIdNotificationsError = GetApiProjectsByProjectIdNotificationsErrors[keyof GetApiProjectsByProjectIdNotificationsErrors];
 
-export type GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsResponses = {
+export type GetApiProjectsByProjectIdNotificationsResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
         id: string;
-        stepSignalId: string;
-        question: string;
-        category: string;
-        suggestedKey: string | unknown;
-        status: 'pending' | 'answered' | 'declined';
+        projectId: string;
+        workItemId: string | unknown;
+        pipelineExecutionId: string | unknown;
+        stepExecutionId: string | unknown;
+        stepSignalId: string | unknown;
+        agentSessionId: string | unknown;
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
+        title: string;
+        body: string;
+        priority: 'low' | 'normal' | 'high' | 'urgent';
+        source: 'agent' | 'system' | 'user';
+        status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
+        payloadJson: unknown;
         createdAt: string;
         updatedAt: string;
     }>;
 };
 
-export type GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsResponse = GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsResponses[keyof GetApiProjectsByProjectIdStepSignalsByStepSignalIdFeedbackRequestsResponses];
+export type GetApiProjectsByProjectIdNotificationsResponse = GetApiProjectsByProjectIdNotificationsResponses[keyof GetApiProjectsByProjectIdNotificationsResponses];
 
-export type PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDeclineData = {
+export type GetApiProjectsByProjectIdNotificationsByNotificationIdData = {
     body?: never;
     path: {
         projectId: string;
-        feedbackRequestId: string;
+        notificationId: string;
     };
     query?: never;
-    url: '/api/projects/{projectId}/feedback-requests/{feedbackRequestId}/decline';
+    url: '/api/projects/{projectId}/notifications/{notificationId}';
 };
 
-export type PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDeclineErrors = {
+export type GetApiProjectsByProjectIdNotificationsByNotificationIdErrors = {
     /**
      * Response for status 401
      */
@@ -9572,14 +9583,503 @@ export type PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDecline
     };
 };
 
-export type PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDeclineError = PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDeclineErrors[keyof PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDeclineErrors];
+export type GetApiProjectsByProjectIdNotificationsByNotificationIdError = GetApiProjectsByProjectIdNotificationsByNotificationIdErrors[keyof GetApiProjectsByProjectIdNotificationsByNotificationIdErrors];
 
-export type PostApiProjectsByProjectIdFeedbackRequestsByFeedbackRequestIdDeclineResponses = {
+export type GetApiProjectsByProjectIdNotificationsByNotificationIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string | unknown;
+        pipelineExecutionId: string | unknown;
+        stepExecutionId: string | unknown;
+        stepSignalId: string | unknown;
+        agentSessionId: string | unknown;
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
+        title: string;
+        body: string;
+        priority: 'low' | 'normal' | 'high' | 'urgent';
+        source: 'agent' | 'system' | 'user';
+        status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
+        payloadJson: unknown;
+        createdAt: string;
+        updatedAt: string;
+        deliveries: Array<{
+            id: string;
+            notificationId: string;
+            channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+            status: 'pending' | 'sent' | 'failed' | 'suppressed';
+            suppressionReason: string | unknown;
+            externalUrl: string | unknown;
+            externalId: string | unknown;
+            createdAt: string;
+            sentAt: string | unknown;
+        }>;
+    };
+};
+
+export type GetApiProjectsByProjectIdNotificationsByNotificationIdResponse = GetApiProjectsByProjectIdNotificationsByNotificationIdResponses[keyof GetApiProjectsByProjectIdNotificationsByNotificationIdResponses];
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissData = {
+    body?: never;
+    path: {
+        projectId: string;
+        notificationId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/notifications/{notificationId}/dismiss';
+};
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissError = PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors[keyof PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors];
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissResponses = {
     /**
      * Response for status 200
      */
     200: unknown;
 };
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondData = {
+    body: {
+        answer: string;
+    };
+    path: {
+        projectId: string;
+        notificationId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/notifications/{notificationId}/respond';
+};
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondError = PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors[keyof PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors];
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string | unknown;
+        pipelineExecutionId: string | unknown;
+        stepExecutionId: string | unknown;
+        stepSignalId: string | unknown;
+        agentSessionId: string | unknown;
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
+        title: string;
+        body: string;
+        priority: 'low' | 'normal' | 'high' | 'urgent';
+        source: 'agent' | 'system' | 'user';
+        status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
+        payloadJson: unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondResponse = PostApiProjectsByProjectIdNotificationsByNotificationIdRespondResponses[keyof PostApiProjectsByProjectIdNotificationsByNotificationIdRespondResponses];
+
+export type GetApiProjectsByProjectIdNotificationRulesData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/notification-rules';
+};
+
+export type GetApiProjectsByProjectIdNotificationRulesErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectsByProjectIdNotificationRulesError = GetApiProjectsByProjectIdNotificationRulesErrors[keyof GetApiProjectsByProjectIdNotificationRulesErrors];
+
+export type GetApiProjectsByProjectIdNotificationRulesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        projectId: string;
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+        enabled: boolean;
+        minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
+        conditionsJson: unknown;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiProjectsByProjectIdNotificationRulesResponse = GetApiProjectsByProjectIdNotificationRulesResponses[keyof GetApiProjectsByProjectIdNotificationRulesResponses];
+
+export type PutApiProjectsByProjectIdNotificationRulesData = {
+    body: {
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+        enabled: boolean;
+        minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
+        conditionsJson: unknown;
+    };
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/notification-rules';
+};
+
+export type PutApiProjectsByProjectIdNotificationRulesErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PutApiProjectsByProjectIdNotificationRulesError = PutApiProjectsByProjectIdNotificationRulesErrors[keyof PutApiProjectsByProjectIdNotificationRulesErrors];
+
+export type PutApiProjectsByProjectIdNotificationRulesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+        enabled: boolean;
+        minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
+        conditionsJson: unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PutApiProjectsByProjectIdNotificationRulesResponse = PutApiProjectsByProjectIdNotificationRulesResponses[keyof PutApiProjectsByProjectIdNotificationRulesResponses];
 
 export type GetApiStepDefinitionTemplatesData = {
     body?: never;
