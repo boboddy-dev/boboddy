@@ -1,7 +1,7 @@
 import type { SessionStatus } from "@opencode-ai/sdk";
 import { createOpencodeClient } from "@opencode-ai/sdk";
 import type { StepExecutionAgentRunner } from "../contracts/process-project-work-types";
-import { logWork } from "../application/work-logger";
+import { logWork, logWorkError } from "../application/work-logger";
 
 export type PromptAsyncOpencodeStepInput = {
   aiBaseUrl: string;
@@ -18,11 +18,74 @@ export type OpencodeStepRunner = StepExecutionAgentRunner;
 
 const DEFAULT_DIRECTORY = "/workspace";
 
+/** Max attempts for the initial session.create call (1 original + retries). */
+const SESSION_CREATE_MAX_ATTEMPTS = 5;
+/** Base back-off delay in ms; doubles on each retry (100, 200, 400, 800 …). */
+const SESSION_CREATE_BACKOFF_BASE_MS = 100;
+
 function createClient(aiBaseUrl: string) {
   return createOpencodeClient({
     baseUrl: aiBaseUrl,
     directory: DEFAULT_DIRECTORY,
   });
+}
+
+/**
+ * The OpenCode server logs "opencode server listening on" when it binds the
+ * port, but on slow runners (e.g. CI Linux) the HTTP stack may not be ready
+ * to handle the very first request before that log line appears. Retry the
+ * initial session.create call a handful of times with exponential back-off to
+ * absorb that small window.
+ */
+async function createSessionWithRetry(
+  client: ReturnType<typeof createClient>,
+  title: string,
+  aiBaseUrl: string,
+): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= SESSION_CREATE_MAX_ATTEMPTS; attempt++) {
+    try {
+      const sessionResponse = await client.session.create({
+        body: { title },
+      });
+      const sessionId = sessionResponse.data?.id;
+      if (!sessionId) {
+        throw new Error("OpenCode did not return a session id");
+      }
+      return sessionId;
+    } catch (error) {
+      lastError = error;
+      const willRetry = attempt < SESSION_CREATE_MAX_ATTEMPTS;
+      const delayMs = willRetry
+        ? SESSION_CREATE_BACKOFF_BASE_MS * Math.pow(2, attempt - 1)
+        : 0;
+      // Surface every failed attempt. This call is the first request the worker
+      // makes to the in-container OpenCode server, so failures here usually mean
+      // the server is not yet reachable/serving (e.g. the AI container was
+      // considered ready on a log line before its HTTP stack came up). The
+      // monitor's injected logger may be silenced in tests, so we log via the
+      // always-on work logger to keep this visible in CI.
+      logWorkError("opencode", "OpenCode session.create attempt failed", {
+        aiBaseUrl,
+        title,
+        attempt,
+        maxAttempts: SESSION_CREATE_MAX_ATTEMPTS,
+        willRetry,
+        retryDelayMs: delayMs,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (willRetry) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  logWorkError("opencode", "OpenCode session.create exhausted all attempts", {
+    aiBaseUrl,
+    title,
+    maxAttempts: SESSION_CREATE_MAX_ATTEMPTS,
+    error: lastError instanceof Error ? lastError.message : String(lastError),
+  });
+  throw lastError;
 }
 
 function isRunningSessionStatus(sessionStatus: SessionStatus | undefined): boolean {
@@ -71,16 +134,11 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
       sessionTitle: input.sessionTitle,
     });
     const client = createClient(input.aiBaseUrl);
-    const sessionResponse = await client.session.create({
-      body: {
-        title: input.sessionTitle,
-      },
-    });
-    const sessionId = sessionResponse.data?.id;
-
-    if (!sessionId) {
-      throw new Error("OpenCode did not return a session id");
-    }
+    const sessionId = await createSessionWithRetry(
+      client,
+      input.sessionTitle,
+      input.aiBaseUrl,
+    );
 
     logWork("opencode", "Created OpenCode session", {
       sessionId,

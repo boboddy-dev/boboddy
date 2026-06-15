@@ -164,6 +164,17 @@ export function buildAiContainerBaseArgs(input: {
   return baseArgs;
 }
 
+/**
+ * Resolve the user's home directory, honoring an explicit HOME override. On
+ * macOS, os.homedir() reads the OS user database and ignores process.env.HOME,
+ * so we prefer the env var when set. This keeps the mounted opencode config
+ * path consistent with how the rest of the worker resolves HOME (and lets tests
+ * point HOME at a temp dir to inject a fake AI provider config).
+ */
+function resolveHostHome(): string {
+  return process.env["HOME"]?.trim() || os.homedir();
+}
+
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -459,13 +470,10 @@ export class DockerAiContainerLauncher implements AiContainerLauncher {
     const workspaceOwnership = await resolveWorkspaceOwnership(
       input.workspacePath,
     );
-    const hostOpencodeConfigPath = path.join(
-      os.homedir(),
-      ".config",
-      "opencode",
-    );
+    const hostHome = resolveHostHome();
+    const hostOpencodeConfigPath = path.join(hostHome, ".config", "opencode");
     const hostOpencodeDataPath = path.join(
-      os.homedir(),
+      hostHome,
       ".local",
       "share",
       "opencode",
