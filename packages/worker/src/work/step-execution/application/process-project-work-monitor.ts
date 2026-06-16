@@ -217,6 +217,7 @@ export async function monitorStartedClaimedExecution(
   let hasSubmittedFindings = false;
   let hasCollectedArtifacts = false;
   let hasWaitedForSessionStop = false;
+  let hasObservedSessionRunning = false;
   let lastLoggedProviderErrorAttempt = -1;
   const runtimeActions =
     deps.runtimeCommandRunner && deps.runtimeServiceRunner && deps.timeProvider
@@ -319,21 +320,52 @@ export async function monitorStartedClaimedExecution(
       await tryProcessRuntimeRequest(deps, startedExecution, runtimeActions);
 
       if (sessionStatus.running) {
+        hasObservedSessionRunning = true;
         await deps.sleep(input.pollIntervalMs);
         continue;
-      }
-
-      // Agent session has stopped. Collect artifacts before persisting findings.
-      if (!hasCollectedArtifacts) {
-        await collectStepArtifacts(deps, startedExecution, logger);
-        hasCollectedArtifacts = true;
       }
 
       const submissionResult = hasSubmittedFindings
         ? "submitted"
         : await tryPersistAgentFindings(deps, startedExecution);
+
+      // `promptAsync` is fire-and-forget: it queues the prompt and returns
+      // before opencode begins streaming the model response. During that
+      // startup window the session reports `idle` (or is absent from the status
+      // map), which is indistinguishable from "finished" via status alone. If
+      // we have never seen the session report `busy`/`retry` AND no findings
+      // have been written yet, treat this as "not started yet" and keep polling
+      // — otherwise the very first poll misfires the "stopped without findings
+      // submission" path before the agent has even begun working. Findings are
+      // still checked above so a run that completes between two polls (without
+      // ever being observed as busy) is finalized rather than waited on forever.
+      if (submissionResult === "missing" && !hasObservedSessionRunning) {
+        logger.log("worker", "Waiting for agent session to start", {
+          projectId: input.projectId,
+          workerId: input.workerId,
+          stepExecutionId: startedExecution.stepExecutionId,
+          localRuntimeSessionId: startedExecution.localRuntimeSessionId,
+          agentSessionId: startedExecution.agentSessionId,
+        });
+        await deps.sleep(input.pollIntervalMs);
+        continue;
+      }
+
       if (submissionResult === "submitted") {
         hasSubmittedFindings = true;
+
+        // Collect artifacts only once the run has actually finalized (findings
+        // submitted). The agent session can briefly report "stopped" mid-run —
+        // the worker deliberately waits a poll for late writes — and the agent
+        // typically writes its step artifacts right before completing. Copying
+        // on the first transient stop captured an empty directory and latched
+        // `hasCollectedArtifacts`, so artifacts written afterward never reached
+        // the host artifact store.
+        if (!hasCollectedArtifacts) {
+          await collectStepArtifacts(deps, startedExecution, logger);
+          hasCollectedArtifacts = true;
+        }
+
         logger.log("worker", "Agent findings submitted successfully", {
           projectId: input.projectId,
           workerId: input.workerId,

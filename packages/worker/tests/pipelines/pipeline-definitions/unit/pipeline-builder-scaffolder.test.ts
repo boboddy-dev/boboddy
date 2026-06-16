@@ -90,6 +90,40 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       }
     });
 
+    test("package.json uses caret range for @boboddy/sdk when version is stable", () => {
+      const dir = makeTempDir();
+      try {
+        scaffoldPipelineBuilderDirectory(dir, [], "1.2.3");
+        const content = readFileSync(join(dir, "package.json"), "utf-8");
+        const parsed = JSON.parse(content) as Record<string, unknown>;
+        const deps = parsed["dependencies"] as Record<string, unknown>;
+        expect(deps["@boboddy/sdk"]).toBe("^1.2.3");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test("package.json pins @boboddy/sdk exactly when version is a prerelease", () => {
+      const dir = makeTempDir();
+      try {
+        scaffoldPipelineBuilderDirectory(
+          dir,
+          [],
+          "0.0.0-canary.7b958a970f3965d4f76c51ae393dad11f712a919",
+        );
+        const content = readFileSync(join(dir, "package.json"), "utf-8");
+        const parsed = JSON.parse(content) as Record<string, unknown>;
+        const deps = parsed["dependencies"] as Record<string, unknown>;
+        // Must be exact — no caret — so npm does not resolve to a different
+        // prerelease that may be missing features added in this release.
+        expect(deps["@boboddy/sdk"]).toBe(
+          "0.0.0-canary.7b958a970f3965d4f76c51ae393dad11f712a919",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
     test("package.json uses artifact path for @boboddy/sdk when BOBODDY_SDK_ARTIFACT_PATH is set", () => {
       const dir = makeTempDir();
       const previous = process.env["BOBODDY_SDK_ARTIFACT_PATH"];

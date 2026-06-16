@@ -167,14 +167,14 @@ describe("DockerAiContainerLauncher — env var binding (integration)", () => {
     }
 
     container = await tcContainer.start();
-  });
+  }, 120_000);
 
   afterAll(async () => {
     await container?.stop();
     if (workspacePath) {
       await rm(workspacePath, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   for (const [key, expectedValue] of Object.entries(TEST_ENV_VARS)) {
     test(`env var ${key} is present inside the container with correct value`, async () => {

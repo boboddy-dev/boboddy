@@ -262,7 +262,33 @@ describe("defineStep", () => {
       expect(defs[1]!.key).toBe("sig_b");
     });
 
-    test("Features.feedbackRequests() injects feedbackRequests field, prompt section, and signal", () => {
+    test("Features.notifications() injects notifications field, prompt section, and signal", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        result: z.object({ outcome: z.string() }),
+        agentPrompt: "Do the thing.",
+        features: [Features.notifications()],
+      });
+
+      expect(spec.resultSchemaJson).toMatchObject({
+        properties: {
+          outcome: { type: "string" },
+          $boboddy_notifications_v1: { type: "array" },
+        },
+      });
+      expect(spec.prompt).toContain("## User Notifications");
+      expect(spec.prompt).toMatch(/^Do the thing\.\n\n/);
+      expect(spec.signalExtractorDefinitions).toContainEqual({
+        key: "$boboddy_notifications_v1",
+        sourcePath: "$boboddy_notifications_v1",
+        type: "array",
+        required: false,
+        availableWhenResultStatusIn: null,
+      });
+    });
+
+    test("Features.feedbackRequests() is backed by the same notifications signal", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
@@ -273,15 +299,15 @@ describe("defineStep", () => {
 
       expect(spec.resultSchemaJson).toMatchObject({
         properties: {
-          outcome: { type: "string" },
-          $boboddy_feedbackRequests_v1: { type: "array" },
+          $boboddy_notifications_v1: { type: "array" },
         },
       });
-      expect(spec.prompt).toContain("## Feedback Requests");
-      expect(spec.prompt).toMatch(/^Do the thing\.\n\n/);
+      expect(Features.feedbackRequests.signal.key).toBe(
+        "$boboddy_notifications_v1",
+      );
       expect(spec.signalExtractorDefinitions).toContainEqual({
-        key: "$boboddy_feedback_request_v1",
-        sourcePath: "$boboddy_feedbackRequests_v1",
+        key: "$boboddy_notifications_v1",
+        sourcePath: "$boboddy_notifications_v1",
         type: "array",
         required: false,
         availableWhenResultStatusIn: null,

@@ -262,7 +262,7 @@ describe("Devcontainer MCP host — project tools exposed to agent (e2e)", () =>
         .catch(() => {});
       await rmdir(workspacePath).catch(() => {});
     }
-  });
+  }, 120_000);
 
   test("MCP host became healthy and returned a port", () => {
     if (skip) return;
