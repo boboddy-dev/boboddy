@@ -1,13 +1,11 @@
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
-import type { TimeProvider } from "../../../lib/time-provider";
-import type { RuntimeCommandRunner } from "../../../runtime/runtime-service/application/runtime-command-runner";
-import type { RuntimeServiceRunner } from "../../../runtime/runtime-service/application/runtime-service-runner";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
 import type {
   StepExecutionContract,
   StepExecutionWorkerContextContract,
 } from "./step-execution-contracts";
 import type { CurrentExecutionInfo } from "../application/process-project-work-findings";
+import type { WorkReporter } from "./work-reporter";
 
 export type ProcessProjectWorkInput = {
   projectId: UuidV7;
@@ -19,7 +17,30 @@ export type ProcessProjectWorkInput = {
   workItemId?: string | undefined;
   preserveRuntimeOnComplete?: boolean | undefined;
   once?: boolean | undefined;
+  /**
+   * Max time to wait for the agent session to first report `busy`/`retry`
+   * before failing fast. Guards against a misconfigured agent/provider (e.g. an
+   * unreachable AI host) that would otherwise poll `running: false` until the
+   * caller's overall timeout. Defaults to {@link DEFAULT_SESSION_START_TIMEOUT_MS}
+   * when omitted.
+   */
+  sessionStartTimeoutMs?: number | undefined;
 };
+
+/**
+ * Default cap on how long the monitor waits for the agent session to start
+ * (report `busy`/`retry`) before failing fast. Sized to comfortably cover
+ * OpenCode session creation + first model turn, while surfacing a broken
+ * agent/provider connection in ~1 min instead of hanging.
+ */
+export const DEFAULT_SESSION_START_TIMEOUT_MS = 60_000;
+
+/**
+ * Fallback cap on the number of "waiting for the agent session to start" polls
+ * when `pollIntervalMs` is 0 (so elapsed time never accrues). Keeps the
+ * fail-fast guard effective in that degenerate configuration.
+ */
+export const DEFAULT_SESSION_START_MAX_POLLS = 60;
 
 export type ProcessProjectWorkResult = {
   claimedCount: number;
@@ -35,6 +56,15 @@ export type StepExecutionWorkerClaim = {
 };
 
 export type StepExecutionWorkerContext = StepExecutionWorkerContextContract;
+
+export type StepExecutionLogStream = "worker" | "ai-server" | "conversation";
+
+export type StepExecutionLogLine = {
+  seq: number;
+  stream: StepExecutionLogStream;
+  ts: string;
+  content: string;
+};
 
 export type StepExecutionWorkerClient = {
   userId: UuidV7;
@@ -62,6 +92,11 @@ export type StepExecutionWorkerClient = {
     resultJson: unknown;
     errorJson: unknown;
   }): Promise<void>;
+  appendStepExecutionLogs(input: {
+    stepExecutionId: UuidV7;
+    claimToken: string;
+    lines: StepExecutionLogLine[];
+  }): Promise<{ nextOffset: number }>;
   getStepExecution(input: {
     stepExecutionId: UuidV7;
   }): Promise<Pick<StepExecutionContract, "status">>;
@@ -73,17 +108,28 @@ export type StepExecutionWorkerClient = {
 
 export type StepExecutionRuntimeEnvironment = {
   workspacePath: string;
+  /**
+   * Absolute path to the resolved workspace folder inside the runtime
+   * container. Phase 1 populates this from the resolved devcontainer workspace
+   * folder; Phase 0 only adds the field. Replaces the implicit `/workspace`
+   * constant assumption.
+   */
+  workspaceFolder: string;
   opencodeLogDirectory: string;
   resolvedBranch: string;
   devcontainerConfigPath: string;
-  devcontainerId: string;
-  aiContainerId: string;
-  aiBaseUrl: string;
+  /**
+   * Single runtime container id. With the single-container model OpenCode runs
+   * inside the devcontainer, so this is the devcontainer id (collapses the
+   * former `devcontainerId` + `aiContainerId` pair).
+   */
+  runtimeContainerId: string;
+  /** Runtime-neutral agent base URL (formerly `aiBaseUrl`). */
+  agentBaseUrl: string;
   aiImage: string;
   networkName: string;
   checkContainerHealth?(): Promise<{
-    devcontainerStatus: string;
-    aiContainerStatus: string;
+    runtimeContainerStatus: string;
   }>;
   cleanup(): Promise<void>;
 };
@@ -98,19 +144,32 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     opencodeMcpJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodeMcpJson"];
     opencodePluginJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodePluginJson"];
     currentExecutionInfo: CurrentExecutionInfo;
+    /** Optional reporter to emit granular sub-step progress events during launch. */
+    reporter?: WorkReporter | undefined;
+    stepExecutionId?: string | undefined;
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
 
 export type StepExecutionAgentRunner = {
   promptAsync(input: {
-    aiBaseUrl: string;
+    agentBaseUrl: string;
+    /**
+     * Absolute path to the workspace folder the agent operates against (the
+     * resolved runtime workspace folder). Used as the OpenCode client
+     * `directory`; replaces the former hardcoded `/workspace`.
+     */
+    workspaceFolder: string;
     sessionTitle: string;
     promptText: string;
     agent: string;
   }): Promise<{
     sessionId: string;
   }>;
-  getSessionStatus(input: { aiBaseUrl: string; sessionId: string }): Promise<{
+  getSessionStatus(input: {
+    agentBaseUrl: string;
+    workspaceFolder: string;
+    sessionId: string;
+  }): Promise<{
     running: boolean;
     /**
      * Present when opencode reports the session is retrying an upstream AI
@@ -125,7 +184,8 @@ export type StepExecutionAgentRunner = {
       | undefined;
   }>;
   sendRetryPrompt(input: {
-    aiBaseUrl: string;
+    agentBaseUrl: string;
+    workspaceFolder: string;
     sessionId: string;
     promptText: string;
     agent: string;
@@ -151,9 +211,8 @@ export type StepExecutionRunTracker = {
   markRunning(input: {
     id: string;
     workspacePath: string;
-    devcontainerId: string;
-    aiContainerId: string;
-    aiBaseUrl: string;
+    runtimeContainerId: string;
+    agentBaseUrl: string;
     metadataJson?: string | null | undefined;
   }): void | Promise<void>;
   attachAgentSession(input: {
@@ -174,6 +233,11 @@ export type StepExecutionRunTracker = {
 };
 
 export type ProjectWorkLogger = {
+  debug(
+    scope: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): void;
   log(scope: string, message: string, details?: Record<string, unknown>): void;
   error(
     scope: string,
@@ -182,15 +246,20 @@ export type ProjectWorkLogger = {
   ): void;
 };
 
+export type { WorkEvent, WorkReporter, WorkTask } from "./work-reporter";
+
 export type ProcessProjectWorkDeps = {
   workerClient: StepExecutionWorkerClient;
   createRunTracker(): StepExecutionRunTracker;
   runtimeEnvironmentOrchestrator: StepExecutionRuntimeEnvironmentOrchestrator;
   agentRunner: StepExecutionAgentRunner;
   artifactStore: ArtifactStore;
-  runtimeCommandRunner?: RuntimeCommandRunner | undefined;
-  runtimeServiceRunner?: RuntimeServiceRunner | undefined;
-  timeProvider?: TimeProvider | undefined;
   sleep(milliseconds: number): Promise<void>;
   logger?: ProjectWorkLogger | undefined;
+  /**
+   * Optional user-facing presentation surface. Distinct from {@link logger}
+   * (diagnostics). When omitted, milestone events are dropped (see
+   * {@link resolveProjectWorkReporter}).
+   */
+  reporter?: WorkReporter | undefined;
 };

@@ -1,5 +1,5 @@
 {
   "name": "boboddy-integration-dummy",
-  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "image": "node:20-bookworm-slim",
   "overrideCommand": true
 }

@@ -25,14 +25,14 @@ function createStartedExecution(workspacePath: string): StartedClaimedExecution 
     agentSessionId: "agent-session-id",
     environment: {
       workspacePath,
+      workspaceFolder: "/workspaces/repo",
       opencodeLogDirectory: path.join(workspacePath, ".logs"),
       resolvedBranch: "main",
       devcontainerConfigPath: ".devcontainer/devcontainer.json",
-      devcontainerId: "devcontainer-id",
-      aiContainerId: "ai-container-id",
-      aiBaseUrl: "http://127.0.0.1:4096",
-      aiImage: "boboddy/ai-worker:local",
-      networkName: "test-network",
+      runtimeContainerId: "runtime-container-id",
+      agentBaseUrl: "http://127.0.0.1:4096",
+      aiImage: "opencode-runtime@0.0.0-test",
+      networkName: "",
       cleanup: vi.fn(() => Promise.resolve()),
     },
   };
@@ -49,6 +49,21 @@ function createTracker(): StepExecutionRunTracker {
   };
 }
 
+function createInput(
+  startedExecution: StartedClaimedExecution,
+): ProcessProjectWorkInput {
+  return {
+    projectId: startedExecution.projectId,
+    batchSize: 1,
+    concurrency: 1,
+    pollIntervalMs: 0,
+    leaseDurationSeconds: 30,
+    workerId: "worker-1",
+    preserveRuntimeOnComplete: true,
+    once: true,
+  };
+}
+
 describe("monitorStartedClaimedExecution", () => {
   test.concurrent(
     "uses the configured step execution agent when retrying findings submission",
@@ -60,16 +75,7 @@ describe("monitorStartedClaimedExecution", () => {
       const sendRetryPrompt = vi.fn(() => Promise.resolve(undefined));
       const failStepExecution = vi.fn(() => Promise.resolve(undefined));
       const tracker = createTracker();
-      const input: ProcessProjectWorkInput = {
-        projectId: startedExecution.projectId,
-        batchSize: 1,
-        concurrency: 1,
-        pollIntervalMs: 0,
-        leaseDurationSeconds: 30,
-        workerId: "worker-1",
-        preserveRuntimeOnComplete: true,
-        once: true,
-      };
+      const input = createInput(startedExecution);
       let statusCall = 0;
       const deps: ProcessProjectWorkDeps = {
         workerClient: {
@@ -82,6 +88,9 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "running" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          appendStepExecutionLogs: vi.fn(() =>
+            Promise.resolve({ nextOffset: 0 }),
+          ),
         },
         createRunTracker: vi.fn(),
         runtimeEnvironmentOrchestrator: {
@@ -104,12 +113,13 @@ describe("monitorStartedClaimedExecution", () => {
         },
         sleep: vi.fn(() => Promise.resolve(undefined)),
         logger: {
+          debug: vi.fn(),
           log: vi.fn(),
           error: vi.fn(),
         },
       };
 
-      await expect(
+      expect(
         monitorStartedClaimedExecution(
           input,
           deps,
@@ -122,8 +132,10 @@ describe("monitorStartedClaimedExecution", () => {
       );
 
       expect(sendRetryPrompt).toHaveBeenCalledWith({
-        aiBaseUrl: startedExecution.environment.aiBaseUrl,
+        agentBaseUrl: startedExecution.environment.agentBaseUrl,
+        workspaceFolder: startedExecution.environment.workspaceFolder,
         sessionId: startedExecution.agentSessionId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         promptText: expect.stringContaining(
           "Use the `boboddy-submit-step-findings` tool now.",
         ),
@@ -142,16 +154,7 @@ describe("monitorStartedClaimedExecution", () => {
       const startedExecution = createStartedExecution(workspacePath);
       const tracker = createTracker();
       const log = vi.fn();
-      const input: ProcessProjectWorkInput = {
-        projectId: startedExecution.projectId,
-        batchSize: 1,
-        concurrency: 1,
-        pollIntervalMs: 0,
-        leaseDurationSeconds: 30,
-        workerId: "worker-1",
-        preserveRuntimeOnComplete: true,
-        once: true,
-      };
+      const input = createInput(startedExecution);
       let statusCall = 0;
       const deps: ProcessProjectWorkDeps = {
         workerClient: {
@@ -164,6 +167,9 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "running" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          appendStepExecutionLogs: vi.fn(() =>
+            Promise.resolve({ nextOffset: 0 }),
+          ),
         },
         createRunTracker: vi.fn(),
         runtimeEnvironmentOrchestrator: {
@@ -193,12 +199,13 @@ describe("monitorStartedClaimedExecution", () => {
         },
         sleep: vi.fn(() => Promise.resolve(undefined)),
         logger: {
+          debug: vi.fn(),
           log,
           error: vi.fn(),
         },
       };
 
-      await expect(
+      expect(
         monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
           stop: vi.fn(() => Promise.resolve()),
         }),
@@ -211,6 +218,7 @@ describe("monitorStartedClaimedExecution", () => {
         "AI provider error while running step",
         expect.objectContaining({
           attempt: 7,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           providerMessage: expect.stringContaining("request ID req-123"),
         }),
       );
@@ -248,16 +256,7 @@ describe("monitorStartedClaimedExecution", () => {
         Promise.resolve({ storeRef: "store-ref", sizeBytes: 1 }),
       );
 
-      const input: ProcessProjectWorkInput = {
-        projectId: startedExecution.projectId,
-        batchSize: 1,
-        concurrency: 1,
-        pollIntervalMs: 0,
-        leaseDurationSeconds: 30,
-        workerId: "worker-1",
-        preserveRuntimeOnComplete: true,
-        once: true,
-      };
+      const input = createInput(startedExecution);
 
       let statusCall = 0;
       const deps: ProcessProjectWorkDeps = {
@@ -271,6 +270,9 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "succeeded" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          appendStepExecutionLogs: vi.fn(() =>
+            Promise.resolve({ nextOffset: 0 }),
+          ),
         },
         createRunTracker: vi.fn(),
         runtimeEnvironmentOrchestrator: {
@@ -311,6 +313,7 @@ describe("monitorStartedClaimedExecution", () => {
         },
         sleep: vi.fn(() => Promise.resolve(undefined)),
         logger: {
+          debug: vi.fn(),
           log: vi.fn(),
           error: vi.fn(),
         },
@@ -326,6 +329,7 @@ describe("monitorStartedClaimedExecution", () => {
         sourcePath: path.join(stepArtifactsDir, "trace.zip"),
         relativeStorePath: "trace.zip",
       });
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(tracker.markSucceeded).toHaveBeenCalledTimes(1);
     },
   );
@@ -352,16 +356,7 @@ describe("monitorStartedClaimedExecution", () => {
       const log = vi.fn();
       const sendRetryPrompt = vi.fn(() => Promise.resolve(undefined));
 
-      const input: ProcessProjectWorkInput = {
-        projectId: startedExecution.projectId,
-        batchSize: 1,
-        concurrency: 1,
-        pollIntervalMs: 0,
-        leaseDurationSeconds: 30,
-        workerId: "worker-1",
-        preserveRuntimeOnComplete: true,
-        once: true,
-      };
+      const input = createInput(startedExecution);
 
       let statusCall = 0;
       const deps: ProcessProjectWorkDeps = {
@@ -375,6 +370,9 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "succeeded" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          appendStepExecutionLogs: vi.fn(() =>
+            Promise.resolve({ nextOffset: 0 }),
+          ),
         },
         createRunTracker: vi.fn(),
         runtimeEnvironmentOrchestrator: {
@@ -410,6 +408,7 @@ describe("monitorStartedClaimedExecution", () => {
         },
         sleep: vi.fn(() => Promise.resolve(undefined)),
         logger: {
+          debug: vi.fn(),
           log,
           error: vi.fn(),
         },
@@ -433,6 +432,7 @@ describe("monitorStartedClaimedExecution", () => {
         "Waiting for agent session to start",
         expect.anything(),
       );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(tracker.markSucceeded).toHaveBeenCalledTimes(1);
     },
   );

@@ -121,7 +121,9 @@ describe("fluent rules", () => {
     for (const [, build, expected] of ops) {
       const leaf = build(sig) as { then: (o: string) => { conditions: Array<{ operator: string }> } };
       const rule = leaf.then("continue");
-      expect(rule.conditions[0]!.operator).toBe(expected);
+      const cond0 = rule.conditions[0];
+      if (!cond0) throw new Error("expected condition");
+      expect(cond0.operator).toBe(expected);
     }
   });
 });

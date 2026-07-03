@@ -1,8 +1,15 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { RUNTIME_SESSION_NETWORK_NAME_PREFIX } from "../../runtime-service/infra/local-docker-runtime-session-network-manager";
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Legacy prefix for per-session Docker networks created by the former
+ * dual-container orchestration. The single-container runtime no longer creates
+ * these, but the GC still reaps any leftovers from older runs.
+ */
+export const RUNTIME_SESSION_NETWORK_NAME_PREFIX =
+  "boboddy-project-runtime-session";
 
 type DockerNetworkInspect = {
   Name?: string | undefined;

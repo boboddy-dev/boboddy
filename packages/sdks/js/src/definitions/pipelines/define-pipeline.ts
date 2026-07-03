@@ -147,13 +147,13 @@ export function buildPipelineSpec(
   for (const stepConfig of steps) {
     const mapKey = `${stepConfig.step.key}@v${String(stepConfig.step.version)}`;
     if (!stepDefMap.has(mapKey)) {
-      stepDefMap.set(mapKey, stepConfig.step as StepDefinitionSpec);
+      stepDefMap.set(mapKey, stepConfig.step);
     }
   }
   let inputSchemaJson: Record<string, unknown> | null = null;
   if (config.input) {
     try {
-      inputSchemaJson = z.toJSONSchema(config.input) as Record<string, unknown>;
+      inputSchemaJson = z.toJSONSchema(config.input);
     } catch {
       inputSchemaJson = null;
     }

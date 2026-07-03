@@ -1,3 +1,9 @@
+// IMPORTANT: this side-effect import MUST come first. It pins BOBODDY_LOG_LEVEL
+// for the interactive case before any worker module (pulled in transitively by
+// the imports below) constructs its module-level pino loggers. Moving it down
+// will re-introduce noisy logs interleaving with the reporter UI.
+import "./lib/bootstrap";
+
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
 import dotenv from "dotenv";
@@ -5,10 +11,7 @@ import { CoreError } from "@boboddy/worker";
 
 import { authCommand } from "./commands/auth";
 import { helloCommand } from "./commands/hello";
-import { imagesCommand } from "./commands/images";
 import { initCommand } from "./commands/init";
-import { mcpHostCommand } from "./commands/mcp-host";
-import { proxyCommand } from "./commands/proxy";
 import { reportBugCommand } from "./commands/report-bug";
 import { runtimeCommand } from "./commands/runtime";
 import { pipelinesCommand } from "./commands/pipelines";
@@ -38,16 +41,20 @@ export function createCli(argv: readonly string[]) {
       type: "string",
       global: true,
     })
+    .option("verbose", {
+      alias: "v",
+      describe: "Show full diagnostic logs alongside the UI",
+      type: "boolean",
+      default: false,
+      global: true,
+    })
     .middleware((arguments_) => {
       dotenv.config({ path: arguments_.envFile ?? ".env", override: false });
       dotenv.config({ path: ".boboddy.env", override: false });
     })
     .command(authCommand)
     .command(helloCommand)
-    .command(imagesCommand)
     .command(initCommand)
-    .command(mcpHostCommand)
-    .command(proxyCommand)
     .command(reportBugCommand)
     .command(runtimeCommand)
     .command(pipelinesCommand)

@@ -85,6 +85,7 @@ function makeLeaf(
   fact: string,
   path: string | undefined,
   operator: ConditionOperator,
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
 ): AssignmentLeaf {
   const condition: LeafCondition = {
@@ -106,7 +107,9 @@ function makeLeaf(
 
 /** Comparator-bound reference to a work-item field or context fact. */
 export interface AssignmentFieldRef {
+  // eslint-disable-next-line local/no-unknown-parameter-type
   eq(value: unknown): AssignmentLeaf;
+  // eslint-disable-next-line local/no-unknown-parameter-type
   ne(value: unknown): AssignmentLeaf;
   gt(value: number): AssignmentLeaf;
   gte(value: number): AssignmentLeaf;
@@ -114,7 +117,9 @@ export interface AssignmentFieldRef {
   lte(value: number): AssignmentLeaf;
   in(values: ReadonlyArray<unknown>): AssignmentLeaf;
   notIn(values: ReadonlyArray<unknown>): AssignmentLeaf;
+  // eslint-disable-next-line local/no-unknown-parameter-type
   contains(value: unknown): AssignmentLeaf;
+  // eslint-disable-next-line local/no-unknown-parameter-type
   doesNotContain(value: unknown): AssignmentLeaf;
 }
 
@@ -223,7 +228,6 @@ export type DefaultPipelineAssignmentSpec = {
 function makeAssign(pipeline: PipelineDefinitionSpec): AssignOutcome {
   if (
     typeof pipeline !== "object" ||
-    pipeline === null ||
     typeof (pipeline as Record<string, unknown>)["key"] !== "string" ||
     !Array.isArray((pipeline as Record<string, unknown>)["steps"])
   ) {
@@ -348,15 +352,10 @@ function serializeConditionNode(condition: AssignmentCondition): SerializedCondi
       value: condition.value,
     };
   }
-  if (condition._tag === "group") {
-    if (condition.mode === "all") {
-      return { all: condition.conditions.map(serializeConditionNode) };
-    }
-    return { any: condition.conditions.map(serializeConditionNode) };
+  if (condition.mode === "all") {
+    return { all: condition.conditions.map(serializeConditionNode) };
   }
-  throw new Error(
-    `Unknown condition tag: ${JSON.stringify((condition as Record<string, unknown>)["_tag"])}`,
-  );
+  return { any: condition.conditions.map(serializeConditionNode) };
 }
 
 function serializeOutcome(outcome: DefaultPipelineAssignmentOutcome): {
@@ -427,6 +426,7 @@ export function serializeDefaultPipelineAssignment(
  * Type guard: returns true if `value` is a `DefaultPipelineAssignmentSpec`.
  */
 export function isDefaultPipelineAssignmentSpec(
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
 ): value is DefaultPipelineAssignmentSpec {
   if (typeof value !== "object" || value === null) return false;

@@ -69,6 +69,7 @@ function createWorkerClient(): StepExecutionWorkerClient {
     heartbeatStepExecution: vi.fn(),
     failStepExecution: vi.fn(),
     completeStepExecution: vi.fn(),
+    appendStepExecutionLogs: vi.fn(() => Promise.resolve({ nextOffset: 0 })),
     getStepExecution: vi.fn(),
     getStepExecutionWorkerContext: vi.fn(() =>
       Promise.resolve(createWorkerContext()),
@@ -93,12 +94,14 @@ describe("startProcessClaimedExecution", () => {
     const launch = vi.fn(() =>
       Promise.resolve({
         workspacePath,
+        // Representative resolved workspace folder: the prompt's artifact paths
+        // must be anchored here rather than a hardcoded `/workspace`.
+        workspaceFolder: "/workspaces/repo",
         opencodeLogDirectory: path.join(workspacePath, ".logs"),
         resolvedBranch: "upgrade-ajv",
         devcontainerConfigPath: ".devcontainer/devcontainer.json",
-        devcontainerId: "devcontainer-id",
-        aiContainerId: "ai-container-id",
-        aiBaseUrl: "http://localhost:4096",
+        runtimeContainerId: "runtime-container-id",
+        agentBaseUrl: "http://localhost:4096",
         aiImage: "boboddy/ai-worker:local",
         networkName: "test-network",
         cleanup: () => Promise.resolve(),
@@ -121,6 +124,7 @@ describe("startProcessClaimedExecution", () => {
       },
       sleep: vi.fn(() => Promise.resolve(undefined)),
       logger: {
+        debug: vi.fn(),
         log: vi.fn(),
         error: vi.fn(),
       },
@@ -148,8 +152,9 @@ describe("startProcessClaimedExecution", () => {
     );
     expect(deps.agentRunner.promptAsync).toHaveBeenCalledWith(
       expect.objectContaining({
+        workspaceFolder: "/workspaces/repo",
         promptText:
-          "Header\nOpen https://app.example.com for Checkout bug and save to /workspace/.boboddy/step-artifacts/trace.zip. Legacy: Checkout bug and /workspace/.boboddy/step-artifacts/trace.zip.\nFooter",
+          "Header\nOpen https://app.example.com for Checkout bug and save to /workspaces/repo/.boboddy/step-artifacts/trace.zip. Legacy: Checkout bug and /workspaces/repo/.boboddy/step-artifacts/trace.zip.\nFooter",
       }),
     );
   });

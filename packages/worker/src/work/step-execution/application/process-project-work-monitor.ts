@@ -1,32 +1,35 @@
-import { access, readFile, readdir, stat } from "node:fs/promises";
-import path from "node:path";
-import { STEP_EXECUTION_AGENT } from "@boboddy/opencode-plugin";
-import { ProjectOpencodeRuntimeActions } from "../../opencode-runtime/application/project-opencode-runtime-actions";
 import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
 import type { startProcessClaimedExecution } from "./process-claimed-step-execution";
-import { resolveProjectWorkLogger } from "./process-project-work-logger";
 import {
-  isExpectedStepOutputFailure,
-  tryProcessRuntimeRequest,
-} from "./process-project-work-runtime-request-handler";
-import type {
-  ProcessProjectWorkDeps,
-  ProcessProjectWorkInput,
-  StepExecutionRunTracker,
+  resolveProjectWorkLogger,
+  resolveProjectWorkReporter,
+} from "./process-project-work-logger";
+import {
+  DEFAULT_SESSION_START_MAX_POLLS,
+  DEFAULT_SESSION_START_TIMEOUT_MS,
+  type ProcessProjectWorkDeps,
+  type ProcessProjectWorkInput,
+  type StepExecutionRunTracker,
 } from "../contracts/process-project-work-types";
 import {
   buildFindingsSubmissionPath,
   tryPersistAgentFindings,
 } from "./process-project-work-findings";
+import {
+  captureMissingFindingsDiagnostics,
+  collectStepArtifacts,
+  handleMissingFindings,
+} from "./process-project-work-monitor-helpers";
 
-const FINDINGS_RETRY_PROMPT = [
-  "You finished without submitting Boboddy findings.",
-  "Use the `boboddy-submit-step-findings` tool now.",
-  "Write findings to `.boboddy/step-findings-submission.json`.",
-  "Pass only `findingsJson`.",
-  "The tool will load `.boboddy/current-execution/execution.json` and validate your findings against the stored schema.",
-  "Do not end the task without calling that tool.",
-].join(" ");
+// eslint-disable-next-line local/no-unknown-parameter-type
+export function isExpectedStepOutputFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes(
+      "without findings submission via boboddy-submit-step-findings",
+    )
+  );
+}
 
 async function markMonitorSucceeded(
   tracker: StepExecutionRunTracker,
@@ -55,7 +58,7 @@ async function markMonitorFailed(
 }
 
 function buildMissingFindingsError(input: {
-  aiBaseUrl: string;
+  agentBaseUrl: string;
   workspacePath: string;
   opencodeLogDirectory: string;
   agentSessionId: string;
@@ -64,144 +67,10 @@ function buildMissingFindingsError(input: {
     [
       `Step execution completed without findings submission via boboddy-submit-step-findings after one retry for agent session ${input.agentSessionId}.`,
       `Expected findings file: ${buildFindingsSubmissionPath(input.workspacePath)}`,
-      `OpenCode base URL: ${input.aiBaseUrl}`,
+      `OpenCode base URL: ${input.agentBaseUrl}`,
       `OpenCode logs on disk: ${input.opencodeLogDirectory}`,
     ].join(" "),
   );
-}
-
-async function describeFile(filePath: string): Promise<{
-  path: string;
-  exists: boolean;
-  sizeBytes?: number;
-  modifiedAt?: string;
-  contentPreview?: string;
-}> {
-  try {
-    const fileStat = await stat(filePath);
-    const rawContent = fileStat.isFile()
-      ? await readFile(filePath, "utf8").catch((error) => {
-          return `Failed to read file: ${error instanceof Error ? error.message : String(error)}`;
-        })
-      : undefined;
-
-    return {
-      path: filePath,
-      exists: true,
-      sizeBytes: fileStat.size,
-      modifiedAt: fileStat.mtime.toISOString(),
-      contentPreview:
-        rawContent && rawContent.length > 2000
-          ? `${rawContent.slice(0, 2000)}\n...<truncated ${String(rawContent.length - 2000)} chars>`
-          : rawContent,
-    };
-  } catch {
-    return {
-      path: filePath,
-      exists: false,
-    };
-  }
-}
-
-async function captureOpencodeLogPreview(logDirectory: string): Promise<
-  Array<{
-    file: string;
-    contentPreview: string;
-  }>
-> {
-  try {
-    const entries = await readdir(logDirectory, { withFileTypes: true });
-    const files = entries
-      .filter((entry) => entry.isFile())
-      .map((entry) => entry.name)
-      .sort()
-      .slice(-4);
-
-    return await Promise.all(
-      files.map(async (file) => {
-        const rawContent = await readFile(path.join(logDirectory, file), "utf8").catch(
-          (error) => {
-            return `Failed to read log: ${error instanceof Error ? error.message : String(error)}`;
-          },
-        );
-
-        return {
-          file,
-          contentPreview:
-            rawContent.length > 2000
-              ? `${rawContent.slice(0, 2000)}\n...<truncated ${String(rawContent.length - 2000)} chars>`
-              : rawContent,
-        };
-      }),
-    );
-  } catch (error) {
-    return [
-      {
-        file: "<opencode-log-dir>",
-        contentPreview: `Unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      },
-    ];
-  }
-}
-
-async function captureMissingFindingsDiagnostics(input: {
-  workspacePath: string;
-  opencodeLogDirectory: string;
-}) {
-  const findingsPath = buildFindingsSubmissionPath(input.workspacePath);
-  const currentExecutionPath = path.join(
-    input.workspacePath,
-    ".boboddy",
-    "current-execution",
-    "execution.json",
-  );
-
-  return {
-    findingsFile: await describeFile(findingsPath),
-    currentExecutionFile: await describeFile(currentExecutionPath),
-    opencodeLogs: await captureOpencodeLogPreview(input.opencodeLogDirectory),
-  };
-}
-
-async function collectStepArtifacts(
-  deps: ProcessProjectWorkDeps,
-  startedExecution: Awaited<ReturnType<typeof startProcessClaimedExecution>>,
-  logger: ReturnType<typeof resolveProjectWorkLogger>,
-): Promise<void> {
-  const stepArtifactsDir = path.join(
-    startedExecution.environment.workspacePath,
-    ".boboddy",
-    "step-artifacts",
-  );
-
-  try {
-    await access(stepArtifactsDir);
-  } catch {
-    return;
-  }
-
-  const entries = await readdir(stepArtifactsDir, { recursive: true });
-
-  for (const entry of entries) {
-    const relativeStorePath = entry;
-    const sourcePath = path.join(stepArtifactsDir, relativeStorePath);
-    const fileStat = await stat(sourcePath);
-    if (!fileStat.isFile()) {
-      continue;
-    }
-
-    logger.log("worker", "Saving step artifact", {
-      stepExecutionId: startedExecution.stepExecutionId,
-      relativeStorePath,
-      sourcePath,
-    });
-
-    await deps.artifactStore.saveArtifact({
-      stepExecutionId: startedExecution.stepExecutionId,
-      sourcePath,
-      relativeStorePath,
-    });
-  }
 }
 
 export async function monitorStartedClaimedExecution(
@@ -211,26 +80,36 @@ export async function monitorStartedClaimedExecution(
   startedExecution: Awaited<ReturnType<typeof startProcessClaimedExecution>>,
   heartbeat: { stop(): Promise<void> },
 ) {
+  // The live log stream is created, attached, and stopped by the caller so it
+  // spans the full claim->monitor lifecycle. The monitor just logs through
+  // deps.logger, which is already the streaming logger.
   const logger = resolveProjectWorkLogger(deps);
-  let hasRetriedFindingsSubmission = false;
-  let hasWaitedForRetriedFindingsSubmission = false;
+  const reporter = resolveProjectWorkReporter(deps);
+
   let hasSubmittedFindings = false;
   let hasCollectedArtifacts = false;
-  let hasWaitedForSessionStop = false;
   let hasObservedSessionRunning = false;
+  const missingFindingsState = {
+    hasWaitedForSessionStop: false,
+    hasRetriedFindingsSubmission: false,
+    hasWaitedForRetriedFindingsSubmission: false,
+  };
   let lastLoggedProviderErrorAttempt = -1;
-  const runtimeActions =
-    deps.runtimeCommandRunner && deps.runtimeServiceRunner && deps.timeProvider
-      ? new ProjectOpencodeRuntimeActions({
-          runtimeCommandRunner: deps.runtimeCommandRunner,
-          runtimeServiceRunner: deps.runtimeServiceRunner,
-          timeProvider: deps.timeProvider,
-        })
-      : null;
+  // Elapsed time (ms) and poll count spent waiting for the agent session to
+  // first report running. Used to fail fast when the agent never starts (e.g.
+  // an unreachable AI provider) instead of polling until the caller's overall
+  // timeout. The poll-count cap keeps the guard effective even when
+  // pollIntervalMs is 0 (elapsed time would never accrue).
+  let sessionStartWaitMs = 0;
+  let sessionStartWaitPolls = 0;
+  const sessionStartTimeoutMs =
+    input.sessionStartTimeoutMs ?? DEFAULT_SESSION_START_TIMEOUT_MS;
+  const maxSessionStartWaitPolls =
+    input.pollIntervalMs > 0
+      ? Math.ceil(sessionStartTimeoutMs / input.pollIntervalMs)
+      : DEFAULT_SESSION_START_MAX_POLLS;
 
   const cleanupRuntime = async () => {
-    runtimeActions?.cleanupRunningProcesses();
-
     if (input.preserveRuntimeOnComplete) {
       logger.log("worker", "Preserving runtime environment after completion", {
         projectId: input.projectId,
@@ -255,15 +134,13 @@ export async function monitorStartedClaimedExecution(
       const healthSnapshot =
         await startedExecution.environment.checkContainerHealth?.();
       if (healthSnapshot) {
-        logger.log("health", "Container healthcheck", {
+        logger.debug("health", "Container healthcheck", {
           projectId: input.projectId,
           workerId: input.workerId,
           stepExecutionId: startedExecution.stepExecutionId,
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
-          devcontainerId: startedExecution.environment.devcontainerId,
-          devcontainerStatus: healthSnapshot.devcontainerStatus,
-          aiContainerId: startedExecution.environment.aiContainerId,
-          aiContainerStatus: healthSnapshot.aiContainerStatus,
+          runtimeContainerId: startedExecution.environment.runtimeContainerId,
+          runtimeContainerStatus: healthSnapshot.runtimeContainerStatus,
         });
       }
 
@@ -278,6 +155,10 @@ export async function monitorStartedClaimedExecution(
             startedExecution.localRuntimeSessionId,
             startedExecution.agentSessionId,
           );
+          reporter.event({
+            type: "step:succeeded",
+            stepExecutionId: startedExecution.stepExecutionId,
+          });
         } else {
           await markMonitorFailed(
             tracker,
@@ -288,13 +169,19 @@ export async function monitorStartedClaimedExecution(
               finalStepStatus: stepExecution.status,
             },
           );
+          reporter.event({
+            type: "step:failed",
+            stepExecutionId: startedExecution.stepExecutionId,
+            reason: `Completed with status ${stepExecution.status}`,
+          });
         }
 
         return;
       }
 
       const sessionStatus = await deps.agentRunner.getSessionStatus({
-        aiBaseUrl: startedExecution.environment.aiBaseUrl,
+        agentBaseUrl: startedExecution.environment.agentBaseUrl,
+        workspaceFolder: startedExecution.environment.workspaceFolder,
         sessionId: startedExecution.agentSessionId,
       });
 
@@ -317,8 +204,6 @@ export async function monitorStartedClaimedExecution(
         });
       }
 
-      await tryProcessRuntimeRequest(deps, startedExecution, runtimeActions);
-
       if (sessionStatus.running) {
         hasObservedSessionRunning = true;
         await deps.sleep(input.pollIntervalMs);
@@ -340,14 +225,58 @@ export async function monitorStartedClaimedExecution(
       // still checked above so a run that completes between two polls (without
       // ever being observed as busy) is finalized rather than waited on forever.
       if (submissionResult === "missing" && !hasObservedSessionRunning) {
+        // Fail fast if the session never starts within the configured window.
+        // Without this cap a broken agent/provider connection (e.g. the
+        // in-container agent cannot reach the AI host) would keep reporting
+        // `running: false` and poll until the caller's overall timeout.
+        if (
+          sessionStartWaitMs >= sessionStartTimeoutMs ||
+          sessionStartWaitPolls >= maxSessionStartWaitPolls
+        ) {
+          // Capture OpenCode's own serve log + workspace diagnostics so a
+          // never-started session (unreachable AI, provider/model resolution
+          // failure, etc.) is debuggable from the worker logs instead of just
+          // surfacing an opaque timeout.
+          const startupDiagnostics = await captureMissingFindingsDiagnostics({
+            workspacePath: startedExecution.environment.workspacePath,
+            opencodeLogDirectory:
+              startedExecution.environment.opencodeLogDirectory,
+          });
+          logger.log(
+            "worker",
+            "Agent session never started; captured OpenCode startup diagnostics",
+            {
+              projectId: input.projectId,
+              workerId: input.workerId,
+              stepExecutionId: startedExecution.stepExecutionId,
+              localRuntimeSessionId: startedExecution.localRuntimeSessionId,
+              agentSessionId: startedExecution.agentSessionId,
+              agentBaseUrl: startedExecution.environment.agentBaseUrl,
+              opencodeLogs: startupDiagnostics.opencodeLogs,
+              findingsFile: startupDiagnostics.findingsFile,
+              currentExecutionFile: startupDiagnostics.currentExecutionFile,
+            },
+          );
+          throw new Error(
+            `Agent session ${startedExecution.agentSessionId} never started ` +
+              `(no busy/retry status observed within ${String(
+                sessionStartTimeoutMs,
+              )}ms). Check agent/AI provider connectivity. ` +
+              `OpenCode base URL: ${startedExecution.environment.agentBaseUrl}`,
+          );
+        }
         logger.log("worker", "Waiting for agent session to start", {
           projectId: input.projectId,
           workerId: input.workerId,
           stepExecutionId: startedExecution.stepExecutionId,
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
           agentSessionId: startedExecution.agentSessionId,
+          waitedMs: sessionStartWaitMs,
+          sessionStartTimeoutMs,
         });
         await deps.sleep(input.pollIntervalMs);
+        sessionStartWaitMs += input.pollIntervalMs;
+        sessionStartWaitPolls += 1;
         continue;
       }
 
@@ -372,96 +301,21 @@ export async function monitorStartedClaimedExecution(
           stepExecutionId: startedExecution.stepExecutionId,
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
         });
-      } else if (submissionResult === "missing") {
-        if (!hasWaitedForSessionStop) {
-          const diagnostics = await captureMissingFindingsDiagnostics({
-            workspacePath: startedExecution.environment.workspacePath,
-            opencodeLogDirectory:
-              startedExecution.environment.opencodeLogDirectory,
-          });
-          hasWaitedForSessionStop = true;
-          logger.log(
-            "worker",
-            "OpenCode session stopped without findings submission; waiting one poll for late file writes before retrying",
-            {
-              projectId: input.projectId,
-              workerId: input.workerId,
-              stepExecutionId: startedExecution.stepExecutionId,
-              localRuntimeSessionId: startedExecution.localRuntimeSessionId,
-              status: stepExecution.status,
-              agentSessionId: startedExecution.agentSessionId,
-              findingsFile: diagnostics.findingsFile,
-              currentExecutionFile: diagnostics.currentExecutionFile,
-              opencodeLogs: diagnostics.opencodeLogs,
-            },
-          );
+      } else {
+        const action = await handleMissingFindings(
+          deps,
+          startedExecution,
+          logger,
+          missingFindingsState,
+          stepExecution.status,
+          input.workerId,
+        );
+        if (action === "continue") {
           await deps.sleep(input.pollIntervalMs);
           continue;
         }
-
-        if (!hasRetriedFindingsSubmission) {
-          const diagnostics = await captureMissingFindingsDiagnostics({
-            workspacePath: startedExecution.environment.workspacePath,
-            opencodeLogDirectory:
-              startedExecution.environment.opencodeLogDirectory,
-          });
-          hasRetriedFindingsSubmission = true;
-          hasWaitedForRetriedFindingsSubmission = false;
-          logger.log(
-            "worker",
-            "OpenCode session stopped without findings submission; sending one retry prompt",
-            {
-              projectId: input.projectId,
-              workerId: input.workerId,
-              stepExecutionId: startedExecution.stepExecutionId,
-              localRuntimeSessionId: startedExecution.localRuntimeSessionId,
-              status: stepExecution.status,
-              agentSessionId: startedExecution.agentSessionId,
-              findingsFile: diagnostics.findingsFile,
-              currentExecutionFile: diagnostics.currentExecutionFile,
-              opencodeLogs: diagnostics.opencodeLogs,
-            },
-          );
-
-          await deps.agentRunner.sendRetryPrompt({
-            aiBaseUrl: startedExecution.environment.aiBaseUrl,
-            sessionId: startedExecution.agentSessionId,
-            promptText: FINDINGS_RETRY_PROMPT,
-            agent: STEP_EXECUTION_AGENT,
-          });
-          await deps.sleep(input.pollIntervalMs);
-          continue;
-        }
-
-        if (!hasWaitedForRetriedFindingsSubmission) {
-          const diagnostics = await captureMissingFindingsDiagnostics({
-            workspacePath: startedExecution.environment.workspacePath,
-            opencodeLogDirectory:
-              startedExecution.environment.opencodeLogDirectory,
-          });
-          hasWaitedForRetriedFindingsSubmission = true;
-          logger.log(
-            "worker",
-            "OpenCode retry prompt was accepted but findings are still missing; waiting one extra poll before failing",
-            {
-              projectId: input.projectId,
-              workerId: input.workerId,
-              stepExecutionId: startedExecution.stepExecutionId,
-              localRuntimeSessionId: startedExecution.localRuntimeSessionId,
-              status: stepExecution.status,
-              agentSessionId: startedExecution.agentSessionId,
-              findingsFile: diagnostics.findingsFile,
-              currentExecutionFile: diagnostics.currentExecutionFile,
-              opencodeLogs: diagnostics.opencodeLogs,
-            },
-          );
-
-          await deps.sleep(input.pollIntervalMs);
-          continue;
-        }
-
         throw buildMissingFindingsError({
-          aiBaseUrl: startedExecution.environment.aiBaseUrl,
+          agentBaseUrl: startedExecution.environment.agentBaseUrl,
           workspacePath: startedExecution.environment.workspacePath,
           opencodeLogDirectory:
             startedExecution.environment.opencodeLogDirectory,
@@ -480,7 +334,7 @@ export async function monitorStartedClaimedExecution(
           stepExecutionId: startedExecution.stepExecutionId,
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
           agentSessionId: startedExecution.agentSessionId,
-          aiBaseUrl: startedExecution.environment.aiBaseUrl,
+          agentBaseUrl: startedExecution.environment.agentBaseUrl,
           findingsPath: buildFindingsSubmissionPath(
             startedExecution.environment.workspacePath,
           ),
@@ -523,6 +377,11 @@ export async function monitorStartedClaimedExecution(
         finalStepStatus: finalStatus,
       },
     );
+    reporter.event({
+      type: "step:failed",
+      stepExecutionId: startedExecution.stepExecutionId,
+      reason: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   } finally {
     await heartbeat.stop();

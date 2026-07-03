@@ -1,0 +1,36 @@
+---
+title: Boboddy
+description: Distributed step execution workflows with type-safe pipelines
+template: splash
+hero:
+  tagline: Orchestrate distributed AI-powered step execution with type-safe pipelines and a first-class TypeScript SDK.
+  actions:
+    - text: Get started
+      link: /boboddy/getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/boboddy-dev/boboddy
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is Boboddy?
+
+Boboddy is a TypeScript-first platform for defining **steps** — reusable, versioned computation units — and wiring them into **pipelines** that run across a distributed fleet of workers. Each step has a typed input/output schema and can extract **signals** (metrics) from its output to drive automatic advancement logic.
+
+<CardGrid>
+  <Card title="Type-Safe Steps" icon="puzzle">
+    Define steps with Zod schemas and get end-to-end type inference through your pipelines.
+  </Card>
+  <Card title="Signal-Driven Pipelines" icon="rocket">
+    Extract numeric signals from step outputs and use them to automatically advance or halt pipelines.
+  </Card>
+  <Card title="Distributed Workers" icon="laptop">
+    Run `boboddy work` on any machine to claim and execute steps using local Docker environments.
+  </Card>
+  <Card title="AI-Powered Execution" icon="star">
+    Steps run inside OpenCode-powered agents with full MCP server support for tool-using AI workflows.
+  </Card>
+</CardGrid>

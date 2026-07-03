@@ -157,6 +157,40 @@ function mergeAgentConfig(
   };
 }
 
+function mergePluginConfig(
+  basePlugin: OpenCodeConfig["plugin"],
+  stepPlugins: OpenCodePlugins | null | undefined,
+): OpenCodeConfig["plugin"] {
+  if (!stepPlugins || stepPlugins.length === 0) {
+    return basePlugin;
+  }
+
+  const merged = [...(basePlugin ?? [])];
+
+  for (const entry of stepPlugins) {
+    const entryName = Array.isArray(entry) ? entry[0] : entry;
+    const alreadyPresent = merged.some((existing) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const existingName = Array.isArray(existing) ? existing[0] : existing;
+      return existingName === entryName;
+    });
+    if (!alreadyPresent) {
+      merged.push(entry as NonNullable<OpenCodeConfig["plugin"]>[number]);
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Merge the user's project config (from `.opencode/opencode.json[c]`) onto the
+ * base config. The base `permission` block always wins (security boundary).
+ *
+ * NOTE: This function is kept for backward-compatibility and testing purposes.
+ * In the new architecture, user config is NOT merged into the override layer —
+ * OpenCode loads it natively via its own config precedence chain (project
+ * config #4 / `.opencode/` dirs #5).
+ */
 function mergeUserConfig(
   baseConfig: OpenCodeConfig,
   userConfig: OpenCodeConfig | null | undefined,
@@ -165,7 +199,7 @@ function mergeUserConfig(
 
   const mergedPlugin = mergePluginConfig(
     baseConfig.plugin,
-    userConfig.plugin as OpenCodePlugins | undefined,
+    userConfig.plugin,
   );
 
   const result: OpenCodeConfig = {
@@ -191,30 +225,62 @@ function mergeUserConfig(
   return result;
 }
 
-function mergePluginConfig(
-  basePlugin: OpenCodeConfig["plugin"],
-  stepPlugins: OpenCodePlugins | null | undefined,
-): OpenCodeConfig["plugin"] {
-  if (!stepPlugins || stepPlugins.length === 0) {
-    return basePlugin;
-  }
+/**
+ * Build the Boboddy override config layer — the additions Boboddy requires on
+ * top of whatever the user's project and home configs already provide.
+ *
+ * This is the NEW primary path. It produces only Boboddy's security boundary
+ * (`permission`) plus step-specific additions (`mcp`, `tools`, `agent`,
+ * `plugin`, `model`). It does NOT merge user config: the project's
+ * `.opencode/opencode.json[c]` and the home `~/.config/opencode/opencode.json`
+ * are left for OpenCode to load natively via its own precedence chain.
+ *
+ * The returned object is serialized and passed to the container as
+ * `OPENCODE_CONFIG_CONTENT` (OpenCode precedence level #6 — inline), which
+ * takes effect after the global (#2) and project (#4) configs. This means:
+ *   - User's home config (model, providers) is applied first via #2.
+ *   - Project config (repo-level MCPs, etc.) is applied next via #4.
+ *   - Boboddy's overrides (permission baseline, step MCPs, AGENT_DEFAULT_MODEL)
+ *     win last via #6, as required for the security boundary.
+ */
+export function buildBoboddyOverrideConfig(input: {
+  /** Boboddy's embedded baseline config (permission block, empty mcp, etc.). */
+  baseConfig: OpenCodeConfig;
+  stepMcpServers?: OpenCodeMcpServers | null | undefined;
+  stepPlugins?: OpenCodePlugins | null | undefined;
+  agentPromptText?: string | null | undefined;
+}): OpenCodeConfig {
+  const baseConfig = cloneConfig(input.baseConfig);
+  const requiredPrefixes = getRequiredMcpToolPrefixes(input.stepMcpServers);
+  const mergedMcp = mergeMcpConfig(baseConfig.mcp, input.stepMcpServers);
+  const mergedTools = mergeToolsConfig(baseConfig.tools, requiredPrefixes);
+  const mergedAgent = mergeAgentConfig(
+    baseConfig.agent,
+    requiredPrefixes,
+    input.agentPromptText,
+  );
+  const mergedPlugin = mergePluginConfig(baseConfig.plugin, input.stepPlugins);
+  const model = process.env["AGENT_DEFAULT_MODEL"];
 
-  const merged = [...(basePlugin ?? [])];
-
-  for (const entry of stepPlugins) {
-    const entryName = Array.isArray(entry) ? entry[0] : entry;
-    const alreadyPresent = merged.some((existing) => {
-      const existingName = Array.isArray(existing) ? existing[0] : existing;
-      return existingName === entryName;
-    });
-    if (!alreadyPresent) {
-      merged.push(entry as NonNullable<OpenCodeConfig["plugin"]>[number]);
-    }
-  }
-
-  return merged;
+  return {
+    ...baseConfig,
+    ...(model ? { model: model } : {}),
+    ...(mergedMcp ? { mcp: mergedMcp } : {}),
+    ...(mergedTools ? { tools: mergedTools } : {}),
+    ...(mergedAgent ? { agent: mergedAgent } : {}),
+    ...(mergedPlugin && mergedPlugin.length > 0 ? { plugin: mergedPlugin } : {}),
+  };
 }
 
+/**
+ * Build the full merged opencode config: baseline ⊕ user project config ⊕ step
+ * MCPs/plugins ⊕ AGENT_DEFAULT_MODEL.
+ *
+ * NOTE: In the new architecture, Boboddy no longer uses this function at
+ * runtime. Boboddy's override layer is built via {@link buildBoboddyOverrideConfig}
+ * and delivered as OPENCODE_CONFIG_CONTENT. This function is kept for tests that
+ * exercise the merged-config merge behavior in isolation.
+ */
 export function buildStepExecutionOpencodeConfig(input: {
   baseConfig: OpenCodeConfig;
   userConfig?: OpenCodeConfig | null | undefined;

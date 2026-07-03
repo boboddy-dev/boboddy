@@ -1,8 +1,6 @@
-import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { buildOpencodeContext, USER_TOOLS_DIR } from "@boboddy/opencode-plugin";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import os from "node:os";
+import { buildOpencodeContext } from "@boboddy/opencode-plugin";
 import { writeCurrentExecutionInfoFile } from "../application/process-project-work-findings";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
@@ -11,128 +9,69 @@ import type {
   StepExecutionRuntimeEnvironment,
   StepExecutionRuntimeEnvironmentOrchestrator,
 } from "../contracts/process-project-work-types";
-import type { AiContainerLauncher } from "../../../runtime/runtime-service/application/ai-container-launcher";
 import type { DevcontainerLauncher } from "../../../runtime/runtime-service/application/devcontainer-launcher";
 import type { GitCloneService } from "../../../runtime/runtime-service/application/git-clone-service";
-import {
-  PROJECT_RUNTIME_SESSION_AGENT_NETWORK_ALIAS,
-  PROJECT_RUNTIME_SESSION_PROJECT_NETWORK_ALIAS,
-} from "../../../runtime/runtime-service/application/project-runtime-session-network-metadata";
-import type { RuntimeSessionNetworkManager } from "../../../runtime/runtime-service/application/runtime-session-network-manager";
 import type { WorkspaceManager } from "../../../runtime/runtime-service/application/workspace-manager";
-import { DockerAiContainerLauncher } from "../../../runtime/runtime-service/infra/docker-ai-container-launcher";
 import { DevcontainerCliLauncher } from "../../../runtime/runtime-service/infra/devcontainer-cli-launcher";
 import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-cli-clone-service";
-import { LocalDockerRuntimeSessionNetworkManager } from "../../../runtime/runtime-service/infra/local-docker-runtime-session-network-manager";
 import { LocalWorkspaceManager } from "../../../runtime/runtime-service/infra/local-workspace-manager";
-import { LocalDevcontainerPortForwardManager } from "../../../runtime/runtime-service/infra/local-devcontainer-port-forward-manager";
-import { LocalDevcontainerMcpHostManager } from "../../../runtime/runtime-service/infra/local-devcontainer-mcp-host-manager";
-import { createProjectRuntimeSessionExecutionTarget } from "../../../runtime/runtime-service/domain/project-runtime-session-execution-target";
+import { OpencodeRuntimePayloadProvisioner } from "../../../runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
+import {
+  DevcontainerOpencodeBootstrap,
+  resolveSessionAgentHomeDir,
+} from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
 import { logWork } from "../application/work-logger";
 import { noopLogger, type Logger } from "../../../lib/logger";
-
-const execFileAsync = promisify(execFile);
-
-const ENV_PLACEHOLDER_RE = /^\{env:([^}]+)\}$/u;
-
-function extractReferencedEnvVarNames(
-  mcpServers: OpenCodeMcpServers | null | undefined,
-): string[] {
-  if (!mcpServers) return [];
-
-  const names: string[] = [];
-
-  for (const serverConfig of Object.values(mcpServers)) {
-    if (!("type" in serverConfig) || serverConfig.type !== "local") continue;
-    if (!serverConfig.environment) continue;
-
-    for (const envValue of Object.values(serverConfig.environment)) {
-      const varName = ENV_PLACEHOLDER_RE.exec(envValue)?.[1];
-      if (varName) names.push(varName);
-    }
-  }
-
-  return names;
-}
-
-async function getDevcontainerEnv(
-  containerId: string,
-  varNames: string[],
-): Promise<Record<string, string>> {
-  if (varNames.length === 0) return {};
-
-  const { stdout } = await execFileAsync("docker", [
-    "exec",
-    containerId,
-    "env",
-  ]);
-  const wanted = new Set(varNames);
-  const result: Record<string, string> = {};
-
-  for (const line of stdout.split("\n")) {
-    const eqIdx = line.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = line.slice(0, eqIdx);
-    if (wanted.has(key)) result[key] = line.slice(eqIdx + 1);
-  }
-
-  return result;
-}
-
-async function inspectContainerHealthStatus(
-  containerId: string,
-): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync("docker", [
-      "inspect",
-      "--format",
-      "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}",
-      containerId,
-    ]);
-    return stdout.trim() || "unknown";
-  } catch (error) {
-    return `unreachable:${error instanceof Error ? error.message : String(error)}`;
-  }
-}
-
-async function getContainerNetworks(containerId: string): Promise<string[]> {
-  const { stdout } = await execFileAsync("docker", [
-    "inspect",
-    "--format",
-    "{{json .NetworkSettings.Networks}}",
-    containerId,
-  ]);
-  const networks = JSON.parse(stdout.trim()) as Record<string, unknown> | null;
-  return networks ? Object.keys(networks) : [];
-}
-
-const SYSTEM_NETWORKS = new Set(["bridge", "host", "none"]);
+import { noopReporter, type WorkReporter } from "../contracts/work-reporter";
+import type { ProviderAccessResolver } from "../contracts/agent-runtime/provider-access-resolver";
+import type { RuntimeConfigMaterializer } from "../contracts/agent-runtime/runtime-config-materializer";
+import { DirectProviderAccessResolver } from "./provider-access/direct-provider-access-resolver";
+import { SessionRuntimeConfigMaterializer } from "./provider-access/session-runtime-config-materializer";
+import {
+  cleanupEnvironment,
+  inspectContainerHealthStatus,
+  patchDevcontainerEnv,
+  resolveDevcontainerWorkspaceFolder,
+} from "./local-project-runtime-environment-helpers";
 
 export type LocalProjectRuntimeEnvironment = StepExecutionRuntimeEnvironment;
 
 export type LocalProjectRuntimeEnvironmentOrchestrator =
   StepExecutionRuntimeEnvironmentOrchestrator;
 
+/**
+ * Single-container launch orchestrator.
+ *
+ * The runtime is exactly one container: the user's devcontainer. OpenCode runs
+ * INSIDE it (Phase 3 bootstrap), so there is no separate AI container, session
+ * network, cross-container port-forward, or env read-back/inject step. User
+ * `.opencode/tools` files and `plugin[]` entries are trusted and loaded directly
+ * by the in-container OpenCode, so there is no MCP-host indirection.
+ */
 export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalProjectRuntimeEnvironmentOrchestrator {
   constructor(
     private readonly logger: Logger = noopLogger,
+    private readonly localEnvVars: Record<string, string> = {},
     private readonly deps: {
       workspaceManager: WorkspaceManager;
       gitCloneService: GitCloneService;
       devcontainerLauncher: DevcontainerLauncher;
-      aiContainerLauncher: AiContainerLauncher;
-      runtimeSessionNetworkManager: RuntimeSessionNetworkManager;
-      portForwardManager: LocalDevcontainerPortForwardManager;
-      mcpHostManager: LocalDevcontainerMcpHostManager;
+      // Boboddy-managed OpenCode runtime payload + in-devcontainer bootstrap +
+      // provider-access resolution/materialization.
+      payloadProvisioner: OpencodeRuntimePayloadProvisioner;
+      opencodeBootstrap: DevcontainerOpencodeBootstrap;
+      providerAccessResolver: ProviderAccessResolver;
+      runtimeConfigMaterializer: RuntimeConfigMaterializer;
     } = {
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService: new GitCliCloneService(logger),
       devcontainerLauncher: new DevcontainerCliLauncher(),
-      aiContainerLauncher: new DockerAiContainerLauncher(),
-      runtimeSessionNetworkManager:
-        new LocalDockerRuntimeSessionNetworkManager(),
-      portForwardManager: new LocalDevcontainerPortForwardManager(),
-      mcpHostManager: new LocalDevcontainerMcpHostManager(),
+      payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
+      opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
+      providerAccessResolver: new DirectProviderAccessResolver({ logger }),
+      runtimeConfigMaterializer: new SessionRuntimeConfigMaterializer({
+        outputBaseDir: path.join(os.tmpdir(), "boboddy-provider-config"),
+      }),
     },
   ) {}
 
@@ -148,14 +87,18 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       stepExecutionId: string;
       resultSchemaJson: Record<string, unknown> | null;
     };
+    reporter?: WorkReporter | undefined;
+    stepExecutionId?: string | undefined;
   }): Promise<LocalProjectRuntimeEnvironment> {
+    const reporter = input.reporter ?? noopReporter;
+    const stepExecutionId =
+      input.stepExecutionId ?? input.currentExecutionInfo.stepExecutionId;
     let workspacePath: string | null = null;
     let devcontainerId: string | null = null;
-    let aiContainerId: string | null = null;
-    let networkName: string | null = null;
-    // portForwardExecutionTarget captured for cleanup
-    let mcpHostExecutionTarget: ReturnType<typeof createProjectRuntimeSessionExecutionTarget> | null = null;
-    let portForwardExecutionTarget: ReturnType<typeof createProjectRuntimeSessionExecutionTarget> | null = null;
+    // Session-scoped agent HOME (cleaned up below) for the in-container OpenCode
+    // process.
+    const sessionAgentHomeDir = resolveSessionAgentHomeDir(input.sessionId);
+    let opencodeStarted = false;
 
     try {
       logWork("runtime", "Creating local runtime environment", {
@@ -166,6 +109,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         requestedBranch: input.requestedBranch ?? null,
       });
 
+      // Step 1: Create workspace + clone the repo into it.
       const workspace = await this.deps.workspaceManager.createWorkspace({
         sessionId: input.sessionId,
       });
@@ -175,6 +119,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         workspacePath,
       });
 
+      reporter.event({ type: "step:runtime-cloning", stepExecutionId });
       const cloneResult = await this.deps.gitCloneService.cloneRepository({
         gitUrl: input.gitUrl,
         workspacePath,
@@ -197,22 +142,132 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         stepExecutionId: input.currentExecutionInfo.stepExecutionId,
       });
 
+      // Step 2: Resolve the cloned devcontainer config + its workspace folder.
       const devcontainerConfigPath =
         await this.deps.devcontainerLauncher.resolveConfigPath({
           workspacePath,
         });
+      const devcontainerWorkspaceFolder =
+        await resolveDevcontainerWorkspaceFolder({
+          workspacePath,
+          devcontainerConfigPath,
+        });
+      // The agent-facing workspace folder inside the devcontainer: the declared
+      // workspaceFolder, or the CLI convention /workspaces/<basename>.
+      const agentWorkspaceFolder =
+        devcontainerWorkspaceFolder ??
+        `/workspaces/${path.basename(workspacePath)}`;
       logWork("runtime", "Resolved devcontainer config", {
         sessionId: input.sessionId,
         devcontainerConfigPath,
+        devcontainerWorkspaceFolder,
+        agentWorkspaceFolder,
       });
 
-      // Step 1: Launch devcontainer
+      // Step 3: Patch the cloned devcontainer.json before `up`.
+      //   3a. containerEnv from .boboddy/.env (baked in as `-e KEY=VALUE`).
+      //   3b. Boboddy-managed OpenCode runtime payload + session agent HOME +
+      //       (optional) provider config mounts, plus the host port OpenCode is
+      //       exposed on. Both use the same comment-safe JSON patch mechanism.
+      if (Object.keys(this.localEnvVars).length > 0) {
+        await patchDevcontainerEnv(
+          workspacePath,
+          devcontainerConfigPath,
+          this.localEnvVars,
+        );
+        logWork("runtime", "Patched devcontainer.json with .boboddy/.env vars", {
+          sessionId: input.sessionId,
+          devcontainerConfigPath,
+          varCount: Object.keys(this.localEnvVars).length,
+          varNames: Object.keys(this.localEnvVars),
+        });
+      } else {
+        logWork("runtime", "No .boboddy/.env vars to inject into devcontainer", {
+          sessionId: input.sessionId,
+        });
+      }
+
+      const payload = await this.deps.payloadProvisioner.ensure();
+      logWork("runtime", "OpenCode runtime payload ready", {
+        sessionId: input.sessionId,
+        version: payload.version,
+        hostPayloadDir: payload.hostPayloadDir,
+        containerPayloadDir: payload.containerPayloadDir,
+      });
+
+      const providerAccess = await this.deps.providerAccessResolver.resolve({
+        projectId: input.projectId,
+        sessionId: input.sessionId,
+        requestedByUserId: input.requestedByUserId,
+      });
+      const materialized = await this.deps.runtimeConfigMaterializer.materialize(
+        {
+          runtimeContainerId: input.sessionId,
+          workspaceFolder: agentWorkspaceFolder,
+          providerAccess,
+        },
+      );
+      // Mount the materialized provider config dir READ-ONLY only when the
+      // chosen source produced config files (never broad host credential dirs).
+      const providerConfigDir =
+        materialized.configFiles && materialized.configFiles.length > 0
+          ? path.dirname(materialized.configFiles[0] ?? "")
+          : undefined;
+      logWork("runtime", "Provider access resolved and materialized", {
+        sessionId: input.sessionId,
+        providerMode: providerAccess.mode,
+        providerEnvKeys: Object.keys(materialized.env).sort(),
+        hasProviderConfigDir: Boolean(providerConfigDir),
+      });
+
+      const mountPlan = await this.deps.opencodeBootstrap.planMounts({
+        payload,
+        sessionAgentHomeDir,
+        providerConfigDir,
+      });
+      await this.deps.opencodeBootstrap.patchConfig({
+        workspacePath,
+        devcontainerConfigPath,
+        mounts: mountPlan.mounts,
+        hostPort: mountPlan.hostPort,
+      });
+      logWork("runtime", "Patched devcontainer.json with OpenCode runtime mounts", {
+        sessionId: input.sessionId,
+        mountTargets: mountPlan.mounts.map((m) => m.target),
+        hostPort: mountPlan.hostPort,
+      });
+
+      // Step 3c: Copy the user's host global opencode config into the
+      // session-scoped agent HOME so OpenCode sees it at precedence #2 (global
+      // config) inside the container. The project repo is not touched.
+      const { hostConfigPath, hostAuthPath } =
+        await this.deps.opencodeBootstrap.prepareAgentHomeConfig({
+          sessionAgentHomeDir,
+        });
+      logWork("runtime", "Agent HOME global config prepared", {
+        sessionId: input.sessionId,
+        hostConfigPath: hostConfigPath ?? "(none — no host global config found)",
+        hostAuthPath: hostAuthPath ?? "(none — no host auth.json found)",
+      });
+
+      // Step 4: Launch the devcontainer. Stream the CLI's lifecycle progress
+      // (notably the long-running postCreateCommand) to the reporter so the
+      // user sees real activity instead of a seemingly-frozen spinner.
+      reporter.event({ type: "step:runtime-container-starting", stepExecutionId });
       const devcontainerResult = await this.deps.devcontainerLauncher.launch({
         sessionId: input.sessionId,
         projectId: input.projectId,
         requestedByUserId: input.requestedByUserId,
         workspacePath,
         devcontainerConfigPath,
+        onProgress: ({ kind, phase }) => {
+          reporter.event({
+            type: "step:runtime-container-progress",
+            stepExecutionId,
+            kind,
+            phase,
+          });
+        },
       });
       devcontainerId = devcontainerResult.containerId;
       logWork("runtime", "Devcontainer launched", {
@@ -220,181 +275,50 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         devcontainerId,
       });
 
-      // Step 2: Build OpenCode context — scrubs user plugin files and writes opencode.json.
-      // We do this before the MCP host check so we know whether tool files exist before
-      // deciding to start the host. We'll re-call once more after the host starts to inject the URL.
-      await buildOpencodeContext({
+      // Step 5: Build the OpenCode context. User `.opencode/tools` files and
+      // npm `plugin[]` entries are trusted in the single-container model: they
+      // load directly in the in-container OpenCode process. The in-container
+      // OpenCode also inherits the devcontainer's own environment, so there is
+      // no cross-container env read-back/injection.
+      //
+      // Unlike the old approach, we do NOT write the project's
+      // `.opencode/opencode.json` — the project repo is left untouched.
+      // Instead, buildOpencodeContext returns a JSON string carrying Boboddy's
+      // required additions (permission baseline, step MCPs, AGENT_DEFAULT_MODEL)
+      // that is passed to OpenCode as OPENCODE_CONFIG_CONTENT (precedence #6).
+      // The user's home config (model, providers) was already placed in the
+      // session agent HOME by prepareAgentHomeConfig and is loaded at #2.
+      const { opencodeConfigContent } = await buildOpencodeContext({
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
-        stepPlugins: null,
+        stepPlugins: input.opencodePluginJson,
         // No agent system prompt: the step prompt is delivered as the user
         // message, so opencode keeps its default build agent prompt.
-        // No URL yet — will be injected in Step 4 once host is running
       });
-      logWork("runtime", "OpenCode context built (pre-MCP-host pass)", {
+      logWork("runtime", "OpenCode context built", {
         sessionId: input.sessionId,
         workspacePath,
+        npmPluginCount: input.opencodePluginJson?.length ?? 0,
       });
 
-      // Build the execution target for the devcontainer (agentContainerId not yet known).
-      mcpHostExecutionTarget = createProjectRuntimeSessionExecutionTarget({
-        environmentRole: "project",
-        runnerAssignment: "local:devcontainer",
-        environmentRef: "local:session",
-        metadata: {
-          localExecution: {
-            containerId: devcontainerId,
-            workspacePath,
-            devcontainerConfigPath,
-            // agentContainerId intentionally absent — MCP host only runs in devcontainer
-          },
-        },
+      // Step 6: Start OpenCode INSIDE the devcontainer from the mounted payload,
+      // by absolute path, with the dedicated session HOME and resolved workspace
+      // cwd. Health is awaited and the host-facing base URL is returned.
+      reporter.event({ type: "step:runtime-ai-starting", stepExecutionId });
+      const opencodeStart = await this.deps.opencodeBootstrap.start({
+        containerId: devcontainerId,
+        workspaceFolder: agentWorkspaceFolder,
+        hostPort: mountPlan.hostPort,
+        launchWrapperPath: payload.containerLaunchWrapperPath,
+        providerEnv: materialized.env,
+        opencodeConfigContent,
       });
-
-      // Step 3: Decide whether to start the MCP host.
-      // Start it if there are npm plugins OR if .opencode/tools/ has any tool files.
-      const userPlugins: OpenCodePlugins = input.opencodePluginJson ?? [];
-      const userToolsDir = path.join(workspacePath, USER_TOOLS_DIR);
-      const hasUserToolFiles = await readdir(userToolsDir)
-        .then((entries) => entries.some((e) => e.endsWith(".ts") || e.endsWith(".js")))
-        .catch(() => false);
-
-      let mcpHostPort: number | null = null;
-      let userToolsMcpUrl: string | undefined;
-
-      if (userPlugins.length > 0 || hasUserToolFiles) {
-        try {
-          mcpHostPort = await this.deps.mcpHostManager.ensure(
-            mcpHostExecutionTarget,
-            userPlugins,
-          );
-          userToolsMcpUrl = `http://devcontainer:${mcpHostPort}/mcp`;
-          logWork("runtime", "MCP host started in devcontainer", {
-            sessionId: input.sessionId,
-            mcpHostPort,
-            userToolsMcpUrl,
-            hasUserToolFiles,
-            npmPluginCount: userPlugins.length,
-          });
-        } catch (error) {
-          // Degrade gracefully — step continues without user-defined tools.
-          logWork("runtime", "MCP host failed to start — proceeding without user tools", {
-            sessionId: input.sessionId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      } else {
-        logWork("runtime", "No user tools or plugins — skipping MCP host", {
-          sessionId: input.sessionId,
-        });
-      }
-
-      // Step 4: Re-write opencode.json now that we know the MCP host URL.
-      // If the host didn't start, userToolsMcpUrl is undefined and no bridge entry is written.
-      const finalOpencodeConfig = await buildOpencodeContext({
-        workspacePath,
-        stepMcpServers: input.opencodeMcpJson,
-        stepPlugins: null,
-        // See note above: no agent system prompt override for step execution.
-        userToolsMcpUrl,
-      });
-      logWork("runtime", "OpenCode context written with MCP host URL", {
+      opencodeStarted = true;
+      logWork("runtime", "In-devcontainer OpenCode started", {
         sessionId: input.sessionId,
-        workspacePath,
-        userToolsMcpUrl: userToolsMcpUrl ?? null,
-      });
-
-      const varNames = extractReferencedEnvVarNames(
-        finalOpencodeConfig.mcp as OpenCodeMcpServers | null | undefined,
-      );
-      const devcontainerEnv = await getDevcontainerEnv(
         devcontainerId,
-        varNames,
-      );
-      const extraEnv: Record<string, string> = {};
-      for (const varName of varNames) {
-        const value = process.env[varName] ?? devcontainerEnv[varName];
-        if (value !== undefined) extraEnv[varName] = value;
-      }
-
-      const devcontainerNetworks = await getContainerNetworks(devcontainerId);
-      const composeNetworks = devcontainerNetworks.filter(
-        (n) => !SYSTEM_NETWORKS.has(n),
-      );
-
-      // Step 4: Launch AI container (now that opencode.json references the remote MCP server)
-      const aiContainerResult = await this.deps.aiContainerLauncher.launch({
-        sessionId: input.sessionId,
-        projectId: input.projectId,
-        requestedByUserId: input.requestedByUserId,
-        workspacePath,
-        extraEnv,
-        additionalNetworks: composeNetworks,
-      });
-      aiContainerId = aiContainerResult.containerId;
-      logWork("runtime", "AI container launched", {
-        sessionId: input.sessionId,
-        aiContainerId,
-        aiBaseUrl: aiContainerResult.baseUrl,
-        aiImage: aiContainerResult.image,
-      });
-
-      const network =
-        await this.deps.runtimeSessionNetworkManager.createNetwork(
-          input.sessionId,
-        );
-      networkName = network.networkName;
-      logWork("runtime", "Runtime network created", {
-        sessionId: input.sessionId,
-        networkName,
-      });
-
-      await this.deps.runtimeSessionNetworkManager.attachContainer({
-        networkName,
-        containerId: devcontainerId,
-        alias: PROJECT_RUNTIME_SESSION_PROJECT_NETWORK_ALIAS,
-      });
-      logWork("runtime", "Attached project container to runtime network", {
-        sessionId: input.sessionId,
-        networkName,
-        containerId: devcontainerId,
-        alias: PROJECT_RUNTIME_SESSION_PROJECT_NETWORK_ALIAS,
-      });
-      await this.deps.runtimeSessionNetworkManager.attachContainer({
-        networkName,
-        containerId: aiContainerId,
-        alias: PROJECT_RUNTIME_SESSION_AGENT_NETWORK_ALIAS,
-      });
-      logWork("runtime", "Attached agent container to runtime network", {
-        sessionId: input.sessionId,
-        networkName,
-        containerId: aiContainerId,
-        alias: PROJECT_RUNTIME_SESSION_AGENT_NETWORK_ALIAS,
-      });
-
-      portForwardExecutionTarget =
-        createProjectRuntimeSessionExecutionTarget({
-          environmentRole: "project",
-          runnerAssignment: "local:devcontainer",
-          environmentRef: "local:session",
-          metadata: {
-            localExecution: {
-              containerId: devcontainerId,
-              agentContainerId: aiContainerId,
-              workspacePath,
-              devcontainerConfigPath,
-            },
-          },
-        });
-      await this.deps.portForwardManager.ensureDefaultAccessPoints({
-        workspacePath,
-        devcontainerConfigPath,
-        executionTarget: portForwardExecutionTarget,
-      });
-      logWork("runtime", "Port forward proxies ready", {
-        sessionId: input.sessionId,
-        workspacePath,
-        devcontainerConfigPath,
+        agentBaseUrl: opencodeStart.agentBaseUrl,
+        agentWorkspaceFolder,
       });
 
       logWork("runtime", "Local runtime environment ready", {
@@ -403,54 +327,41 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         resolvedBranch: cloneResult.resolvedBranch,
         devcontainerConfigPath,
         devcontainerId,
-        aiContainerId,
-        aiBaseUrl: aiContainerResult.baseUrl,
-        aiImage: aiContainerResult.image,
-        networkName,
+        agentBaseUrl: opencodeStart.agentBaseUrl,
+        opencodeRuntimeVersion: payload.version,
       });
 
       const checkableDevcontainerId = devcontainerId;
-      const checkableAiContainerId = aiContainerId;
-      if (!checkableDevcontainerId || !checkableAiContainerId) {
-        throw new Error(
-          "Runtime containers must be available before health checks can run.",
-        );
-      }
-
-      const capturedMcpHostExecutionTarget = mcpHostExecutionTarget;
-      const capturedPortForwardExecutionTarget = portForwardExecutionTarget;
+      const capturedDevcontainerId = devcontainerId;
+      const capturedWorkspacePath = workspacePath;
 
       return {
         workspacePath,
-        opencodeLogDirectory: aiContainerResult.opencodeLogDirectory,
+        // OpenCode runs inside the devcontainer, so the agent-facing workspace
+        // folder is the devcontainer's resolved workspace folder.
+        workspaceFolder: agentWorkspaceFolder,
+        opencodeLogDirectory: opencodeStart.agentLogDirectory,
         resolvedBranch: cloneResult.resolvedBranch,
         devcontainerConfigPath,
-        devcontainerId,
-        aiContainerId,
-        aiBaseUrl: aiContainerResult.baseUrl,
-        aiImage: aiContainerResult.image,
-        networkName,
+        // Single runtime container id: the devcontainer, which also hosts
+        // OpenCode.
+        runtimeContainerId: devcontainerId,
+        agentBaseUrl: opencodeStart.agentBaseUrl,
+        // No AI image is used; surface the pinned OpenCode runtime version.
+        aiImage: `opencode-runtime@${payload.version}`,
+        networkName: "",
         checkContainerHealth: async () => ({
-          devcontainerStatus: await inspectContainerHealthStatus(
+          runtimeContainerStatus: await inspectContainerHealthStatus(
             checkableDevcontainerId,
-          ),
-          aiContainerStatus: await inspectContainerHealthStatus(
-            checkableAiContainerId,
           ),
         }),
         cleanup: async () => {
           await Promise.allSettled([
-            capturedPortForwardExecutionTarget
-              ? this.deps.portForwardManager.stop(capturedPortForwardExecutionTarget)
-              : Promise.resolve(),
-            capturedMcpHostExecutionTarget
-              ? this.deps.mcpHostManager.stop(capturedMcpHostExecutionTarget)
-              : Promise.resolve(),
+            this.deps.opencodeBootstrap.stop(capturedDevcontainerId),
+            this.deps.opencodeBootstrap.cleanupSessionHome(sessionAgentHomeDir),
             cleanupEnvironment({
-              workspacePath,
-              devcontainerId,
-              aiContainerId,
-              networkName,
+              workspacePath: capturedWorkspacePath,
+              devcontainerId: capturedDevcontainerId,
               deps: this.deps,
             }),
           ]);
@@ -462,63 +373,17 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         error: error instanceof Error ? error.message : String(error),
       });
       await Promise.allSettled([
-        portForwardExecutionTarget
-          ? this.deps.portForwardManager.stop(portForwardExecutionTarget)
+        opencodeStarted && devcontainerId
+          ? this.deps.opencodeBootstrap.stop(devcontainerId)
           : Promise.resolve(),
-        mcpHostExecutionTarget
-          ? this.deps.mcpHostManager.stop(mcpHostExecutionTarget)
-          : Promise.resolve(),
+        this.deps.opencodeBootstrap.cleanupSessionHome(sessionAgentHomeDir),
         cleanupEnvironment({
           workspacePath,
           devcontainerId,
-          aiContainerId,
-          networkName,
           deps: this.deps,
         }),
       ]);
       throw error;
     }
   }
-}
-
-async function cleanupEnvironment(input: {
-  workspacePath: string | null;
-  devcontainerId: string | null;
-  aiContainerId: string | null;
-  networkName: string | null;
-  deps: {
-    workspaceManager: WorkspaceManager;
-    devcontainerLauncher: DevcontainerLauncher;
-    aiContainerLauncher: AiContainerLauncher;
-    runtimeSessionNetworkManager: RuntimeSessionNetworkManager;
-  };
-}) {
-  logWork("runtime", "Cleaning up local runtime environment", {
-    workspacePath: input.workspacePath,
-    devcontainerId: input.devcontainerId,
-    aiContainerId: input.aiContainerId,
-    networkName: input.networkName,
-  });
-
-  await Promise.allSettled([
-    input.networkName
-      ? input.deps.runtimeSessionNetworkManager.removeNetwork(input.networkName)
-      : Promise.resolve(),
-    input.devcontainerId
-      ? input.deps.devcontainerLauncher.stop(input.devcontainerId)
-      : Promise.resolve(),
-    input.aiContainerId
-      ? input.deps.aiContainerLauncher.stop(input.aiContainerId)
-      : Promise.resolve(),
-    input.workspacePath
-      ? input.deps.workspaceManager.removeWorkspace(input.workspacePath)
-      : Promise.resolve(),
-  ]);
-
-  logWork("runtime", "Local runtime environment cleanup complete", {
-    workspacePath: input.workspacePath,
-    devcontainerId: input.devcontainerId,
-    aiContainerId: input.aiContainerId,
-    networkName: input.networkName,
-  });
 }

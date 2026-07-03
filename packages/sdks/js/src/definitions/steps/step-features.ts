@@ -22,7 +22,7 @@ export type StepFeature<
   readonly __signalKeys?: TSignalKeys; // phantom
 };
 
-export type AnyStepFeature = StepFeature<Record<string, unknown>, string>;
+export type AnyStepFeature = StepFeature;
 
 type UnionToIntersection<U> = (
   U extends unknown ? (x: U) => void : never
@@ -36,7 +36,7 @@ export type FeatureResultExtensions<
 > = [TFeatures[number]] extends [never]
   ? Record<never, never>
   : UnionToIntersection<
-      TFeatures[number] extends StepFeature<infer R, string> ? R : never
+      TFeatures[number] extends StepFeature<infer R> ? R : never
     >;
 
 // Unions all signal keys contributed by features.
@@ -58,7 +58,7 @@ export type NotificationPriority = "low" | "normal" | "high" | "urgent";
 
 export type NotificationChannel =
   | "in_app"
-  | "jira_comment"
+  | "work_item_platform_comment"
   | "email"
   | "slack";
 
@@ -101,7 +101,7 @@ const notificationItemSchema = z
       .enum(["low", "normal", "high", "urgent"])
       .describe("How important this notification is for the user."),
     suggestedChannels: z
-      .array(z.enum(["in_app", "jira_comment", "email", "slack"]))
+      .array(z.enum(["in_app", "work_item_platform_comment", "email", "slack"]))
       .optional()
       .describe(
         "Channels the agent thinks are worth using. The platform policy decides the final channels.",
@@ -133,7 +133,7 @@ const notificationsFeature: NotificationsFeature = {
     "- **title**: A short, human-readable title.",
     "- **body**: The details of the notification.",
     "- **priority**: One of `low`, `normal`, `high`, `urgent`.",
-    "- **suggestedChannels** *(optional)*: Channels you think are worth using (e.g. `[\"in_app\", \"jira_comment\"]`).",
+    "- **suggestedChannels** *(optional)*: Channels you think are worth using (e.g. `[\"in_app\", \"work_item_platform_comment\"]`).",
     "  You only *suggest* channels — the platform policy decides the final delivery channels.",
     '- **payload** *(optional)*: Kind-specific data. For `feedback_request`, include `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational", "suggestedKey"?: string }`.',
   ].join("\n"),

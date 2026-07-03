@@ -22,7 +22,7 @@ export type StepDefContract = {
 
 export function keyToVarName(key: string): string {
   return key
-    .replace(/-([a-z])/g, (_, c: string) => (c as string).toUpperCase())
+    .replace(/-([a-z])/g, (_, c: string) => (c).toUpperCase())
     .replace(/[^a-zA-Z0-9_$]/g, "_");
 }
 
@@ -62,7 +62,7 @@ export function promptToSource(prompt: string): string {
   const placeholders = matches.map((match, index) => ({
     token: match[0],
     marker: `__BOBODDY_PROMPT_EXPR_${String(index)}__`,
-    expr: `\${${promptPathToJsExpr(match[1]!, match[2]!)}}`,
+    expr: `\${${promptPathToJsExpr(match[1] ?? "", match[2] ?? "")}}`,
   }));
 
   let template = prompt;
@@ -88,7 +88,7 @@ export function promptToSource(prompt: string): string {
 function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
   if (!schemaJson) return "z.unknown()";
   try {
-    return parseSchema(schemaJson as Parameters<typeof parseSchema>[0]);
+    return parseSchema(schemaJson);
   } catch {
     return "z.unknown()";
   }

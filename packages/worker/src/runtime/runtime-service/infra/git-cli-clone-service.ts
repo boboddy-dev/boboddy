@@ -47,30 +47,8 @@ export class GitCliCloneService implements GitCloneService {
 
     args.push(input.gitUrl, input.workspacePath);
 
-    const log = this.logger.child({ scope: "GitCliCloneService" });
-
     try {
       await execFileAsync("git", args);
-      log.info(
-        { workspacePath: input.workspacePath },
-        "initializing submodules",
-      );
-      // await execFileAsync(
-      //   "git",
-      //   [
-      //     "-C",
-      //     input.workspacePath,
-      //     "submodule",
-      //     "update",
-      //     "--init",
-      //     "--recursive",
-      //   ],
-      //   { timeout: 60_000 },
-      // );
-      log.info(
-        { workspacePath: input.workspacePath },
-        "submodules initialized",
-      );
       return {
         resolvedBranch: await resolveBranchName(input.workspacePath),
       };

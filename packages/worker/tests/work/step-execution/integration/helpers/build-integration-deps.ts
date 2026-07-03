@@ -1,17 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createLogger } from "../../../../../src/lib/logger";
-import { systemTimeProvider } from "../../../../../src/lib/time-provider";
 import type { ArtifactStore } from "../../../../../src/artifacts/artifact-store/domain/artifact-store";
 import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../../../../../src/work/step-execution/infra/local-project-runtime-environment";
 import { DefaultOpencodeStepRunner } from "../../../../../src/work/step-execution/infra/opencode-step-runner";
 import { SqliteLocalRuntimeSessionStore } from "../../../../../src/work/step-execution/infra/sqlite-local-runtime-session-store";
 import { LocalWorkspaceManager } from "../../../../../src/runtime/runtime-service/infra/local-workspace-manager";
-import { LocalDockerRuntimeSessionNetworkManager } from "../../../../../src/runtime/runtime-service/infra/local-docker-runtime-session-network-manager";
-import { LocalDevcontainerPortForwardManager } from "../../../../../src/runtime/runtime-service/infra/local-devcontainer-port-forward-manager";
-import { LocalDevcontainerMcpHostManager } from "../../../../../src/runtime/runtime-service/infra/local-devcontainer-mcp-host-manager";
-import { LocalRuntimeCommandRunner } from "../../../../../src/runtime/runtime-service/infra/local-runtime-command-runner";
-import { LocalRuntimeServiceRunner } from "../../../../../src/runtime/runtime-service/infra/local-runtime-service-runner";
+import { OpencodeRuntimePayloadProvisioner } from "../../../../../src/runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
+import { DevcontainerOpencodeBootstrap } from "../../../../../src/runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
+import { DirectProviderAccessResolver } from "../../../../../src/work/step-execution/infra/provider-access/direct-provider-access-resolver";
+import { SessionRuntimeConfigMaterializer } from "../../../../../src/work/step-execution/infra/provider-access/session-runtime-config-materializer";
+import os from "node:os";
 import type { ProcessProjectWorkDeps } from "../../../../../src/work/step-execution/application/run-project-work";
 import {
   FakeGitCloneService,
@@ -20,7 +19,6 @@ import {
 } from "./fake-git-clone-service";
 import type { FakeStepExecutionWorkerClient } from "./fake-worker-client";
 import { ContainerRegistry } from "./containers/container-registry";
-import { TestcontainersAiContainerLauncher } from "./containers/testcontainers-ai-container-launcher";
 import { TestcontainersDevcontainerLauncher } from "./containers/testcontainers-devcontainer-launcher";
 
 /**
@@ -102,17 +100,25 @@ class SeedingGitCloneService {
  *     present for collectStepArtifacts when the agent session stops.
  *   - artifactStore: optional override; defaults to the production
  *     LocalArtifactStore under ~/.boboddy/artifacts when omitted.
- *   - devcontainer + AI container launchers: testcontainers-backed. They
- *     produce real Docker containers tracked in the ContainerRegistry for
- *     teardown. To make containers persist after a run, the test skips
- *     registry teardown and sets preserveRuntimeOnComplete (see the
- *     BOBODDY_INTEGRATION_KEEP_CONTAINERS flag).
- *   - everything else (run tracker, agent runner, network manager, port
- *     forward, mcp host, runtime command/service runners, time, sleep,
- *     logger): the real production implementations.
+ *   - devcontainer launcher: testcontainers-backed. It produces the single real
+ *     Docker container (the devcontainer that also hosts OpenCode) tracked in
+ *     the ContainerRegistry for teardown, honoring the orchestrator's injected
+ *     payload/agent-HOME mounts + appPort publish. To make the container persist
+ *     after a run, the test skips registry teardown and sets
+ *     preserveRuntimeOnComplete (see the BOBODDY_INTEGRATION_KEEP_CONTAINERS
+ *     flag).
+ *   - single-container runtime deps: the real OpencodeRuntimePayloadProvisioner,
+ *     DevcontainerOpencodeBootstrap, DirectProviderAccessResolver, and
+ *     SessionRuntimeConfigMaterializer. OpenCode runs INSIDE the devcontainer;
+ *     there is no separate AI container, session network, or cross-container
+ *     bridge.
+ *   - everything else (run tracker, agent runner, sleep, logger): the real
+ *     production implementations. The agent runs commands and services itself
+ *     via native bash inside the devcontainer, so there is no host-mediated
+ *     runtime command/service runner.
  *
- * The AI agent is mocked at the HTTP layer via the FakeAiServer + a seeded
- * opencode config (see the test), not here.
+ * The AI provider is mocked at the HTTP layer via the FakeAiServer + a
+ * discovered/materialized opencode config (see the test), not here.
  */
 export function buildIntegrationDeps(input: {
   workerClient: FakeStepExecutionWorkerClient;
@@ -152,19 +158,19 @@ export function buildIntegrationDeps(input: {
 
   const orchestrator = new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
     logger.child({ scope: "runtime-environment-orchestrator" }),
+    {},
     {
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService,
       devcontainerLauncher: new TestcontainersDevcontainerLauncher(
         containerRegistry,
       ),
-      aiContainerLauncher: new TestcontainersAiContainerLauncher(
-        containerRegistry,
-      ),
-      runtimeSessionNetworkManager:
-        new LocalDockerRuntimeSessionNetworkManager(),
-      portForwardManager: new LocalDevcontainerPortForwardManager(),
-      mcpHostManager: new LocalDevcontainerMcpHostManager(),
+      payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
+      opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
+      providerAccessResolver: new DirectProviderAccessResolver(),
+      runtimeConfigMaterializer: new SessionRuntimeConfigMaterializer({
+        outputBaseDir: path.join(os.tmpdir(), "boboddy-provider-config"),
+      }),
     },
   );
 
@@ -174,19 +180,14 @@ export function buildIntegrationDeps(input: {
     runtimeEnvironmentOrchestrator: orchestrator,
     agentRunner: new DefaultOpencodeStepRunner(),
     artifactStore: input.artifactStore,
-    runtimeCommandRunner: new LocalRuntimeCommandRunner(
-      logger.child({ scope: "runtime-command-runner" }),
-    ),
-    runtimeServiceRunner: new LocalRuntimeServiceRunner(
-      new LocalDevcontainerPortForwardManager(),
-      logger.child({ scope: "runtime-service-runner" }),
-    ),
-    timeProvider: systemTimeProvider,
     sleep: (milliseconds) =>
       new Promise((resolve) => {
         setTimeout(resolve, milliseconds);
       }),
     logger: {
+      debug: (scope, message, details) => {
+        logger.debug({ ...details, workScope: scope }, message);
+      },
       log: (scope, message, details) => {
         logger.info({ ...details, workScope: scope }, message);
       },

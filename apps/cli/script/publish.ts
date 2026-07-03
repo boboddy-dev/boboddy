@@ -131,7 +131,7 @@ process.exit(1);
 }
 
 if (!dryRun && (await published(pkg.name, pkg.version))) {
-  console.log(`already published ${pkg.name}@${pkg.version}`);
+  console.warn(`already published ${pkg.name}@${pkg.version}`);
 } else {
   await preparePublishPackage();
   const packOutput = await $`bun pm pack --quiet`.cwd(publishDir).text();
@@ -142,7 +142,7 @@ if (!dryRun && (await published(pkg.name, pkg.version))) {
   }
 
   if (dryRun) {
-    console.log(`packed ${tarballName}`);
+    console.warn(`packed ${tarballName}`);
   } else {
     await $`npm publish ${tarballName} --access public --tag ${publishTag}`.cwd(publishDir);
   }

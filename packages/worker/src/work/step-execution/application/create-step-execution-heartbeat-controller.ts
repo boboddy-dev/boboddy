@@ -19,9 +19,12 @@ export function createStepExecutionHeartbeatController(
   },
 ) {
   const logger = resolveProjectWorkLogger(deps);
+  // Heartbeat ticks are high-frequency, low-signal. Log them at `debug` so they
+  // stay in local diagnostics but are dropped from the durable feed/archive
+  // (keeps Postgres/S3 volume down).
   const pollDelayMs = getHeartbeatPollDelayMs(input.leaseDurationSeconds);
 
-  logger.log("heartbeat", "Starting heartbeat loop", {
+  logger.debug("heartbeat", "Starting heartbeat loop", {
     stepExecutionId: input.stepExecutionId,
     leaseDurationSeconds: input.leaseDurationSeconds,
     pollDelayMs,
@@ -53,7 +56,7 @@ export function createStepExecutionHeartbeatController(
       }
 
       try {
-        logger.log("heartbeat", "Sending heartbeat", {
+        logger.debug("heartbeat", "Sending heartbeat", {
           stepExecutionId: input.stepExecutionId,
           leaseDurationSeconds: input.leaseDurationSeconds,
         });
@@ -62,7 +65,7 @@ export function createStepExecutionHeartbeatController(
           claimToken: input.claimToken,
           leaseDurationSeconds: input.leaseDurationSeconds,
         });
-        logger.log("heartbeat", "Heartbeat accepted", {
+        logger.debug("heartbeat", "Heartbeat accepted", {
           stepExecutionId: input.stepExecutionId,
         });
       } catch (error) {
@@ -76,7 +79,7 @@ export function createStepExecutionHeartbeatController(
 
   return {
     async stop() {
-      logger.log("heartbeat", "Stopping heartbeat loop", {
+      logger.debug("heartbeat", "Stopping heartbeat loop", {
         stepExecutionId: input.stepExecutionId,
       });
       if (activePollTimeout !== null) {
@@ -85,7 +88,7 @@ export function createStepExecutionHeartbeatController(
       }
       resolveStopSignal?.();
       await runLoop;
-      logger.log("heartbeat", "Heartbeat loop stopped", {
+      logger.debug("heartbeat", "Heartbeat loop stopped", {
         stepExecutionId: input.stepExecutionId,
       });
     },

@@ -2,36 +2,31 @@ import { mkdtemp, mkdir, readFile, writeFile, access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { buildOpencodeContext, USER_TOOLS_MCP_SERVER_NAME } from "./build-opencode-context";
-
-const CONFIG_PATH = (workspacePath: string) =>
-  path.join(workspacePath, ".opencode", "opencode.json");
-
-async function writeUserConfig(
-  workspacePath: string,
-  config: unknown,
-): Promise<void> {
-  const opencodeDir = path.join(workspacePath, ".opencode");
-  await mkdir(opencodeDir, { recursive: true });
-  await writeFile(
-    path.join(opencodeDir, "opencode.json"),
-    JSON.stringify(config, null, 2),
-    "utf8",
-  );
-}
+import { buildOpencodeContext } from "./build-opencode-context";
 
 describe("buildOpencodeContext", () => {
-  test("writes config to .opencode/opencode.json (not root opencode.jsonc)", async () => {
+  test("does NOT write .opencode/opencode.json (project repo stays untouched)", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
     await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
-    const configExists = await access(CONFIG_PATH(workspacePath))
+    // The project-level opencode.json must NOT be written — the repo is clean.
+    const configExists = await access(
+      path.join(workspacePath, ".opencode", "opencode.json"),
+    )
       .then(() => true)
       .catch(() => false);
-    expect(configExists).toBe(true);
+    expect(configExists).toBe(false);
+  });
+
+  test("does not write root opencode.jsonc either", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
     const rootJsoncExists = await access(
       path.join(workspacePath, "opencode.jsonc"),
@@ -41,17 +36,30 @@ describe("buildOpencodeContext", () => {
     expect(rootJsoncExists).toBe(false);
   });
 
-  test("writes config without plugin reference when no plugins provided", async () => {
+  test("returns valid JSON in opencodeConfigContent", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    await buildOpencodeContext({ workspacePath, stepMcpServers: null });
+    const { opencodeConfigContent } = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+    });
 
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { plugin?: unknown };
+    expect(() => { JSON.parse(opencodeConfigContent); }).not.toThrow();
+  });
 
+  test("opencodeConfigContent has no plugin key when no plugins provided", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    const { opencodeConfigContent } = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+    });
+
+    const config = JSON.parse(opencodeConfigContent) as { plugin?: unknown };
     expect(config.plugin).toBeUndefined();
   });
 
@@ -86,183 +94,132 @@ describe("buildOpencodeContext", () => {
     expect(pluginsDirExists).toBe(true);
   });
 
-  test("stepPlugins are NOT written to config.plugin (they go via MCP host)", async () => {
-    // Security invariant: user/npm plugins must NOT reach the AI container's config.plugin[].
-    // buildOpencodeContext always passes stepPlugins: null to the AI config regardless
-    // of what the caller provides — plugins run in the devcontainer MCP host instead.
+  test("stepPlugins are present in opencodeConfigContent.plugin (trusted, same-container)", async () => {
+    // Single-container model: user/npm plugins run in the same container as the
+    // workspace and are trusted, so they appear in the override config's plugin[].
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    await buildOpencodeContext({
+    const { opencodeConfigContent } = await buildOpencodeContext({
       workspacePath,
       stepMcpServers: null,
       stepPlugins: ["opencode-wakatime", ["@my-org/plugin", { key: "val" }]],
     });
 
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { plugin?: unknown };
+    const config = JSON.parse(opencodeConfigContent) as {
+      plugin?: unknown[];
+    };
 
-    expect(config.plugin).toBeUndefined();
+    expect(config.plugin).toContain("opencode-wakatime");
+    expect(config.plugin).toContainEqual(["@my-org/plugin", { key: "val" }]);
   });
 
-  test("writes the step agent prompt into agent.build.prompt", async () => {
+  test("step agent prompt appears in opencodeConfigContent agent.build.prompt", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    await buildOpencodeContext({
+    const { opencodeConfigContent } = await buildOpencodeContext({
       workspacePath,
       stepMcpServers: null,
       agentPromptText: "Execute the Boboddy step.",
     });
 
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { agent?: { build?: { prompt?: string } } };
+    const config = JSON.parse(opencodeConfigContent) as {
+      agent?: { build?: { prompt?: string } };
+    };
 
     expect(config.agent?.build?.prompt).toBe("Execute the Boboddy step.");
   });
 
-  test("merges user MCP servers from .opencode/opencode.json into output", async () => {
+  test("user's .opencode/opencode.json is NOT merged into opencodeConfigContent (loaded natively by OpenCode at #4)", async () => {
+    // The project config is left for OpenCode to load natively via its own
+    // precedence chain. Boboddy's override layer (OPENCODE_CONFIG_CONTENT)
+    // should NOT contain user-config keys like an MCP server declared only in
+    // the project's opencode.json.
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    await writeUserConfig(workspacePath, {
-      mcp: {
-        postgres: {
-          type: "local",
-          command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
-          enabled: true,
-          environment: { DATABASE_URI: "{env:DATABASE_URI}" },
+    const opencodeDir = path.join(workspacePath, ".opencode");
+    await mkdir(opencodeDir, { recursive: true });
+    await writeFile(
+      path.join(opencodeDir, "opencode.json"),
+      JSON.stringify({
+        mcp: {
+          postgres: {
+            type: "local",
+            command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+            enabled: true,
+          },
         },
-      },
+      }),
+      "utf8",
+    );
+
+    const { opencodeConfigContent } = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
     });
 
-    await buildOpencodeContext({ workspacePath, stepMcpServers: null });
+    const config = JSON.parse(opencodeConfigContent) as {
+      mcp?: Record<string, unknown>;
+    };
 
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { mcp?: Record<string, unknown> };
-
-    expect(config.mcp?.["postgres"]).toEqual({
-      type: "local",
-      command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
-      enabled: true,
-      environment: { DATABASE_URI: "{env:DATABASE_URI}" },
-    });
+    // The postgres MCP server from the project config must NOT be in the
+    // override layer — OpenCode loads it natively via project config (#4).
+    expect(config.mcp?.["postgres"]).toBeUndefined();
   });
 
-  test("step MCP servers override same-named user MCP servers", async () => {
+  test("step MCP servers ARE present in opencodeConfigContent", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    await writeUserConfig(workspacePath, {
-      mcp: {
-        postgres: {
-          type: "local",
-          command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
-          enabled: true,
-          environment: { DATABASE_URI: "{env:DATABASE_URI}" },
-        },
-      },
-    });
-
-    await buildOpencodeContext({
+    const { opencodeConfigContent } = await buildOpencodeContext({
       workspacePath,
       stepMcpServers: {
-        postgres: {
+        playwright: {
           type: "local",
-          command: ["uvx", "postgres-mcp", "--access-mode=read-write"],
+          command: ["npx", "-y", "@playwright/mcp@0.0.68"],
           enabled: true,
         },
       },
     });
 
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { mcp?: Record<string, unknown> };
+    const config = JSON.parse(opencodeConfigContent) as {
+      mcp?: Record<string, unknown>;
+    };
 
-    expect((config.mcp?.["postgres"] as { command?: string[] })?.command).toEqual([
-      "uvx",
-      "postgres-mcp",
-      "--access-mode=read-write",
-    ]);
+    expect(config.mcp?.["playwright"]).toEqual({
+      type: "local",
+      command: ["npx", "-y", "@playwright/mcp@0.0.68"],
+      enabled: true,
+    });
   });
 
-  test("user plugins from opencode.json are NOT forwarded to AI config.plugin[]", async () => {
-    // Security invariant: even plugins declared in the user's .opencode/opencode.json
-    // must not reach the AI container. The quarantine step drops them from the
-    // AI config; they are forwarded to the MCP host instead.
+  test("Boboddy permission block is in opencodeConfigContent", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    await writeUserConfig(workspacePath, {
-      plugin: ["@datadog/opencode-plugin"],
-    });
-
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      stepPlugins: ["@datadog/opencode-plugin", "opencode-wakatime"],
-    });
-
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { plugin?: unknown };
-
-    // Neither user config plugins nor stepPlugins appear in AI config
-    expect(config.plugin).toBeUndefined();
-  });
-
-  test("behaves identically when no user config file exists", async () => {
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    // No user config written — fresh workspace
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      agentPromptText: "Do the thing.",
-    });
-
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { agent?: { build?: { prompt?: string } }; mcp?: unknown };
-
-    expect(config.agent?.build?.prompt).toBe("Do the thing.");
-    expect(config.mcp).toBeDefined();
-  });
-
-  test("returns the final merged Config object", async () => {
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    await writeUserConfig(workspacePath, {
-      mcp: {
-        postgres: {
-          type: "local",
-          command: ["uvx", "postgres-mcp"],
-          enabled: true,
-        },
-      },
-    });
-
-    const result = await buildOpencodeContext({
+    const { opencodeConfigContent } = await buildOpencodeContext({
       workspacePath,
       stepMcpServers: null,
     });
 
-    expect((result.mcp as Record<string, unknown> | undefined)?.["postgres"]).toBeDefined();
+    const config = JSON.parse(opencodeConfigContent) as {
+      permission?: Record<string, unknown>;
+    };
+
+    // Permission block from embedded opencode.jsonc must be present in the
+    // override layer so it wins as the security boundary at precedence #6.
+    expect(config.permission).toBeDefined();
+    expect(config.permission?.["boboddy*"]).toBe("allow");
   });
 
-  test(".opencode/tools/ left in place — tools dir untouched by buildOpencodeContext", async () => {
+  test(".opencode/tools/ left in place — trusted and loaded in-container", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
@@ -270,16 +227,21 @@ describe("buildOpencodeContext", () => {
     // Create a .opencode/tools/ dir with a user tool file
     const toolsDir = path.join(workspacePath, ".opencode", "tools");
     await mkdir(toolsDir, { recursive: true });
-    await writeFile(path.join(toolsDir, "my-tool.ts"), "export const myTool = {};", "utf8");
+    await writeFile(
+      path.join(toolsDir, "my-tool.ts"),
+      "export const myTool = {};",
+      "utf8",
+    );
 
     await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
-    // Tools dir must still exist — the AI container blocks it via --tmpfs, not by deletion
+    // Tools dir and file must still exist — they are trusted and load directly.
     const toolsExists = await access(toolsDir).then(() => true).catch(() => false);
     expect(toolsExists).toBe(true);
 
     const toolFileExists = await access(path.join(toolsDir, "my-tool.ts"))
-      .then(() => true).catch(() => false);
+      .then(() => true)
+      .catch(() => false);
     expect(toolFileExists).toBe(true);
   });
 
@@ -289,10 +251,14 @@ describe("buildOpencodeContext", () => {
     );
 
     // Should complete without error even when tools dir doesn't exist
-    await expect(buildOpencodeContext({ workspacePath, stepMcpServers: null })).resolves.toBeDefined();
+    const result = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+    });
+    expect(result).toBeDefined();
   });
 
-  test("removes user plugin files from .opencode/plugins/ leaving only boboddy.js", async () => {
+  test("user plugin files in .opencode/plugins/ are left in place (trusted)", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
@@ -300,125 +266,42 @@ describe("buildOpencodeContext", () => {
     // Pre-create a plugins dir with a user plugin file
     const pluginsDir = path.join(workspacePath, ".opencode", "plugins");
     await mkdir(pluginsDir, { recursive: true });
-    await writeFile(path.join(pluginsDir, "user-plugin.js"), "export default {};", "utf8");
+    await writeFile(
+      path.join(pluginsDir, "user-plugin.js"),
+      "export default {};",
+      "utf8",
+    );
 
     await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
-    // User file must be removed
+    // User file must remain — trusted, loaded directly in-container.
     const userPluginExists = await access(path.join(pluginsDir, "user-plugin.js"))
-      .then(() => true).catch(() => false);
-    expect(userPluginExists).toBe(false);
+      .then(() => true)
+      .catch(() => false);
+    expect(userPluginExists).toBe(true);
 
-    // boboddy.js must still be present
+    // boboddy.js (the embedded trusted plugin) is written alongside it.
     const boboddyExists = await access(path.join(pluginsDir, "boboddy.js"))
-      .then(() => true).catch(() => false);
+      .then(() => true)
+      .catch(() => false);
     expect(boboddyExists).toBe(true);
   });
 
-  test("injects boboddy-user-tools remote MCP server when userToolsMcpUrl is provided", async () => {
+  test("pre-existing user .opencode/opencode.json is NOT overwritten", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    const mcpUrl = "http://devcontainer:40751/mcp";
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      userToolsMcpUrl: mcpUrl,
-    });
+    const opencodeDir = path.join(workspacePath, ".opencode");
+    await mkdir(opencodeDir, { recursive: true });
+    const userConfigPath = path.join(opencodeDir, "opencode.json");
+    const originalContent = JSON.stringify({ model: "user-model" });
+    await writeFile(userConfigPath, originalContent, "utf8");
 
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { mcp?: Record<string, unknown> };
+    await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
-    const bridgeServer = config.mcp?.[USER_TOOLS_MCP_SERVER_NAME] as
-      | { type: string; url: string; enabled: boolean }
-      | undefined;
-    expect(bridgeServer).toBeDefined();
-    expect(bridgeServer?.type).toBe("remote");
-    expect(bridgeServer?.url).toBe(mcpUrl);
-    expect(bridgeServer?.enabled).toBe(true);
-  });
-
-  test("boboddy-user-tools is gated for the build agent when userToolsMcpUrl is provided", async () => {
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      userToolsMcpUrl: "http://devcontainer:40751/mcp",
-    });
-
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as {
-      tools?: Record<string, unknown>;
-      agent?: { build?: { tools?: Record<string, unknown> } };
-    };
-
-    // Tool prefix is disabled globally
-    expect(config.tools?.[`${USER_TOOLS_MCP_SERVER_NAME}*`]).toBe(false);
-    // Tool prefix is enabled for the build agent
-    expect(config.agent?.build?.tools?.[`${USER_TOOLS_MCP_SERVER_NAME}*`]).toBe(true);
-  });
-
-  test("no boboddy-user-tools entry when userToolsMcpUrl is not provided", async () => {
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-    });
-
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { mcp?: Record<string, unknown> };
-
-    expect(config.mcp?.[USER_TOOLS_MCP_SERVER_NAME]).toBeUndefined();
-  });
-
-  test("user/npm plugin entries are NOT written to config.plugin when stepPlugins is null", async () => {
-    // This verifies the security invariant: user plugins go through the MCP host,
-    // not into the AI container's config.plugin[] array.
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      // stepPlugins intentionally omitted (null) — user plugins must not reach the AI config
-    });
-
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { plugin?: unknown };
-
-    // No plugin[] array in AI config — user tools come via MCP host
-    expect(config.plugin).toBeUndefined();
-  });
-
-  test("Boboddy permission block is preserved in output when userToolsMcpUrl is provided", async () => {
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      userToolsMcpUrl: "http://devcontainer:40751/mcp",
-    });
-
-    const config = JSON.parse(
-      await readFile(CONFIG_PATH(workspacePath), "utf8"),
-    ) as { permission?: Record<string, unknown> };
-
-    // Permission block from embedded opencode.jsonc must be present
-    expect(config.permission).toBeDefined();
-    expect(config.permission?.["boboddy*"]).toBe("allow");
+    // The file must be byte-for-byte unchanged.
+    const afterContent = await readFile(userConfigPath, "utf8");
+    expect(afterContent).toBe(originalContent);
   });
 });

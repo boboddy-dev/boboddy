@@ -79,6 +79,7 @@ function createWorkerClient(
     heartbeatStepExecution,
     failStepExecution,
     completeStepExecution,
+    appendStepExecutionLogs: vi.fn(() => Promise.resolve({ nextOffset: 0 })),
     getStepExecution,
     getStepExecutionWorkerContext,
     ...overrides,
@@ -117,19 +118,9 @@ describe("CLI processProjectWork", () => {
             getSessionStatus: vi.fn(() => Promise.resolve({ running: false })),
             sendRetryPrompt: vi.fn(() => Promise.resolve(undefined)),
           } satisfies StepExecutionAgentRunner,
-          runtimeCommandRunner: {
-            executeOneShot: vi.fn(() => Promise.reject(new Error("Not used"))),
-          },
-          runtimeServiceRunner: {
-            start: vi.fn(() => Promise.reject(new Error("Not used"))),
-            stop: vi.fn(() => Promise.reject(new Error("Not used"))),
-          },
-          timeProvider: {
-            now: () => new Date(),
-            nowIso: () => new Date().toISOString(),
-          },
           sleep: () => Promise.resolve(undefined),
           logger: {
+            debug: vi.fn(),
             log: vi.fn(),
             error: vi.fn(),
           },
@@ -179,19 +170,9 @@ describe("CLI processProjectWork", () => {
             getSessionStatus: vi.fn(() => Promise.resolve({ running: false })),
             sendRetryPrompt: vi.fn(() => Promise.resolve(undefined)),
           } satisfies StepExecutionAgentRunner,
-          runtimeCommandRunner: {
-            executeOneShot: vi.fn(() => Promise.reject(new Error("Not used"))),
-          },
-          runtimeServiceRunner: {
-            start: vi.fn(() => Promise.reject(new Error("Not used"))),
-            stop: vi.fn(() => Promise.reject(new Error("Not used"))),
-          },
-          timeProvider: {
-            now: () => new Date(),
-            nowIso: () => new Date().toISOString(),
-          },
           sleep: () => Promise.resolve(undefined),
           logger: {
+            debug: vi.fn(),
             log: vi.fn(),
             error: vi.fn(),
           },
@@ -237,21 +218,9 @@ describe("CLI processProjectWork", () => {
               ),
               sendRetryPrompt: vi.fn(() => Promise.resolve(undefined)),
             } satisfies StepExecutionAgentRunner,
-            runtimeCommandRunner: {
-              executeOneShot: vi.fn(() =>
-                Promise.reject(new Error("Not used")),
-              ),
-            },
-            runtimeServiceRunner: {
-              start: vi.fn(() => Promise.reject(new Error("Not used"))),
-              stop: vi.fn(() => Promise.reject(new Error("Not used"))),
-            },
-            timeProvider: {
-              now: () => new Date(),
-              nowIso: () => new Date().toISOString(),
-            },
             sleep: () => Promise.resolve(undefined),
             logger: {
+              debug: vi.fn(),
               log: vi.fn(),
               error: vi.fn(),
             },

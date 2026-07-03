@@ -76,11 +76,11 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
   async execute(args, context) {
     try {
       const worktree = await resolveWorktree(context.worktree);
-      console.log(
+      console.warn(
         `[boboddy-submit-step-findings] start worktree=${context.worktree} resolvedWorktree=${worktree}`,
       );
       const currentExecutionInfo = await loadCurrentExecutionInfo(worktree);
-      console.log(
+      console.warn(
         `[boboddy-submit-step-findings] loaded current execution stepExecutionId=${currentExecutionInfo.stepExecutionId} hasResultSchema=${String(
           !!currentExecutionInfo.resultSchemaJson,
         )}`,
@@ -107,7 +107,7 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
       }
 
       const valid = validate(args.findingsJson);
-      console.log(
+      console.warn(
         `[boboddy-submit-step-findings] validation valid=${String(valid)}`,
       );
       if (!valid) {
@@ -123,7 +123,7 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
       }
 
       const filePath = path.join(worktree, DEFAULT_OUTPUT_PATH);
-      console.log(
+      console.warn(
         `[boboddy-submit-step-findings] writing findings outputPath=${filePath}`,
       );
       await mkdir(path.dirname(filePath), { recursive: true });
@@ -132,7 +132,7 @@ const boboddySubmitStepFindings: ToolDefinition = tool({
         `${JSON.stringify({ findingsJson: args.findingsJson }, null, 2)}\n`,
         "utf8",
       );
-      console.log("[boboddy-submit-step-findings] write complete");
+      console.warn("[boboddy-submit-step-findings] write complete");
 
       return JSON.stringify(
         {

@@ -2,7 +2,7 @@ import { access } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { ConfigurationError } from "../../../lib/errors";
-import { createLogger } from "../../../lib/logger";
+import { createLazyLogger } from "../../../lib/logger";
 
 const OPENCODE_CONFIG_DIR = path.join(os.homedir(), ".config", "opencode");
 const OPENCODE_CONFIG_FILES = [
@@ -11,10 +11,10 @@ const OPENCODE_CONFIG_FILES = [
   "config.json",
 ];
 
-const logger = createLogger({
+const logger = createLazyLogger({
   name: "@boboddy/worker",
-  level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
-}).child({ scope: "global-setup" });
+  scope: "global-setup",
+});
 
 async function hasOpencodeConfig(): Promise<boolean> {
   for (const file of OPENCODE_CONFIG_FILES) {

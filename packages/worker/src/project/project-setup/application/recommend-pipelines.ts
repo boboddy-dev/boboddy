@@ -1,14 +1,14 @@
 import type { createBoboddyClient } from "@boboddy/sdk";
 import { ConfigurationError } from "../../../lib/errors";
-import { createLogger } from "../../../lib/logger";
+import { createLazyLogger } from "../../../lib/logger";
 import { analyzeRepo, type RepoAnalysis } from "./repo-analysis";
 
 const WEB_REPRO_PLAYWRIGHT_TEMPLATE_KEY = "web_repro_playwright";
 
-const logger = createLogger({
+const logger = createLazyLogger({
   name: "@boboddy/worker",
-  level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
-}).child({ scope: "recommend-pipelines" });
+  scope: "recommend-pipelines",
+});
 
 interface RecommendedSetup {
   templateKey: typeof WEB_REPRO_PLAYWRIGHT_TEMPLATE_KEY;

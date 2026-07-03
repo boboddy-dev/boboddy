@@ -1,7 +1,6 @@
 import path from "node:path";
 import type { AnyJsonValue } from "../../../common/contracts/json";
 import { ConfigurationError } from "../../../lib/errors";
-import { parseDevcontainerForwardPorts } from "./local-devcontainer-port-forward-manager-support";
 
 const stripJsoncComments = (content: string): string => {
   let result = "";
@@ -157,10 +156,6 @@ export const parseDevcontainerConfigContent = (
     );
   }
 };
-
-export const parseDevcontainerForwardPortsFromContent = (
-  content: string,
-): number[] => parseDevcontainerForwardPorts(parseDevcontainerConfigContent(content));
 
 export const parseDevcontainerWorkspaceFolderFromContent = (
   content: string,

@@ -27,14 +27,16 @@ describe("DefaultOpencodeStepRunner", () => {
       const runner = new DefaultOpencodeStepRunner();
 
       expect(await runner.getSessionStatus({
-        aiBaseUrl: "http://127.0.0.1:4096",
+        agentBaseUrl: "http://127.0.0.1:4096",
+        workspaceFolder: "/workspaces/repo",
         sessionId: "session-busy",
       })).toEqual({ running: true, providerError: undefined });
 
       // A retry status carries the upstream provider error, which is surfaced
       // so the worker can log AI-provider failures distinctly.
       expect(await runner.getSessionStatus({
-        aiBaseUrl: "http://127.0.0.1:4096",
+        agentBaseUrl: "http://127.0.0.1:4096",
+        workspaceFolder: "/workspaces/repo",
         sessionId: "session-retry",
       })).toEqual({
         running: true,
@@ -67,12 +69,14 @@ describe("DefaultOpencodeStepRunner", () => {
       const runner = new DefaultOpencodeStepRunner();
 
       expect(await runner.getSessionStatus({
-        aiBaseUrl: "http://127.0.0.1:4096",
+        agentBaseUrl: "http://127.0.0.1:4096",
+        workspaceFolder: "/workspaces/repo",
         sessionId: "session-idle",
       })).toEqual({ running: false });
 
       expect(await runner.getSessionStatus({
-        aiBaseUrl: "http://127.0.0.1:4096",
+        agentBaseUrl: "http://127.0.0.1:4096",
+        workspaceFolder: "/workspaces/repo",
         sessionId: "session-missing",
       })).toEqual({ running: false });
     } finally {

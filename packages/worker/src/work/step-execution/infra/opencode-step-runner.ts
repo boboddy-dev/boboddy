@@ -4,7 +4,8 @@ import type { StepExecutionAgentRunner } from "../contracts/process-project-work
 import { logWork, logWorkError } from "../application/work-logger";
 
 export type PromptAsyncOpencodeStepInput = {
-  aiBaseUrl: string;
+  agentBaseUrl: string;
+  workspaceFolder: string;
   sessionTitle: string;
   promptText: string;
   agent: string;
@@ -16,17 +17,21 @@ export type PromptAsyncOpencodeStepResult = {
 
 export type OpencodeStepRunner = StepExecutionAgentRunner;
 
-const DEFAULT_DIRECTORY = "/workspace";
-
 /** Max attempts for the initial session.create call (1 original + retries). */
 const SESSION_CREATE_MAX_ATTEMPTS = 5;
 /** Base back-off delay in ms; doubles on each retry (100, 200, 400, 800 …). */
 const SESSION_CREATE_BACKOFF_BASE_MS = 100;
 
-function createClient(aiBaseUrl: string) {
+/**
+ * Create an OpenCode client scoped to the resolved workspace folder. The
+ * `directory` is the path OpenCode operates against inside the runtime
+ * container; it is threaded from the runtime environment contract rather than
+ * hardcoded to `/workspace`.
+ */
+function createClient(agentBaseUrl: string, workspaceFolder: string) {
   return createOpencodeClient({
-    baseUrl: aiBaseUrl,
-    directory: DEFAULT_DIRECTORY,
+    baseUrl: agentBaseUrl,
+    directory: workspaceFolder,
   });
 }
 
@@ -40,7 +45,7 @@ function createClient(aiBaseUrl: string) {
 async function createSessionWithRetry(
   client: ReturnType<typeof createClient>,
   title: string,
-  aiBaseUrl: string,
+  agentBaseUrl: string,
 ): Promise<string> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= SESSION_CREATE_MAX_ATTEMPTS; attempt++) {
@@ -66,7 +71,7 @@ async function createSessionWithRetry(
       // monitor's injected logger may be silenced in tests, so we log via the
       // always-on work logger to keep this visible in CI.
       logWorkError("opencode", "OpenCode session.create attempt failed", {
-        aiBaseUrl,
+        agentBaseUrl,
         title,
         attempt,
         maxAttempts: SESSION_CREATE_MAX_ATTEMPTS,
@@ -80,7 +85,7 @@ async function createSessionWithRetry(
     }
   }
   logWorkError("opencode", "OpenCode session.create exhausted all attempts", {
-    aiBaseUrl,
+    agentBaseUrl,
     title,
     maxAttempts: SESSION_CREATE_MAX_ATTEMPTS,
     error: lastError instanceof Error ? lastError.message : String(lastError),
@@ -130,14 +135,14 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
     input: PromptAsyncOpencodeStepInput,
   ): Promise<PromptAsyncOpencodeStepResult> {
     logWork("opencode", "Creating OpenCode client", {
-      aiBaseUrl: input.aiBaseUrl,
+      agentBaseUrl: input.agentBaseUrl,
       sessionTitle: input.sessionTitle,
     });
-    const client = createClient(input.aiBaseUrl);
+    const client = createClient(input.agentBaseUrl, input.workspaceFolder);
     const sessionId = await createSessionWithRetry(
       client,
       input.sessionTitle,
-      input.aiBaseUrl,
+      input.agentBaseUrl,
     );
 
     logWork("opencode", "Created OpenCode session", {
@@ -167,15 +172,16 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
   }
 
   async getSessionStatus(input: {
-    aiBaseUrl: string;
+    agentBaseUrl: string;
+    workspaceFolder: string;
     sessionId: string;
   }): Promise<{
     running: boolean;
     providerError?: { attempt: number; message: string } | undefined;
   }> {
-    const client = createClient(input.aiBaseUrl);
+    const client = createClient(input.agentBaseUrl, input.workspaceFolder);
     logWork("opencode", "Checking OpenCode session status", {
-      aiBaseUrl: input.aiBaseUrl,
+      agentBaseUrl: input.agentBaseUrl,
       sessionId: input.sessionId,
     });
 
@@ -193,14 +199,15 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
   }
 
   async sendRetryPrompt(input: {
-    aiBaseUrl: string;
+    agentBaseUrl: string;
+    workspaceFolder: string;
     sessionId: string;
     promptText: string;
     agent: string;
   }): Promise<void> {
-    const client = createClient(input.aiBaseUrl);
+    const client = createClient(input.agentBaseUrl, input.workspaceFolder);
     logWork("opencode", "Sending retry prompt to OpenCode session", {
-      aiBaseUrl: input.aiBaseUrl,
+      agentBaseUrl: input.agentBaseUrl,
       sessionId: input.sessionId,
       promptLength: input.promptText.length,
     });

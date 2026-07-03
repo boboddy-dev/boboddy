@@ -57,7 +57,9 @@ export interface SignalRef<
   lte(value: number): RuleLeaf<TSignalKeys>;
   in(values: ReadonlyArray<TValue>): RuleLeaf<TSignalKeys>;
   notIn(values: ReadonlyArray<TValue>): RuleLeaf<TSignalKeys>;
+  // eslint-disable-next-line local/no-unknown-parameter-type
   contains(value: unknown): RuleLeaf<TSignalKeys>;
+  // eslint-disable-next-line local/no-unknown-parameter-type
   doesNotContain(value: unknown): RuleLeaf<TSignalKeys>;
 }
 
@@ -131,6 +133,7 @@ function createSignalRef<TSignalKeys extends string>(
 ): SignalRef<TSignalKeys> {
   const leaf = (
     operator: ConditionOperator,
+    // eslint-disable-next-line local/no-unknown-parameter-type
     value: unknown,
   ): RuleLeaf<TSignalKeys> => {
     const condition: SignalCondition<TSignalKeys> = {
@@ -198,7 +201,7 @@ function makeKeyedSignalRef<TSignalKeys extends string>(
   const ref = createSignalRef<TSignalKeys>(key);
   return Object.assign(ref, {
     [SIGNAL_KEY]: key,
-  }) as KeyedSignalRef<TSignalKeys>;
+  });
 }
 
 export function makeAdvanceCtx<
@@ -210,7 +213,7 @@ export function makeAdvanceCtx<
 >(): AdvanceCtx<TSignalKeys, TSignalTypeMap> {
   type WideTuple = readonly [string, string, ...string[]];
   const wrapComputed = (
-    token: InlineComputedSignal<string, string>,
+    token: InlineComputedSignal,
   ): SignalRef<TSignalKeys> =>
     createSignalRef<TSignalKeys>(
       token as InlineComputedSignal<string, TSignalKeys>,

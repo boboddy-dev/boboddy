@@ -1,9 +1,13 @@
 import type { UuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import type {
+  StepExecutionLogLine,
   StepExecutionWorkerClaim,
   StepExecutionWorkerClient,
 } from "../../../../../src/work/step-execution/contracts/process-project-work-types";
-import type { StepExecutionContract } from "../../../../../src/work/step-execution/contracts/step-execution-contracts";
+import type {
+  StepExecutionContract,
+  StepExecutionWorkerContextContract,
+} from "../../../../../src/work/step-execution/contracts/step-execution-contracts";
 import { createUuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import type { WorkScenario } from "./scenario";
 
@@ -77,6 +81,18 @@ export class FakeStepExecutionWorkerClient implements StepExecutionWorkerClient 
     return Promise.resolve(claims);
   }
 
+  readonly appendedLogLines: StepExecutionLogLine[] = [];
+
+  appendStepExecutionLogs(input: {
+    stepExecutionId: UuidV7;
+    claimToken: string;
+    lines: StepExecutionLogLine[];
+  }): Promise<{ nextOffset: number }> {
+    this.appendedLogLines.push(...input.lines);
+    const last = input.lines[input.lines.length - 1];
+    return Promise.resolve({ nextOffset: last ? last.seq : 0 });
+  }
+
   heartbeatStepExecution(input: {
     stepExecutionId: UuidV7;
     claimToken: string;
@@ -119,9 +135,7 @@ export class FakeStepExecutionWorkerClient implements StepExecutionWorkerClient 
   getStepExecutionWorkerContext(input: {
     stepExecutionId: UuidV7;
     claimToken: string;
-  }): Promise<
-    import("../../../../../src/work/step-execution/contracts/step-execution-contracts").StepExecutionWorkerContextContract
-  > {
+  }): Promise<StepExecutionWorkerContextContract> {
     const step = this.scenario.steps.find(
       (candidate) => candidate.stepExecutionId === input.stepExecutionId,
     );

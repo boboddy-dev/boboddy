@@ -34,7 +34,7 @@ const DUMMY_STEPS: StepInfo[] = [
 
 // init
 
-const runInit = async (): Promise<void> => {
+const runInit = (): void => {
   const logger = createCliLogger("pipelines-init");
 
   if (!existsSync(join(process.cwd(), ".git"))) {
@@ -149,7 +149,7 @@ const runPush = async (
       logger.error({ err }, `Failed to start ${runtime.command}.`);
       resolvePromise(1);
     });
-    child.on("exit", (code) => resolvePromise(code ?? 1));
+    child.on("exit", (code) => { resolvePromise(code ?? 1); });
   });
 
   if (exitCode !== 0) {

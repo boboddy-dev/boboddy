@@ -198,7 +198,7 @@ describe("buildStepExecutionOpencodeConfig", () => {
       },
     });
 
-    expect((config.mcp?.["postgres"] as { command?: string[] })?.command).toEqual([
+    expect((config.mcp?.["postgres"] as { command?: string[] }).command).toEqual([
       "uvx",
       "postgres-mcp",
       "--access-mode=read-write",

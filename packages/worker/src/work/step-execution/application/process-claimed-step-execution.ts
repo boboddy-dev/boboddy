@@ -7,7 +7,15 @@ import {
   type UuidV7,
 } from "../../../common/contracts/uuid-v7";
 import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
-import { resolveProjectWorkLogger } from "./process-project-work-logger";
+import {
+  buildContainerStepArtifactsDir,
+  buildPromptRenderContext,
+  buildRunningMetadata,
+} from "./process-claimed-step-execution-helpers";
+import {
+  resolveProjectWorkLogger,
+  resolveProjectWorkReporter,
+} from "./process-project-work-logger";
 import type {
   ProcessProjectWorkDeps,
   StartedClaimedExecution,
@@ -15,52 +23,24 @@ import type {
   StepExecutionWorkerClaim,
   StepExecutionWorkerClient,
 } from "../contracts/process-project-work-types";
+import type { WorkReporter } from "../contracts/work-reporter";
 
-const CONTAINER_STEP_ARTIFACTS_DIR = "/workspace/.boboddy/step-artifacts";
-
-function buildPromptRenderContext(input: {
-  inputJson: unknown;
-  env: NodeJS.ProcessEnv;
-  artifactsDir: string;
-}): Record<string, unknown> {
-  const rootInput =
-    input.inputJson &&
-    typeof input.inputJson === "object" &&
-    !Array.isArray(input.inputJson)
-      ? input.inputJson
-      : {};
-
-  const definedEnv = Object.fromEntries(
-    Object.entries(input.env).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined,
-    ),
-  );
-
-  return {
-    ...rootInput,
-    input: input.inputJson,
-    env: definedEnv,
-    boboddy: {
-      artifactsDir: input.artifactsDir,
-    },
-    // Preserve legacy prompt tokens while scoped names are adopted.
-    stepArtifactsDir: input.artifactsDir,
-  };
-}
-
-function buildRunningMetadata(environment: {
-  resolvedBranch: string;
-  devcontainerConfigPath: string;
-  aiImage: string;
-  networkName: string;
-}) {
-  return JSON.stringify({
-    resolvedBranch: environment.resolvedBranch,
-    devcontainerConfigPath: environment.devcontainerConfigPath,
-    aiImage: environment.aiImage,
-    networkName: environment.networkName,
-  });
-}
+/**
+ * The subset of {@link StepExecutionLogStream} this module drives: attaching
+ * the in-container OpenCode log tail and the structured conversation stream
+ * once their respective prerequisites (container, agent session) exist.
+ */
+type ClaimedExecutionLogStream = {
+  attachOpencodeTail(input: {
+    runtimeContainerId: string;
+    opencodeLogDirectory: string;
+  }): void;
+  attachConversationStream(input: {
+    agentBaseUrl: string;
+    workspaceFolder: string;
+    sessionId: string;
+  }): void;
+};
 
 async function createTrackedSession(
   tracker: StepExecutionRunTracker,
@@ -82,9 +62,8 @@ async function markTrackedSessionRunning(
   input: {
     localRuntimeSessionId: UuidV7;
     workspacePath: string;
-    devcontainerId: string;
-    aiContainerId: string;
-    aiBaseUrl: string;
+    runtimeContainerId: string;
+    agentBaseUrl: string;
     resolvedBranch: string;
     devcontainerConfigPath: string;
     aiImage: string;
@@ -94,9 +73,8 @@ async function markTrackedSessionRunning(
   await tracker.markRunning({
     id: input.localRuntimeSessionId,
     workspacePath: input.workspacePath,
-    devcontainerId: input.devcontainerId,
-    aiContainerId: input.aiContainerId,
-    aiBaseUrl: input.aiBaseUrl,
+    runtimeContainerId: input.runtimeContainerId,
+    agentBaseUrl: input.agentBaseUrl,
     metadataJson: buildRunningMetadata({
       resolvedBranch: input.resolvedBranch,
       devcontainerConfigPath: input.devcontainerConfigPath,
@@ -159,6 +137,8 @@ async function launchRuntimeEnvironment(
     localRuntimeSessionId: UuidV7;
     workerContext: Awaited<ReturnType<typeof fetchWorkerContext>>;
     requestedByUserId: UuidV7;
+    reporter: WorkReporter;
+    stepExecutionId: string;
   },
 ) {
   return await deps.runtimeEnvironmentOrchestrator.launch({
@@ -184,6 +164,8 @@ async function launchRuntimeEnvironment(
       stepExecutionId: input.workerContext.stepExecution.id,
       resultSchemaJson: input.workerContext.stepDefinition.resultSchemaJson,
     },
+    reporter: input.reporter,
+    stepExecutionId: input.stepExecutionId,
   });
 }
 
@@ -197,10 +179,16 @@ export async function startProcessClaimedExecution(
   deps: ProcessProjectWorkDeps,
   client: StepExecutionWorkerClient,
   tracker: StepExecutionRunTracker,
+  logStream?: ClaimedExecutionLogStream,
 ): Promise<StartedClaimedExecution> {
   const logger = resolveProjectWorkLogger(deps);
+  const reporter = resolveProjectWorkReporter(deps);
   const localRuntimeSessionId = createUuidV7();
 
+  reporter.event({
+    type: "step:starting",
+    stepExecutionId: input.claim.stepExecution.id,
+  });
   logger.log("step", "Starting claimed step execution", {
     projectId: input.projectId,
     requestedByUserId: input.requestedByUserId,
@@ -238,12 +226,58 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
+    logger.log("step", "Launching runtime environment", {
+      stepExecutionId: input.claim.stepExecution.id,
+      localRuntimeSessionId,
+    });
+    reporter.event({
+      type: "step:runtime-launching",
+      stepExecutionId: input.claim.stepExecution.id,
+    });
+    const environment = await launchRuntimeEnvironment(deps, {
+      localRuntimeSessionId,
+      workerContext,
+      requestedByUserId: input.requestedByUserId,
+      reporter,
+      stepExecutionId: input.claim.stepExecution.id,
+    });
+    cleanup = async () => {
+      await environment.cleanup();
+    };
+    // Now that the runtime container exists, start mirroring the in-container
+    // OpenCode log into the `ai-server` stream of the same feed.
+    logStream?.attachOpencodeTail({
+      runtimeContainerId: environment.runtimeContainerId,
+      opencodeLogDirectory: environment.opencodeLogDirectory,
+    });
+    logger.log("step", "Runtime environment launched", {
+      stepExecutionId: input.claim.stepExecution.id,
+      localRuntimeSessionId,
+      workspacePath: environment.workspacePath,
+      resolvedBranch: environment.resolvedBranch,
+      devcontainerConfigPath: environment.devcontainerConfigPath,
+      runtimeContainerId: environment.runtimeContainerId,
+      agentBaseUrl: environment.agentBaseUrl,
+      aiImage: environment.aiImage,
+      networkName: environment.networkName,
+    });
+    reporter.event({
+      type: "step:runtime-ready",
+      stepExecutionId: input.claim.stepExecution.id,
+    });
+
+    // Render the prompt now that the runtime is up: artifact paths embedded in
+    // the prompt must be anchored at the resolved workspace folder OpenCode
+    // operates against (no longer a hardcoded `/workspace`).
+    const containerStepArtifactsDir = buildContainerStepArtifactsDir(
+      environment.workspaceFolder,
+    );
     const renderedStepInstructions = renderPromptTemplate(
       workerContext.stepDefinition.prompt,
       buildPromptRenderContext({
         inputJson: workerContext.stepExecution.inputJson,
         env: process.env,
-        artifactsDir: `${CONTAINER_STEP_ARTIFACTS_DIR}/`,
+        artifactsDir: `${containerStepArtifactsDir}/`,
       }),
     );
     const resolvedPromptText = workerContext.agentPrompt.promptText.replaceAll(
@@ -251,37 +285,11 @@ export async function startProcessClaimedExecution(
       renderedStepInstructions,
     );
 
-    logger.log("step", "Launching runtime environment", {
-      stepExecutionId: input.claim.stepExecution.id,
-      localRuntimeSessionId,
-    });
-    const environment = await launchRuntimeEnvironment(deps, {
-      localRuntimeSessionId,
-      workerContext,
-      requestedByUserId: input.requestedByUserId,
-    });
-    cleanup = async () => {
-      await environment.cleanup();
-    };
-    logger.log("step", "Runtime environment launched", {
-      stepExecutionId: input.claim.stepExecution.id,
-      localRuntimeSessionId,
-      workspacePath: environment.workspacePath,
-      resolvedBranch: environment.resolvedBranch,
-      devcontainerConfigPath: environment.devcontainerConfigPath,
-      devcontainerId: environment.devcontainerId,
-      aiContainerId: environment.aiContainerId,
-      aiBaseUrl: environment.aiBaseUrl,
-      aiImage: environment.aiImage,
-      networkName: environment.networkName,
-    });
-
     await markTrackedSessionRunning(tracker, {
       localRuntimeSessionId,
       workspacePath: environment.workspacePath,
-      devcontainerId: environment.devcontainerId,
-      aiContainerId: environment.aiContainerId,
-      aiBaseUrl: environment.aiBaseUrl,
+      runtimeContainerId: environment.runtimeContainerId,
+      agentBaseUrl: environment.agentBaseUrl,
       resolvedBranch: environment.resolvedBranch,
       devcontainerConfigPath: environment.devcontainerConfigPath,
       aiImage: environment.aiImage,
@@ -291,8 +299,7 @@ export async function startProcessClaimedExecution(
       localRuntimeSessionId,
       stepExecutionId: input.claim.stepExecution.id,
       workspacePath: environment.workspacePath,
-      devcontainerId: environment.devcontainerId,
-      aiContainerId: environment.aiContainerId,
+      runtimeContainerId: environment.runtimeContainerId,
     });
 
     const stepArtifactsDir = path.join(
@@ -320,12 +327,17 @@ export async function startProcessClaimedExecution(
     logger.log("step", "Starting agent run", {
       stepExecutionId: input.claim.stepExecution.id,
       localRuntimeSessionId,
-      aiBaseUrl: environment.aiBaseUrl,
+      agentBaseUrl: environment.agentBaseUrl,
       sessionTitle: workerContext.agentPrompt.sessionTitle,
       stepArtifactsDir,
     });
+    reporter.event({
+      type: "step:agent-running",
+      stepExecutionId: input.claim.stepExecution.id,
+    });
     const agentRunResult = await deps.agentRunner.promptAsync({
-      aiBaseUrl: environment.aiBaseUrl,
+      agentBaseUrl: environment.agentBaseUrl,
+      workspaceFolder: environment.workspaceFolder,
       sessionTitle: workerContext.agentPrompt.sessionTitle,
       promptText: resolvedPromptText,
       agent: "build",
@@ -333,6 +345,15 @@ export async function startProcessClaimedExecution(
     logger.log("step", "Agent session started", {
       stepExecutionId: input.claim.stepExecution.id,
       agentSessionId: agentRunResult.sessionId,
+    });
+
+    // Now that the agent session exists, mirror the structured conversation
+    // (model text, reasoning, tool calls) into the `conversation` stream of the
+    // same feed via the in-container OpenCode event subscription.
+    logStream?.attachConversationStream({
+      agentBaseUrl: environment.agentBaseUrl,
+      workspaceFolder: environment.workspaceFolder,
+      sessionId: agentRunResult.sessionId,
     });
 
     await attachTrackedAgentSession(
@@ -354,10 +375,16 @@ export async function startProcessClaimedExecution(
       environment,
     };
   } catch (error) {
+    const failureReason = error instanceof Error ? error.message : String(error);
     logger.error("step", "Claimed step execution failed", {
       stepExecutionId: input.claim.stepExecution.id,
       localRuntimeSessionId,
       error,
+    });
+    reporter.event({
+      type: "step:failed",
+      stepExecutionId: input.claim.stepExecution.id,
+      reason: failureReason,
     });
     const finalStatus = await failClaimedStepIfStillRunning(client, logger, {
       stepExecutionId: input.claim.stepExecution.id,
@@ -374,7 +401,7 @@ export async function startProcessClaimedExecution(
 
     await markTrackedSessionFailed(tracker, {
       localRuntimeSessionId,
-      failureReason: error instanceof Error ? error.message : String(error),
+      failureReason,
       metadataJson: JSON.stringify({
         finalStepStatus: finalStatus,
       }),

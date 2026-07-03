@@ -63,7 +63,9 @@ describe("input accessor", () => {
 
   test.concurrent("array index drilling appends numeric path segments", () => {
     const input = createInputAccessor(schema);
-    expect(materializeAccessor(input.labels[0]!)).toEqual({
+    const label0 = input.labels[0];
+    if (!label0) throw new Error("expected label0");
+    expect(materializeAccessor(label0)).toEqual({
       source: "pipeline_input",
       path: "labels.0",
     });
@@ -79,7 +81,8 @@ describe("input accessor", () => {
 
   test.concurrent("primitive coercion throws a clear error", () => {
     const input = createInputAccessor(schema);
-    expect(() => `${input.title}`).toThrow(/cannot be coerced to a primitive/);
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    expect(() => String(input.title)).toThrow(/cannot be coerced to a primitive/);
     expect(() => Number(input.metadata.priority)).toThrow(
       /cannot be coerced to a primitive/,
     );

@@ -26,6 +26,7 @@ export type InputAccessor<T> = PipelineInputBinding & DeepAccessor<T>;
  * is performed against it.
  */
 export function createInputAccessor<T extends ZodType>(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _schema: T,
 ): InputAccessor<T["_output"]> {
   return createProxy([]) as InputAccessor<T["_output"]>;
@@ -74,6 +75,7 @@ function createProxy(path: ReadonlyArray<string>): object {
 }
 
 export function isInputAccessor(
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
 ): value is InputAccessor<unknown> {
   return (

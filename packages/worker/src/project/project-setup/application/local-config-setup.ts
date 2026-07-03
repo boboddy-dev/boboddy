@@ -2,17 +2,17 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { createBoboddyClient } from "@boboddy/sdk";
 import { ConfigurationError } from "../../../lib/errors";
-import { createLogger } from "../../../lib/logger";
+import { createLazyLogger } from "../../../lib/logger";
 import { deriveProjectName } from "../../project-config/infra/fs-project-config-repo";
 import { readProjectConfig } from "../../project-config/application/read-project-config";
 import { writeProjectConfig } from "../../project-config/application/write-project-config";
 
 const execFileAsync = promisify(execFile);
 
-const logger = createLogger({
+const logger = createLazyLogger({
   name: "@boboddy/worker",
-  level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
-}).child({ scope: "local-config-setup" });
+  scope: "local-config-setup",
+});
 
 async function getGitOriginUrl(): Promise<string> {
   try {

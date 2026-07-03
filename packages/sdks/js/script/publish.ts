@@ -18,7 +18,7 @@ const pkg = JSON.parse(await Bun.file("package.json").text()) as {
 };
 
 if (await published(pkg.name, pkg.version)) {
-  console.log(`already published ${pkg.name}@${pkg.version}`);
+  console.warn(`already published ${pkg.name}@${pkg.version}`);
 } else {
   await $`bun run build`;
 

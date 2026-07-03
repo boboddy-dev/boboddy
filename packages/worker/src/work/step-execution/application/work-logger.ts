@@ -1,11 +1,11 @@
-import { createLogger } from "../../../lib/logger";
+import { createLazyLogger } from "../../../lib/logger";
 
 type WorkLogDetails = Record<string, unknown>;
 
-const workLogger = createLogger({
+const workLogger = createLazyLogger({
   name: "@boboddy/worker",
-  level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
-}).child({ scope: "work" });
+  scope: "work",
+});
 
 export function logWork(
   scope: string,

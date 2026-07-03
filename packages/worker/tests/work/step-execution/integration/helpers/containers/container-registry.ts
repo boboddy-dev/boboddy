@@ -11,9 +11,8 @@ const execFileAsync = promisify(execFile);
  *
  * Two flavours of container are tracked:
  *   - testcontainers-managed StartedTestContainers (the devcontainer), and
- *   - raw container IDs created directly via `docker` (the AI container, which
- *     is launched by the production DockerAiContainerLauncher so its host port
- *     is published exactly like production — see the AI launcher helper).
+ *   - raw container IDs created directly via `docker` (e.g. a standalone
+ *     OpenCode container).
  */
 export class ContainerRegistry {
   private readonly started = new Map<string, StartedTestContainer>();

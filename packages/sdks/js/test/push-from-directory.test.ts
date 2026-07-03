@@ -135,7 +135,8 @@ describe("pushFromDirectory", () => {
       (r) => r.method === "PUT" && r.url.endsWith("/api/step-definitions"),
     );
     expect(stepUpsert).toBeDefined();
-    expect(stepUpsert!.body).toMatchObject({
+    if (!stepUpsert) throw new Error("expected stepUpsert");
+    expect(stepUpsert.body).toMatchObject({
       projectId: "proj-1",
       key: "step-a",
       version: 1,
@@ -147,7 +148,8 @@ describe("pushFromDirectory", () => {
         r.url.endsWith("/api/linear-pipeline-definitions"),
     );
     expect(pipelineUpsert).toBeDefined();
-    expect(pipelineUpsert!.body).toMatchObject({
+    if (!pipelineUpsert) throw new Error("expected pipelineUpsert");
+    expect(pipelineUpsert.body).toMatchObject({
       projectId: "proj-1",
       key: "investigation",
       status: "active",
@@ -226,11 +228,11 @@ describe("pushFromDirectory route validation", () => {
     `;
     writeFileSync(join(dir, "router.js"), PIPELINE);
 
-    globalThis.fetch = (async () => {
-      return new Response(JSON.stringify([]), {
+    globalThis.fetch = (() => {
+      return Promise.resolve(new Response(JSON.stringify([]), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      });
+      }));
     }) as unknown as typeof globalThis.fetch;
   });
 

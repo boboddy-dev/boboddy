@@ -36,7 +36,7 @@ const buildPipelineDefinitionsClient = (
         headers: options?.headers,
       });
       if (result.error) throw new Error(JSON.stringify(result.error));
-      return result.data ?? [];
+      return result.data;
     },
     /**
      * Upserts a pipeline definition keyed by (projectId, key). Accepts the

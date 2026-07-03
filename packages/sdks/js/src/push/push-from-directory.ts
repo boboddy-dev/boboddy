@@ -34,6 +34,7 @@ export interface PushFromDirectoryResult {
   syncedDefaultPipelineAssignment: boolean;
 }
 
+// eslint-disable-next-line local/no-unknown-parameter-type
 function isStepDefinitionSpec(value: unknown): value is StepDefinitionSpec {
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
@@ -46,6 +47,7 @@ function isStepDefinitionSpec(value: unknown): value is StepDefinitionSpec {
 }
 
 function isPipelineDefinitionSpec(
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
 ): value is PipelineDefinitionSpec {
   if (typeof value !== "object" || value === null) return false;
@@ -70,14 +72,14 @@ function extractRoutePipelineKeys(policy: {
     policy.defaultEventType === "route" &&
     typeof policy.defaultEventParamsJson?.["pipelineKey"] === "string"
   ) {
-    keys.push(policy.defaultEventParamsJson["pipelineKey"] as string);
+    keys.push(policy.defaultEventParamsJson["pipelineKey"]);
   }
   for (const rule of policy.rulesJson.rules) {
     if (
       rule.event.type === "route" &&
       typeof rule.event.params?.["pipelineKey"] === "string"
     ) {
-      keys.push(rule.event.params["pipelineKey"] as string);
+      keys.push(rule.event.params["pipelineKey"]);
     }
   }
   return keys;
@@ -102,7 +104,7 @@ export async function pushFromDirectory(
   dir: string,
   opts: PushFromDirectoryOptions,
 ): Promise<PushFromDirectoryResult> {
-  const log = opts.log ?? ((msg: string) => console.log(msg));
+  const log = opts.log ?? ((msg: string) => { console.warn(msg); });
   const headers = { Authorization: `Bearer ${opts.accessToken}` };
   const absDir = resolve(dir);
 
@@ -198,7 +200,7 @@ export async function pushFromDirectory(
     const serverSteps = await stepsClient.listByProjectId(opts.projectId, {
       headers,
     });
-    const stepDefs: StepDefinitionRef[] = (serverSteps ?? []).map((s) => ({
+    const stepDefs: StepDefinitionRef[] = serverSteps.map((s) => ({
       id: s.id,
       key: s.key,
       version: s.version,
@@ -281,7 +283,7 @@ async function syncDefaultPipelineAssignment(
       rule.event.type === "assign" &&
       typeof rule.event.params?.["pipelineKey"] === "string"
     ) {
-      referencedKeys.add(rule.event.params["pipelineKey"] as string);
+      referencedKeys.add(rule.event.params["pipelineKey"]);
     }
   }
 
@@ -299,7 +301,12 @@ async function syncDefaultPipelineAssignment(
   // Resolve the primary linearPipelineDefinitionId
   const linearPipelineDefinitionId = pipelineKeyToId.get(
     serialized.linearPipelineDefinitionKey,
-  )!;
+  );
+  if (!linearPipelineDefinitionId) {
+    throw new Error(
+      `Pipeline key "${serialized.linearPipelineDefinitionKey}" was not found on the server.`,
+    );
+  }
 
   // Rewrite assign event params: replace pipelineKey → pipelineDefinitionId
   const resolvedRules = serialized.rulesJson.rules.map((rule) => {
@@ -307,7 +314,7 @@ async function syncDefaultPipelineAssignment(
       rule.event.type === "assign" &&
       typeof rule.event.params?.["pipelineKey"] === "string"
     ) {
-      const pKey = rule.event.params["pipelineKey"] as string;
+      const pKey = rule.event.params["pipelineKey"];
       const pId = pipelineKeyToId.get(pKey);
       if (!pId) {
         throw new Error(

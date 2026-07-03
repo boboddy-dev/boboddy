@@ -10,6 +10,63 @@ import {
   createPromptTemplateContext,
   type PromptTemplateContext,
 } from "./prompt-template";
+
+/**
+ * Resolves the Zod schema node at a dot-notation path within a ZodObject schema.
+ * Returns undefined if the path does not exist.
+ */
+function resolveZodSchemaAtPath(
+  schema: ZodType | undefined,
+  path: string,
+): ZodType | undefined {
+  if (!schema) return undefined;
+  const segments = path.split(".");
+  let current: ZodType | undefined = schema;
+  for (const segment of segments) {
+    if (!current) return undefined;
+    // Unwrap wrapper types (optional, nullable, default, catch, etc.)
+    current = unwrapZodWrappers(current);
+    const def = (current as unknown as { def?: { type?: string; shape?: Record<string, ZodType> } }).def;
+    if (!def || def.type !== "object" || !def.shape) return undefined;
+    current = def.shape[segment];
+  }
+  return current;
+}
+
+/**
+ * Unwraps Zod wrapper types (optional, nullable, default, catch) to reach the
+ * inner type, then maps the resulting Zod type name to a SignalTypeStr.
+ */
+function zodTypeToSignalType(schema: ZodType | undefined): SignalTypeStr | undefined {
+  if (!schema) return undefined;
+  const unwrapped = unwrapZodWrappers(schema);
+  const def = (unwrapped as unknown as { def?: { type?: string } }).def;
+  const typeName = def?.type;
+  switch (typeName) {
+    case "string": return "string";
+    case "number": return "number";
+    case "boolean": return "boolean";
+    case "array": return "array";
+    case "object": return "object";
+    default: return undefined;
+  }
+}
+
+/** Recursively unwraps optional / nullable / default / catch wrappers. */
+function unwrapZodWrappers(schema: ZodType): ZodType {
+  const def = (schema as unknown as { def?: { type?: string; innerType?: ZodType } }).def;
+  if (!def) return schema;
+  if (
+    def.type === "optional" ||
+    def.type === "nullable" ||
+    def.type === "default" ||
+    def.type === "catch"
+  ) {
+    if (def.innerType) return unwrapZodWrappers(def.innerType);
+  }
+  return schema;
+}
+
 type OpenCodeMcpServers = Record<
   string,
   | {
@@ -234,58 +291,6 @@ type ExtractSignalKey<T> = T extends { key: infer K extends string }
 export type SignalKeysOf<TSignals extends readonly unknown[]> =
   TSignals extends readonly (infer S)[] ? ExtractSignalKey<S> : string;
 
-// Structural type for Zod v4's internal _def — avoids `any` while accessing private internals.
-// In Zod v4: _def.type uses lowercase strings, shape is a plain object (not a function).
-type ZodInternal = {
-  _def: {
-    type: string;
-    innerType?: ZodInternal;
-    shape?: Record<string, ZodInternal>;
-  };
-};
-
-const UNWRAP_TYPES = new Set(["optional", "nullable", "default"]);
-
-function unwrapZodType(schema: ZodInternal): ZodInternal {
-  while (UNWRAP_TYPES.has(schema._def.type)) {
-    const inner = schema._def.innerType;
-    if (!inner) break;
-    schema = inner;
-  }
-  return schema;
-}
-
-function deriveSignalType(
-  schema: ZodType | undefined,
-  path: string,
-): SignalTypeStr {
-  if (!schema) return "string";
-
-  let current = unwrapZodType(schema as ZodInternal);
-
-  for (const part of path.split(".")) {
-    if (current._def.type !== "object") return "string";
-    const next = current._def.shape?.[part];
-    if (!next) return "string";
-    current = unwrapZodType(next);
-  }
-
-  switch (current._def.type) {
-    case "string":
-      return "string";
-    case "number":
-      return "number";
-    case "boolean":
-      return "boolean";
-    case "array":
-      return "array";
-    case "object":
-    case "record":
-      return "object";
-    default:
-      return "string";
-  }
-}
 
 export function defineStep<
   TInput extends ZodType = ZodType,
@@ -351,10 +356,15 @@ export function defineStep<
       ? toJSONSchema(effectiveResult as unknown as $ZodType)
       : null,
     signalExtractorDefinitions: [
-      ...((config.signals ?? []) as StepSignalSpec[]).map((s) => ({
+      ...((config.signals ?? []) as Array<{ key?: string; sourcePath: string; type?: SignalTypeStr; required?: boolean; availableWhenResultStatusIn?: string[] | null }>).map((s) => ({
         key: s.key ?? s.sourcePath,
         sourcePath: s.sourcePath,
-        type: s.type ?? deriveSignalType(config.result, s.sourcePath),
+        type:
+          s.type ??
+          zodTypeToSignalType(
+            resolveZodSchemaAtPath(effectiveResult, s.sourcePath),
+          ) ??
+          "string",
         required: s.required ?? true,
         availableWhenResultStatusIn: s.availableWhenResultStatusIn ?? null,
       })),

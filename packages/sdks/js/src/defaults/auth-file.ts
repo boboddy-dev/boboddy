@@ -29,6 +29,7 @@ const EMPTY_AUTH_FILE: AuthFile = {
   profiles: {},
 };
 
+// eslint-disable-next-line local/no-unknown-parameter-type
 function isAuthProfile(value: unknown): value is AuthProfile {
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
@@ -40,6 +41,7 @@ function isAuthProfile(value: unknown): value is AuthProfile {
   return true;
 }
 
+// eslint-disable-next-line local/no-unknown-parameter-type
 function isAuthFile(value: unknown): value is AuthFile {
   if (typeof value !== "object" || value === null) return false;
   const profiles = (value as Record<string, unknown>)["profiles"];

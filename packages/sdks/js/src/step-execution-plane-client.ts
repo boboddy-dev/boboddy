@@ -113,5 +113,26 @@ const buildStepExecutionPlaneClient = (stepExecutions: StepExecutions) => {
       });
       if (result.error) throw new Error(JSON.stringify(result.error));
     },
+    appendStepExecutionLogs: async (
+      stepExecutionId: string,
+      body: {
+        claimToken: string;
+        lines: {
+          seq: number;
+          stream: "worker" | "ai-server" | "conversation";
+          ts: string;
+          content: string;
+        }[];
+      },
+      options?: RequestOptions,
+    ): Promise<{ nextOffset: number }> => {
+      const result = await stepExecutions.appendStepExecutionLogs({
+        path: { stepExecutionId },
+        body,
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
   };
 };

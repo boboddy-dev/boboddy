@@ -24,6 +24,7 @@ export function createPromptInputProxy<T>(
   return new Proxy(Object.freeze({}), {
     get(_, key) {
       if (key === Symbol.toPrimitive || key === "valueOf") {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         return (_hint: string) => token();
       }
       if (key === "toString") {
@@ -45,7 +46,7 @@ export function createPromptTemplateContext<
       artifactsDir: createPromptInputProxy([
         "boboddy",
         "artifactsDir",
-      ]) as unknown as string,
+      ]),
     },
   };
 }
@@ -57,6 +58,7 @@ export function createPromptTemplateContext<
  */
 export function renderPromptTemplate(
   template: string,
+  // eslint-disable-next-line local/no-unknown-parameter-type
   contextJson: unknown,
 ): string {
   return template.replace(/\{\{([^}]+)\}\}/g, (_, path: string) => {
@@ -67,6 +69,7 @@ export function renderPromptTemplate(
           curr != null ? (curr as Record<string, unknown>)[key] : undefined,
         contextJson,
       );
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     return value != null ? String(value) : "";
   });
 }

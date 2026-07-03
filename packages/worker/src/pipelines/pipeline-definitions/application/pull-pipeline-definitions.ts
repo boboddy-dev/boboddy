@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createStepDefinitionsClient } from "@boboddy/sdk/definitions/steps";
-import { createPipelineDefinitionsClient } from "@boboddy/sdk/definitions/pipelines";
+import { createPipelineDefinitionsClient , DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
 import { createBoboddyClient } from "@boboddy/sdk/client";
 import { generateStepsFileContent, type StepDefContract } from "../../../steps/step-definitions/infra/step-file-generator";
 import { generatePipelineFileContent, type PipelineContract } from "../infra/pipeline-file-generator";
@@ -15,10 +15,11 @@ import {
   PIPELINE_BUILDER_GITIGNORE,
   PIPELINE_BUILDER_TSCONFIG,
 } from "../infra/pipeline-builder-scaffolder";
-import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
 
 type Logger = {
+  // eslint-disable-next-line local/no-unknown-parameter-type
   info: (obj: unknown, msg?: string) => void;
+  // eslint-disable-next-line local/no-unknown-parameter-type
   warn: (obj: unknown, msg?: string) => void;
 };
 
@@ -180,6 +181,7 @@ export async function pullPipelineDefinitions(
 }
 
 function isDefaultPipelineAssignmentContract(
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
 ): value is DefaultPipelineAssignmentContract {
   if (typeof value !== "object" || value === null) return false;

@@ -15,7 +15,7 @@ const artifactsDir = resolve(projectRoot, ".artifacts");
 // cached package from the same absolute tarball path.
 const outputPath = resolve(
   artifactsDir,
-  `boboddy-sdk-local-${Date.now()}.tgz`,
+  `boboddy-sdk-local-${String(Date.now())}.tgz`,
 );
 
 await $`bun run build`;
@@ -33,9 +33,18 @@ const packOutput = await withDistExportsPackage(projectRoot, async () =>
 const tarballName = packOutput.trim().split(/\r?\n/u).at(-1)?.trim();
 
 if (!tarballName?.endsWith(".tgz")) {
-  throw new Error(`Expected bun pm pack to output a .tgz filename, got: ${packOutput}`);
+  throw new Error(
+    `Expected bun pm pack to output a .tgz filename, got: ${packOutput}`,
+  );
 }
 
 await rename(resolve(projectRoot, basename(tarballName)), outputPath);
 
+// Print the artifact path to stdout so callers (e.g. scripts/cli-link-dev.sh)
+// can capture it via command substitution. This is the script's machine-
+// readable output; all human-facing build logs go to stderr. Do NOT switch
+// this to console.warn/console.error — that sends the path to stderr and the
+// shell captures an empty string, silently disabling the local SDK bundle.
+
+// eslint-disable-next-line no-console
 console.log(outputPath);

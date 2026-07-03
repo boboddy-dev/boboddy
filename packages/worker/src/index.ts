@@ -1,4 +1,10 @@
-export { createLogger, noopLogger, type Logger } from "./lib/logger";
+export {
+  createLogger,
+  createLazyLogger,
+  noopLogger,
+  setDefaultLogDestination,
+  type Logger,
+} from "./lib/logger";
 export {
   CoreError,
   CoreValidationError,
@@ -45,7 +51,7 @@ export { readProjectConfig } from "./project/project-config/application/read-pro
 export { writeProjectConfig } from "./project/project-config/application/write-project-config";
 export { deriveProjectName, loadProjectConfig, saveProjectConfig } from "./project/project-config/infra/fs-project-config-repo";
 export type { ProjectConfig } from "./project/project-config/domain/project-config";
-export { ensureDevcontainer, hasDevcontainer, buildPrompt } from "./project/project-setup/application/ensure-devcontainer";
+export { hasDevcontainer, requireDevcontainer } from "./project/project-setup/application/ensure-devcontainer";
 export { globalSetup } from "./project/project-setup/application/global-setup";
 export { localConfigSetup } from "./project/project-setup/application/local-config-setup";
 export { analyzeRepo } from "./project/project-setup/application/repo-analysis";
@@ -71,3 +77,9 @@ export type {
   ProcessProjectWorkResult,
   LocalRuntimeSessionStore,
 } from "./work/step-execution/application/run-project-work";
+export { noopReporter } from "./work/step-execution/contracts/work-reporter";
+export type {
+  WorkEvent,
+  WorkReporter,
+  WorkTask,
+} from "./work/step-execution/contracts/work-reporter";

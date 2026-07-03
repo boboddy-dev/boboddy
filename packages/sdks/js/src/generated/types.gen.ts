@@ -114,6 +114,7 @@ export type GetApiProjectsResponses = {
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
+        orgId: string;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -285,6 +286,7 @@ export type PostApiProjectsResponses = {
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
+        orgId: string;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -571,6 +573,7 @@ export type GetApiProjectsByProjectIdResponses = {
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
+        orgId: string;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -887,6 +890,7 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentResponses = {
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
+        orgId: string;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -1057,6 +1061,7 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsResponses = {
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
+        orgId: string;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -3493,6 +3498,372 @@ export type GetApiStepExecutionsByStepExecutionIdResponses = {
 };
 
 export type GetApiStepExecutionsByStepExecutionIdResponse = GetApiStepExecutionsByStepExecutionIdResponses[keyof GetApiStepExecutionsByStepExecutionIdResponses];
+
+export type GetApiStepExecutionsByStepExecutionIdLogsData = {
+    body?: never;
+    path: {
+        stepExecutionId: string;
+    };
+    query: {
+        from: number;
+        limit: number;
+    };
+    url: '/api/step-executions/{stepExecutionId}/logs';
+};
+
+export type GetApiStepExecutionsByStepExecutionIdLogsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdLogsError = GetApiStepExecutionsByStepExecutionIdLogsErrors[keyof GetApiStepExecutionsByStepExecutionIdLogsErrors];
+
+export type GetApiStepExecutionsByStepExecutionIdLogsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        lines: Array<{
+            seq: number;
+            stream: 'worker' | 'ai-server' | 'conversation';
+            ts: string;
+            content: string;
+        }>;
+        nextOffset: number;
+        complete: boolean;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdLogsResponse = GetApiStepExecutionsByStepExecutionIdLogsResponses[keyof GetApiStepExecutionsByStepExecutionIdLogsResponses];
+
+export type PostApiStepExecutionsByStepExecutionIdLogsData = {
+    body: {
+        claimToken: string;
+        lines: Array<{
+            seq: number;
+            stream: 'worker' | 'ai-server' | 'conversation';
+            ts: string;
+            content: string;
+        }>;
+    };
+    path: {
+        stepExecutionId: string;
+    };
+    query?: never;
+    url: '/api/step-executions/{stepExecutionId}/logs';
+};
+
+export type PostApiStepExecutionsByStepExecutionIdLogsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiStepExecutionsByStepExecutionIdLogsError = PostApiStepExecutionsByStepExecutionIdLogsErrors[keyof PostApiStepExecutionsByStepExecutionIdLogsErrors];
+
+export type PostApiStepExecutionsByStepExecutionIdLogsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        nextOffset: number;
+    };
+};
+
+export type PostApiStepExecutionsByStepExecutionIdLogsResponse = PostApiStepExecutionsByStepExecutionIdLogsResponses[keyof PostApiStepExecutionsByStepExecutionIdLogsResponses];
+
+export type GetApiStepExecutionsByStepExecutionIdLogsArchiveData = {
+    body?: never;
+    path: {
+        stepExecutionId: string;
+    };
+    query?: never;
+    url: '/api/step-executions/{stepExecutionId}/logs/archive';
+};
+
+export type GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 402
+     */
+    402: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdLogsArchiveError = GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors[keyof GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors];
+
+export type GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        url: string | unknown;
+        sizeBytes: number;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdLogsArchiveResponse = GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses[keyof GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses];
 
 export type PostApiLinearPipelineDefinitionsData = {
     body: {
@@ -9610,7 +9981,7 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdResponses = {
         deliveries: Array<{
             id: string;
             notificationId: string;
-            channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+            channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
             status: 'pending' | 'sent' | 'failed' | 'suppressed';
             suppressionReason: string | unknown;
             externalUrl: string | unknown;
@@ -9951,7 +10322,7 @@ export type GetApiProjectsByProjectIdNotificationRulesResponses = {
         id: string;
         projectId: string;
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
-        channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+        channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
         enabled: boolean;
         minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
         conditionsJson: unknown;
@@ -9965,7 +10336,7 @@ export type GetApiProjectsByProjectIdNotificationRulesResponse = GetApiProjectsB
 export type PutApiProjectsByProjectIdNotificationRulesData = {
     body: {
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
-        channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+        channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
         enabled: boolean;
         minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
         conditionsJson: unknown;
@@ -10070,7 +10441,7 @@ export type PutApiProjectsByProjectIdNotificationRulesResponses = {
         id: string;
         projectId: string;
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
-        channel: 'in_app' | 'jira_comment' | 'email' | 'slack';
+        channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
         enabled: boolean;
         minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
         conditionsJson: unknown;
@@ -11635,3 +12006,121 @@ export type PostApiProjectInvitesByTokenAcceptResponses = {
 };
 
 export type PostApiProjectInvitesByTokenAcceptResponse = PostApiProjectInvitesByTokenAcceptResponses[keyof PostApiProjectInvitesByTokenAcceptResponses];
+
+export type GetApiOrgsByOrgIdUsageData = {
+    body?: never;
+    path: {
+        orgId: string;
+    };
+    query?: never;
+    url: '/api/orgs/{orgId}/usage';
+};
+
+export type GetApiOrgsByOrgIdUsageErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiOrgsByOrgIdUsageError = GetApiOrgsByOrgIdUsageErrors[keyof GetApiOrgsByOrgIdUsageErrors];
+
+export type GetApiOrgsByOrgIdUsageResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        orgId: string;
+        period: string;
+        planId: 'free';
+        writes: number;
+        reads: number;
+        storageBytes: number;
+        limits: {
+            maxWritesPerMonth: number;
+            maxReadsPerMonth: number;
+            maxStorageBytes: number;
+        };
+        resetsAt: string;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type GetApiOrgsByOrgIdUsageResponse = GetApiOrgsByOrgIdUsageResponses[keyof GetApiOrgsByOrgIdUsageResponses];

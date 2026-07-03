@@ -1,12 +1,12 @@
-import { createStepExecutionHeartbeatController } from "./create-step-execution-heartbeat-controller";
-import { monitorStartedClaimedExecution } from "./process-project-work-monitor";
-import { startProcessClaimedExecution } from "./process-claimed-step-execution";
-import { resolveProjectWorkLogger } from "./process-project-work-logger";
+import { scheduleClaimedStepExecutions } from "./schedule-claimed-step-executions";
+import {
+  resolveProjectWorkLogger,
+  resolveProjectWorkReporter,
+} from "./process-project-work-logger";
 import type {
   ProcessProjectWorkDeps,
   ProcessProjectWorkInput,
   ProcessProjectWorkResult,
-  StepExecutionWorkerClaim,
 } from "../contracts/process-project-work-types";
 import { validateProcessProjectWorkInput } from "./validate-process-project-work-input";
 
@@ -46,131 +46,6 @@ async function claimAvailableStepExecutions(
   });
 }
 
-function trackCompletedJob(
-  totals: ReturnType<typeof createWorkTotals>,
-  activeJobs: Set<Promise<void>>,
-  job: Promise<void>,
-) {
-  totals.processedCount += 1;
-  activeJobs.delete(job);
-}
-
-function trackRejectedJob(
-  totals: ReturnType<typeof createWorkTotals>,
-  activeJobs: Set<Promise<void>>,
-  job: Promise<void>,
-) {
-  totals.skippedCount += 1;
-  activeJobs.delete(job);
-}
-
-function scheduleClaimedStepExecutionJob(
-  input: ProcessProjectWorkInput,
-  deps: ProcessProjectWorkDeps,
-  claim: StepExecutionWorkerClaim,
-  tracker: ReturnType<ProcessProjectWorkDeps["createRunTracker"]>,
-  totals: ReturnType<typeof createWorkTotals>,
-  activeJobs: Set<Promise<void>>,
-) {
-  const logger = resolveProjectWorkLogger(deps);
-
-  logger.log("worker", "Scheduling claimed step execution", {
-    projectId: input.projectId,
-    workerId: input.workerId,
-    stepExecutionId: claim.stepExecution.id,
-    activeJobsBeforeSchedule: activeJobs.size,
-  });
-
-  const heartbeat = createStepExecutionHeartbeatController(
-    deps.workerClient,
-    deps,
-    {
-      stepExecutionId: claim.stepExecution.id,
-      claimToken: claim.claimToken,
-      leaseDurationSeconds: input.leaseDurationSeconds,
-    },
-  );
-
-  const job = (async () => {
-    try {
-      const startedExecution = await startProcessClaimedExecution(
-        {
-          projectId: input.projectId,
-          requestedByUserId: deps.workerClient.userId,
-          claim,
-          leaseDurationSeconds: input.leaseDurationSeconds,
-        },
-        deps,
-        deps.workerClient,
-        tracker,
-      );
-
-      await monitorStartedClaimedExecution(
-        input,
-        deps,
-        tracker,
-        startedExecution,
-        heartbeat,
-      );
-    } catch (error: unknown) {
-      await heartbeat.stop();
-      throw error;
-    }
-  })();
-
-  activeJobs.add(job);
-  logger.log("worker", "Claimed step execution added to active jobs", {
-    projectId: input.projectId,
-    workerId: input.workerId,
-    stepExecutionId: claim.stepExecution.id,
-    activeJobs: activeJobs.size,
-  });
-
-  void (async () => {
-    try {
-      await job;
-      trackCompletedJob(totals, activeJobs, job);
-      logger.log("worker", "Claimed step execution finished successfully", {
-        projectId: input.projectId,
-        workerId: input.workerId,
-        stepExecutionId: claim.stepExecution.id,
-        processedCount: totals.processedCount,
-        activeJobsRemaining: activeJobs.size,
-      });
-    } catch (error: unknown) {
-      trackRejectedJob(totals, activeJobs, job);
-      logger.error("worker", "Claimed step execution promise rejected", {
-        projectId: input.projectId,
-        workerId: input.workerId,
-        stepExecutionId: claim.stepExecution.id,
-        skippedCount: totals.skippedCount,
-        activeJobsRemaining: activeJobs.size,
-        error,
-      });
-    }
-  })();
-}
-
-function scheduleClaimedStepExecutions(
-  input: ProcessProjectWorkInput,
-  deps: ProcessProjectWorkDeps,
-  claims: StepExecutionWorkerClaim[],
-  tracker: ReturnType<ProcessProjectWorkDeps["createRunTracker"]>,
-  totals: ReturnType<typeof createWorkTotals>,
-  activeJobs: Set<Promise<void>>,
-): void {
-  for (const claim of claims) {
-    scheduleClaimedStepExecutionJob(
-      input,
-      deps,
-      claim,
-      tracker,
-      totals,
-      activeJobs,
-    );
-  }
-}
-
 async function pollForStepExecutionClaims(
   input: ProcessProjectWorkInput,
   deps: ProcessProjectWorkDeps,
@@ -186,6 +61,7 @@ async function pollForStepExecutionClaims(
     activeJobs: activeJobs.size,
     availableSlots,
   });
+  resolveProjectWorkReporter(deps).event({ type: "worker:polling" });
 
   if (availableSlots === 0) {
     logger.log("worker", "No capacity available for new claims", {
@@ -218,6 +94,13 @@ async function pollForStepExecutionClaims(
     stepExecutionIds: claims.map((claim) => claim.stepExecution.id),
   });
 
+  if (claims.length > 0) {
+    resolveProjectWorkReporter(deps).event({
+      type: "worker:claimed",
+      count: claims.length,
+    });
+  }
+
   return claims;
 }
 
@@ -230,6 +113,10 @@ function logWorkerStart(
   logger.log("worker", "Worker client ready", {
     projectId: input.projectId,
     userId: deps.workerClient.userId,
+  });
+  resolveProjectWorkReporter(deps).event({
+    type: "worker:ready",
+    workerId: input.workerId,
   });
   logger.log("worker", "Resolved worker configuration", {
     projectId: input.projectId,
@@ -283,6 +170,11 @@ function logWorkerComplete(
     processedCount: totals.processedCount,
     skippedCount: totals.skippedCount,
   });
+  resolveProjectWorkReporter(deps).event({
+    type: "worker:complete",
+    processed: totals.processedCount,
+    skipped: totals.skippedCount,
+  });
 }
 
 async function closeRunTracker(
@@ -312,6 +204,10 @@ async function sleepBeforeNextPoll(
   logger.log("worker", "Sleeping before next poll", {
     projectId: input.projectId,
     workerId: input.workerId,
+    pollIntervalMs: input.pollIntervalMs,
+  });
+  resolveProjectWorkReporter(deps).event({
+    type: "worker:idle",
     pollIntervalMs: input.pollIntervalMs,
   });
   await deps.sleep(input.pollIntervalMs);
@@ -399,6 +295,11 @@ export async function processProjectWork(
   validateProcessProjectWorkInput(input);
 
   const logger = resolveProjectWorkLogger(deps);
+  resolveProjectWorkReporter(deps).event({
+    type: "worker:starting",
+    projectId: input.projectId,
+    concurrency: input.concurrency,
+  });
   logger.log("worker", "Creating run tracker", {
     projectId: input.projectId,
     workerId: input.workerId,

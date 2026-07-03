@@ -3,10 +3,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  buildPrompt,
-  ensureDevcontainer,
   hasDevcontainer,
+  requireDevcontainer,
 } from "../../../../src/project/project-setup/application/ensure-devcontainer";
+import { ConfigurationError } from "../../../../src/lib/errors";
 import { concurrentTest } from "../../../utils";
 
 describe("hasDevcontainer", () => {
@@ -31,43 +31,24 @@ describe("hasDevcontainer", () => {
   });
 });
 
-describe("buildPrompt", () => {
-  concurrentTest("includes Next.js label for nextjs framework", () => {
-    const prompt = buildPrompt({ kind: "web_app", framework: "nextjs", hasPlaywright: false, confidence: "high" }, "{}");
-    expect(prompt).toContain("Next.js");
-  });
-});
-
-describe("ensureDevcontainer", () => {
-  concurrentTest("skips without launching Docker when devcontainer already exists", () => {
+describe("requireDevcontainer", () => {
+  concurrentTest("resolves when a devcontainer config exists", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "boboddy-devcontainer-"));
     try {
       mkdirSync(join(tmpDir, ".devcontainer"));
       writeFileSync(join(tmpDir, ".devcontainer", "devcontainer.json"), "{}", "utf8");
-      expect(
-        ensureDevcontainer({
-          baseUrl: "https://example.com",
-          projectId: "01900000-0000-7000-8000-000000000001",
-          confirmed: true,
-          workspacePath: tmpDir,
-        }),
-      ).resolves.toBeUndefined();
+      expect(requireDevcontainer(tmpDir)).resolves.toBeUndefined();
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  concurrentTest("skips when generation is not confirmed", async () => {
+  concurrentTest("throws ConfigurationError when no devcontainer exists", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "boboddy-devcontainer-"));
     try {
-      await expect(
-        ensureDevcontainer({
-          baseUrl: "https://example.com",
-          projectId: "01900000-0000-7000-8000-000000000001",
-          confirmed: false,
-          workspacePath: tmpDir,
-        }),
-      ).resolves.toBeUndefined();
+      expect(requireDevcontainer(tmpDir)).rejects.toBeInstanceOf(
+        ConfigurationError,
+      );
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -1,9 +1,14 @@
 /**
- * Integration test for artifact persistence in the `work` command.
+ * Integration test for artifact persistence in the `work` command
+ * (SINGLE-CONTAINER model).
  *
- * Verifies that after the OpenCode agent session stops, the worker collects
- * files from <workspace>/.boboddy/step-artifacts/ and persists them through
- * the ArtifactStore (LocalArtifactStore pointed at a temp dir for this test).
+ * Verifies that after the in-container OpenCode agent session stops, the worker
+ * collects files from <workspace>/.boboddy/step-artifacts/ and persists them
+ * through the ArtifactStore (LocalArtifactStore pointed at a temp dir for this
+ * test). In the single-container model the workspace is one bind mount shared
+ * by the in-container agent and the host worker, so artifact writes are visible
+ * immediately — there is no second container and no bind-mount propagation
+ * retry across containers.
  *
  * Artifact files are pre-seeded into the workspace bind-mount by the
  * SeedingGitCloneService (a wrapper around FakeGitCloneService that writes
@@ -28,14 +33,14 @@
  * Run with:
  *   BOBODDY_INTEGRATION=true bun test tests/work/step-execution/integration
  */
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import { LocalArtifactStore } from "../../../../src/artifacts/artifact-store/infra/local-artifact-store";
 import { runProjectWork } from "../../../../src/work/step-execution/application/run-project-work";
-import { FakeAiServer } from "./helpers/fake-ai-server";
+import { FakeAiServer, seedOpencodeConfig } from "../../../support/fake-ai";
 import { FakeStepExecutionWorkerClient } from "./helpers/fake-worker-client";
 import { buildIntegrationDeps } from "./helpers/build-integration-deps";
 import { buildSingleStepScenario } from "./helpers/scenario";
@@ -45,36 +50,6 @@ const integrationEnabled = process.env["BOBODDY_INTEGRATION"] === "true";
 const keepContainers =
   process.env["BOBODDY_INTEGRATION_KEEP_CONTAINERS"] === "true";
 const TEST_TIMEOUT_MS = 5 * 60 * 1000;
-
-function resolveFakeAiHost(): string {
-  const configured = process.env["BOBODDY_FAKE_AI_HOST"]?.trim();
-  if (configured) return configured;
-  return "host.docker.internal";
-}
-
-async function seedOpencodeConfig(
-  configHomeDir: string,
-  fakeAiPort: number,
-): Promise<void> {
-  const configDir = path.join(configHomeDir, ".config", "opencode");
-  await mkdir(configDir, { recursive: true });
-  const config = {
-    model: "anthropic/claude-3-5-haiku-latest",
-    provider: {
-      anthropic: {
-        options: {
-          baseURL: `http://${resolveFakeAiHost()}:${String(fakeAiPort)}`,
-          apiKey: "fake-key",
-        },
-      },
-    },
-  };
-  await writeFile(
-    path.join(configDir, "config.json"),
-    `${JSON.stringify(config, null, 2)}\n`,
-    "utf8",
-  );
-}
 
 describe.skipIf(!integrationEnabled)(
   "work command artifact persistence (integration)",

@@ -2,15 +2,8 @@ import os, { hostname } from "node:os";
 import path from "node:path";
 import type { DestinationStream } from "pino";
 import { parseUuidV7 } from "../../../common/contracts/uuid-v7";
-import type { RuntimeCommandRunner } from "../../../runtime/runtime-service/application/runtime-command-runner";
-import { systemTimeProvider } from "../../../lib/time-provider";
-import type { TimeProvider } from "../../../lib/time-provider";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
 import { LocalArtifactStore } from "../../../artifacts/artifact-store/infra/local-artifact-store";
-import { LocalRuntimeCommandRunner } from "../../../runtime/runtime-service/infra/local-runtime-command-runner";
-import { LocalDevcontainerPortForwardManager } from "../../../runtime/runtime-service/infra/local-devcontainer-port-forward-manager";
-import type { RuntimeServiceRunner } from "../../../runtime/runtime-service/application/runtime-service-runner";
-import { LocalRuntimeServiceRunner } from "../../../runtime/runtime-service/infra/local-runtime-service-runner";
 import {
   processProjectWork as processProjectWorkInCore,
 } from "./process-project-work";
@@ -21,6 +14,7 @@ import type {
   StepExecutionRunTracker,
   StepExecutionRuntimeEnvironmentOrchestrator,
   StepExecutionWorkerClient,
+  WorkReporter,
 } from "../contracts/process-project-work-types";
 import { resolveBoboddyBaseUrl } from "../../../auth/session/infra/auth-config";
 import { createLogger } from "../../../lib/logger";
@@ -49,7 +43,17 @@ export type ProcessProjectWorkOptions = {
   workItemId?: string | undefined;
   preserveRuntimeOnComplete?: boolean | undefined;
   once?: boolean | undefined;
+  /** Fail-fast cap on waiting for the agent session to start (ms). */
+  sessionStartTimeoutMs?: number | undefined;
   dest?: DestinationStream | undefined;
+  /** Env vars read from .boboddy/.env in the user's local project directory. */
+  localEnvVars?: Record<string, string> | undefined;
+  /**
+   * Optional user-facing presentation surface (spinners/status). Distinct from
+   * the structured pino logger driven by {@link dest}. When omitted, no
+   * human-facing output is rendered by the worker.
+   */
+  reporter?: WorkReporter | undefined;
 };
 
 export type ProcessProjectWorkDeps = {
@@ -59,14 +63,16 @@ export type ProcessProjectWorkDeps = {
   agentRunner: StepExecutionAgentRunner;
   /** Override the artifact store (defaults to LocalArtifactStore under ~/.boboddy/artifacts). */
   artifactStore?: ArtifactStore | undefined;
-  runtimeCommandRunner: RuntimeCommandRunner;
-  runtimeServiceRunner: RuntimeServiceRunner;
-  timeProvider: TimeProvider;
   sleep(milliseconds: number): Promise<void>;
   logger: ProjectWorkLogger;
+  reporter?: WorkReporter | undefined;
 };
 
-function loadDefaultDeps(dest?: DestinationStream): ProcessProjectWorkDeps {
+function loadDefaultDeps(
+  dest?: DestinationStream,
+  localEnvVars?: Record<string, string>,
+  reporter?: WorkReporter,
+): ProcessProjectWorkDeps {
   const logger = createLogger(
     { name: "@boboddy/worker", level: process.env["BOBODDY_LOG_LEVEL"] ?? "info" },
     dest,
@@ -78,21 +84,17 @@ function loadDefaultDeps(dest?: DestinationStream): ProcessProjectWorkDeps {
     runtimeEnvironmentOrchestrator:
       new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
         logger.child({ scope: "runtime-environment-orchestrator" }),
+        localEnvVars,
       ),
     agentRunner: new DefaultOpencodeStepRunner(),
-    runtimeCommandRunner: new LocalRuntimeCommandRunner(
-      logger.child({ scope: "runtime-command-runner" }),
-    ),
-    runtimeServiceRunner: new LocalRuntimeServiceRunner(
-      new LocalDevcontainerPortForwardManager(),
-      logger.child({ scope: "runtime-service-runner" }),
-    ),
-    timeProvider: systemTimeProvider,
     sleep: (milliseconds) =>
       new Promise((resolve) => {
         setTimeout(resolve, milliseconds);
       }),
     logger: {
+      debug: (scope, message, details) => {
+        workLogger.debug({ ...details, workScope: scope }, message);
+      },
       log: (scope, message, details) => {
         workLogger.info({ ...details, workScope: scope }, message);
       },
@@ -100,6 +102,7 @@ function loadDefaultDeps(dest?: DestinationStream): ProcessProjectWorkDeps {
         workLogger.error({ ...details, workScope: scope }, message);
       },
     },
+    reporter,
   };
 }
 
@@ -156,7 +159,8 @@ export async function runProjectWork(
   options: ProcessProjectWorkOptions,
   deps?: ProcessProjectWorkDeps,
 ): Promise<ProcessProjectWorkResult> {
-  const resolvedDeps = deps ?? loadDefaultDeps(options.dest);
+  const resolvedDeps =
+    deps ?? loadDefaultDeps(options.dest, options.localEnvVars, options.reporter);
   const projectId = parseUuidV7(options.projectId);
   const baseUrl = resolveBoboddyBaseUrl(options.baseUrl);
   const workerClient = await resolvedDeps.createWorkerClient(baseUrl);
@@ -183,6 +187,7 @@ export async function runProjectWork(
       workItemId: options.workItemId,
       preserveRuntimeOnComplete: options.preserveRuntimeOnComplete,
       once: options.once,
+      sessionStartTimeoutMs: options.sessionStartTimeoutMs,
     },
     {
       workerClient,
@@ -191,11 +196,11 @@ export async function runProjectWork(
         resolvedDeps.runtimeEnvironmentOrchestrator,
       agentRunner: resolvedDeps.agentRunner,
       artifactStore,
-      runtimeCommandRunner: resolvedDeps.runtimeCommandRunner,
-      runtimeServiceRunner: resolvedDeps.runtimeServiceRunner,
-      timeProvider: resolvedDeps.timeProvider,
       sleep: (milliseconds) => resolvedDeps.sleep(milliseconds),
       logger: {
+        debug: (scope, message, details) => {
+          resolvedDeps.logger.debug(scope, message, details);
+        },
         log: (scope, message, details) => {
           resolvedDeps.logger.log(scope, message, details);
         },
@@ -203,6 +208,7 @@ export async function runProjectWork(
           resolvedDeps.logger.error(scope, message, details);
         },
       },
+      reporter: resolvedDeps.reporter,
     },
   );
 }

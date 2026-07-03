@@ -16,9 +16,8 @@ export type LocalRuntimeSessionRecord = {
   stepExecutionId: string;
   status: LocalRuntimeSessionStatus;
   workspacePath: string | null;
-  devcontainerId: string | null;
-  aiContainerId: string | null;
-  aiBaseUrl: string | null;
+  runtimeContainerId: string | null;
+  agentBaseUrl: string | null;
   opencodeSessionId: string | null;
   failureReason: string | null;
   metadataJson: string | null;
@@ -37,9 +36,8 @@ export type LocalRuntimeSessionStore = StepExecutionRunTracker & {
   markRunning(input: {
     id: string;
     workspacePath: string;
-    devcontainerId: string;
-    aiContainerId: string;
-    aiBaseUrl: string;
+    runtimeContainerId: string;
+    agentBaseUrl: string;
     metadataJson?: string | null | undefined;
   }): void;
   attachAgentSession(input: {
@@ -77,9 +75,8 @@ export class SqliteLocalRuntimeSessionStore implements LocalRuntimeSessionStore 
         step_execution_id TEXT NOT NULL,
         status TEXT NOT NULL,
         workspace_path TEXT,
-        devcontainer_id TEXT,
-        ai_container_id TEXT,
-        ai_base_url TEXT,
+        runtime_container_id TEXT,
+        agent_base_url TEXT,
         opencode_session_id TEXT,
         failure_reason TEXT,
         metadata_json TEXT,
@@ -122,9 +119,8 @@ export class SqliteLocalRuntimeSessionStore implements LocalRuntimeSessionStore 
   markRunning(input: {
     id: string;
     workspacePath: string;
-    devcontainerId: string;
-    aiContainerId: string;
-    aiBaseUrl: string;
+    runtimeContainerId: string;
+    agentBaseUrl: string;
     metadataJson?: string | null | undefined;
   }) {
     this.update(
@@ -132,9 +128,8 @@ export class SqliteLocalRuntimeSessionStore implements LocalRuntimeSessionStore 
       "running",
       {
         workspace_path: input.workspacePath,
-        devcontainer_id: input.devcontainerId,
-        ai_container_id: input.aiContainerId,
-        ai_base_url: input.aiBaseUrl,
+        runtime_container_id: input.runtimeContainerId,
+        agent_base_url: input.agentBaseUrl,
         metadata_json: input.metadataJson ?? null,
       },
       false,

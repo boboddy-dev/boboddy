@@ -10,9 +10,11 @@ describe("prompt-template", () => {
       title: string;
     }>();
 
-    expect(`${input.title}`).toBe("{{input.title}}");
-    expect(`${env.BASE_URL}`).toBe("{{env.BASE_URL}}");
-    expect(`${boboddy.artifactsDir}`).toBe("{{boboddy.artifactsDir}}");
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
+    expect(input.title.toString()).toBe("{{input.title}}");
+    expect(String(env.BASE_URL)).toBe("{{env.BASE_URL}}");
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion
+    expect(boboddy.artifactsDir.toString()).toBe("{{boboddy.artifactsDir}}");
   });
 
   test("renders scoped and legacy-compatible prompt variables", () => {

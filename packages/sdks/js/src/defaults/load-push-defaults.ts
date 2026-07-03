@@ -19,7 +19,7 @@ export interface LoadPushDefaultsOptions {
 
 async function findProjectConfigUpwards(startDir: string) {
   let current = path.resolve(startDir);
-  while (true) {
+  for (;;) {
     const found = await loadProjectConfig(current);
     if (found) return found;
     const parent = path.dirname(current);
@@ -42,16 +42,14 @@ export async function loadPushDefaults(
   const baseUrl = resolveBoboddyBaseUrl();
 
   const envProjectId = process.env["BOBODDY_PROJECT_ID"]?.trim();
-  const projectId =
-    envProjectId && envProjectId.length > 0
-      ? envProjectId
-      : (await findProjectConfigUpwards(opts.dir))?.projectId;
+  const projectId = envProjectId
+    ? envProjectId
+    : (await findProjectConfigUpwards(opts.dir))?.projectId;
 
   const envAccessToken = process.env["BOBODDY_ACCESS_TOKEN"]?.trim();
-  const accessToken =
-    envAccessToken && envAccessToken.length > 0
-      ? envAccessToken
-      : loadAuthProfile(baseUrl)?.accessToken;
+  const accessToken = envAccessToken
+    ? envAccessToken
+    : loadAuthProfile(baseUrl)?.accessToken;
 
   return { baseUrl, projectId, accessToken };
 }

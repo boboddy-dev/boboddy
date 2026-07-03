@@ -2,11 +2,10 @@ import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import { createInterface } from "node:readline/promises";
 import {
   analyzeRepo,
-  ensureDevcontainer,
   globalSetup,
-  hasDevcontainer,
   localConfigSetup,
   recommendPipelines,
+  requireDevcontainer,
   resolveBoboddyBaseUrl,
   verifyRequirements,
 } from "@boboddy/worker";
@@ -57,18 +56,8 @@ async function runInit(
   const result = await localConfigSetup({ headers, client });
   if (result) {
     const interactive = process.stdin.isTTY && process.stdout.isTTY;
-    const confirmed =
-      interactive && !(await hasDevcontainer(process.cwd()))
-        ? await promptForConfirmation(
-            "No devcontainer config found. Generate one with AI? [Y/n] ",
-          )
-        : false;
 
-    await ensureDevcontainer({
-      baseUrl,
-      projectId: result.projectId,
-      confirmed,
-    });
+    await requireDevcontainer(process.cwd());
 
     const analysis = await analyzeRepo();
     const accepted =

@@ -129,8 +129,9 @@ function reconstructRuleExpr(rule: AdvancementPolicyRule, computedByKey: Compute
   const mode = rule.conditions.all ? "all" : "any";
   const conditions = rule.conditions[mode] ?? [];
 
-  if (mode === "all" && conditions.length === 1 && isLeafCondition(conditions[0]!)) {
-    return `${reconstructNestable(conditions[0]!, computedByKey)}.then(${outcome})`;
+  const firstCondition = conditions[0];
+  if (mode === "all" && conditions.length === 1 && firstCondition !== undefined && isLeafCondition(firstCondition)) {
+    return `${reconstructNestable(firstCondition, computedByKey)}.then(${outcome})`;
   }
 
   const nestableExprs = conditions.map((c) => reconstructNestable(c, computedByKey)).join(", ");

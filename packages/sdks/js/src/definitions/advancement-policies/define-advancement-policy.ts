@@ -244,6 +244,7 @@ export type Rule<TSignalKeys extends string = string> = {
 function signal<TSignalKeys extends string>(
   signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
   operator: ConditionOperator,
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
 ): SignalCondition<TSignalKeys> {
   return { _tag: "signal", signal, operator, value };
@@ -337,6 +338,7 @@ function any<TSignalKeys extends string>(
 function when<TSignalKeys extends string>(
   signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
   operator: ConditionOperator,
+  // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
   outcome: AdvancementOutcome,
 ): Rule<TSignalKeys> {

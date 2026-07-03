@@ -155,8 +155,9 @@ function reconstructRuleExpr(
   const conditions = rule.conditions[mode] ?? [];
 
   // Single leaf condition: emit inline without wrapping all()/any()
-  if (mode === "all" && conditions.length === 1 && isLeafCondition(conditions[0]!)) {
-    return `${reconstructNestable(conditions[0]!)}.then(${outcomeExpr})`;
+  const firstCondition = conditions[0];
+  if (mode === "all" && conditions.length === 1 && firstCondition !== undefined && isLeafCondition(firstCondition)) {
+    return `${reconstructNestable(firstCondition)}.then(${outcomeExpr})`;
   }
 
   const nestableExprs = conditions.map(reconstructNestable).join(",\n      ");
@@ -214,14 +215,11 @@ function collectNamedImports(contract: DefaultPipelineAssignmentContract): strin
   if (contract.defaultEventType === "assign") names.add("assign");
   if (contract.defaultEventType === "skip") names.add("skip");
 
-  let hasWorkItemFact = false;
-  let hasContextFact = false;
-
   const visitConditions = (conditions: SerializedConditionNode[]) => {
     for (const cond of conditions) {
       if (isLeafCondition(cond)) {
-        if (cond.fact === WORK_ITEM_FACT) hasWorkItemFact = true;
-        if (cond.fact === CONTEXT_FACT) hasContextFact = true;
+        if (cond.fact === WORK_ITEM_FACT) names.add("workItem");
+        if (cond.fact === CONTEXT_FACT) names.add("context");
       } else {
         const mode = cond.all ? "all" : "any";
         names.add(mode);
@@ -237,14 +235,12 @@ function collectNamedImports(contract: DefaultPipelineAssignmentContract): strin
     const mode = rule.conditions.all ? "all" : "any";
     const conditions = rule.conditions[mode] ?? [];
     // Need all/any in ctx if the top-level has >1 condition or a nested group
-    if (conditions.length > 1 || (conditions.length === 1 && !isLeafCondition(conditions[0]!))) {
+    const firstCond = conditions[0];
+    if (conditions.length > 1 || (conditions.length === 1 && firstCond !== undefined && !isLeafCondition(firstCond))) {
       names.add(mode);
     }
     visitConditions(conditions);
   }
-
-  if (hasWorkItemFact) names.add("workItem");
-  if (hasContextFact) names.add("context");
 
   return [...names].sort();
 }

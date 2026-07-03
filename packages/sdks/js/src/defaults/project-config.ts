@@ -15,6 +15,7 @@ function getConfigPath(rootDir: string): string {
   return path.join(rootDir, PROJECT_CONFIG_RELATIVE_PATH);
 }
 
+// eslint-disable-next-line local/no-unknown-parameter-type
 function isProjectConfig(value: unknown): value is ProjectConfig {
   if (typeof value !== "object" || value === null) return false;
   return typeof (value as Record<string, unknown>)["projectId"] === "string";

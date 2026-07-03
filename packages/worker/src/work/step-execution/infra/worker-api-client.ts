@@ -1,6 +1,9 @@
 import { createStepExecutionPlaneClient } from "@boboddy/sdk";
 import { parseUuidV7, type UuidV7 } from "../../../common/contracts/uuid-v7";
-import type { StepExecutionWorkerClient } from "../contracts/process-project-work-types";
+import type {
+  StepExecutionLogLine,
+  StepExecutionWorkerClient,
+} from "../contracts/process-project-work-types";
 import type { StepExecutionWorkerContextContract } from "../contracts/step-execution-contracts";
 import { loadAuthenticatedSession } from "../../../auth/session/application/load-authenticated-session";
 
@@ -86,6 +89,16 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
         { headers },
       );
     },
+    appendStepExecutionLogs: async (input: {
+      stepExecutionId: UuidV7;
+      claimToken: string;
+      lines: StepExecutionLogLine[];
+    }) =>
+      await planeClient.appendStepExecutionLogs(
+        input.stepExecutionId,
+        { claimToken: input.claimToken, lines: input.lines },
+        { headers },
+      ),
     getStepExecution: async (input: { stepExecutionId: UuidV7 }) =>
       await planeClient.getStepExecution(input.stepExecutionId, { headers }),
     getStepExecutionWorkerContext: async (input: {
