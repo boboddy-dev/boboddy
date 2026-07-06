@@ -1,3 +1,4 @@
+import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
 import type { UuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import type {
   StepExecutionLogLine,
@@ -147,5 +148,56 @@ export class FakeStepExecutionWorkerClient implements StepExecutionWorkerClient 
     }
 
     return Promise.resolve(step.workerContext);
+  }
+
+  readonly artifactUploadUrlCalls: {
+    stepExecutionId: string;
+    claimToken: string;
+    relativeStorePath: string;
+    contentType?: string | undefined;
+  }[] = [];
+
+  readonly recordedArtifacts: {
+    stepExecutionId: string;
+    claimToken: string;
+    objectKey: string;
+    relativeStorePath: string;
+    sizeBytes: number;
+    contentType?: string | undefined;
+    kind: ArtifactKind;
+  }[] = [];
+
+  createArtifactUploadUrl(input: {
+    stepExecutionId: string;
+    claimToken: string;
+    relativeStorePath: string;
+    contentType?: string | undefined;
+  }): Promise<{
+    uploadUrl: string;
+    storeRef: string;
+    objectKey: string;
+    expiresInSeconds: number;
+  }> {
+    this.artifactUploadUrlCalls.push({ ...input });
+    const objectKey = `${input.stepExecutionId}/${input.relativeStorePath}`;
+    return Promise.resolve({
+      uploadUrl: `https://fake-upload.local/${objectKey}`,
+      storeRef: `remote://${objectKey}`,
+      objectKey,
+      expiresInSeconds: 300,
+    });
+  }
+
+  recordArtifact(input: {
+    stepExecutionId: string;
+    claimToken: string;
+    objectKey: string;
+    relativeStorePath: string;
+    sizeBytes: number;
+    contentType?: string | undefined;
+    kind: ArtifactKind;
+  }): Promise<void> {
+    this.recordedArtifacts.push({ ...input });
+    return Promise.resolve();
   }
 }

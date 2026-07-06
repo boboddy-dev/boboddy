@@ -51,8 +51,27 @@ type ActiveStep = {
   taskLog?: ReturnType<typeof clack.taskLog>;
 };
 
-/** How many recent devcontainer log lines to keep visible under the title. */
-const DEVCONTAINER_LOG_WINDOW = 8;
+/**
+ * How many recent devcontainer log lines to keep visible under the title.
+ * Enough to show a meaningful tail of the lifecycle without flooding the
+ * terminal. On failure, these retained lines are the primary diagnostic hint
+ * shown to the user (the raw output is in the pino log file).
+ */
+const DEVCONTAINER_LOG_WINDOW = 12;
+
+/**
+ * Max width (chars) for a single devcontainer log line in the rolling window.
+ * Lines longer than this are truncated with an ellipsis so the window doesn't
+ * wrap and blow up the height of the live region.
+ */
+const DEVCONTAINER_LINE_MAX_WIDTH = 100;
+
+/**
+ * Max length for the step failure reason shown inline beneath the spinner.
+ * With the raw devcontainer CLI output stripped upstream this is now a clean
+ * single-sentence message, so 500 chars is a generous safety net.
+ */
+const STEP_REASON_MAX_LENGTH = 500;
 
 /**
  * A `WorkReporter` backed by `@clack/prompts`. Renders friendly, hierarchical
@@ -178,6 +197,7 @@ class ClackReporter implements WorkReporter {
           event.stepExecutionId,
           event.kind,
           event.phase,
+          event.level ?? "info",
         );
         return;
       case "step:runtime-ai-starting":
@@ -211,18 +231,17 @@ class ClackReporter implements WorkReporter {
       }
 
       case "step:failed": {
-        // Truncate very long reasons (e.g. full devcontainer CLI stderr) so
-        // the terminal stays readable. Full detail is in the pino logs.
-        const MAX_REASON = 300;
+        // With raw devcontainer output stripped upstream, the reason is now a
+        // clean single-line message. Truncate only as a safety net.
         const reason =
-          event.reason.length > MAX_REASON
-            ? `${event.reason.slice(0, MAX_REASON)}…`
+          event.reason.length > STEP_REASON_MAX_LENGTH
+            ? `${event.reason.slice(0, STEP_REASON_MAX_LENGTH)}…`
             : event.reason;
         const logHint = this.logFilePath
           ? `\n  ${pc.dim(`Full logs: ${this.logFilePath}`)}`
           : "";
-        // Retain the devcontainer sub-logs on failure (showLog) so the user
-        // can see where it broke, then fall through to the failure summary.
+        // Retain the devcontainer sub-logs on failure (showLog: true) so the
+        // user can see the last lifecycle phase where it broke.
         this.endDevcontainerLog(event.stepExecutionId, false);
         const step = this.activeSteps.get(event.stepExecutionId);
         if (step) {
@@ -230,13 +249,13 @@ class ClackReporter implements WorkReporter {
           step.spinner.error(
             pc.red(`Step ${pc.dim(shortId(event.stepExecutionId))} failed`) +
               pc.dim(` (${duration})`) +
-              `\n  ${pc.dim(reason)}${logHint}`,
+              `\n  ${pc.yellow(reason)}${logHint}`,
           );
           this.activeSteps.delete(event.stepExecutionId);
         } else {
           this.error(
             `Step ${pc.dim(shortId(event.stepExecutionId))} failed` +
-              `\n  ${pc.dim(reason)}${logHint}`,
+              `\n  ${pc.yellow(reason)}${logHint}`,
           );
         }
         return;
@@ -298,16 +317,29 @@ class ClackReporter implements WorkReporter {
     stepExecutionId: string,
     kind: "milestone" | "detail",
     phase: string,
+    level: "info" | "warn" | "error",
   ): void {
     const step = this.activeSteps.get(stepExecutionId);
     if (!step?.taskLog) return;
     if (kind === "milestone") {
       step.phase = phase;
     }
-    // Stream both kinds into the rolling body (milestones emphasized). Let
-    // clack frame each line (no `raw`) so the bar prefix is preserved and the
-    // window stays within its region instead of overwriting prior output.
-    const line = kind === "milestone" ? pc.cyan(phase) : pc.dim(phase);
+    // Truncate wide lines so they can't wrap and blow up the live region height.
+    const displayPhase =
+      phase.length > DEVCONTAINER_LINE_MAX_WIDTH
+        ? `${phase.slice(0, DEVCONTAINER_LINE_MAX_WIDTH - 1)}…`
+        : phase;
+    // Colorize by severity first (errors/warnings stand out), then fall back to
+    // milestone/detail emphasis. Let clack frame each line (no `raw`) so the
+    // bar prefix is preserved and the window stays within its region.
+    let line: string;
+    if (level === "error") {
+      line = pc.red(displayPhase);
+    } else if (level === "warn") {
+      line = pc.yellow(displayPhase);
+    } else {
+      line = kind === "milestone" ? pc.cyan(displayPhase) : pc.dim(displayPhase);
+    }
     step.taskLog.message(line);
   }
 
@@ -430,11 +462,15 @@ class PlainReporter implements WorkReporter {
         }
         return;
       // Off-TTY: surface milestones (they explain the otherwise-silent
-      // multi-minute pause) but drop the high-volume detail lines to keep CI
-      // logs readable.
+      // multi-minute pause) and any warn/error detail lines (the actual failure
+      // output), but drop info-level detail noise to keep CI logs readable.
       case "step:runtime-container-progress":
         if (event.kind === "milestone") {
           this.info(`devcontainer: ${event.phase}`);
+        } else if (event.level === "error") {
+          this.error(`devcontainer: ${event.phase}`);
+        } else if (event.level === "warn") {
+          this.warn(`devcontainer: ${event.phase}`);
         }
         return;
       // Intermediate / chatty states are intentionally dropped off-TTY.

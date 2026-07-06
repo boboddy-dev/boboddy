@@ -1,4 +1,3 @@
-import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
 import type { startProcessClaimedExecution } from "./process-claimed-step-execution";
 import {
   resolveProjectWorkLogger,
@@ -79,6 +78,7 @@ export async function monitorStartedClaimedExecution(
   tracker: StepExecutionRunTracker,
   startedExecution: Awaited<ReturnType<typeof startProcessClaimedExecution>>,
   heartbeat: { stop(): Promise<void> },
+  logStream: { flush(): Promise<void> },
 ) {
   // The live log stream is created, attached, and stopped by the caller so it
   // spans the full claim->monitor lifecycle. The monitor just logs through
@@ -212,7 +212,22 @@ export async function monitorStartedClaimedExecution(
 
       const submissionResult = hasSubmittedFindings
         ? "submitted"
-        : await tryPersistAgentFindings(deps, startedExecution);
+        : await tryPersistAgentFindings(deps, startedExecution, {
+            // Collect artifacts while the step is still "running" — before
+            // completeStepExecution transitions it out of "running" and the
+            // artifact API starts rejecting uploads. Latched so it runs once.
+            onBeforeComplete: async () => {
+              if (!hasCollectedArtifacts) {
+                await collectStepArtifacts(deps, startedExecution, logger);
+                hasCollectedArtifacts = true;
+                // Ship the artifact log lines NOW, while the step is still
+                // "running". completeStepExecution (next in tryPersistAgentFindings)
+                // transitions it out of "running", after which appendStepExecutionLogs
+                // rejects — and the caller's finally logStream.stop() runs too late.
+                await logStream.flush();
+              }
+            },
+          });
 
       // `promptAsync` is fire-and-forget: it queues the prompt and returns
       // before opencode begins streaming the model response. During that
@@ -283,18 +298,10 @@ export async function monitorStartedClaimedExecution(
       if (submissionResult === "submitted") {
         hasSubmittedFindings = true;
 
-        // Collect artifacts only once the run has actually finalized (findings
-        // submitted). The agent session can briefly report "stopped" mid-run —
-        // the worker deliberately waits a poll for late writes — and the agent
-        // typically writes its step artifacts right before completing. Copying
-        // on the first transient stop captured an empty directory and latched
-        // `hasCollectedArtifacts`, so artifacts written afterward never reached
-        // the host artifact store.
-        if (!hasCollectedArtifacts) {
-          await collectStepArtifacts(deps, startedExecution, logger);
-          hasCollectedArtifacts = true;
-        }
-
+        // Artifacts are collected via the onBeforeComplete callback passed to
+        // tryPersistAgentFindings above, so they are copied while the step is
+        // still "running" (before completion) and the artifact API accepts the
+        // uploads.
         logger.log("worker", "Agent findings submitted successfully", {
           projectId: input.projectId,
           workerId: input.workerId,
@@ -352,29 +359,46 @@ export async function monitorStartedClaimedExecution(
         error,
       });
     }
-    const finalStatus = await failClaimedStepIfStillRunning(
-      deps.workerClient,
-      logger,
-      {
-        stepExecutionId: startedExecution.stepExecutionId,
-        claimToken: startedExecution.claimToken,
-        error: error as
-          | Error
-          | { message?: string | undefined }
-          | string
-          | number
-          | boolean
-          | null
-          | undefined,
-      },
-    ).catch(() => "failed");
+    // Collect artifacts while the step is still "running": the server-side
+    // failStepExecution happens LATER in the caller's finally (after
+    // logStream.stop()), so uploads are still accepted here. Best-effort — a
+    // collection error is logged/swallowed so it never replaces the original
+    // error thrown below. Guard is idempotent against the success-path latch;
+    // eslint can't see the `true` write in the async onBeforeComplete closure.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional idempotency guard; latch is written in an async closure TS flow analysis can't track
+    if (!hasCollectedArtifacts) {
+      try {
+        await collectStepArtifacts(deps, startedExecution, logger);
+        hasCollectedArtifacts = true;
+      } catch (collectionError) {
+        logger.error(
+          "worker",
+          "Failed to collect step artifacts on failure path",
+          {
+            stepExecutionId: startedExecution.stepExecutionId,
+            error: collectionError,
+          },
+        );
+      }
+      // Ship the artifact log lines while the step is still "running". The
+      // caller's finally logStream.stop() also flushes while running on the
+      // failure path (failStepExecution runs after it), so this is
+      // belt-and-suspenders for deterministic, symmetric behaviour. Non-throwing
+      // per the shipper contract, so it can't mask the original error re-thrown below.
+      await logStream.flush();
+    }
+    // failClaimedStepIfStillRunning is intentionally NOT called here. The
+    // log shipper's final flush must complete before the step is marked
+    // failed — otherwise the API rejects log appends once the status leaves
+    // "running". The caller (scheduleClaimedStepExecutionJob) owns that
+    // call, after awaiting logStream.stop().
     await markMonitorFailed(
       tracker,
       startedExecution.localRuntimeSessionId,
       error instanceof Error ? error.message : String(error),
       {
         agentSessionId: startedExecution.agentSessionId,
-        finalStepStatus: finalStatus,
+        finalStepStatus: "failed",
       },
     );
     reporter.event({

@@ -155,9 +155,25 @@ function validateFindingsAgainstSchema(
   };
 }
 
+export type TryPersistAgentFindingsOptions = {
+  /**
+   * Best-effort hook invoked ONLY on the success path — after findings have
+   * been validated and immediately BEFORE the step execution is completed
+   * (which transitions the step out of "running"). Used to collect step
+   * artifacts while the artifact API still accepts uploads for a running step.
+   *
+   * The callback owns its own best-effort/error-swallowing semantics; this
+   * function calls it directly and does not wrap it, so a thrown error here
+   * WILL propagate and abort completion. `collectStepArtifacts` is non-throwing
+   * by design, so in normal operation this never aborts completion.
+   */
+  onBeforeComplete?: () => Promise<void>;
+};
+
 export async function tryPersistAgentFindings(
   deps: ProcessProjectWorkDeps,
   startedExecution: StartedClaimedExecution,
+  options?: TryPersistAgentFindingsOptions,
 ): Promise<"submitted" | "missing"> {
   const parsedPayload = await tryReadFindingsSubmission(
     startedExecution.environment.workspacePath,
@@ -186,6 +202,11 @@ export async function tryPersistAgentFindings(
   if (!validation.ok) {
     throw new Error(validation.reason);
   }
+
+  // Collect artifacts (best-effort) while the step is still "running", i.e.
+  // before completion transitions it out of "running" and the artifact API
+  // starts rejecting uploads with STEP_EXECUTION_OWNERSHIP_CONFLICT.
+  await options?.onBeforeComplete?.();
 
   await deps.workerClient.completeStepExecution({
     stepExecutionId: startedExecution.stepExecutionId,

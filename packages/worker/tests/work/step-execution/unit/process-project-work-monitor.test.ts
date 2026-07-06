@@ -33,6 +33,7 @@ function createStartedExecution(workspacePath: string): StartedClaimedExecution 
       agentBaseUrl: "http://127.0.0.1:4096",
       aiImage: "opencode-runtime@0.0.0-test",
       networkName: "",
+      secretValues: [],
       cleanup: vi.fn(() => Promise.resolve()),
     },
   };
@@ -64,6 +65,9 @@ function createInput(
   };
 }
 
+const stopStub = () => ({ stop: vi.fn(() => Promise.resolve()) });
+const flushStub = () => ({ flush: vi.fn(() => Promise.resolve()) });
+
 describe("monitorStartedClaimedExecution", () => {
   test.concurrent(
     "uses the configured step execution agent when retrying findings submission",
@@ -88,6 +92,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "running" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -120,13 +125,7 @@ describe("monitorStartedClaimedExecution", () => {
       };
 
       expect(
-        monitorStartedClaimedExecution(
-          input,
-          deps,
-          tracker,
-          startedExecution,
-          { stop: vi.fn(() => Promise.resolve()) },
-        ),
+        monitorStartedClaimedExecution(input, deps, tracker, startedExecution, stopStub(), flushStub()),
       ).rejects.toThrow(
         /without findings submission via boboddy-submit-step-findings/,
       );
@@ -141,7 +140,11 @@ describe("monitorStartedClaimedExecution", () => {
         ),
         agent: STEP_EXECUTION_AGENT,
       });
-      expect(failStepExecution).toHaveBeenCalledTimes(1);
+      // The monitor no longer marks the step failed itself: it only throws.
+      // scheduleClaimedStepExecutionJob owns failStepExecution and calls it
+      // *after* flushing the log stream, so buffered failure logs reach the
+      // platform while the step is still "running".
+      expect(failStepExecution).not.toHaveBeenCalled();
     },
   );
 
@@ -167,6 +170,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "running" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -206,9 +210,7 @@ describe("monitorStartedClaimedExecution", () => {
       };
 
       expect(
-        monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
-          stop: vi.fn(() => Promise.resolve()),
-        }),
+        monitorStartedClaimedExecution(input, deps, tracker, startedExecution, stopStub(), flushStub()),
       ).rejects.toThrow(
         /without findings submission via boboddy-submit-step-findings/,
       );
@@ -270,6 +272,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "succeeded" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -319,15 +322,15 @@ describe("monitorStartedClaimedExecution", () => {
         },
       };
 
-      await monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
-        stop: vi.fn(() => Promise.resolve()),
-      });
+      await monitorStartedClaimedExecution(input, deps, tracker, startedExecution, stopStub(), flushStub());
 
       expect(saveArtifact).toHaveBeenCalledTimes(1);
       expect(saveArtifact).toHaveBeenCalledWith({
         stepExecutionId: startedExecution.stepExecutionId,
+        claimToken: startedExecution.claimToken,
         sourcePath: path.join(stepArtifactsDir, "trace.zip"),
         relativeStorePath: "trace.zip",
+        kind: "playwright-trace",
       });
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(tracker.markSucceeded).toHaveBeenCalledTimes(1);
@@ -370,6 +373,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "succeeded" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -414,9 +418,7 @@ describe("monitorStartedClaimedExecution", () => {
         },
       };
 
-      await monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
-        stop: vi.fn(() => Promise.resolve()),
-      });
+      await monitorStartedClaimedExecution(input, deps, tracker, startedExecution, stopStub(), flushStub());
 
       // The startup "not running yet" poll must not be mistaken for a finished
       // run: no missing-findings wait/retry should fire, and no retry prompt

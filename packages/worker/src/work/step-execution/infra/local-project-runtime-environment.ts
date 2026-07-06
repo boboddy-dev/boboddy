@@ -89,6 +89,16 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     };
     reporter?: WorkReporter | undefined;
     stepExecutionId?: string | undefined;
+    /**
+     * Optional sink for individual devcontainer launch log lines. Wired to the
+     * step's log shipper so the CLI's real subprocess output (npm/pip/`init.sh`
+     * stderr, submodule clones, etc.) is streamed to the durable feed as it
+     * appears, at the CLI's own severity. Separate from `reporter`, which is
+     * presentation-only.
+     */
+    onDevcontainerLogLine?:
+      | ((line: string, level: "info" | "warn" | "error") => void)
+      | undefined;
   }): Promise<LocalProjectRuntimeEnvironment> {
     const reporter = input.reporter ?? noopReporter;
     const stepExecutionId =
@@ -260,13 +270,18 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         requestedByUserId: input.requestedByUserId,
         workspacePath,
         devcontainerConfigPath,
-        onProgress: ({ kind, phase }) => {
+        onProgress: ({ kind, phase, level }) => {
+          // Presentation: rolling live window in the terminal.
           reporter.event({
             type: "step:runtime-container-progress",
             stepExecutionId,
             kind,
             phase,
+            level,
           });
+          // Durable feed: ship each line to the server as it appears, at the
+          // CLI's own severity so errors survive the ship-level filter.
+          input.onDevcontainerLogLine?.(phase, level);
         },
       });
       devcontainerId = devcontainerResult.containerId;
@@ -350,6 +365,10 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         // No AI image is used; surface the pinned OpenCode runtime version.
         aiImage: `opencode-runtime@${payload.version}`,
         networkName: "",
+        // Provider token(s) injected into the container (Path B). The caller
+        // registers these with the log masker before the in-container tail is
+        // attached so they can never surface in the shipped feed.
+        secretValues: Object.values(materialized.env),
         checkContainerHealth: async () => ({
           runtimeContainerStatus: await inspectContainerHealthStatus(
             checkableDevcontainerId,

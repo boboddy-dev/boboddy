@@ -74,6 +74,8 @@ function createWorkerClient(): StepExecutionWorkerClient {
     getStepExecutionWorkerContext: vi.fn(() =>
       Promise.resolve(createWorkerContext()),
     ),
+    createArtifactUploadUrl: vi.fn(),
+    recordArtifact: vi.fn(),
   };
 }
 
@@ -104,6 +106,7 @@ describe("startProcessClaimedExecution", () => {
         agentBaseUrl: "http://localhost:4096",
         aiImage: "boboddy/ai-worker:local",
         networkName: "test-network",
+        secretValues: [],
         cleanup: () => Promise.resolve(),
       }),
     );

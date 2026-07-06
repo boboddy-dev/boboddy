@@ -1,3 +1,4 @@
+import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
 import type {
@@ -25,6 +26,13 @@ export type ProcessProjectWorkInput = {
    * when omitted.
    */
   sessionStartTimeoutMs?: number | undefined;
+  /**
+   * Secret values ("Path A": the user's `.boboddy/.env` values) used to seed
+   * each claimed step's log masker so they are redacted from the shipped feed.
+   * These are opaque values, not a name→value map. The provider token(s)
+   * ("Path B") are registered later, from the runtime launch result.
+   */
+  secretValues?: readonly string[] | undefined;
 };
 
 /**
@@ -59,11 +67,14 @@ export type StepExecutionWorkerContext = StepExecutionWorkerContextContract;
 
 export type StepExecutionLogStream = "worker" | "ai-server" | "conversation";
 
+export type StepExecutionLogLevel = "debug" | "info" | "warn" | "error";
+
 export type StepExecutionLogLine = {
   seq: number;
   stream: StepExecutionLogStream;
   ts: string;
   content: string;
+  level: StepExecutionLogLevel;
 };
 
 export type StepExecutionWorkerClient = {
@@ -104,7 +115,36 @@ export type StepExecutionWorkerClient = {
     stepExecutionId: UuidV7;
     claimToken: string;
   }): Promise<StepExecutionWorkerContextContract>;
+  createArtifactUploadUrl(input: {
+    stepExecutionId: string;
+    claimToken: string;
+    relativeStorePath: string;
+    contentType?: string | undefined;
+  }): Promise<{
+    uploadUrl: string;
+    storeRef: string;
+    objectKey: string;
+    expiresInSeconds: number;
+  }>;
+  recordArtifact(input: {
+    stepExecutionId: string;
+    claimToken: string;
+    objectKey: string;
+    relativeStorePath: string;
+    sizeBytes: number;
+    contentType?: string | undefined;
+    kind: ArtifactKind;
+  }): Promise<void>;
 };
+
+/**
+ * Narrow port used by the remote artifact store to upload artifacts through the
+ * API. The full {@link StepExecutionWorkerClient} satisfies this subset.
+ */
+export type RemoteArtifactUploader = Pick<
+  StepExecutionWorkerClient,
+  "createArtifactUploadUrl" | "recordArtifact"
+>;
 
 export type StepExecutionRuntimeEnvironment = {
   workspacePath: string;
@@ -128,6 +168,13 @@ export type StepExecutionRuntimeEnvironment = {
   agentBaseUrl: string;
   aiImage: string;
   networkName: string;
+  /**
+   * Secret values injected into the runtime container that must be redacted
+   * from the log feed (the resolved provider token(s); "Path B"). Surfaced from
+   * `launch` so the caller can register them with the step's log masker before
+   * the in-container log tail — which can echo them — is attached. May be empty.
+   */
+  secretValues: readonly string[];
   checkContainerHealth?(): Promise<{
     runtimeContainerStatus: string;
   }>;
@@ -147,6 +194,14 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     /** Optional reporter to emit granular sub-step progress events during launch. */
     reporter?: WorkReporter | undefined;
     stepExecutionId?: string | undefined;
+    /**
+     * Optional sink for individual devcontainer launch log lines, wired to the
+     * step's log shipper so the CLI's real subprocess output streams to the
+     * durable feed as it appears (separate from the presentation `reporter`).
+     */
+    onDevcontainerLogLine?:
+      | ((line: string, level: "info" | "warn" | "error") => void)
+      | undefined;
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
 

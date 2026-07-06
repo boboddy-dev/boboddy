@@ -17,11 +17,7 @@ type ClaimedStepFailureInputError =
 function getFailureMessage(
   errorJson: { message?: string | undefined } | null | undefined,
 ) {
-  if (
-    errorJson &&
-    typeof errorJson === "object" &&
-    "message" in errorJson
-  ) {
+  if (errorJson && typeof errorJson === "object" && "message" in errorJson) {
     return String(errorJson.message);
   }
 
@@ -45,15 +41,19 @@ export async function failClaimedStepIfStillRunning(
   });
 
   if (stepExecution.status !== "running") {
-    logger.log("step", "Claimed step already left running state after failure", {
-      stepExecutionId: input.stepExecutionId,
-      status: stepExecution.status,
-    });
+    logger.log(
+      "step",
+      "Claimed step already left running state after failure",
+      {
+        stepExecutionId: input.stepExecutionId,
+        status: stepExecution.status,
+      },
+    );
     return stepExecution.status;
   }
 
   const failurePayload = buildStepExecutionFailurePayload(input.error);
-  logger.error("step", "Reporting claimed step failure", {
+  logger.log("step", "Reporting claimed step failure", {
     stepExecutionId: input.stepExecutionId,
     code: "BOBODDY_WORKER_EXECUTION_FAILED",
     message: getFailureMessage(failurePayload.errorJson),

@@ -6,7 +6,6 @@ import {
   parseUuidV7,
   type UuidV7,
 } from "../../../common/contracts/uuid-v7";
-import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
 import {
   buildContainerStepArtifactsDir,
   buildPromptRenderContext,
@@ -31,6 +30,7 @@ import type { WorkReporter } from "../contracts/work-reporter";
  * once their respective prerequisites (container, agent session) exist.
  */
 type ClaimedExecutionLogStream = {
+  registerSecretValues(values: readonly string[]): void;
   attachOpencodeTail(input: {
     runtimeContainerId: string;
     opencodeLogDirectory: string;
@@ -40,6 +40,10 @@ type ClaimedExecutionLogStream = {
     workspaceFolder: string;
     sessionId: string;
   }): void;
+  shipDevcontainerLogLine(
+    line: string,
+    level: "info" | "warn" | "error",
+  ): void;
 };
 
 async function createTrackedSession(
@@ -139,6 +143,9 @@ async function launchRuntimeEnvironment(
     requestedByUserId: UuidV7;
     reporter: WorkReporter;
     stepExecutionId: string;
+    onDevcontainerLogLine?:
+      | ((line: string, level: "info" | "warn" | "error") => void)
+      | undefined;
   },
 ) {
   return await deps.runtimeEnvironmentOrchestrator.launch({
@@ -166,6 +173,7 @@ async function launchRuntimeEnvironment(
     },
     reporter: input.reporter,
     stepExecutionId: input.stepExecutionId,
+    onDevcontainerLogLine: input.onDevcontainerLogLine,
   });
 }
 
@@ -240,10 +248,18 @@ export async function startProcessClaimedExecution(
       requestedByUserId: input.requestedByUserId,
       reporter,
       stepExecutionId: input.claim.stepExecution.id,
+      onDevcontainerLogLine: logStream
+        ? (line, level) => { logStream.shipDevcontainerLogLine(line, level); }
+        : undefined,
     });
     cleanup = async () => {
       await environment.cleanup();
     };
+    // Register the provider token(s) injected into the container (Path B) with
+    // the log masker BEFORE attaching the in-container log tail below — that
+    // tail mirrors the raw OpenCode log, which can echo those values. Path A
+    // (.boboddy/.env) values were already seeded when the stream was created.
+    logStream?.registerSecretValues(environment.secretValues);
     // Now that the runtime container exists, start mirroring the in-container
     // OpenCode log into the `ai-server` stream of the same feed.
     logStream?.attachOpencodeTail({
@@ -386,30 +402,21 @@ export async function startProcessClaimedExecution(
       stepExecutionId: input.claim.stepExecution.id,
       reason: failureReason,
     });
-    const finalStatus = await failClaimedStepIfStillRunning(client, logger, {
-      stepExecutionId: input.claim.stepExecution.id,
-      claimToken: input.claim.claimToken,
-      error: error as
-        | Error
-        | { message?: string | undefined }
-        | string
-        | number
-        | boolean
-        | null
-        | undefined,
-    }).catch(() => "failed");
-
+    // failClaimedStepIfStillRunning is intentionally NOT called here. The
+    // log shipper's final flush must complete before the step is marked
+    // failed — otherwise the API rejects log appends once the status
+    // leaves "running". The caller (scheduleClaimedStepExecutionJob) owns
+    // that call, after awaiting logStream.stop().
     await markTrackedSessionFailed(tracker, {
       localRuntimeSessionId,
       failureReason,
       metadataJson: JSON.stringify({
-        finalStepStatus: finalStatus,
+        finalStepStatus: "failed",
       }),
     });
     logger.log("step", "Marked local runtime session failed after error", {
       localRuntimeSessionId,
       stepExecutionId: input.claim.stepExecution.id,
-      finalStepStatus: finalStatus,
     });
     logger.log("step", "Cleaning up startup artifacts after failure", {
       stepExecutionId,

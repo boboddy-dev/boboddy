@@ -2006,6 +2006,508 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
 
 export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponse = PutApiStepDefinitionsByStepDefinitionIdArchiveResponses[keyof PutApiStepDefinitionsByStepDefinitionIdArchiveResponses];
 
+export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData = {
+    body: {
+        claimToken: string;
+        relativeStorePath: string;
+        contentType?: string;
+    };
+    path: {
+        stepExecutionId: string;
+    };
+    query?: never;
+    url: '/api/step-executions/{stepExecutionId}/artifact-upload-url';
+};
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlError = PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors[keyof PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors];
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploadUrl: string;
+        storeRef: string;
+        objectKey: string;
+        expiresInSeconds: number;
+    };
+};
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponse = PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses[keyof PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses];
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsData = {
+    body?: never;
+    path: {
+        stepExecutionId: string;
+    };
+    query?: never;
+    url: '/api/step-executions/{stepExecutionId}/artifacts';
+};
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsError = GetApiStepExecutionsByStepExecutionIdArtifactsErrors[keyof GetApiStepExecutionsByStepExecutionIdArtifactsErrors];
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        stepExecutionId: string;
+        relativeStorePath: string;
+        storeRef: string;
+        objectKey: string;
+        sizeBytes: number;
+        contentType: string | unknown;
+        kind: 'generic' | 'playwright-trace';
+        createdAt: string;
+    }>;
+};
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsResponse = GetApiStepExecutionsByStepExecutionIdArtifactsResponses[keyof GetApiStepExecutionsByStepExecutionIdArtifactsResponses];
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactsData = {
+    body: {
+        claimToken: string;
+        objectKey: string;
+        relativeStorePath: string;
+        sizeBytes: number;
+        contentType?: string;
+        kind?: 'generic' | 'playwright-trace';
+    };
+    path: {
+        stepExecutionId: string;
+    };
+    query?: never;
+    url: '/api/step-executions/{stepExecutionId}/artifacts';
+};
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactsError = PostApiStepExecutionsByStepExecutionIdArtifactsErrors[keyof PostApiStepExecutionsByStepExecutionIdArtifactsErrors];
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        stepExecutionId: string;
+        relativeStorePath: string;
+        storeRef: string;
+        objectKey: string;
+        sizeBytes: number;
+        contentType: string | unknown;
+        kind: 'generic' | 'playwright-trace';
+        createdAt: string;
+    };
+};
+
+export type PostApiStepExecutionsByStepExecutionIdArtifactsResponse = PostApiStepExecutionsByStepExecutionIdArtifactsResponses[keyof PostApiStepExecutionsByStepExecutionIdArtifactsResponses];
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlData = {
+    body?: never;
+    path: {
+        stepExecutionId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/api/step-executions/{stepExecutionId}/artifacts/{artifactId}/download-url';
+};
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 402
+     */
+    402: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlError = GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors[keyof GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors];
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        url: string | unknown;
+        sizeBytes: number;
+        contentType: string | unknown;
+        relativeStorePath: string;
+    };
+};
+
+export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponse = GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses[keyof GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses];
+
 export type PostApiStepExecutionsClaimsData = {
     body: {
         projectId: string;
@@ -3606,6 +4108,7 @@ export type GetApiStepExecutionsByStepExecutionIdLogsResponses = {
             stream: 'worker' | 'ai-server' | 'conversation';
             ts: string;
             content: string;
+            level: 'debug' | 'info' | 'warn' | 'error';
         }>;
         nextOffset: number;
         complete: boolean;
@@ -3622,6 +4125,7 @@ export type PostApiStepExecutionsByStepExecutionIdLogsData = {
             stream: 'worker' | 'ai-server' | 'conversation';
             ts: string;
             content: string;
+            level: 'debug' | 'info' | 'warn' | 'error';
         }>;
     };
     path: {

@@ -69,6 +69,16 @@ export { pullPipelineDefinitions, listExistingPipelineBuilderFiles } from "./pip
 export type { PullPipelineDefinitionsResult } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
 export { UnsupportedRuleError, generateDefaultPipelineAssignmentFileContent } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
 export type { DefaultPipelineAssignmentContract } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
+export { LocalArtifactStore } from "./artifacts/artifact-store/infra/local-artifact-store";
+export { RemoteArtifactStore } from "./artifacts/artifact-store/infra/remote-artifact-store";
+export { CompositeArtifactStore } from "./artifacts/artifact-store/infra/composite-artifact-store";
+export { resolveArtifactStores } from "./artifacts/artifact-store/infra/resolve-artifact-stores";
+export type { ResolveArtifactStoresOptions } from "./artifacts/artifact-store/infra/resolve-artifact-stores";
+export type {
+  ArtifactStore,
+  SaveArtifactInput,
+  SaveArtifactResult,
+} from "./artifacts/artifact-store/domain/artifact-store";
 export { DefaultOpencodeStepRunner } from "./work/step-execution/infra/opencode-step-runner";
 export { processProjectWork, runProjectWork } from "./work/step-execution/application/run-project-work";
 export type {

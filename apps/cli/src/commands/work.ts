@@ -113,6 +113,9 @@ async function handler(
 
     reporter.finish("Done");
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error);
+    reporter.error(message);
     reporter.finish("Worker stopped with errors");
     logger.error({ err: error }, "Worker command failed");
     throw error;

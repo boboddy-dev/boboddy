@@ -31,6 +31,7 @@ function createStartedExecution(workspacePath: string): StartedClaimedExecution 
       agentBaseUrl: "http://localhost:4096",
       aiImage: "boboddy/ai-worker:local",
       networkName: "test-network",
+      secretValues: [],
       cleanup: () => Promise.resolve(),
     },
   };
@@ -49,6 +50,8 @@ function createDeps(
       appendStepExecutionLogs: vi.fn(() => Promise.resolve({ nextOffset: 0 })),
       getStepExecution: vi.fn(),
       getStepExecutionWorkerContext: vi.fn(),
+      createArtifactUploadUrl: vi.fn(),
+      recordArtifact: vi.fn(),
     },
     createRunTracker: vi.fn(),
     runtimeEnvironmentOrchestrator: {

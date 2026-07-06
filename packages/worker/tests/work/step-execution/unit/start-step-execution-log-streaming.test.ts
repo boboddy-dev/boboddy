@@ -49,6 +49,9 @@ describe("StepExecutionLogStream", () => {
       '[worker] starting step {"stepId":"abc"}',
       "ERROR [health] container unhealthy",
     ]);
+    // The logger method maps to a structured level carried on the shipped line:
+    // `log` -> info, `error` -> error.
+    expect(workerLines.map((line) => line.level)).toEqual(["info", "error"]);
 
     await stream.stop();
   });
@@ -100,6 +103,56 @@ describe("StepExecutionLogStream", () => {
 
     const line = sent.find((entry) => entry.content.includes("boom"));
     expect(line?.content).toContain("kaboom");
+    await stream.stop();
+  });
+
+  it("masks seeded secret values in shipped worker lines", async () => {
+    const sent: StepExecutionLogLine[] = [];
+    const baseLogger: ProjectWorkLogger = {
+      debug: () => {},
+      log: () => {},
+      error: () => {},
+    };
+
+    const stream = new StepExecutionLogStream({
+      workerClient: buildWorkerClient(sent),
+      logger: baseLogger,
+      stepExecutionId: createUuidV7(),
+      claimToken: "claim-token",
+      secretValues: ["seeded-secret"],
+    });
+
+    stream.logger.log("worker", "value is seeded-secret");
+    await stream.shipper.flush();
+
+    const line = sent.find((entry) => entry.stream === "worker");
+    expect(line?.content).toBe("[worker] value is ***");
+
+    await stream.stop();
+  });
+
+  it("masks values registered after construction", async () => {
+    const sent: StepExecutionLogLine[] = [];
+    const baseLogger: ProjectWorkLogger = {
+      debug: () => {},
+      log: () => {},
+      error: () => {},
+    };
+
+    const stream = new StepExecutionLogStream({
+      workerClient: buildWorkerClient(sent),
+      logger: baseLogger,
+      stepExecutionId: createUuidV7(),
+      claimToken: "claim-token",
+    });
+
+    stream.registerSecretValues(["late-secret"]);
+    stream.logger.log("worker", "token late-secret here");
+    await stream.shipper.flush();
+
+    const line = sent.find((entry) => entry.stream === "worker");
+    expect(line?.content).toBe("[worker] token *** here");
+
     await stream.stop();
   });
 

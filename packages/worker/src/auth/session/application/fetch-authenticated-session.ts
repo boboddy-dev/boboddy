@@ -14,7 +14,10 @@ export async function fetchAuthenticatedSession({
   const result = await authClient.getSession();
 
   if (result.error || !result.data) {
-    throw new Error(result.error?.message ?? "Authentication required.");
+    throw new Error(
+      (result.error?.message ?? "Authentication required.") +
+        " Run `boboddy auth login` to authenticate.",
+    );
   }
 
   return result.data;

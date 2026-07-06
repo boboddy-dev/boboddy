@@ -1,5 +1,15 @@
 import { createClient } from "./generated/client";
 import { StepExecutions } from "./generated/sdk.gen";
+import type {
+  PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData,
+  PostApiStepExecutionsByStepExecutionIdArtifactsData,
+} from "./generated/types.gen";
+
+type CreateArtifactUploadUrlInput =
+  PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData["body"];
+
+type RecordStepExecutionArtifactInput =
+  PostApiStepExecutionsByStepExecutionIdArtifactsData["body"];
 
 type RequestOptions = {
   headers?: Record<string, unknown> | undefined;
@@ -113,6 +123,55 @@ const buildStepExecutionPlaneClient = (stepExecutions: StepExecutions) => {
       });
       if (result.error) throw new Error(JSON.stringify(result.error));
     },
+    createArtifactUploadUrl: async (
+      stepExecutionId: string,
+      body: CreateArtifactUploadUrlInput,
+      options?: RequestOptions,
+    ) => {
+      const result = await stepExecutions.createArtifactUploadUrl({
+        path: { stepExecutionId },
+        body,
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
+    recordStepExecutionArtifact: async (
+      stepExecutionId: string,
+      body: RecordStepExecutionArtifactInput,
+      options?: RequestOptions,
+    ) => {
+      const result = await stepExecutions.recordStepExecutionArtifact({
+        path: { stepExecutionId },
+        body,
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
+    listStepExecutionArtifacts: async (
+      stepExecutionId: string,
+      options?: RequestOptions,
+    ) => {
+      const result = await stepExecutions.listStepExecutionArtifacts({
+        path: { stepExecutionId },
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
+    getArtifactDownloadUrl: async (
+      stepExecutionId: string,
+      artifactId: string,
+      options?: RequestOptions,
+    ) => {
+      const result = await stepExecutions.getArtifactDownloadUrl({
+        path: { stepExecutionId, artifactId },
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
     appendStepExecutionLogs: async (
       stepExecutionId: string,
       body: {
@@ -122,6 +181,7 @@ const buildStepExecutionPlaneClient = (stepExecutions: StepExecutions) => {
           stream: "worker" | "ai-server" | "conversation";
           ts: string;
           content: string;
+          level: "debug" | "info" | "warn" | "error";
         }[];
       },
       options?: RequestOptions,

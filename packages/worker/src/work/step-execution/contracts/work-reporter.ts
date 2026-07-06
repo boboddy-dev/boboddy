@@ -37,11 +37,15 @@ export type WorkEvent =
        * `kind: "milestone"` updates the primary status line (e.g. "Running the
        * postCreateCommand…"); `kind: "detail"` is a lower-level log line shown
        * in a rolling window beneath the milestone.
+       *
+       * `level` is the CLI's own severity for the line; the reporter uses it to
+       * emphasize warnings/errors in the rolling window.
        */
       type: "step:runtime-container-progress";
       stepExecutionId: string;
       kind: "milestone" | "detail";
       phase: string;
+      level?: "info" | "warn" | "error" | undefined;
     }
   | { type: "step:runtime-ai-starting"; stepExecutionId: string }
   | { type: "step:runtime-ready"; stepExecutionId: string }

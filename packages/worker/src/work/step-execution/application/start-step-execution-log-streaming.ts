@@ -3,6 +3,7 @@ import type {
   ProjectWorkLogger,
   StepExecutionWorkerClient,
 } from "../contracts/process-project-work-types";
+import { SecretMasker } from "./secret-masker";
 import { StepExecutionLogShipper } from "./step-execution-log-shipper";
 import { OpencodeLogTail } from "./opencode-log-tail";
 import { OpencodeConversationStreamer } from "./opencode-conversation-streamer";
@@ -97,6 +98,7 @@ export class StepExecutionLogStream {
   readonly logger: ProjectWorkLogger;
   private readonly baseLogger: ProjectWorkLogger;
   private readonly stepExecutionId: UuidV7;
+  private readonly secretMasker: SecretMasker;
   private tail: OpencodeLogTail | null = null;
   private conversation: OpencodeConversationStreamer | null = null;
 
@@ -105,23 +107,59 @@ export class StepExecutionLogStream {
     logger: ProjectWorkLogger;
     stepExecutionId: UuidV7;
     claimToken: string;
+    /**
+     * Initial set of secret values to redact from every shipped line (Path A:
+     * the user's `.boboddy/.env` values). Provider token(s) are added later via
+     * {@link registerSecretValues} once the runtime resolves them.
+     */
+    secretValues?: Iterable<string> | undefined;
   }) {
     this.baseLogger = input.logger;
     this.stepExecutionId = input.stepExecutionId;
+    this.secretMasker = new SecretMasker(input.secretValues ?? []);
     this.shipper = new StepExecutionLogShipper({
       workerClient: input.workerClient,
       stepExecutionId: input.stepExecutionId,
       claimToken: input.claimToken,
+      secretMasker: this.secretMasker,
       onError: (error) => {
         // Use the base logger to avoid recursively shipping shipper errors.
+        // Surface message/stack explicitly: pino serializes a bare `Error` in a
+        // non-`err` details field as `{}`, hiding the actual server rejection.
         this.baseLogger.error("worker", "Failed to ship step execution logs", {
           stepExecutionId: this.stepExecutionId,
-          error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
         });
       },
     });
     this.shipper.start();
     this.logger = createStreamingLogger(this.baseLogger, this.shipper);
+  }
+
+  /**
+   * Register additional secret values to redact from subsequently shipped lines
+   * (Path B: the provider token(s), which only exist after the runtime
+   * launches). Must be called before any stream that could carry those values
+   * is attached — notably {@link attachOpencodeTail}, which tails the raw
+   * in-container OpenCode log. Idempotent and cheap.
+   */
+  registerSecretValues(values: Iterable<string>): void {
+    this.secretMasker.register(values);
+  }
+
+  /**
+   * Ship a single devcontainer-launch log line into the `worker` stream at the
+   * given severity. Used to stream the CLI's real subprocess output
+   * (npm/pip/`init.sh` stderr, submodule clones) to the durable feed as it
+   * appears, rather than as one post-mortem blob. Errors are always shipped;
+   * lower severities are subject to the shipper's ship-level filter.
+   */
+  shipDevcontainerLogLine(
+    line: string,
+    level: "info" | "warn" | "error",
+  ): void {
+    this.shipper.enqueue("worker", `[devcontainer] ${line}`, undefined, level);
   }
 
   /**
@@ -181,6 +219,11 @@ export class StepExecutionLogStream {
       },
     });
     this.conversation.start();
+  }
+
+  /** Flush any buffered lines now (e.g. before the step leaves "running"). Never throws. */
+  async flush(): Promise<void> {
+    await this.shipper.flush();
   }
 
   /** Stop tailing and flush any remaining lines a final time. */

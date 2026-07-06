@@ -1,9 +1,8 @@
-import os, { hostname } from "node:os";
-import path from "node:path";
+import { hostname } from "node:os";
 import type { DestinationStream } from "pino";
 import { parseUuidV7 } from "../../../common/contracts/uuid-v7";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
-import { LocalArtifactStore } from "../../../artifacts/artifact-store/infra/local-artifact-store";
+import { resolveArtifactStores } from "../../../artifacts/artifact-store/infra/resolve-artifact-stores";
 import {
   processProjectWork as processProjectWorkInCore,
 } from "./process-project-work";
@@ -61,7 +60,11 @@ export type ProcessProjectWorkDeps = {
   createRunTracker(): StepExecutionRunTracker;
   runtimeEnvironmentOrchestrator: StepExecutionRuntimeEnvironmentOrchestrator;
   agentRunner: StepExecutionAgentRunner;
-  /** Override the artifact store (defaults to LocalArtifactStore under ~/.boboddy/artifacts). */
+  /**
+   * Override the artifact store. When omitted the store is resolved from the
+   * environment via `resolveArtifactStores` (local + remote by default; local
+   * copies land under ~/.boboddy/artifacts, remote uploads go through the API).
+   */
   artifactStore?: ArtifactStore | undefined;
   sleep(milliseconds: number): Promise<void>;
   logger: ProjectWorkLogger;
@@ -174,7 +177,14 @@ export async function runProjectWork(
 
   const artifactStore =
     resolvedDeps.artifactStore ??
-    new LocalArtifactStore(path.join(os.homedir(), ".boboddy", "artifacts"));
+    resolveArtifactStores(
+      {
+        ...process.env,
+        // .boboddy/.env (localEnvVars) overrides the ambient .env / process env.
+        ...(options.localEnvVars ?? {}),
+      },
+      { remoteUploader: workerClient },
+    );
 
   return await processProjectWorkInCore(
     {
@@ -188,6 +198,9 @@ export async function runProjectWork(
       preserveRuntimeOnComplete: options.preserveRuntimeOnComplete,
       once: options.once,
       sessionStartTimeoutMs: options.sessionStartTimeoutMs,
+      // Seed each claimed step's log masker with the .boboddy/.env values
+      // (Path A) so injected secrets are redacted from the shipped feed.
+      secretValues: Object.values(options.localEnvVars ?? {}),
     },
     {
       workerClient,

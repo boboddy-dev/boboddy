@@ -28,6 +28,7 @@ function createStartedExecution(workspacePath: string): StartedClaimedExecution 
       agentBaseUrl: "http://127.0.0.1:4096",
       aiImage: "opencode-runtime@0.0.0-test",
       networkName: "",
+      secretValues: [],
       cleanup: vi.fn(() => Promise.resolve()),
     },
   };
@@ -92,6 +93,8 @@ describe("monitorStartedClaimedExecution session-start fail-fast", () => {
           Promise.resolve({ status: "running" as const }),
         ),
         getStepExecutionWorkerContext: vi.fn(),
+        createArtifactUploadUrl: vi.fn(),
+        recordArtifact: vi.fn(),
         appendStepExecutionLogs: vi.fn(() => Promise.resolve({ nextOffset: 0 })),
       },
       createRunTracker: vi.fn(),
@@ -118,9 +121,14 @@ describe("monitorStartedClaimedExecution session-start fail-fast", () => {
 
     await expectRejects(
       () =>
-        monitorStartedClaimedExecution(input, deps, tracker, startedExecution, {
-          stop: vi.fn(() => Promise.resolve()),
-        }),
+        monitorStartedClaimedExecution(
+          input,
+          deps,
+          tracker,
+          startedExecution,
+          { stop: vi.fn(() => Promise.resolve()) },
+          { flush: vi.fn(() => Promise.resolve()) },
+        ),
       /never started/u,
     );
 

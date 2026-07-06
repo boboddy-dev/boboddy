@@ -1,4 +1,5 @@
 import { createStepExecutionPlaneClient } from "@boboddy/sdk";
+import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
 import { parseUuidV7, type UuidV7 } from "../../../common/contracts/uuid-v7";
 import type {
   StepExecutionLogLine,
@@ -112,5 +113,46 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
         },
         { headers },
       )) as unknown as StepExecutionWorkerContextContract,
+    createArtifactUploadUrl: async (input: {
+      stepExecutionId: string;
+      claimToken: string;
+      relativeStorePath: string;
+      contentType?: string | undefined;
+    }) =>
+      await planeClient.createArtifactUploadUrl(
+        input.stepExecutionId,
+        {
+          claimToken: input.claimToken,
+          relativeStorePath: input.relativeStorePath,
+          ...(input.contentType === undefined
+            ? {}
+            : { contentType: input.contentType }),
+        },
+        { headers },
+      ),
+    recordArtifact: async (input: {
+      stepExecutionId: string;
+      claimToken: string;
+      objectKey: string;
+      relativeStorePath: string;
+      sizeBytes: number;
+      contentType?: string | undefined;
+      kind: ArtifactKind;
+    }) => {
+      await planeClient.recordStepExecutionArtifact(
+        input.stepExecutionId,
+        {
+          claimToken: input.claimToken,
+          objectKey: input.objectKey,
+          relativeStorePath: input.relativeStorePath,
+          sizeBytes: input.sizeBytes,
+          kind: input.kind,
+          ...(input.contentType === undefined
+            ? {}
+            : { contentType: input.contentType }),
+        },
+        { headers },
+      );
+    },
   } satisfies StepExecutionPlaneWorkerClient;
 }

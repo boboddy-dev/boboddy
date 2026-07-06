@@ -444,6 +444,9 @@ describe("DefaultLocalProjectRuntimeEnvironmentOrchestrator.launch (single-conta
       `/workspaces/${path.basename(workspacePath)}`,
     );
     expect(env.devcontainerConfigPath).toBe(DEVCONTAINER_CONFIG_PATH);
+    // The materialized provider env values (Path B secrets) are surfaced so the
+    // caller can register them with the log masker; the token is included.
+    expect(env.secretValues).toContain("secret-token");
   });
 
   test("cleanup tears down the single runtime: stops OpenCode, removes the session HOME, stops the container, removes the workspace", async () => {

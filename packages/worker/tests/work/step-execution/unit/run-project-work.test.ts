@@ -82,6 +82,15 @@ function createWorkerClient(
     appendStepExecutionLogs: vi.fn(() => Promise.resolve({ nextOffset: 0 })),
     getStepExecution,
     getStepExecutionWorkerContext,
+    createArtifactUploadUrl: vi.fn(() =>
+      Promise.resolve({
+        uploadUrl: "https://fake-upload.local/artifact",
+        storeRef: "remote://artifact",
+        objectKey: "artifact",
+        expiresInSeconds: 300,
+      }),
+    ),
+    recordArtifact: vi.fn(() => Promise.resolve(undefined)),
     ...overrides,
   };
 }

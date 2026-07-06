@@ -10,11 +10,38 @@ import {
 } from "../../../work/step-execution/application/work-logger";
 import type {
   DevcontainerLaunchProgress,
+  DevcontainerLaunchProgressLevel,
   DevcontainerLauncher,
   LaunchDevcontainerInput,
   LaunchDevcontainerResult,
   ResolveDevcontainerConfigInput,
 } from "../application/devcontainer-launcher";
+
+/**
+ * The devcontainer CLI's numeric `LogLevel` values (from @devcontainers/cli
+ * src/spec-utils/log.ts: Trace=1, Debug=2, Info=3, Warning=4, Error=5,
+ * Critical=6). Emitted as the numeric `level` field on each `--log-format json`
+ * event. Plain constants (not a TS enum) so comparisons against the raw numeric
+ * field stay type-safe.
+ */
+const DEVCONTAINER_LOG_LEVEL_WARNING = 4;
+const DEVCONTAINER_LOG_LEVEL_ERROR = 5;
+
+/** Map the CLI's numeric LogLevel to our coarse progress severity. */
+function mapDevcontainerLevel(
+  level: number | undefined,
+): DevcontainerLaunchProgressLevel {
+  if (typeof level !== "number") {
+    return "info";
+  }
+  if (level >= DEVCONTAINER_LOG_LEVEL_ERROR) {
+    return "error";
+  }
+  if (level >= DEVCONTAINER_LOG_LEVEL_WARNING) {
+    return "warn";
+  }
+  return "info";
+}
 
 const execFileAsync = promisify(execFile);
 const DEVCONTAINER_CONFIG_CANDIDATES = [
@@ -77,55 +104,70 @@ const MEANINGFUL_START_MARKERS = [
 ] as const;
 
 /**
- * Translate a single `--log-format json` line from the devcontainer CLI into a
- * human-meaningful progress phase, or `null` if the line carries no
- * user-relevant milestone.
+ * Translate a single `--log-format json` line from the devcontainer CLI into
+ * zero or more human-meaningful progress lines.
  *
  * The CLI emits newline-delimited JSON objects on **stderr**. The shapes we
- * care about (observed from the bundled @devcontainers/cli):
- *   - `{ "type": "start", "text": "Running the postCreateCommand…" }` — a
- *     lifecycle phase begins. Only the high-level phases in
- *     {@link MEANINGFUL_START_MARKERS} are surfaced; the high-volume
- *     `Run: <subcommand>` starts are dropped.
- *   - `{ "type": "progress", "name": "Installing Dotfiles", "status": "running" }`
- *     — a named sub-task.
+ * handle (from @devcontainers/cli src/spec-utils/log.ts):
+ *   - `{ "type": "start", "level", "text": "Running the postCreateCommand…" }`
+ *     — a lifecycle phase begins. High-level phases in
+ *     {@link MEANINGFUL_START_MARKERS} become `milestone`s; the `Run: …` starts
+ *     become `detail` lines.
+ *   - `{ "type": "stop", "level", "text", "startTimestamp" }` — a phase ends.
+ *     Surfaced as a `detail` so the feed shows completion + timing.
+ *   - `{ "type": "text" | "raw", "level", "text": "<subprocess output>" }` —
+ *     captured stdout/stderr (npm/pip/bash `init.sh`). This is where real error
+ *     detail lives, so we no longer drop it: each embedded line becomes its own
+ *     `detail`, carrying the CLI's severity so errors ship even when info-level
+ *     noise is filtered.
+ *   - `{ "type": "progress", "name", "status": "running" }` — a named sub-task
+ *     → `milestone`.
  *
- * `text` / `raw` log lines are intentionally ignored here: they are high-volume
- * command output (npm/pip/playwright noise) better left to the pino debug log.
+ * Returns an array because `text`/`raw` events can carry multiple newline-
+ * delimited lines. Non-JSON, empty, or unrecognized lines yield `[]`.
  */
 export function parseDevcontainerProgress(
   line: string,
-): DevcontainerLaunchProgress | null {
+): DevcontainerLaunchProgress[] {
   const trimmed = line.trim();
   if (!trimmed.startsWith("{")) {
-    return null;
+    return [];
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
   } catch {
-    return null;
+    return [];
   }
 
   if (typeof parsed !== "object" || parsed === null) {
-    return null;
+    return [];
   }
   const record = parsed as Record<string, unknown>;
+  const rawLevel = record["level"];
+  const level = mapDevcontainerLevel(
+    typeof rawLevel === "number" ? rawLevel : undefined,
+  );
 
   if (record["type"] === "start" && typeof record["text"] === "string") {
     // Collapse to a single clean line — `start` texts are short, but guard
     // against stray newlines so a detail line can never break the log window.
     const text = toSingleLine(record["text"]);
     if (text.length === 0) {
-      return null;
+      return [];
     }
     const isMilestone = MEANINGFUL_START_MARKERS.some((marker) =>
       text.includes(marker),
     );
     // High-level phase → primary status line; the `Run: <subcommand>` starts
     // are clean, informative one-liners → streamed detail lines beneath it.
-    return { kind: isMilestone ? "milestone" : "detail", phase: text };
+    return [{ kind: isMilestone ? "milestone" : "detail", phase: text, level }];
+  }
+
+  if (record["type"] === "stop" && typeof record["text"] === "string") {
+    const text = toSingleLine(record["text"]);
+    return text.length > 0 ? [{ kind: "detail", phase: text, level }] : [];
   }
 
   // Named sub-tasks (e.g. "Installing Dotfiles") are milestones.
@@ -135,19 +177,43 @@ export function parseDevcontainerProgress(
     typeof record["name"] === "string"
   ) {
     const name = toSingleLine(record["name"]);
-    return name.length > 0 ? { kind: "milestone", phase: name } : null;
+    return name.length > 0 ? [{ kind: "milestone", phase: name, level }] : [];
   }
 
-  // `text` / `raw` are the raw, often multi-line byte streams of subprocess
-  // output (submodule clones, npm/pip noise). Far too noisy for the live
-  // window and they carry embedded newlines — drop them; the full output is
-  // still captured in the combined result and pino logs.
-  return null;
+  // `text` / `raw` are the raw subprocess byte streams (submodule clones,
+  // npm/pip/bash output). One CLI event is one idea, so we ship the whole
+  // payload as a single feed line (preserving its internal structure) rather
+  // than exploding it into one line per embedded newline. The shipper strips
+  // control chars and caps length, so an oversized payload is truncated rather
+  // than dropped.
+  if (
+    (record["type"] === "text" || record["type"] === "raw") &&
+    typeof record["text"] === "string"
+  ) {
+    const phase = cleanRawPayload(record["text"]);
+    return phase.length > 0 ? [{ kind: "detail" as const, phase, level }] : [];
+  }
+
+  return [];
 }
 
 /** Collapse any whitespace runs (incl. newlines) into single spaces, trimmed. */
 function toSingleLine(value: string): string {
   return value.replace(/\s+/gu, " ").trim();
+}
+
+/**
+ * Clean a raw subprocess output blob for shipping as a single feed line:
+ * strip ANSI escape sequences and trailing whitespace/newlines, while
+ * preserving internal structure (embedded newlines/indentation) so a
+ * multi-line payload — e.g. a pretty-printed JSON config dump — stays readable
+ * as one log entry rather than being split across many.
+ */
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE = /(?:\x9B|\x1B\[)[0-?]*[ -/]*[@-~]/gu;
+
+function cleanRawPayload(value: string): string {
+  return value.replace(ANSI_ESCAPE, "").replace(/\s+$/u, "");
 }
 
 /**
@@ -188,13 +254,12 @@ async function runDevcontainerCli(
       if (!onProgress) {
         return;
       }
-      const progress = parseDevcontainerProgress(line);
-      if (progress) {
-        // Best-effort: a throwing reporter must not break the launch.
+      for (const progress of parseDevcontainerProgress(line)) {
+        // Best-effort: a throwing consumer must not break the launch.
         try {
           onProgress(progress);
         } catch {
-          // Ignore reporter errors.
+          // Ignore consumer errors.
         }
       }
     };
@@ -234,11 +299,15 @@ async function runDevcontainerCli(
       if (code === 0) {
         resolve(combined);
       } else {
-        reject(
-          new Error(
-            `devcontainer CLI exited with code ${String(code)}: ${combined}`,
-          ),
+        const summary = extractDevcontainerErrorSummary(combined);
+        // Attach the raw output as a non-enumerable property so the caller can
+        // log it at debug level without it contaminating the human-readable
+        // message that propagates to the reporter.
+        const err = new Error(
+          `devcontainer CLI exited with code ${String(code)}: ${summary}`,
         );
+        (err as Error & { rawOutput: string }).rawOutput = combined;
+        reject(err);
       }
     });
   });
@@ -251,6 +320,35 @@ function extractContainerId(output: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Extract a short, human-readable failure summary from the raw combined
+ * devcontainer CLI output. The CLI writes a terminal JSON object to stdout on
+ * failure:
+ *   {"outcome":"error","message":"Command failed: ...","description":"postCreateCommand failed.","containerId":"..."}
+ * We prefer `description` (most concise) then `message`, then fall back to a
+ * generic string so the caller never gets the full multi-KB dump.
+ */
+function extractDevcontainerErrorSummary(combined: string): string {
+  // The outcome object is on stdout (first chunk of combined). Try every line.
+  for (const line of combined.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) continue;
+    try {
+      const obj = JSON.parse(trimmed) as Record<string, unknown>;
+      if (obj["outcome"] === "error") {
+        const description =
+          typeof obj["description"] === "string" ? obj["description"] : null;
+        const message =
+          typeof obj["message"] === "string" ? obj["message"] : null;
+        return description ?? message ?? "devcontainer exited with an error";
+      }
+    } catch {
+      // Not JSON — keep scanning.
+    }
+  }
+  return "devcontainer CLI exited with a non-zero exit code";
 }
 
 export class DevcontainerCliLauncher implements DevcontainerLauncher {
@@ -327,6 +425,10 @@ export class DevcontainerCliLauncher implements DevcontainerLauncher {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      // The full CLI output already streamed to the durable feed line-by-line
+      // via onProgress, so the failure log only needs the clean summary here —
+      // no giant blob. The raw output remains on the error's `rawOutput` for
+      // callers that want the tail (see extractDevcontainerErrorSummary).
       logWorkError("runtime", "Devcontainer launch failed", {
         sessionId: input.sessionId,
         workspacePath: input.workspacePath,

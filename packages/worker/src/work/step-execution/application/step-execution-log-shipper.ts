@@ -1,9 +1,11 @@
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type {
+  StepExecutionLogLevel,
   StepExecutionLogLine,
   StepExecutionLogStream,
   StepExecutionWorkerClient,
 } from "../contracts/process-project-work-types";
+import type { SecretMasker } from "./secret-masker";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 1_000;
 const DEFAULT_MAX_BATCH_LINES = 256;
@@ -13,11 +15,34 @@ const DEFAULT_MAX_BUFFER_LINES = 10_000;
 const MAX_LINE_CONTENT_LENGTH = 12_000;
 
 /**
+ * Strip characters PostgreSQL `text` columns cannot store. Raw devcontainer
+ * output (docker/AWS CLI, terminal progress, `init.sh` stderr) routinely
+ * contains NUL bytes and other C0 control characters. Zod's `z.string()`
+ * accepts them, but the `content text` insert rejects the *entire* batch with
+ * `invalid byte sequence for encoding "UTF8": 0x00`. Because the shipper
+ * retains and retries the same batch, a single poisoned line permanently stalls
+ * the feed. Sanitizing here — the one choke point every stream passes through —
+ * guarantees no line can poison a batch.
+ *
+ * We drop NUL and the C0 control range except the whitespace that is meaningful
+ * in log output (tab, newline, carriage return). Lone surrogate code points,
+ * which also break UTF-8 encoding, are replaced with the Unicode replacement
+ * character.
+ */
+const sanitizeLogContent = (content: string): string =>
+  content
+    // NUL + other C0 controls, excluding \t (\x09), \n (\x0A), \r (\x0D).
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+    // Unpaired UTF-16 surrogates cannot be encoded as valid UTF-8.
+    .replace(/[\uD800-\uDFFF]/g, "\uFFFD");
+
+/**
  * Severity of a diagnostic feed line. Used to filter low-signal noise out of the
  * durable feed/archive. The `conversation` stream is product data and is always
  * shipped regardless of level.
  */
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = StepExecutionLogLevel;
 
 const LEVEL_RANK: Record<LogLevel, number> = {
   debug: 10,
@@ -53,6 +78,13 @@ export type StepExecutionLogShipperDeps = {
   workerClient: Pick<StepExecutionWorkerClient, "appendStepExecutionLogs">;
   stepExecutionId: UuidV7;
   claimToken: string;
+  /**
+   * Redacts known secret values from every line before it is buffered/shipped.
+   * Required: the durable feed (Postgres + S3 archive) must never persist a
+   * user's injected secrets. Pass a masker seeded with no values to opt out —
+   * it is then a no-op.
+   */
+  secretMasker: SecretMasker;
   /** Diagnostic sink; shipping failures are logged here, never thrown. */
   // eslint-disable-next-line local/no-unknown-parameter-type
   onError?: (error: unknown) => void;
@@ -137,14 +169,20 @@ export class StepExecutionLogShipper {
     if (stream !== "conversation" && LEVEL_RANK[level] < LEVEL_RANK[this.deps.minShipLevel]) {
       return;
     }
+    // Redact known secret values BEFORE the length cap so truncation operates
+    // on already-masked content (a secret can't survive by straddling the cut).
+    // Runs for every stream, including `conversation`, which bypasses the level
+    // filter above but must still be masked.
+    const masked = this.deps.secretMasker.mask(sanitizeLogContent(content));
     this.buffer.push({
       seq: this.seq++, // first line is seq 1
       stream,
       ts: (ts ?? new Date()).toISOString(),
       content:
-        content.length > MAX_LINE_CONTENT_LENGTH
-          ? `${content.slice(0, MAX_LINE_CONTENT_LENGTH)}… [truncated]`
-          : content,
+        masked.length > MAX_LINE_CONTENT_LENGTH
+          ? `${masked.slice(0, MAX_LINE_CONTENT_LENGTH)}… [truncated]`
+          : masked,
+      level,
     });
     if (this.buffer.length > this.deps.maxBufferLines) {
       // Drop oldest under backpressure; keeps memory bounded. Gaps in seq are

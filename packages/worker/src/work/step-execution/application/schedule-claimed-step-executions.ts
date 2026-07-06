@@ -1,9 +1,8 @@
 import { createStepExecutionHeartbeatController } from "./create-step-execution-heartbeat-controller";
+import { failClaimedStepIfStillRunning } from "./fail-claimed-step-if-still-running";
 import { monitorStartedClaimedExecution } from "./process-project-work-monitor";
 import { startProcessClaimedExecution } from "./process-claimed-step-execution";
-import {
-  resolveProjectWorkLogger,
-} from "./process-project-work-logger";
+import { resolveProjectWorkLogger } from "./process-project-work-logger";
 import { StepExecutionLogStream } from "./start-step-execution-log-streaming";
 import type {
   ProcessProjectWorkDeps,
@@ -55,6 +54,10 @@ export function scheduleClaimedStepExecutionJob(
     logger: baseLogger,
     stepExecutionId: claim.stepExecution.id,
     claimToken: claim.claimToken,
+    // Path A: seed the masker with the user's .boboddy/.env values so they are
+    // redacted from the shipped feed. Provider token(s) (Path B) are registered
+    // later, from the runtime launch result.
+    secretValues: input.secretValues,
   });
   const logger = logStream.logger;
   const streamingDeps: ProcessProjectWorkDeps = { ...deps, logger };
@@ -77,6 +80,12 @@ export function scheduleClaimedStepExecutionJob(
   );
 
   const job = (async () => {
+    // Capture any thrown error so the finally block can report the step as
+    // failed *after* flushing buffered logs. Flushing first is critical:
+    // appendStepExecutionLogs rejects once the step leaves "running", so any
+    // lines still in the shipper buffer at the moment failStepExecution is
+    // called would be permanently lost.
+    let executionError: unknown = undefined;
     try {
       const startedExecution = await startProcessClaimedExecution(
         {
@@ -97,12 +106,40 @@ export function scheduleClaimedStepExecutionJob(
         tracker,
         startedExecution,
         heartbeat,
+        logStream,
       );
     } catch (error: unknown) {
       await heartbeat.stop();
+      executionError = error;
       throw error;
     } finally {
+      // Flush buffered log lines to the platform BEFORE marking the step as
+      // failed. This guarantees the error output (postCreateCommand failure,
+      // AWS errors, etc.) reaches the API while the step is still "running"
+      // and assertClaimOwnership will accept the appends.
       await logStream.stop();
+      if (executionError !== undefined) {
+        try {
+          await failClaimedStepIfStillRunning(deps.workerClient, logger, {
+            stepExecutionId: claim.stepExecution.id,
+            claimToken: claim.claimToken,
+            error: executionError,
+          });
+        } catch (failError: unknown) {
+          // Best-effort: if the fail call itself errors (e.g. already failed
+          // via the heartbeat expiry), don't mask the original execution error
+          // — but log it explicitly. A silent swallow previously hid a
+          // server-side rollback that left the step stuck "running" until its
+          // lease lapsed (surfacing as "abandoned").
+          logger.error("step", "Failed to report claimed step failure", {
+            stepExecutionId: claim.stepExecution.id,
+            errorMessage:
+              failError instanceof Error
+                ? failError.message
+                : String(failError),
+          });
+        }
+      }
     }
   })();
 

@@ -5,6 +5,7 @@ import type { startProcessClaimedExecution } from "./process-claimed-step-execut
 import type { resolveProjectWorkLogger } from "./process-project-work-logger";
 import type { ProcessProjectWorkDeps } from "../contracts/process-project-work-types";
 import { buildFindingsSubmissionPath } from "./process-project-work-findings";
+import { detectArtifactKind } from "../../../artifacts/artifact-store/domain/detect-artifact-kind";
 
 const FINDINGS_RETRY_PROMPT = [
   "You finished without submitting Boboddy findings.",
@@ -242,10 +243,29 @@ export async function collectStepArtifacts(
       sourcePath,
     });
 
-    await deps.artifactStore.saveArtifact({
-      stepExecutionId: startedExecution.stepExecutionId,
-      sourcePath,
-      relativeStorePath,
-    });
+    const kind = detectArtifactKind(relativeStorePath);
+
+    try {
+      const result = await deps.artifactStore.saveArtifact({
+        stepExecutionId: startedExecution.stepExecutionId,
+        claimToken: startedExecution.claimToken,
+        sourcePath,
+        relativeStorePath,
+        kind,
+      });
+      logger.log("worker", "Saved step artifact", {
+        stepExecutionId: startedExecution.stepExecutionId,
+        relativeStorePath,
+        storeRef: result.storeRef,
+        sizeBytes: result.sizeBytes,
+      });
+    } catch (error) {
+      logger.error("worker", "Failed to save step artifact", {
+        stepExecutionId: startedExecution.stepExecutionId,
+        relativeStorePath,
+        sourcePath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }

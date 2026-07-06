@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
+    "./contracts/artifacts": "./src/contracts/artifacts.ts",
     "./definitions/steps": "./src/definitions/steps/index.ts",
     "./definitions/pipelines": "./src/definitions/pipelines/index.ts",
     "./definitions/advancement-policies": "./src/definitions/advancement-policies/index.ts",
