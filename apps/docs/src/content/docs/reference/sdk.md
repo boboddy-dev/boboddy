@@ -60,6 +60,7 @@ Return a summary and quality score.
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result                                         |
 | `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configs for tool-using agents                                  |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are skipped by workers                                        |
+| `executionMode`   | `"workspace" \| "no_workspace"`   | No       | `"no_workspace"` runs the agent without cloning your repo or a dev container; defaults to `"workspace"`. See [Execution mode](/boboddy/guides/steps/#execution-mode) |
 
 ### `agentPrompt`
 

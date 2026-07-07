@@ -3817,6 +3817,13 @@
                       "user_defined"
                     ]
                   },
+                  "executionMode": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "no_workspace"
+                    ]
+                  },
                   "inputSchemaJson": {
                     "anyOf": [
                       {},
@@ -4118,6 +4125,13 @@
                       "user_defined"
                     ]
                   },
+                  "executionMode": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "no_workspace"
+                    ]
+                  },
                   "inputSchemaJson": {
                     "anyOf": [
                       {},
@@ -4417,6 +4431,13 @@
                     "enum": [
                       "built_in",
                       "user_defined"
+                    ]
+                  },
+                  "executionMode": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "no_workspace"
                     ]
                   },
                   "inputSchemaJson": {
@@ -4736,6 +4757,13 @@
                         "user_defined"
                       ]
                     },
+                    "executionMode": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "no_workspace"
+                      ]
+                    },
                     "inputSchemaJson": {
                       "anyOf": [
                         {},
@@ -5013,6 +5041,7 @@
                     "prompt",
                     "version",
                     "kind",
+                    "executionMode",
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
@@ -5530,6 +5559,13 @@
                           "user_defined"
                         ]
                       },
+                      "executionMode": {
+                        "type": "string",
+                        "enum": [
+                          "workspace",
+                          "no_workspace"
+                        ]
+                      },
                       "inputSchemaJson": {
                         "anyOf": [
                           {},
@@ -5807,6 +5843,7 @@
                       "prompt",
                       "version",
                       "kind",
+                      "executionMode",
                       "inputSchemaJson",
                       "resultSchemaJson",
                       "opencodeMcpJson",
@@ -6119,6 +6156,13 @@
                       "user_defined"
                     ]
                   },
+                  "executionMode": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "no_workspace"
+                    ]
+                  },
                   "inputSchemaJson": {
                     "anyOf": [
                       {},
@@ -6420,6 +6464,13 @@
                       "user_defined"
                     ]
                   },
+                  "executionMode": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "no_workspace"
+                    ]
+                  },
                   "inputSchemaJson": {
                     "anyOf": [
                       {},
@@ -6719,6 +6770,13 @@
                     "enum": [
                       "built_in",
                       "user_defined"
+                    ]
+                  },
+                  "executionMode": {
+                    "type": "string",
+                    "enum": [
+                      "workspace",
+                      "no_workspace"
                     ]
                   },
                   "inputSchemaJson": {
@@ -7038,6 +7096,13 @@
                         "user_defined"
                       ]
                     },
+                    "executionMode": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "no_workspace"
+                      ]
+                    },
                     "inputSchemaJson": {
                       "anyOf": [
                         {},
@@ -7315,6 +7380,7 @@
                     "prompt",
                     "version",
                     "kind",
+                    "executionMode",
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
@@ -7710,6 +7776,13 @@
                         "user_defined"
                       ]
                     },
+                    "executionMode": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "no_workspace"
+                      ]
+                    },
                     "inputSchemaJson": {
                       "anyOf": [
                         {},
@@ -7987,6 +8060,7 @@
                     "prompt",
                     "version",
                     "kind",
+                    "executionMode",
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
@@ -8382,6 +8456,13 @@
                         "user_defined"
                       ]
                     },
+                    "executionMode": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "no_workspace"
+                      ]
+                    },
                     "inputSchemaJson": {
                       "anyOf": [
                         {},
@@ -8659,6 +8740,7 @@
                     "prompt",
                     "version",
                     "kind",
+                    "executionMode",
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",
@@ -14239,6 +14321,13 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "executionMode": {
+                          "type": "string",
+                          "enum": [
+                            "workspace",
+                            "no_workspace"
+                          ]
+                        },
                         "resultSchemaJson": {
                           "anyOf": [
                             {
@@ -14424,6 +14513,7 @@
                         "key",
                         "name",
                         "prompt",
+                        "executionMode",
                         "resultSchemaJson",
                         "opencodeMcpJson",
                         "opencodePluginJson"
@@ -52953,6 +53043,13 @@
                         "user_defined"
                       ]
                     },
+                    "executionMode": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "no_workspace"
+                      ]
+                    },
                     "inputSchemaJson": {
                       "anyOf": [
                         {},
@@ -53230,6 +53327,7 @@
                     "prompt",
                     "version",
                     "kind",
+                    "executionMode",
                     "inputSchemaJson",
                     "resultSchemaJson",
                     "opencodeMcpJson",

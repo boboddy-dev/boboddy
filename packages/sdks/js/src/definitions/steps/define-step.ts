@@ -193,6 +193,7 @@ export type DefineStepInput<
   mcpServers?: OpenCodeMcpServers | null;
   plugins?: OpenCodePlugins | null;
   status?: "draft" | "active";
+  executionMode?: "workspace" | "no_workspace";
 };
 
 export type AdditionalStepInputLiteralBinding = {
@@ -214,6 +215,7 @@ export type StepDefinitionSpec = {
   version: number;
   kind: "user_defined";
   status: "draft" | "active" | "archived";
+  executionMode?: "workspace" | "no_workspace";
   prompt: string | null;
   inputSchemaJson: Record<string, unknown> | null;
   resultSchemaJson: Record<string, unknown> | null;
@@ -348,6 +350,7 @@ export function defineStep<
     version: config.version ?? 1,
     kind: "user_defined",
     status: config.status ?? "active",
+    executionMode: config.executionMode,
     prompt: effectivePrompt,
     inputSchemaJson: config.additionalInput
       ? toJSONSchema(config.additionalInput as unknown as $ZodType)

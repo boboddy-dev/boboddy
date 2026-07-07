@@ -9,7 +9,7 @@ import {
   requestDeviceAuthorization,
   resolveBoboddyBaseUrl,
 } from "@boboddy/worker";
-import { createCliLogger } from "../lib/logger";
+import { withReporter } from "../lib/command-output";
 import { openBrowser } from "../auth/browser";
 
 const addBaseUrlOption = (argv: Argv<object>) =>
@@ -23,88 +23,97 @@ const getBaseUrlArgument = (arguments_: ArgumentsCamelCase<object>) => {
   return typeof value === "string" ? value : undefined;
 };
 
-const runLogin = async (arguments_: ArgumentsCamelCase<object>) => {
-  const logger = createCliLogger("auth");
-  const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
-  const deviceAuth = await requestDeviceAuthorization(baseUrl);
+const runLogin = async (arguments_: ArgumentsCamelCase<object>) =>
+  withReporter("auth", async ({ reporter, logger }) => {
+    const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
+    const deviceAuth = await requestDeviceAuthorization(baseUrl);
 
-  logger.info("Open this URL to approve the CLI");
-  logger.info(
-    { url: deviceAuth.verification_uri_complete || deviceAuth.verification_uri },
-    "Approval URL",
-  );
-  logger.info({ code: deviceAuth.user_code }, "CLI code");
-  logger.info({ clientId: CLI_AUTH_CLIENT_ID }, "Auth client");
+    const verificationUri =
+      deviceAuth.verification_uri_complete || deviceAuth.verification_uri;
 
-  try {
-    await openBrowser(deviceAuth.verification_uri_complete || deviceAuth.verification_uri);
-  } catch {
-    logger.warn(
-      "Could not open a browser automatically. Open the URL above manually.",
+    reporter.info("Open this URL to approve the CLI");
+    reporter.info(`URL: ${verificationUri}`);
+    reporter.info(`Code: ${deviceAuth.user_code}`);
+
+    logger.info(
+      { url: verificationUri, code: deviceAuth.user_code, clientId: CLI_AUTH_CLIENT_ID },
+      "Approval details",
     );
-  }
 
-  logger.info("Waiting for approval");
+    try {
+      await openBrowser(verificationUri);
+    } catch {
+      reporter.warn(
+        "Could not open a browser automatically. Open the URL above manually.",
+      );
+    }
 
-  const tokenResponse = await pollForAccessToken({
-    baseUrl,
-    deviceCode: deviceAuth.device_code,
-    intervalSeconds: deviceAuth.interval,
-    expiresInSeconds: deviceAuth.expires_in,
+    const task = reporter.startTask("Waiting for approval…");
+
+    let tokenResponse;
+    try {
+      tokenResponse = await pollForAccessToken({
+        baseUrl,
+        deviceCode: deviceAuth.device_code,
+        intervalSeconds: deviceAuth.interval,
+        expiresInSeconds: deviceAuth.expires_in,
+      });
+    } catch (error) {
+      task.fail("Approval failed");
+      throw error;
+    }
+
+    const session = await persistAuthenticatedSession({
+      baseUrl,
+      accessToken: tokenResponse.access_token,
+    });
+
+    task.succeed(`Signed in as ${session.user.email}`);
   });
 
-  const session = await persistAuthenticatedSession({
-    baseUrl,
-    accessToken: tokenResponse.access_token,
-  });
+const runStatus = async (arguments_: ArgumentsCamelCase<object>) =>
+  withReporter("auth", async ({ reporter }) => {
+    const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
+    const profile = loadAuthProfile(baseUrl);
 
-  logger.info({ email: session.user.email }, "Signed in");
-};
-
-const runStatus = async (arguments_: ArgumentsCamelCase<object>) => {
-  const logger = createCliLogger("auth");
-  const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
-  const profile = loadAuthProfile(baseUrl);
-
-  if (!profile) {
-    logger.info({ baseUrl }, "Not signed in");
-    return;
-  }
-
-  try {
-    const authenticated = await loadAuthenticatedSession(baseUrl);
-    if (!authenticated) {
-      logger.info({ baseUrl }, "Not signed in");
+    if (!profile) {
+      reporter.info(`Not signed in to ${baseUrl}`);
       return;
     }
 
-    logger.info(
-      { baseUrl, email: authenticated.session.user.email },
-      "Signed in",
-    );
-  } catch {
-    logger.warn({ baseUrl }, "Stored credentials are no longer valid");
-  }
-};
+    try {
+      const authenticated = await loadAuthenticatedSession(baseUrl);
+      if (!authenticated) {
+        reporter.info(`Not signed in to ${baseUrl}`);
+        return;
+      }
 
-const runWhoAmI = async (arguments_: ArgumentsCamelCase<object>) => {
-  const logger = createCliLogger("auth");
-  const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
-  const authenticated = await loadAuthenticatedSession(baseUrl);
+      reporter.success(
+        `Signed in to ${baseUrl} as ${authenticated.session.user.email}`,
+      );
+    } catch {
+      reporter.warn(`Stored credentials for ${baseUrl} are no longer valid`);
+    }
+  });
 
-  if (!authenticated) {
-    throw new Error(`Not signed in to ${baseUrl}.`);
-  }
+const runWhoAmI = async (arguments_: ArgumentsCamelCase<object>) =>
+  withReporter("auth", async () => {
+    const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
+    const authenticated = await loadAuthenticatedSession(baseUrl);
 
-  logger.info({ email: authenticated.session.user.email }, "Authenticated user");
-};
+    if (!authenticated) {
+      throw new Error(`Not signed in to ${baseUrl}.`);
+    }
 
-const runLogout = (arguments_: ArgumentsCamelCase<object>) => {
-  const logger = createCliLogger("auth");
-  const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
-  deleteAuthProfile(baseUrl);
-  logger.info({ baseUrl }, "Signed out");
-};
+    process.stdout.write(authenticated.session.user.email + "\n");
+  });
+
+const runLogout = async (arguments_: ArgumentsCamelCase<object>) =>
+  withReporter("auth", ({ reporter }) => {
+    const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
+    deleteAuthProfile(baseUrl);
+    reporter.success(`Signed out of ${baseUrl}`);
+  });
 
 const loginCommand: CommandModule<object, object> = {
   command: "login",

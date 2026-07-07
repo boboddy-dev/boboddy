@@ -36,7 +36,7 @@ export type LocalRuntimeSessionStore = StepExecutionRunTracker & {
   markRunning(input: {
     id: string;
     workspacePath: string;
-    runtimeContainerId: string;
+    runtimeContainerId: string | null;
     agentBaseUrl: string;
     metadataJson?: string | null | undefined;
   }): void;
@@ -119,7 +119,7 @@ export class SqliteLocalRuntimeSessionStore implements LocalRuntimeSessionStore 
   markRunning(input: {
     id: string;
     workspacePath: string;
-    runtimeContainerId: string;
+    runtimeContainerId: string | null;
     agentBaseUrl: string;
     metadataJson?: string | null | undefined;
   }) {

@@ -36,8 +36,8 @@ boboddy work <projectId>
 
 1. **Poll** — The worker calls the server to claim a batch of pending step executions.
 2. **Claim** — Each claimed execution is assigned a lease. The worker sends heartbeats to extend the lease while processing.
-3. **Environment setup** — The worker launches a single Docker runtime from your `.devcontainer/devcontainer.json`. Before bringing the container up, it injects mounts for a pinned, Boboddy-managed OpenCode runtime payload and a session-scoped agent home.
-4. **Agent startup** — OpenCode runs **inside that same devcontainer** (same environment as your workspace), launched by absolute path from the mounted runtime payload — never the project's Node or a global `opencode`. There is no separate AI container, cross-container network, or MCP-host bridge.
+3. **Environment setup** — For `workspace` steps (the default), the worker clones your repository and launches a single Docker runtime from your `.devcontainer/devcontainer.json`. Before bringing the container up, it injects mounts for a pinned, Boboddy-managed OpenCode runtime payload and a session-scoped agent home. For `no_workspace` steps, this is skipped entirely — see [Execution mode](/boboddy/guides/steps/#execution-mode).
+4. **Agent startup** — For `workspace` steps, OpenCode runs **inside that same devcontainer** (same environment as your workspace), launched by absolute path from the mounted runtime payload — never the project's Node or a global `opencode`. There is no separate AI container, cross-container network, or MCP-host bridge. For `no_workspace` steps, the same Boboddy-managed OpenCode runtime runs **directly on the worker host** against a temporary empty directory — no Docker, no clone.
 5. **Agent execution** — The step is handed to the in-container OpenCode agent with the step's prompt, input payload, and any configured MCP servers. Provider access is resolved through a normalized contract (currently `direct` mode: an explicit provider base URL + token, with your local OpenCode config as a fallback source).
 6. **Signal extraction** — The agent's structured output is parsed; signals are extracted per the step's `signals` definition.
 7. **Report** — The worker marks the execution complete (or failed) and posts output + signals back to the server.
@@ -45,9 +45,9 @@ boboddy work <projectId>
 
 ## Environment requirements
 
-- **Docker** must be running and accessible to the worker process.
-- **OpenCode** must be installed and configured (`~/.config/opencode/opencode.jsonc`). See [opencode.ai/docs](https://opencode.ai/docs) for setup instructions.
-- Your repo must have a `.devcontainer/devcontainer.json` (created by `boboddy init`).
+- **Docker** must be running and accessible to the worker process — required for `workspace` steps. `no_workspace` steps do not use Docker.
+- **OpenCode** does not need to be installed on the host; the worker provisions and runs its own pinned, Boboddy-managed OpenCode runtime (mounted into the container for `workspace` steps, or run directly on the host for `no_workspace` steps). A local OpenCode config (`~/.config/opencode/opencode.jsonc`) is still read as a provider-credential fallback. See [opencode.ai/docs](https://opencode.ai/docs).
+- Your repo must have a `.devcontainer/devcontainer.json` (created by `boboddy init`) — required only if the project runs `workspace` steps.
 - Credentials must be present (`boboddy auth login`).
 
 ## Single-job mode

@@ -68,6 +68,7 @@ export function buildSingleStepScenario(input: {
       key: "integration-step",
       name: "Integration Step",
       prompt: input.prompt ?? "Complete the integration step.",
+      executionMode: "workspace",
       resultSchemaJson,
       opencodeMcpJson: null,
       opencodePluginJson: null,

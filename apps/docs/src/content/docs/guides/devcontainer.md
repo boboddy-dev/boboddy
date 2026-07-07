@@ -9,6 +9,8 @@ This page provides a prompt you can paste into any AI coding assistant (Claude, 
 
 > Your project **must** provide a `.devcontainer/devcontainer.json` before running Boboddy. `boboddy init` does not generate one for you — if none is found it stops with an error asking you to add one. Use the prompt below to create it.
 
+> **Exception:** steps with `executionMode: "no_workspace"` run without a clone or a dev container, so a project that only uses those steps does not need a `devcontainer.json`. See [Execution mode](/boboddy/guides/steps/#execution-mode).
+
 ## AI prompt
 
 Copy the prompt below and run it in your project's root directory. The AI will inspect your codebase and output a `.devcontainer/devcontainer.json` (and a `Dockerfile` if needed).

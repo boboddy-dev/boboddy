@@ -57,6 +57,13 @@ export type StepExecutionWorkerContextContract = {
     key: string;
     name: string;
     prompt: string;
+    /**
+     * How the step runs. `workspace` (default) clones the repo and launches a
+     * devcontainer with OpenCode inside it; `no_workspace` runs OpenCode
+     * directly on the host with only the rendered prompt + context, no clone
+     * and no container. Surfaced by the API (Phase 3).
+     */
+    executionMode: "workspace" | "no_workspace";
     resultSchemaJson: Record<string, unknown> | null;
     opencodeMcpJson: OpenCodeMcpServers | null;
     opencodePluginJson: OpenCodePlugins | null;

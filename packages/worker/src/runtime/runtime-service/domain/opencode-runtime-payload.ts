@@ -19,6 +19,13 @@ import path from "node:path";
  *       linux-x64/opencode                  #   glibc x64
  *       linux-arm64-musl/opencode           #   musl  arm64 (Alpine)
  *       linux-x64-musl/opencode             #   musl  x64   (Alpine)
+ *       darwin-arm64/opencode               #   macOS arm64 (host runs only)
+ *       darwin-x64/opencode                 #   macOS x64   (host runs only)
+ *
+ * The Linux binaries are the ones bind-mounted into the (Linux) devcontainer.
+ * The darwin binaries are provisioned only when the worker host is macOS, and
+ * are used by the `no_workspace` path, which runs OpenCode DIRECTLY ON THE HOST
+ * (no container). `launch.sh` picks the right binary for the current OS/arch.
  *
  * The same directory is bind-mounted into the container at
  * `/opt/boboddy/runtimes/opencode/<version>` and `launch.sh` is invoked by its
@@ -70,20 +77,69 @@ export const PAYLOAD_MANIFEST_FILENAME = "manifest.json";
 export const PAYLOAD_BIN_SUBDIR = "bin";
 
 /**
- * Standalone-binary platform keys we provision. Each maps to an npm
- * optional-dependency package of `opencode-ai` (e.g. `opencode-linux-arm64`).
- * Only Linux targets are provisioned — the payload only ever runs inside a
- * (Linux) devcontainer. Both glibc and musl (Alpine) variants are included so
- * the payload is portable across base images.
+ * Linux standalone-binary platform keys we ALWAYS provision. Each maps to an
+ * npm optional-dependency package of `opencode-ai` (e.g. `opencode-linux-arm64`).
+ * These are the targets that run inside the (Linux) devcontainer. Both glibc and
+ * musl (Alpine) variants are included so the mounted payload is portable across
+ * base images.
  */
-export const PAYLOAD_PLATFORMS = [
+export const LINUX_PAYLOAD_PLATFORMS = [
   "linux-arm64",
   "linux-x64",
   "linux-arm64-musl",
   "linux-x64-musl",
 ] as const;
 
+/**
+ * Host-native platform keys. These are provisioned IN ADDITION to the Linux set
+ * when the worker host is not Linux, so `no_workspace` steps — which run
+ * OpenCode DIRECTLY ON THE HOST (no devcontainer) — have a runnable binary for
+ * the host OS/arch. Each also maps to an `opencode-<platform>` npm package.
+ */
+export const HOST_NATIVE_PAYLOAD_PLATFORMS = [
+  "darwin-arm64",
+  "darwin-x64",
+] as const;
+
+/**
+ * All platform keys that may appear in a payload. The provisioner always writes
+ * the Linux set and additively writes the current host-native platform (§
+ * {@link resolveHostNativePlatform}) when it is not already covered by the Linux
+ * set (i.e. on macOS).
+ */
+export const PAYLOAD_PLATFORMS = [
+  ...LINUX_PAYLOAD_PLATFORMS,
+  ...HOST_NATIVE_PAYLOAD_PLATFORMS,
+] as const;
+
 export type PayloadPlatform = (typeof PAYLOAD_PLATFORMS)[number];
+
+/**
+ * Resolve the current host's native payload platform key (e.g.
+ * `darwin-arm64` on Apple Silicon, `linux-x64` on a glibc x64 Linux worker), or
+ * `null` if the host OS/arch is unsupported for host execution. This is what the
+ * `no_workspace` host path needs to run OpenCode without a container.
+ *
+ * Note: Linux hosts resolve to their glibc Linux key, which is already in the
+ * always-provisioned Linux set — so only macOS hosts add an extra binary.
+ */
+export function resolveHostNativePlatform(
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
+): PayloadPlatform | null {
+  const archKey = arch === "arm64" ? "arm64" : arch === "x64" ? "x64" : null;
+  if (archKey === null) {
+    return null;
+  }
+  if (platform === "darwin") {
+    return `darwin-${archKey}` as PayloadPlatform;
+  }
+  if (platform === "linux") {
+    // Host Linux runs use the glibc Linux binary already in the Linux set.
+    return `linux-${archKey}` as PayloadPlatform;
+  }
+  return null;
+}
 
 /**
  * Resolve the host home directory, honoring an explicit `HOME` override. On
@@ -151,4 +207,4 @@ export type OpencodeRuntimePayloadManifest = {
  * changes in a way that makes previously-cached payloads incompatible; the
  * provisioner treats a manifest with a different revision as stale.
  */
-export const PAYLOAD_FORMAT_REVISION = 1;
+export const PAYLOAD_FORMAT_REVISION = 2;

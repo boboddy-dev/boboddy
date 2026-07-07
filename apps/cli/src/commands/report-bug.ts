@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { arch, platform, release } from "node:os";
-import { createInterface } from "node:readline/promises";
+import * as clack from "@clack/prompts";
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
-import { createCliLogger } from "../lib/logger";
+import { withReporter } from "../lib/command-output";
 import { repository, version as CLI_VERSION } from "../../package.json";
 
 export interface ReportBugArguments {
@@ -73,20 +73,21 @@ async function promptIfMissing(
     );
   }
 
-  const readline = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  try {
-    for (;;) {
-      const answer = (await readline.question(question)).trim();
-      if (answer.length > 0) {
-        return answer;
+  const answer = await clack.text({
+    message: question.trim(),
+    validate: (input: string | undefined) => {
+      if (!input || input.trim().length === 0) {
+        return "Please enter a value.";
       }
-    }
-  } finally {
-    readline.close();
+      return undefined;
+    },
+  });
+
+  if (clack.isCancel(answer)) {
+    throw new Error("Bug report cancelled.");
   }
+
+  return answer.trim();
 }
 
 function openInBrowser(url: string): void {
@@ -107,24 +108,30 @@ function openInBrowser(url: string): void {
 async function runReportBug(
   argv: ArgumentsCamelCase<ReportBugArguments>,
 ): Promise<void> {
-  const logger = createCliLogger("report-bug");
-  const title = await promptIfMissing(argv.title, "Short title for the bug: ");
-  const description = await promptIfMissing(
-    argv.description,
-    "Describe what happened: ",
-  );
-  const url = buildIssueUrl(
-    title,
-    formatBody(description, collectDiagnostics()),
-  );
+  await withReporter("report-bug", async ({ reporter }) => {
+    const title = await promptIfMissing(
+      argv.title,
+      "Short title for the bug: ",
+    );
+    const description = await promptIfMissing(
+      argv.description,
+      "Describe what happened: ",
+    );
+    const url = buildIssueUrl(
+      title,
+      formatBody(description, collectDiagnostics()),
+    );
 
-  if (argv.browser) {
-    logger.info({ url }, "Opening prefilled bug report in your browser");
-    openInBrowser(url);
-    return;
-  }
+    if (argv.browser) {
+      reporter.info("Opening prefilled bug report in your browser");
+      openInBrowser(url);
+      process.stdout.write(url + "\n");
+      return;
+    }
 
-  logger.info({ url }, "Submit this URL to file the bug report");
+    reporter.info("Submit this URL to file the bug report");
+    process.stdout.write(url + "\n");
+  });
 }
 
 export const reportBugCommand: CommandModule<object, ReportBugArguments> = {

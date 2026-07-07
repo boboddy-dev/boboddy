@@ -14,8 +14,7 @@ import { z } from "zod";
 export const summarizeStep = defineStep({
   key: "summarize-text",
   name: "Summarize Text",
-  agentPrompt: ({ input }) =>
-    `Summarize the provided text concisely:\n\n${input.text}`,
+  agentPrompt: "Summarize the provided text concisely.",
   additionalInput: z.object({
     text: z.string(),
   }),
@@ -25,6 +24,8 @@ export const summarizeStep = defineStep({
   status: "active",
 });
 ```
+
+The agent is automatically given the step's input as default context — the full input JSON is injected into the prompt when the step runs. You do **not** need to interpolate fields like `input.text` into `agentPrompt` for the agent to see them. Referencing input fields (see [Prompt context](#prompt-context)) is optional and only inlines a specific value into your instructions.
 
 ## `defineStep` options
 
@@ -40,6 +41,7 @@ export const summarizeStep = defineStep({
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result for pipeline advancement logic                |
 | `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configurations for tool-using agents                                 |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are not executed; defaults to `"active"`                            |
+| `executionMode`   | `"workspace" \| "no_workspace"`   | No       | Whether the step needs your repository. Defaults to `"workspace"`               |
 
 ## Prompt context
 
@@ -140,7 +142,30 @@ mcpServers: {
 },
 ```
 
-## Versioning
+## Execution mode
+
+`executionMode` controls whether a step needs a checkout of your repository to do its work.
+
+| Mode            | What the worker sets up                                                                                          | Use for                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `"workspace"`   | Clones your repository and launches your `.devcontainer/devcontainer.json`; the agent runs **inside** that container. | Steps that read, run, or modify your code (default).                       |
+| `"no_workspace"`| No clone and no dev container. The agent runs against a temporary empty directory with only the prompt and its bound input. | Prompt-only steps — research, summarization, drafting, classification, or routing decisions. |
+
+```typescript
+export const classifyStep = defineStep({
+  key: "classify-ticket",
+  name: "Classify Ticket",
+  executionMode: "no_workspace",
+  additionalInput: z.object({ title: z.string(), body: z.string() }),
+  result: z.object({ category: z.string() }),
+  agentPrompt: ({ input }) =>
+    `Classify this ticket into a single category:\n\n${input.title}\n${input.body}`,
+});
+```
+
+`no_workspace` steps are faster and cheaper because they skip the clone and container startup, and they run even for projects without a dev container. Everything else works the same — bound input, `agentPrompt`, `result`, `signals`, and `mcpServers` all behave identically. Because there is no checkout, the agent has no access to your repository files; if a step needs to read or change your code, keep it on the default `"workspace"` mode.
+
+See [Running Workers](/boboddy/guides/workers/) for how each mode is executed.
 
 Increment `version` when you make a breaking change to a step's schema or prompt. Old executions referencing version 1 continue using the v1 definition; new executions pick up v2.
 

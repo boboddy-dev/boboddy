@@ -163,20 +163,28 @@ export class StepExecutionLogStream {
   }
 
   /**
-   * Begin tailing the in-container OpenCode log into the `ai-server` stream.
-   * Safe to call once the runtime container is up; no-op if called more than
-   * once.
+   * Begin tailing the OpenCode log into the `ai-server` stream. For container
+   * runs (`runtimeContainerId` set) it tails via `docker exec`; for host
+   * (`no_workspace`) runs (`runtimeContainerId` null) it tails the host log file
+   * directly, using {@link hostAgentLogPath} if provided (else derived from the
+   * log directory). Safe to call once the runtime is up; no-op if called more
+   * than once.
    */
   attachOpencodeTail(input: {
-    runtimeContainerId: string;
+    runtimeContainerId: string | null;
     opencodeLogDirectory: string;
+    /** Explicit host log file path for `no_workspace` runs. */
+    hostAgentLogPath?: string | null | undefined;
   }): void {
     if (this.tail !== null) {
       return;
     }
+    const logPath =
+      input.hostAgentLogPath ??
+      `${input.opencodeLogDirectory}/${AGENT_SERVE_LOG_FILENAME}`;
     this.tail = new OpencodeLogTail({
       containerId: input.runtimeContainerId,
-      logPath: `${input.opencodeLogDirectory}/${AGENT_SERVE_LOG_FILENAME}`,
+      logPath,
       shipper: this.shipper,
       onError: (error) => {
         this.baseLogger.error("worker", "Failed to tail OpenCode log", {

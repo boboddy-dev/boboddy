@@ -24,6 +24,9 @@ import {
 import {
   DefaultLocalProjectRuntimeEnvironmentOrchestrator,
 } from "../infra/local-project-runtime-environment";
+import {
+  DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator,
+} from "../infra/local-noworkspace-runtime-environment";
 import { DefaultOpencodeStepRunner } from "../infra/opencode-step-runner";
 import { createStepExecutionPlaneWorkerClient } from "../infra/worker-api-client";
 
@@ -59,6 +62,10 @@ export type ProcessProjectWorkDeps = {
   createWorkerClient(baseUrl: string): Promise<StepExecutionWorkerClient>;
   createRunTracker(): StepExecutionRunTracker;
   runtimeEnvironmentOrchestrator: StepExecutionRuntimeEnvironmentOrchestrator;
+  /** Orchestrator for `no_workspace` steps (host OpenCode, no clone/container). */
+  noWorkspaceRuntimeEnvironmentOrchestrator?:
+    | StepExecutionRuntimeEnvironmentOrchestrator
+    | undefined;
   agentRunner: StepExecutionAgentRunner;
   /**
    * Override the artifact store. When omitted the store is resolved from the
@@ -88,6 +95,10 @@ function loadDefaultDeps(
       new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
         logger.child({ scope: "runtime-environment-orchestrator" }),
         localEnvVars,
+      ),
+    noWorkspaceRuntimeEnvironmentOrchestrator:
+      new DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator(
+        logger.child({ scope: "noworkspace-runtime-environment-orchestrator" }),
       ),
     agentRunner: new DefaultOpencodeStepRunner(),
     sleep: (milliseconds) =>
@@ -207,6 +218,8 @@ export async function runProjectWork(
       createRunTracker: () => resolvedDeps.createRunTracker(),
       runtimeEnvironmentOrchestrator:
         resolvedDeps.runtimeEnvironmentOrchestrator,
+      noWorkspaceRuntimeEnvironmentOrchestrator:
+        resolvedDeps.noWorkspaceRuntimeEnvironmentOrchestrator,
       agentRunner: resolvedDeps.agentRunner,
       artifactStore,
       sleep: (milliseconds) => resolvedDeps.sleep(milliseconds),

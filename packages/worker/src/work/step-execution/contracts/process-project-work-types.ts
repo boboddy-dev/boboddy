@@ -153,6 +153,9 @@ export type StepExecutionRuntimeEnvironment = {
    * container. Phase 1 populates this from the resolved devcontainer workspace
    * folder; Phase 0 only adds the field. Replaces the implicit `/workspace`
    * constant assumption.
+   *
+   * For `no_workspace` runs OpenCode runs directly on the host, so this is the
+   * host temp working directory (there is no container).
    */
   workspaceFolder: string;
   opencodeLogDirectory: string;
@@ -162,8 +165,19 @@ export type StepExecutionRuntimeEnvironment = {
    * Single runtime container id. With the single-container model OpenCode runs
    * inside the devcontainer, so this is the devcontainer id (collapses the
    * former `devcontainerId` + `aiContainerId` pair).
+   *
+   * `null` for `no_workspace` runs, where OpenCode runs directly on the host as
+   * a plain child process and there is no container. Callers must treat a null
+   * id as "not a container" (skip container-only concerns like `docker exec`
+   * health checks / log tailing).
    */
-  runtimeContainerId: string;
+  runtimeContainerId: string | null;
+  /**
+   * Host log file the agent's stdout/stderr is written to for `no_workspace`
+   * runs (tailed directly from the host). `null`/absent for container runs,
+   * where {@link opencodeLogDirectory} + `docker exec` tailing is used instead.
+   */
+  hostAgentLogPath?: string | null | undefined;
   /** Runtime-neutral agent base URL (formerly `aiBaseUrl`). */
   agentBaseUrl: string;
   aiImage: string;
@@ -266,7 +280,8 @@ export type StepExecutionRunTracker = {
   markRunning(input: {
     id: string;
     workspacePath: string;
-    runtimeContainerId: string;
+    /** `null` for `no_workspace` runs, which have no container. */
+    runtimeContainerId: string | null;
     agentBaseUrl: string;
     metadataJson?: string | null | undefined;
   }): void | Promise<void>;
@@ -306,7 +321,21 @@ export type { WorkEvent, WorkReporter, WorkTask } from "./work-reporter";
 export type ProcessProjectWorkDeps = {
   workerClient: StepExecutionWorkerClient;
   createRunTracker(): StepExecutionRunTracker;
+  /**
+   * Orchestrator for the default `workspace` execution mode: clones the repo,
+   * launches the devcontainer, and runs OpenCode inside it.
+   */
   runtimeEnvironmentOrchestrator: StepExecutionRuntimeEnvironmentOrchestrator;
+  /**
+   * Orchestrator for `no_workspace` steps: runs OpenCode directly on the host
+   * against a throwaway temp working dir, with NO git clone and NO devcontainer.
+   * Optional — when a `no_workspace` step is claimed but this is omitted, the
+   * launch fails fast rather than silently cloning. Wired by default in
+   * `loadDefaultDeps`.
+   */
+  noWorkspaceRuntimeEnvironmentOrchestrator?:
+    | StepExecutionRuntimeEnvironmentOrchestrator
+    | undefined;
   agentRunner: StepExecutionAgentRunner;
   artifactStore: ArtifactStore;
   sleep(milliseconds: number): Promise<void>;

@@ -1218,6 +1218,7 @@ export type GetApiStepDefinitionsResponses = {
         prompt: string | unknown;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson: {
@@ -1275,6 +1276,7 @@ export type PostApiStepDefinitionsData = {
         prompt: string;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode?: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson?: {
@@ -1449,6 +1451,7 @@ export type PostApiStepDefinitionsResponses = {
         prompt: string | unknown;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson: {
@@ -1506,6 +1509,7 @@ export type PutApiStepDefinitionsData = {
         prompt: string;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode?: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson?: {
@@ -1648,6 +1652,7 @@ export type PutApiStepDefinitionsResponses = {
         prompt: string | unknown;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson: {
@@ -1803,6 +1808,7 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
         prompt: string | unknown;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson: {
@@ -1958,6 +1964,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
         prompt: string | unknown;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson: {
@@ -3268,6 +3275,7 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
             key: string;
             name: string;
             prompt: string;
+            executionMode: 'workspace' | 'no_workspace';
             resultSchemaJson: {
                 [key: string]: unknown;
             } | unknown;
@@ -11349,6 +11357,7 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
         prompt: string | unknown;
         version: number;
         kind: 'built_in' | 'user_defined';
+        executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: unknown;
         resultSchemaJson: unknown;
         opencodeMcpJson: {

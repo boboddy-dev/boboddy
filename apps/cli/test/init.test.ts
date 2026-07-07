@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { concurrentTest } from "./utils";
+import { concurrentTest, hasReporterLine } from "./utils";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const cliEntrypoint = resolve(projectRoot, "src/index.ts");
@@ -12,11 +12,6 @@ interface SpawnResult {
   readonly stdout: string;
   readonly stderr: string;
   readonly exitCode: number;
-}
-
-interface LogLine {
-  readonly msg?: string;
-  readonly [key: string]: unknown;
 }
 
 function run(
@@ -37,26 +32,6 @@ function run(
     stderr: typeof result.stderr === "string" ? result.stderr : "",
     exitCode: result.status ?? 1,
   };
-}
-
-function parseLogLines(stdout: string): LogLine[] {
-  return stdout
-    .trim()
-    .split("\n")
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      try {
-        return JSON.parse(line) as LogLine;
-      } catch {
-        return { msg: line };
-      }
-    });
-}
-
-function hasLogLine(logs: readonly LogLine[], expected: Partial<LogLine>): boolean {
-  return logs.some((log) =>
-    Object.entries(expected).every(([key, value]) => log[key] === value),
-  );
 }
 
 describe("boboddy init", () => {
@@ -83,9 +58,12 @@ describe("boboddy init", () => {
           { env: { HOME: fakeHome } },
         );
         expect(result.exitCode).toBe(1);
-        expect(result.stderr).toBe("");
+        // The not-signed-in message now surfaces on stderr via reporter.error.
         expect(
-          hasLogLine(parseLogLines(result.stdout), { msg: "Not signed in to https://example.com. Run 'boboddy auth login' first." }),
+          hasReporterLine(
+            result.stderr,
+            "Not signed in to https://example.com. Run 'boboddy auth login' first.",
+          ),
         ).toBe(true);
       } finally {
         rmSync(fakeHome, { recursive: true, force: true });

@@ -20,15 +20,16 @@ import {
 } from "../../../work/step-execution/application/work-logger";
 import {
   LAUNCH_WRAPPER_FILENAME,
+  LINUX_PAYLOAD_PLATFORMS,
   PAYLOAD_BIN_SUBDIR,
   PAYLOAD_FORMAT_REVISION,
   PAYLOAD_MANIFEST_FILENAME,
-  PAYLOAD_PLATFORMS,
   containerOpencodeRuntimeVersionDir,
   hostOpencodeRuntimeRoot,
   hostOpencodeRuntimeVersionDir,
   opencodePlatformPackage,
   resolveHostHome,
+  resolveHostNativePlatform,
   resolveOpencodeRuntimeVersion,
   type OpencodeRuntimePayloadManifest,
   type PayloadPlatform,
@@ -72,14 +73,41 @@ export type OpencodeRuntimePayloadProvisionerOptions = {
   /** npm registry base URL. Defaults to the public registry. */
   registryBaseUrl?: string | undefined;
   /**
-   * Override the set of platform binaries to provision. Defaults to all
-   * {@link PAYLOAD_PLATFORMS}. Narrowing this is only useful in tests — a real
-   * payload must carry every Linux variant to stay portable across base images.
+   * Override the set of platform binaries to provision. Defaults to the Linux
+   * set (always, for the mounted devcontainer payload) plus the current
+   * host-native platform (for `no_workspace` host runs). Narrowing this is only
+   * useful in tests — a real payload must carry every Linux variant to stay
+   * portable across base images.
    */
   platforms?: readonly PayloadPlatform[] | undefined;
+  /**
+   * Override the resolved host-native platform (tests). Defaults to
+   * {@link resolveHostNativePlatform} for the current process. `null` means the
+   * host is unsupported for host execution and only the Linux set is provisioned.
+   */
+  hostNativePlatform?: PayloadPlatform | null | undefined;
 };
 
 const DEFAULT_REGISTRY = "https://registry.npmjs.org";
+
+/**
+ * The default provisioned platform set: the always-required Linux binaries plus
+ * the current host-native platform (deduped — on Linux hosts the host-native
+ * key is already in the Linux set, so only macOS hosts add a binary).
+ */
+export function resolveDefaultPayloadPlatforms(
+  hostNativePlatform: PayloadPlatform | null,
+): readonly PayloadPlatform[] {
+  if (
+    hostNativePlatform === null ||
+    LINUX_PAYLOAD_PLATFORMS.includes(
+      hostNativePlatform as (typeof LINUX_PAYLOAD_PLATFORMS)[number],
+    )
+  ) {
+    return LINUX_PAYLOAD_PLATFORMS;
+  }
+  return [...LINUX_PAYLOAD_PLATFORMS, hostNativePlatform];
+}
 
 export class OpencodeRuntimePayloadProvisioner {
   private readonly homeDir: string;
@@ -91,7 +119,12 @@ export class OpencodeRuntimePayloadProvisioner {
     this.registryBaseUrl = (
       options.registryBaseUrl ?? DEFAULT_REGISTRY
     ).replace(/\/+$/u, "");
-    this.platforms = options.platforms ?? PAYLOAD_PLATFORMS;
+    const hostNativePlatform =
+      options.hostNativePlatform === undefined
+        ? resolveHostNativePlatform()
+        : options.hostNativePlatform;
+    this.platforms =
+      options.platforms ?? resolveDefaultPayloadPlatforms(hostNativePlatform);
   }
 
   /**

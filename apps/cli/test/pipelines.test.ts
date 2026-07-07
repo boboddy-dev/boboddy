@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { concurrentTest } from "./utils";
+import { concurrentTest, hasReporterLine, reporterLines } from "./utils";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const cliEntrypoint = resolve(projectRoot, "src/index.ts");
@@ -12,11 +12,6 @@ interface SpawnResult {
   readonly stdout: string;
   readonly stderr: string;
   readonly exitCode: number;
-}
-
-interface LogLine {
-  readonly msg?: string;
-  readonly [key: string]: unknown;
 }
 
 function run(
@@ -38,20 +33,6 @@ function run(
     stderr: typeof result.stderr === "string" ? result.stderr : "",
     exitCode: result.status ?? 1,
   };
-}
-
-function parseLogLines(stdout: string): LogLine[] {
-  return stdout
-    .trim()
-    .split("\n")
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      try {
-        return JSON.parse(line) as LogLine;
-      } catch {
-        return { msg: line };
-      }
-    });
 }
 
 function createFakeGitRoot(dir: string): void {
@@ -89,7 +70,6 @@ describe("boboddy pipelines", () => {
           const result = run(["pipelines", "init"], { cwd: fakeProjectDir });
 
           expect(result.exitCode).toBe(0);
-          expect(result.stderr).toBe("");
 
           const builderDir = join(
             fakeProjectDir,
@@ -139,18 +119,19 @@ describe("boboddy pipelines", () => {
       try {
         createFakeGitRoot(fakeProjectDir);
         const result = run(["pipelines", "init"], { cwd: fakeProjectDir });
-        const logs = parseLogLines(result.stdout);
+        // Created messages are now human status on stderr: `✓ Created <path>`.
+        const createdLines = reporterLines(result.stderr).filter((line) =>
+          line.includes("Created"),
+        );
 
-        const createdFiles = logs
-          .filter((l) => typeof l["file"] === "string")
-          .map((l) => l["file"] as string);
-
-        expect(createdFiles.some((f) => f.includes("package.json"))).toBe(true);
-        expect(createdFiles.some((f) => f.includes("tsconfig.json"))).toBe(true);
-        expect(createdFiles.some((f) => f.includes(".gitignore"))).toBe(true);
-        expect(
-          createdFiles.some((f) => f.includes("example-pipeline.ts")),
-        ).toBe(true);
+        for (const file of [
+          "package.json",
+          "tsconfig.json",
+          ".gitignore",
+          "example-pipeline.ts",
+        ]) {
+          expect(createdLines.some((line) => line.includes(file))).toBe(true);
+        }
       } finally {
         rmSync(fakeProjectDir, { recursive: true, force: true });
       }
@@ -166,12 +147,8 @@ describe("boboddy pipelines", () => {
         const second = run(["pipelines", "init"], { cwd: fakeProjectDir });
 
         expect(second.exitCode).toBe(0);
-        const logs = parseLogLines(second.stdout);
-        const skippedMsgs = logs.filter(
-          (l) =>
-            typeof l["msg"] === "string" && l["msg"].includes("Skipped"),
-        );
-        expect(skippedMsgs.length).toBeGreaterThan(0);
+        // Skipped messages are now on stderr: `! Skipped <path> (already exists)`.
+        expect(hasReporterLine(second.stderr, "Skipped")).toBe(true);
       } finally {
         rmSync(fakeProjectDir, { recursive: true, force: true });
       }
@@ -185,15 +162,8 @@ describe("boboddy pipelines", () => {
         const result = run(["pipelines", "init"], { cwd: fakeProjectDir });
 
         expect(result.exitCode).toBe(1);
-        expect(result.stderr).toBe("");
-
-        const logs = parseLogLines(result.stdout);
-        const errorLog = logs.find((log) => log["level"] === 50);
-        expect(errorLog).toBeDefined();
-        expect(typeof errorLog?.["msg"]).toBe("string");
-        expect((errorLog?.["msg"] as string).toLowerCase()).toContain(
-          "git repository",
-        );
+        // The error surfaces on stderr as `✗ …git repository…`.
+        expect(hasReporterLine(result.stderr, "git repository")).toBe(true);
       } finally {
         rmSync(fakeProjectDir, { recursive: true, force: true });
       }
@@ -220,15 +190,12 @@ describe("boboddy pipelines", () => {
         );
 
         expect(result.exitCode).toBe(1);
-        expect(result.stderr).toBe("");
-
-        const logs = parseLogLines(result.stdout);
-        const errorLog = logs.find((l) => l["level"] === 50);
-        expect(errorLog).toBeDefined();
-        expect(typeof errorLog?.["msg"]).toBe("string");
-        expect((errorLog?.["msg"] as string).toLowerCase()).toContain(
-          "not signed in",
-        );
+        // The not-signed-in error now surfaces on stderr via reporter.error.
+        expect(
+          reporterLines(result.stderr).some((line) =>
+            line.toLowerCase().includes("not signed in"),
+          ),
+        ).toBe(true);
       } finally {
         rmSync(fakeHome, { recursive: true, force: true });
       }

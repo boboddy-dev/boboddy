@@ -32,8 +32,9 @@ import type { WorkReporter } from "../contracts/work-reporter";
 type ClaimedExecutionLogStream = {
   registerSecretValues(values: readonly string[]): void;
   attachOpencodeTail(input: {
-    runtimeContainerId: string;
+    runtimeContainerId: string | null;
     opencodeLogDirectory: string;
+    hostAgentLogPath?: string | null | undefined;
   }): void;
   attachConversationStream(input: {
     agentBaseUrl: string;
@@ -66,7 +67,7 @@ async function markTrackedSessionRunning(
   input: {
     localRuntimeSessionId: UuidV7;
     workspacePath: string;
-    runtimeContainerId: string;
+    runtimeContainerId: string | null;
     agentBaseUrl: string;
     resolvedBranch: string;
     devcontainerConfigPath: string;
@@ -135,6 +136,27 @@ function resolveRequestedBranch(
   return envBranch || null;
 }
 
+/**
+ * Select the runtime orchestrator for the step's execution mode. `no_workspace`
+ * steps run OpenCode directly on the host (no clone, no devcontainer) via the
+ * dedicated orchestrator; everything else uses the default workspace path.
+ */
+function resolveRuntimeEnvironmentOrchestrator(
+  deps: ProcessProjectWorkDeps,
+  executionMode: "workspace" | "no_workspace",
+) {
+  if (executionMode === "no_workspace") {
+    if (!deps.noWorkspaceRuntimeEnvironmentOrchestrator) {
+      throw new Error(
+        "Step requires no_workspace execution mode but no " +
+          "noWorkspaceRuntimeEnvironmentOrchestrator is configured.",
+      );
+    }
+    return deps.noWorkspaceRuntimeEnvironmentOrchestrator;
+  }
+  return deps.runtimeEnvironmentOrchestrator;
+}
+
 async function launchRuntimeEnvironment(
   deps: ProcessProjectWorkDeps,
   input: {
@@ -148,7 +170,11 @@ async function launchRuntimeEnvironment(
       | undefined;
   },
 ) {
-  return await deps.runtimeEnvironmentOrchestrator.launch({
+  const orchestrator = resolveRuntimeEnvironmentOrchestrator(
+    deps,
+    input.workerContext.stepDefinition.executionMode,
+  );
+  return await orchestrator.launch({
     sessionId: input.localRuntimeSessionId,
     projectId: parseUuidV7(input.workerContext.projectId),
     requestedByUserId: input.requestedByUserId,
@@ -265,6 +291,7 @@ export async function startProcessClaimedExecution(
     logStream?.attachOpencodeTail({
       runtimeContainerId: environment.runtimeContainerId,
       opencodeLogDirectory: environment.opencodeLogDirectory,
+      hostAgentLogPath: environment.hostAgentLogPath,
     });
     logger.log("step", "Runtime environment launched", {
       stepExecutionId: input.claim.stepExecution.id,

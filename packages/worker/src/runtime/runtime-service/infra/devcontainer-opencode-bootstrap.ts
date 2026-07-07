@@ -1,8 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import net from "node:net";
-import os from "node:os";
-import path from "node:path";
 import { promisify } from "node:util";
 import {
   logWork,
@@ -16,6 +14,15 @@ import {
   patchDevcontainerRunArgs,
 } from "./devcontainer-mount-injection";
 import type { OpencodeRuntimePayloadLocation } from "./opencode-runtime-payload-provisioner";
+import {
+  cleanupSessionHome,
+  prepareAgentHomeConfig,
+  resolveSessionAgentHomeDir,
+} from "./opencode-agent-home";
+
+// Re-export so existing importers of these helpers from this module keep
+// working; the implementations now live in the shared agent-home module.
+export { resolveSessionAgentHomeDir };
 
 const execFileAsync = promisify(execFile);
 
@@ -80,28 +87,6 @@ export const AGENT_SERVE_LOG_FILENAME = "opencode-serve.log";
 const AGENT_LOG_PATH = `${AGENT_LOG_DIR}/${AGENT_SERVE_LOG_FILENAME}`;
 const AGENT_PID_PATH = `${AGENT_LOG_DIR}/opencode-serve.pid`;
 
-/**
- * Candidate filenames for the host global opencode config, in resolution order.
- * Mirrors the check in `global-setup.ts` and `opencode-credential-discovery.ts`.
- */
-const HOST_GLOBAL_CONFIG_CANDIDATES = [
-  "opencode.jsonc",
-  "opencode.json",
-  "config.json",
-] as const;
-
-/**
- * Relative path segments for the OpenCode auth store under the host home.
- * OpenCode reads provider credentials from `~/.local/share/opencode/auth.json`.
- * Mirrors `OPENCODE_AUTH_RELATIVE_PATH` in `opencode-credential-discovery.ts`.
- */
-const HOST_AUTH_RELATIVE_PATH = [
-  ".local",
-  "share",
-  "opencode",
-  "auth.json",
-] as const;
-
 export type PlanMountsInput = {
   payload: OpencodeRuntimePayloadLocation;
   /** Host dir to mount as the session-scoped agent HOME. */
@@ -149,7 +134,11 @@ export type StartResult = {
   agentLogDirectory: string;
 };
 
-function findFreePort(): Promise<number> {
+/**
+ * Pick an ephemeral free loopback port. Exported so the host `no_workspace`
+ * bootstrap chooses ports the same way as the published container port.
+ */
+export function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
     server.listen(0, "127.0.0.1", () => {
@@ -170,16 +159,6 @@ function findFreePort(): Promise<number> {
 /** Single-quote a value for safe interpolation into a `sh -c` command. */
 function shQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-/**
- * Resolve the host home directory, honoring an explicit `HOME` override.
- * On macOS, `os.homedir()` reads the OS user database and ignores `process.env`,
- * so prefer the env var when set.
- */
-function resolveHostHome(): string {
-  const explicit = process.env["HOME"]?.trim();
-  return explicit && explicit.length > 0 ? explicit : os.homedir();
 }
 
 export class DevcontainerOpencodeBootstrap {
@@ -272,62 +251,7 @@ export class DevcontainerOpencodeBootstrap {
     /** Override host home dir (for tests). Defaults to resolved host home. */
     hostHomeDir?: string | undefined;
   }): Promise<{ hostConfigPath: string | null; hostAuthPath: string | null }> {
-    const hostHome = input.hostHomeDir ?? resolveHostHome();
-
-    // --- Config file ---
-    const hostConfigDir = path.join(hostHome, ".config", "opencode");
-    let hostConfigPath: string | null = null;
-    let hostConfigContent: string | null = null;
-
-    for (const candidate of HOST_GLOBAL_CONFIG_CANDIDATES) {
-      const candidatePath = path.join(hostConfigDir, candidate);
-      try {
-        hostConfigContent = await readFile(candidatePath, "utf8");
-        hostConfigPath = candidatePath;
-        break;
-      } catch {
-        // Not found — try next candidate.
-      }
-    }
-
-    // --- Auth file ---
-    const hostAuthPath = path.join(hostHome, ...HOST_AUTH_RELATIVE_PATH);
-    let hostAuthContent: string | null = null;
-    try {
-      hostAuthContent = await readFile(hostAuthPath, "utf8");
-    } catch {
-      // Not found — no auth file to copy.
-    }
-
-    // Write config into the session agent HOME under .config/opencode/
-    if (hostConfigContent !== null && hostConfigPath !== null) {
-      const destConfigDir = path.join(
-        input.sessionAgentHomeDir,
-        ".config",
-        "opencode",
-      );
-      await mkdir(destConfigDir, { recursive: true });
-      const destConfigPath = path.join(destConfigDir, "opencode.json");
-      await writeFile(destConfigPath, hostConfigContent, { encoding: "utf8", mode: 0o600 });
-    }
-
-    // Write auth into the session agent HOME under .local/share/opencode/
-    if (hostAuthContent !== null) {
-      const destAuthDir = path.join(
-        input.sessionAgentHomeDir,
-        ".local",
-        "share",
-        "opencode",
-      );
-      await mkdir(destAuthDir, { recursive: true });
-      const destAuthPath = path.join(destAuthDir, "auth.json");
-      await writeFile(destAuthPath, hostAuthContent, { encoding: "utf8", mode: 0o600 });
-    }
-
-    return {
-      hostConfigPath,
-      hostAuthPath: hostAuthContent !== null ? hostAuthPath : null,
-    };
+    return await prepareAgentHomeConfig(input);
   }
 
   /**
@@ -416,7 +340,7 @@ export class DevcontainerOpencodeBootstrap {
 
   /** Remove the session-scoped agent HOME from the host. */
   async cleanupSessionHome(sessionAgentHomeDir: string): Promise<void> {
-    await rm(sessionAgentHomeDir, { recursive: true, force: true });
+    await cleanupSessionHome(sessionAgentHomeDir);
   }
 
   private async waitForHealth(
@@ -485,13 +409,4 @@ export class DevcontainerOpencodeBootstrap {
       return null;
     }
   }
-}
-
-/**
- * Resolve a session-scoped agent HOME directory on the host. Lives under the
- * OS temp dir keyed by the runtime session id so it is isolated per session and
- * easy to GC; the orchestrator removes it on cleanup.
- */
-export function resolveSessionAgentHomeDir(sessionId: string): string {
-  return path.join(os.tmpdir(), "boboddy-agent-homes", sessionId);
 }

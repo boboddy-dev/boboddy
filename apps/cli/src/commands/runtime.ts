@@ -1,6 +1,6 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import { RuntimeNetworkGarbageCollector } from "@boboddy/worker";
-import { createCliLogger } from "../lib/logger";
+import { withReporter } from "../lib/command-output";
 
 type CleanupNetworksArguments = {
   verbose: boolean;
@@ -9,23 +9,34 @@ type CleanupNetworksArguments = {
 async function cleanupNetworksHandler(
   arguments_: ArgumentsCamelCase<CleanupNetworksArguments>,
 ): Promise<void> {
-  const logger = createCliLogger("runtime-cleanup-networks-command");
-  const collector = new RuntimeNetworkGarbageCollector();
-  const result = await collector.cleanupUnusedNetworks();
+  await withReporter(
+    "runtime-cleanup-networks-command",
+    async ({ reporter, logger }) => {
+      const task = reporter.startTask("Cleaning up runtime networks…");
+      const collector = new RuntimeNetworkGarbageCollector();
+      const result = await collector.cleanupUnusedNetworks();
 
-  logger.info(
-    {
-      scannedCount: result.scannedCount,
-      removedCount: result.removedCount,
-      keptCount: result.keptCount,
-      ...(arguments_.verbose
-        ? {
-            removedNetworks: result.removedNetworks,
-            keptNetworks: result.keptNetworks,
-          }
-        : {}),
+      task.succeed(
+        `Removed ${String(result.removedCount)}, kept ${String(
+          result.keptCount,
+        )} of ${String(result.scannedCount)}`,
+      );
+
+      logger.info(
+        {
+          scannedCount: result.scannedCount,
+          removedCount: result.removedCount,
+          keptCount: result.keptCount,
+          ...(arguments_.verbose
+            ? {
+                removedNetworks: result.removedNetworks,
+                keptNetworks: result.keptNetworks,
+              }
+            : {}),
+        },
+        "Runtime network cleanup complete",
+      );
     },
-    "Runtime network cleanup complete",
   );
 }
 

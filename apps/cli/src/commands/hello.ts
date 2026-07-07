@@ -1,5 +1,5 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
-import { createCliLogger } from "../lib/logger";
+import { withReporter } from "../lib/command-output";
 
 export interface HelloArguments {
   name: string;
@@ -9,11 +9,12 @@ export function createHelloMessage(name: string): string {
   return `Hello, ${name}!`;
 }
 
-function handler(arguments_: ArgumentsCamelCase<HelloArguments>): void {
-  createCliLogger("hello").info(
-    { name: arguments_.name },
-    createHelloMessage(arguments_.name),
-  );
+async function handler(
+  arguments_: ArgumentsCamelCase<HelloArguments>,
+): Promise<void> {
+  await withReporter("hello", ({ reporter }) => {
+    reporter.success(createHelloMessage(arguments_.name));
+  });
 }
 
 export const helloCommand: CommandModule<object, HelloArguments> = {

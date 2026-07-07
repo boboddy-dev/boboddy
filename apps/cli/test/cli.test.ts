@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { concurrentTest } from "./utils";
+import { concurrentTest, hasReporterLine } from "./utils";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const cliEntrypoint = resolve(projectRoot, "src/index.ts");
@@ -61,13 +61,10 @@ function hasLogLine(
 describe("boboddy CLI", () => {
   concurrentTest("prints the default hello greeting", () => {
     const result = run([process.execPath, "run", cliEntrypoint, "hello"]);
-    const logs = parseLogLines(result.stdout);
 
-    expect(result).toMatchObject({
-      exitCode: 0,
-      stderr: "",
-    });
-    expect(hasLogLine(logs, { msg: "Hello, world!" })).toBe(true);
+    expect(result.exitCode).toBe(0);
+    expect(hasReporterLine(result.stderr, "Hello, world!")).toBe(true);
+    expect(result.stdout).not.toContain("Hello, world!");
   });
 
   concurrentTest("prints a named hello greeting", () => {
@@ -78,13 +75,10 @@ describe("boboddy CLI", () => {
       "hello",
       "Connor",
     ]);
-    const logs = parseLogLines(result.stdout);
 
-    expect(result).toMatchObject({
-      exitCode: 0,
-      stderr: "",
-    });
-    expect(hasLogLine(logs, { msg: "Hello, Connor!" })).toBe(true);
+    expect(result.exitCode).toBe(0);
+    expect(hasReporterLine(result.stderr, "Hello, Connor!")).toBe(true);
+    expect(result.stdout).not.toContain("Hello, Connor!");
   });
 
   concurrentTest("prints help output", () => {
@@ -112,23 +106,21 @@ describe("boboddy CLI", () => {
       "Steps to reproduce: run init in an empty repo.",
       "--no-browser",
     ]);
-    const logs = parseLogLines(result.stdout);
 
-    expect(result).toMatchObject({
-      exitCode: 0,
-      stderr: "",
-    });
-    const logged = logs.find(
-      (log) =>
-        log.msg === "Submit this URL to file the bug report" &&
-        typeof log["url"] === "string",
-    );
-    expect(logged).toBeDefined();
-    const url = logged?.["url"] as string;
-    expect(url).toContain("github.com/boboddy-dev/boboddy/issues/new");
+    expect(result.exitCode).toBe(0);
+    // The machine-readable URL is written directly to stdout as a raw line.
+    const urlLine = result.stdout
+      .split("\n")
+      .find((line) =>
+        line.includes("github.com/boboddy-dev/boboddy/issues/new"),
+      );
+    expect(urlLine).toBeDefined();
+    const url = urlLine ?? "";
     expect(url).toContain("title=boboddy+crashes+on+init");
     expect(url).toContain("labels=bug");
     expect(url).toContain("Diagnostics");
+    // The human status line is on stderr.
+    expect(hasReporterLine(result.stderr, "Submit this URL")).toBe(true);
   });
 
   concurrentTest("prints version output", () => {
@@ -183,15 +175,9 @@ describe("boboddy CLI", () => {
         { HOME: fakeHome },
       );
 
-      expect(result).toMatchObject({
-        exitCode: 0,
-        stderr: "",
-      });
+      expect(result.exitCode).toBe(0);
       expect(
-        hasLogLine(parseLogLines(result.stdout), {
-          msg: "Not signed in",
-          baseUrl: "https://example.com",
-        }),
+        hasReporterLine(result.stderr, "Not signed in to https://example.com"),
       ).toBe(true);
     } finally {
       rmSync(fakeHome, { recursive: true, force: true });
@@ -216,11 +202,10 @@ describe("boboddy CLI", () => {
       );
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toBe("");
+      // The error message surfaces on stderr via reporter.error. stdout still
+      // carries the pino diagnostic NDJSON, so don't assert it is empty.
       expect(
-        hasLogLine(parseLogLines(result.stdout), {
-          msg: "Not signed in to https://example.com.",
-        }),
+        hasReporterLine(result.stderr, "Not signed in to https://example.com."),
       ).toBe(true);
     } finally {
       rmSync(fakeHome, { recursive: true, force: true });
@@ -229,7 +214,9 @@ describe("boboddy CLI", () => {
 
   test.concurrent("removes stored auth data on logout", () => {
     const fakeHome = mkdtempSync(resolve(tmpdir(), "boboddy-cli-"));
-    const authFile = resolve(fakeHome, ".boboddy");
+    // The real auth file path is `~/.boboddy.json`; `~/.boboddy` is a legacy
+    // path and, as a file, collides with the `~/.boboddy/logs` log dir.
+    const authFile = resolve(fakeHome, ".boboddy.json");
 
     try {
       writeFileSync(
@@ -258,15 +245,9 @@ describe("boboddy CLI", () => {
         { HOME: fakeHome },
       );
 
-      expect(result).toMatchObject({
-        exitCode: 0,
-        stderr: "",
-      });
+      expect(result.exitCode).toBe(0);
       expect(
-        hasLogLine(parseLogLines(result.stdout), {
-          msg: "Signed out",
-          baseUrl: "https://example.com",
-        }),
+        hasReporterLine(result.stderr, "Signed out of https://example.com"),
       ).toBe(true);
 
       const statusResult = run(
@@ -283,10 +264,10 @@ describe("boboddy CLI", () => {
       );
 
       expect(
-        hasLogLine(parseLogLines(statusResult.stdout), {
-          msg: "Not signed in",
-          baseUrl: "https://example.com",
-        }),
+        hasReporterLine(
+          statusResult.stderr,
+          "Not signed in to https://example.com",
+        ),
       ).toBe(true);
     } finally {
       rmSync(fakeHome, { recursive: true, force: true });
