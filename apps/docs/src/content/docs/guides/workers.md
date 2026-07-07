@@ -21,16 +21,16 @@ boboddy work <projectId>
 
 ## Worker flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--once` | `false` | Process a single poll cycle and exit |
-| `--concurrency <n>` | `3` | Maximum number of jobs executed in parallel |
-| `--batch-size <n>` | `5` | Maximum jobs to claim per poll cycle |
-| `--lease-duration-seconds <n>` | `60` | Lease duration before the server reclaims a job |
-| `--poll-interval-ms <n>` | `5000` | Milliseconds between poll cycles |
-| `--worker-id <id>` | auto | Override the worker identifier reported to the server |
-| `--work-item-id <id>` | — | Execute a specific work item instead of polling |
-| `--preserve-runtime-on-complete` | `false` | Keep Docker containers alive after a job finishes (useful for debugging) |
+| Flag                             | Alias | Default                  | Description                                                                       |
+| -------------------------------- | ----- | ------------------------ | --------------------------------------------------------------------------------- |
+| `--once`                         | —     | `false`                  | Poll once and wait for any claimed jobs to finish                                 |
+| `--concurrency <n>`              | `-c`  | `1`                      | Maximum number of concurrently active jobs                                        |
+| `--batch-size <n>`               | `-b`  | value of `--concurrency` | Maximum step executions to claim per poll cycle                                   |
+| `--lease-duration-seconds <n>`   | `-l`  | `30`                     | Lease duration before the server reclaims a job                                   |
+| `--poll-interval-ms <n>`         | `-p`  | `5000`                   | Milliseconds between poll cycles                                                  |
+| `--worker-id <id>`               | `-w`  | auto                     | Worker identifier used while claiming steps                                       |
+| `--work-item-id <id>`            | —     | —                        | Only process step executions for this work item ID                                |
+| `--preserve-runtime-on-complete` | `-k`  | `false`                  | Keep runtime containers and workspace after a job finishes (useful for debugging) |
 
 ## How execution works
 
@@ -46,8 +46,8 @@ boboddy work <projectId>
 ## Environment requirements
 
 - **Docker** must be running and accessible to the worker process — required for `workspace` steps. `no_workspace` steps do not use Docker.
-- **OpenCode** does not need to be installed on the host; the worker provisions and runs its own pinned, Boboddy-managed OpenCode runtime (mounted into the container for `workspace` steps, or run directly on the host for `no_workspace` steps). A local OpenCode config (`~/.config/opencode/opencode.jsonc`) is still read as a provider-credential fallback. See [opencode.ai/docs](https://opencode.ai/docs).
-- Your repo must have a `.devcontainer/devcontainer.json` (created by `boboddy init`) — required only if the project runs `workspace` steps.
+- **OpenCode** must be installed and configured (`~/.config/opencode/opencode.jsonc`). See [opencode.ai/docs](https://opencode.ai/docs) for setup instructions.
+- Your repo must have a `.devcontainer/devcontainer.json` (you provide this; `boboddy init` requires it but does not generate one). See [Setting up a Dev Container](/boboddy/guides/devcontainer/).
 - Credentials must be present (`boboddy auth login`).
 
 ## Single-job mode

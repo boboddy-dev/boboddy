@@ -12,16 +12,16 @@ description: Install the Boboddy CLI and SDK
 
 ## Install the CLI
 
-Install the `boboddy` CLI globally via npm:
+Install the `@boboddy/cli` package globally via npm. It installs the `boboddy` command:
 
 ```bash
-npm install -g boboddy
+npm i -g @boboddy/cli
 ```
 
 Or with Bun:
 
 ```bash
-bun add -g boboddy
+bun add -g @boboddy/cli
 ```
 
 Verify the installation:
@@ -54,7 +54,7 @@ npm install @boboddy/sdk
 bun add @boboddy/sdk
 ```
 
-The SDK provides `defineStep`, the `pipeline()` builder (and the legacy `definePipeline`), and the auto-generated API client for programmatic use.
+The SDK provides `defineStep`, the `pipeline()` builder, and the auto-generated API client for programmatic use.
 
 ## Authenticate
 

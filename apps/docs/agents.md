@@ -10,7 +10,7 @@ Update the documentation whenever you make changes in these areas:
 |-------------|----------------|
 | New CLI command or flag | `src/content/docs/reference/cli.md` |
 | Changed CLI command name, flag, or default | `src/content/docs/reference/cli.md` |
-| New `defineStep` / `definePipeline` option | `src/content/docs/reference/sdk.md` + relevant guide |
+| New `defineStep` / `pipeline()` builder option | `src/content/docs/reference/sdk.md` + relevant guide |
 | New SDK export or helper | `src/content/docs/reference/sdk.md` |
 | New auth flow or credential storage behavior | `src/content/docs/getting-started/installation.md` |
 | Changes to project init flow | `src/content/docs/getting-started/quickstart.md` |
@@ -41,7 +41,7 @@ docs/
 │       │   └── quickstart.md               ← step-by-step first project setup
 │       ├── guides/
 │       │   ├── steps.md                    ← defineStep() deep dive
-│       │   ├── pipelines.md                ← definePipeline() deep dive
+│       │   ├── pipelines.md                ← pipeline() builder deep dive
 │       │   └── workers.md                  ← boboddy work and worker options
 │       └── reference/
 │           ├── cli.md                      ← complete CLI command reference

@@ -232,87 +232,6 @@ All comparators available on advancement `SignalRef`s are also available here: `
 
 ---
 
-## Legacy `definePipeline(options)`
-
-The original object-based API. Still supported; produces identical wire output. New pipelines should prefer the `pipeline()` builder above.
-
-```typescript
-import { definePipeline, fromPipelineInput } from "@boboddy/sdk";
-import { z } from "zod";
-
-const myPipeline = definePipeline({
-  key: "my-pipeline",
-  name: "My Pipeline",
-  status: "active",
-  steps: [
-    {
-      step: myStep,
-      input: {
-        text: fromPipelineInput(z.string(), "text"),
-      },
-    },
-  ],
-});
-```
-
-### `PipelineDefinition` options
-
-| Field         | Type                  | Required | Description                      |
-| ------------- | --------------------- | -------- | -------------------------------- |
-| `key`         | `string`              | Yes      | Unique pipeline key              |
-| `name`        | `string`              | Yes      | Display name                     |
-| `version`     | `number`              | No       | Version (default: `1`)           |
-| `description` | `string`              | No       | Short description                |
-| `status`      | `"draft" \| "active"` | No       | Draft pipelines are not executed |
-| `steps`       | `PipelineStep[]`      | Yes      | Ordered step entries             |
-
-### `PipelineStep`
-
-| Field         | Type                      | Description                                          |
-| ------------- | ------------------------- | ---------------------------------------------------- |
-| `step`        | `TypedStepDefinitionSpec` | Step definition returned by `defineStep`             |
-| `input`       | `InputBindingMap`         | Map of input field names to binding helpers          |
-| `timeout`     | `number`                  | Milliseconds before the step is marked timed out     |
-| `advancement` | `Rule<SignalKeys>`        | Boolean signal rule; pipeline halts if not satisfied |
-
----
-
-## Legacy input binding helpers
-
-These remain exported for use with `definePipeline`. With the `pipeline()` builder, prefer the `input` / `signal` / `output` context helpers documented above.
-
-### `fromPipelineInput(schema, path)`
-
-Bind a step input field to a top-level pipeline input parameter.
-
-```typescript
-input: {
-  code: fromPipelineInput(z.string(), 'code'),
-}
-```
-
-### `fromSignal(step, signalKey)`
-
-Bind a step input field to a signal emitted by a prior step in the pipeline.
-
-```typescript
-input: {
-  previousScore: fromSignal(reviewStep, 'clarity_score'),
-}
-```
-
-### `stepOutput(step)`
-
-Bind a step input field to the complete output object of a prior step.
-
-```typescript
-input: {
-  reviewResult: stepOutput(reviewStep),
-}
-```
-
----
-
 ## API client
 
 The SDK ships an auto-generated API client built from the OpenAPI spec.
@@ -347,10 +266,10 @@ const config = parseJsonc(rawString);
 
 ### Project config
 
-Read the Boboddy project config from disk:
+Read the Boboddy project config from disk. `readProjectConfig` is exported from `@boboddy/worker` (not the SDK):
 
 ```typescript
-import { readProjectConfig } from "@boboddy/sdk";
+import { readProjectConfig } from "@boboddy/worker";
 
 const { projectId } = await readProjectConfig();
 ```

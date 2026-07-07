@@ -11,7 +11,7 @@ Run `boboddy init` inside your repository. The interactive setup will:
 
 1. Authenticate you (if not already logged in)
 2. Create or select a project on the server
-3. Generate `.devcontainer/devcontainer.json` for your repo
+3. Require a `.devcontainer/devcontainer.json` in your repo (init errors if one is missing — see [Setting up a Dev Container](/boboddy/guides/devcontainer/))
 4. Recommend pipeline structures based on your codebase
 
 ```bash

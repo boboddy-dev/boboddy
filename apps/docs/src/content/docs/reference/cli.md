@@ -61,7 +61,7 @@ Interactive project setup. Runs in sequence:
 1. Authenticates (device flow if not logged in)
 2. Creates or selects a project
 3. Writes `.boboddy/boboddy.jsonc` with the `projectId`
-4. Generates `.devcontainer/devcontainer.json`
+4. Requires an existing `.devcontainer/devcontainer.json` (init errors if one is missing — it does not create one)
 5. Analyzes the repo and recommends pipelines
 
 ```bash
@@ -132,16 +132,16 @@ boboddy work
 boboddy work <projectId>
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--once` | `false` | Poll once and exit |
-| `--concurrency <n>` | `3` | Max parallel jobs |
-| `--batch-size <n>` | `5` | Max jobs claimed per poll |
-| `--lease-duration-seconds <n>` | `60` | Seconds before the server reclaims an uncompleted job |
-| `--poll-interval-ms <n>` | `5000` | Milliseconds between poll cycles |
-| `--worker-id <id>` | auto | Override the worker ID sent to the server |
-| `--work-item-id <id>` | — | Execute a specific work item and exit |
-| `--preserve-runtime-on-complete` | `false` | Keep Docker containers after job completion |
+| Flag | Alias | Default | Description |
+|------|-------|---------|-------------|
+| `--once` | — | `false` | Poll once and wait for any claimed jobs to finish |
+| `--concurrency <n>` | `-c` | `1` | Max concurrently active jobs (env: `BOBODDY_WORK_CONCURRENCY`) |
+| `--batch-size <n>` | `-b` | value of `--concurrency` | Max step executions claimed per poll |
+| `--lease-duration-seconds <n>` | `-l` | `30` | Seconds the claim lease lasts (env: `BOBODDY_WORK_LEASE_DURATION_SECONDS`) |
+| `--poll-interval-ms <n>` | `-p` | `5000` | Milliseconds between poll cycles (env: `BOBODDY_WORK_POLL_INTERVAL_MS`) |
+| `--worker-id <id>` | `-w` | auto | Worker identifier used while claiming steps |
+| `--work-item-id <id>` | — | — | Only process step executions for this work item ID |
+| `--preserve-runtime-on-complete` | `-k` | `false` | Keep runtime containers and workspace after step completion |
 
 ---
 
@@ -172,6 +172,23 @@ Print a greeting. Primarily used to verify the CLI is installed correctly.
 boboddy hello          # Hello, world!
 boboddy hello Alice    # Hello, Alice!
 ```
+
+---
+
+## `boboddy report-bug`
+
+File a bug report against the CLI. By default it opens a prefilled GitHub issue in your browser.
+
+```bash
+boboddy report-bug
+boboddy report-bug --title "..." --description "..." --no-browser
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--title <text>` | — | Short summary of the bug |
+| `--description <text>` | — | Detailed description |
+| `--browser` / `--no-browser` | `true` | Open the prefilled issue in a browser; `--no-browser` prints the URL only |
 
 ---
 
