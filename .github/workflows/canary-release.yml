@@ -117,12 +117,14 @@ jobs:
           name: canary-cli-dist
           path: apps/cli/dist/
           include-hidden-files: true
+          retention-days: 1
 
       - name: Upload SDK dist
         uses: actions/upload-artifact@v4
         with:
           name: canary-sdk-dist
           path: packages/sdks/js/dist/
+          retention-days: 1
 
   sign-canary-macos:
     needs: build-canary
@@ -150,6 +152,7 @@ jobs:
           name: canary-cli-dist-signed
           path: dist/
           include-hidden-files: true
+          retention-days: 1
 
   publish-canary:
     needs: [build-canary, sign-canary-macos]
