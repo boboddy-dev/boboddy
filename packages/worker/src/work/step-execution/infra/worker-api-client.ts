@@ -78,6 +78,8 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
       claimToken: string;
       resultJson: unknown;
       errorJson: unknown;
+      workBranch: string | null;
+      createdFromBranch: string | null;
     }) => {
       await planeClient.completeStepExecution(
         input.stepExecutionId,
@@ -86,6 +88,8 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
           status: "succeeded",
           resultJson: input.resultJson as never,
           errorJson: input.errorJson as never,
+          workBranch: input.workBranch,
+          createdFromBranch: input.createdFromBranch,
         },
         { headers },
       );

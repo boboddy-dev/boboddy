@@ -14087,6 +14087,17 @@
                         }
                       ]
                     },
+                    "baseWorkBranch": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "projectOpencodeConfig": {
                       "type": "object",
                       "properties": {
@@ -14548,6 +14559,7 @@
                     "projectId",
                     "gitUrl",
                     "requestedBranch",
+                    "baseWorkBranch",
                     "projectOpencodeConfig",
                     "stepExecution",
                     "stepDefinition",
@@ -14970,6 +14982,28 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "workBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdFromBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -15005,6 +15039,28 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "workBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdFromBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -15036,6 +15092,28 @@
                   "errorJson": {
                     "anyOf": [
                       {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "workBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdFromBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
                       {
                         "type": "null"
                       }
@@ -33433,6 +33511,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -33571,6 +33659,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -34379,6 +34468,16 @@
                                       }
                                     ]
                                   },
+                                  "workBranch": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
                                   "outputJson": {
                                     "anyOf": [
                                       {},
@@ -34517,6 +34616,7 @@
                                   "acceptedByUserId",
                                   "acceptedAt",
                                   "acceptanceReason",
+                                  "workBranch",
                                   "outputJson",
                                   "evaluation",
                                   "createdAt",
@@ -35143,6 +35243,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -35281,6 +35391,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -35967,6 +36078,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -36105,6 +36226,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -36799,6 +36921,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -36937,6 +37069,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -37422,6 +37555,28 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "workBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdFromBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -37452,6 +37607,28 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "workBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdFromBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -37478,6 +37655,28 @@
                   "errorJson": {
                     "anyOf": [
                       {},
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "workBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdFromBranch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
                       {
                         "type": "null"
                       }
@@ -37726,6 +37925,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -37864,6 +38073,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -38659,6 +38869,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -38797,6 +39017,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -39548,6 +39769,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -39686,6 +39917,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -40372,6 +40604,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -40510,6 +40752,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -41196,6 +41439,16 @@
                                     }
                                   ]
                                 },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "outputJson": {
                                   "anyOf": [
                                     {},
@@ -41334,6 +41587,7 @@
                                 "acceptedByUserId",
                                 "acceptedAt",
                                 "acceptanceReason",
+                                "workBranch",
                                 "outputJson",
                                 "evaluation",
                                 "createdAt",
@@ -42022,6 +42276,16 @@
                                       }
                                     ]
                                   },
+                                  "workBranch": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
                                   "outputJson": {
                                     "anyOf": [
                                       {},
@@ -42160,6 +42424,7 @@
                                   "acceptedByUserId",
                                   "acceptedAt",
                                   "acceptanceReason",
+                                  "workBranch",
                                   "outputJson",
                                   "evaluation",
                                   "createdAt",

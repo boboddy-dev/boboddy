@@ -10,6 +10,8 @@ import {
   buildContainerStepArtifactsDir,
   buildPromptRenderContext,
   buildRunningMetadata,
+  resolveBaseWorkBranch,
+  resolveRequestedBranch,
 } from "./process-claimed-step-execution-helpers";
 import {
   resolveProjectWorkLogger,
@@ -125,17 +127,6 @@ async function fetchWorkerContext(
   });
 }
 
-function resolveRequestedBranch(
-  requestedBranch: string | null | undefined,
-): string | null {
-  const explicitBranch = requestedBranch?.trim();
-  if (explicitBranch) return explicitBranch;
-
-  const envBranch = process.env["BOBODDY_WORK_REQUESTED_BRANCH"]?.trim();
-
-  return envBranch || null;
-}
-
 /**
  * Select the runtime orchestrator for the step's execution mode. `no_workspace`
  * steps run OpenCode directly on the host (no clone, no devcontainer) via the
@@ -182,6 +173,10 @@ async function launchRuntimeEnvironment(
     requestedBranch: resolveRequestedBranch(
       input.workerContext.requestedBranch,
     ),
+    baseWorkBranch: resolveBaseWorkBranch(
+      input.workerContext.baseWorkBranch,
+    ),
+    stepKey: input.workerContext.stepDefinition.key,
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
     // The step prompt is delivered solely as the user message via promptAsync

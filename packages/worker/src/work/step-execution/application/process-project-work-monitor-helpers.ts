@@ -1,11 +1,37 @@
 import { STEP_EXECUTION_AGENT } from "@boboddy/opencode-plugin";
+import { execFile } from "node:child_process";
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { startProcessClaimedExecution } from "./process-claimed-step-execution";
 import type { resolveProjectWorkLogger } from "./process-project-work-logger";
 import type { ProcessProjectWorkDeps } from "../contracts/process-project-work-types";
 import { buildFindingsSubmissionPath } from "./process-project-work-findings";
 import { detectArtifactKind } from "../../../artifacts/artifact-store/domain/detect-artifact-kind";
+
+const execFileAsync = promisify(execFile);
+
+/** Single-quote a value for safe interpolation into a `sh -c` command. */
+function shQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+/** Truncate content to 2000 chars, appending a truncation marker when clipped. */
+function truncatePreview(rawContent: string): string {
+  return rawContent.length > 2000
+    ? `${rawContent.slice(0, 2000)}\n...<truncated ${String(rawContent.length - 2000)} chars>`
+    : rawContent;
+}
+
+/**
+ * Default docker-exec seam used by {@link captureOpencodeLogPreview}. Extracted
+ * so unit tests can inject a fake and exercise the container branch without a
+ * real Docker daemon.
+ */
+async function defaultRunDockerExec(args: string[]): Promise<{ stdout: string }> {
+  const { stdout } = await execFileAsync("docker", args);
+  return { stdout };
+}
 
 const FINDINGS_RETRY_PROMPT = [
   "You finished without submitting Boboddy findings.",
@@ -36,6 +62,7 @@ export async function handleMissingFindings(
     const diagnostics = await captureMissingFindingsDiagnostics({
       workspacePath: startedExecution.environment.workspacePath,
       opencodeLogDirectory: startedExecution.environment.opencodeLogDirectory,
+      runtimeContainerId: startedExecution.environment.runtimeContainerId,
     });
     state.hasWaitedForSessionStop = true;
     logger.log(
@@ -60,6 +87,7 @@ export async function handleMissingFindings(
     const diagnostics = await captureMissingFindingsDiagnostics({
       workspacePath: startedExecution.environment.workspacePath,
       opencodeLogDirectory: startedExecution.environment.opencodeLogDirectory,
+      runtimeContainerId: startedExecution.environment.runtimeContainerId,
     });
     state.hasRetriedFindingsSubmission = true;
     state.hasWaitedForRetriedFindingsSubmission = false;
@@ -92,6 +120,7 @@ export async function handleMissingFindings(
     const diagnostics = await captureMissingFindingsDiagnostics({
       workspacePath: startedExecution.environment.workspacePath,
       opencodeLogDirectory: startedExecution.environment.opencodeLogDirectory,
+      runtimeContainerId: startedExecution.environment.runtimeContainerId,
     });
     state.hasWaitedForRetriedFindingsSubmission = true;
     logger.log(
@@ -149,14 +178,25 @@ export async function describeFile(filePath: string): Promise<{
   }
 }
 
-export async function captureOpencodeLogPreview(logDirectory: string): Promise<
+export async function captureOpencodeLogPreview(
+  input: { logDirectory: string; containerId: string | null },
+  runDockerExec: (args: string[]) => Promise<{ stdout: string }> = defaultRunDockerExec,
+): Promise<
   Array<{
     file: string;
     contentPreview: string;
   }>
 > {
+  if (input.containerId !== null) {
+    return captureContainerOpencodeLogPreview(
+      input.logDirectory,
+      input.containerId,
+      runDockerExec,
+    );
+  }
+
   try {
-    const entries = await readdir(logDirectory, { withFileTypes: true });
+    const entries = await readdir(input.logDirectory, { withFileTypes: true });
     const files = entries
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
@@ -165,7 +205,10 @@ export async function captureOpencodeLogPreview(logDirectory: string): Promise<
 
     return await Promise.all(
       files.map(async (file) => {
-        const rawContent = await readFile(path.join(logDirectory, file), "utf8").catch(
+        const rawContent = await readFile(
+          path.join(input.logDirectory, file),
+          "utf8",
+        ).catch(
           // eslint-disable-next-line local/no-unknown-parameter-type
           (error: unknown) => {
             return `Failed to read log: ${error instanceof Error ? error.message : String(error)}`;
@@ -174,10 +217,64 @@ export async function captureOpencodeLogPreview(logDirectory: string): Promise<
 
         return {
           file,
-          contentPreview:
-            rawContent.length > 2000
-              ? `${rawContent.slice(0, 2000)}\n...<truncated ${String(rawContent.length - 2000)} chars>`
-              : rawContent,
+          contentPreview: truncatePreview(rawContent),
+        };
+      }),
+    );
+  } catch (error) {
+    return [
+      {
+        file: "<opencode-log-dir>",
+        contentPreview: `Unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    ];
+  }
+}
+
+/**
+ * Read the last few OpenCode log files from inside a devcontainer via
+ * `docker exec`. Container runs keep HOME on the container's native overlay
+ * filesystem, so the log directory is no longer reachable from the host fs.
+ */
+async function captureContainerOpencodeLogPreview(
+  logDirectory: string,
+  containerId: string,
+  runDockerExec: (args: string[]) => Promise<{ stdout: string }>,
+): Promise<
+  Array<{
+    file: string;
+    contentPreview: string;
+  }>
+> {
+  try {
+    const { stdout: listStdout } = await runDockerExec([
+      "exec",
+      containerId,
+      "sh",
+      "-lc",
+      `ls -1 ${shQuote(logDirectory)} 2>/dev/null`,
+    ]);
+    const files = listStdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .sort()
+      .slice(-4);
+
+    return await Promise.all(
+      files.map(async (file) => {
+        const filePath = `${logDirectory}/${file}`;
+        const { stdout } = await runDockerExec([
+          "exec",
+          containerId,
+          "sh",
+          "-lc",
+          `if [ -f ${shQuote(filePath)} ]; then tail -c 2000 ${shQuote(filePath)}; fi`,
+        ]);
+
+        return {
+          file,
+          contentPreview: truncatePreview(stdout),
         };
       }),
     );
@@ -194,6 +291,7 @@ export async function captureOpencodeLogPreview(logDirectory: string): Promise<
 export async function captureMissingFindingsDiagnostics(input: {
   workspacePath: string;
   opencodeLogDirectory: string;
+  runtimeContainerId: string | null;
 }) {
   const findingsPath = buildFindingsSubmissionPath(input.workspacePath);
   const currentExecutionPath = path.join(
@@ -206,7 +304,10 @@ export async function captureMissingFindingsDiagnostics(input: {
   return {
     findingsFile: await describeFile(findingsPath),
     currentExecutionFile: await describeFile(currentExecutionPath),
-    opencodeLogs: await captureOpencodeLogPreview(input.opencodeLogDirectory),
+    opencodeLogs: await captureOpencodeLogPreview({
+      logDirectory: input.opencodeLogDirectory,
+      containerId: input.runtimeContainerId,
+    }),
   };
 }
 

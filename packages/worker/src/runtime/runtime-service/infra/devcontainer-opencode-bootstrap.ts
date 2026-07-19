@@ -1,5 +1,4 @@
-import { execFile } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
 import net from "node:net";
 import { promisify } from "node:util";
 import {
@@ -16,7 +15,7 @@ import {
 import type { OpencodeRuntimePayloadLocation } from "./opencode-runtime-payload-provisioner";
 import {
   cleanupSessionHome,
-  prepareAgentHomeConfig,
+  resolveHostAgentHomeSources,
   resolveSessionAgentHomeDir,
 } from "./opencode-agent-home";
 
@@ -29,40 +28,58 @@ const execFileAsync = promisify(execFile);
 /**
  * Bootstraps the Boboddy-managed OpenCode runtime INSIDE the user devcontainer.
  *
- * Two phases bracket `devcontainers-cli up`:
+ * The agent HOME ({@link CONTAINER_AGENT_HOME}) lives on the container's NATIVE
+ * OVERLAY filesystem — it is NOT a host bind mount. A macOS host bind mount
+ * (Docker Desktop `fakeowner`/gRPC-FUSE) has unstable file metadata that breaks
+ * tools like npm's `_npx` lock verification, so the agent HOME is created and
+ * seeded INSIDE the running container instead of being pre-populated on the host.
+ *
+ * Three phases bracket `devcontainers-cli up`:
  *
  *  - {@link planMounts} (pre-up): computes the bind mounts + `appPort` publish
  *    to inject into the cloned devcontainer.json using the SAME mechanism as the
  *    existing `containerEnv` patch (`patchDevcontainerMounts` /
  *    `patchDevcontainerAppPort`). Mounts:
  *      * runtime payload dir  -> /opt/boboddy/runtimes/opencode/<ver> (read-only)
- *      * session agent HOME   -> /opt/boboddy/agent-home              (read-write)
  *      * provider credentials -> /opt/boboddy/provider                (read-only),
  *        only when the resolver's chosen source needs config files.
+ *    The agent HOME is deliberately NOT mounted — it lives on overlay.
  *
- *  - {@link prepareAgentHomeConfig} (pre-up, after planMounts): copies the
- *    user's host global opencode config (`~/.config/opencode/opencode.json[c]`)
- *    into the session-scoped agent HOME at `.config/opencode/opencode.json` so
- *    that OpenCode picks it up at precedence level #2 (global config) inside the
- *    container. The project's `.opencode/opencode.json[c]` is left untouched.
+ *  - {@link prepareAgentHome} (post-up, before {@link start}): once the
+ *    container is running, creates the agent HOME's `.config/opencode` and
+ *    `.local/share/opencode` dirs on overlay via `docker exec ... mkdir -p`, then
+ *    seeds the user's host global opencode config
+ *    (`~/.config/opencode/opencode.json[c]`, precedence #2) and provider auth
+ *    (`~/.local/share/opencode/auth.json`) by piping their contents over stdin
+ *    into `docker exec -i ... tee`. Nothing is written to a host dir; the
+ *    project's `.opencode/opencode.json[c]` is left untouched.
  *
- *  - {@link start} (post-up): launches `opencode serve` by ABSOLUTE PATH (the
- *    mounted payload's `launch.sh`), with the dedicated HOME env and the
- *    resolved workspace cwd, binding `0.0.0.0:<containerPort>` so it is
- *    reachable from the host over the published loopback port. Boboddy's
- *    override config is passed as `OPENCODE_CONFIG_CONTENT` (precedence #6 —
- *    inline), ensuring the permission baseline, step MCPs, and
- *    `AGENT_DEFAULT_MODEL` win over the user's home/project configs. Waits for
- *    health and returns the host-facing `agentBaseUrl`.
+ *  - {@link start} (post-up, after {@link prepareAgentHome}): launches
+ *    `opencode serve` by ABSOLUTE PATH (the mounted payload's `launch.sh`), with
+ *    the dedicated HOME env and the resolved workspace cwd, binding
+ *    `0.0.0.0:<containerPort>` so it is reachable from the host over the
+ *    published loopback port. Boboddy's override config is passed as
+ *    `OPENCODE_CONFIG_CONTENT` (precedence #6 — inline), ensuring the permission
+ *    baseline, step MCPs, and `AGENT_DEFAULT_MODEL` win over the user's
+ *    home/project configs. Waits for health and returns the host-facing
+ *    `agentBaseUrl`.
  *
- * The agent HOME is SESSION-SCOPED on the host (a per-session dir) and removed
- * on {@link stop}, so sessions never share agent state/credentials.
+ * Because the agent HOME is on overlay, it dies with the container: sessions
+ * never share agent state/credentials and no host cleanup of it is required for
+ * container runs (see {@link cleanupSessionHome}).
  */
 
 /** In-container path the runtime payload is mounted at is version-specific. */
 export const CONTAINER_AGENT_HOME = "/opt/boboddy/agent-home";
 /** In-container path the materialized provider config dir is mounted at. */
 export const CONTAINER_PROVIDER_DIR = "/opt/boboddy/provider";
+/**
+ * In-container npm cache dir. MUST live on the container's native overlay
+ * filesystem, NOT under {@link CONTAINER_AGENT_HOME} (a macOS host bind mount
+ * whose unstable file metadata breaks npm's `_npx` lock verification, causing
+ * `ECOMPROMISED: Lock compromised` for every `npx`-based MCP server).
+ */
+export const CONTAINER_NPM_CACHE_DIR = "/tmp/boboddy-npm-cache";
 /** Port OpenCode binds inside the container; published to a host loopback port. */
 export const CONTAINER_OPENCODE_PORT = 4096;
 
@@ -87,10 +104,20 @@ export const AGENT_SERVE_LOG_FILENAME = "opencode-serve.log";
 const AGENT_LOG_PATH = `${AGENT_LOG_DIR}/${AGENT_SERVE_LOG_FILENAME}`;
 const AGENT_PID_PATH = `${AGENT_LOG_DIR}/opencode-serve.pid`;
 
+/**
+ * In-container seed targets for the agent HOME, computed from
+ * {@link CONTAINER_AGENT_HOME}. These MUST match the XDG env set in
+ * {@link DevcontainerOpencodeBootstrap.start} (`XDG_CONFIG_HOME` /
+ * `XDG_DATA_HOME`) so OpenCode reads what {@link
+ * DevcontainerOpencodeBootstrap.prepareAgentHome} writes.
+ */
+const AGENT_CONFIG_DIR = `${CONTAINER_AGENT_HOME}/.config/opencode`;
+const AGENT_CONFIG_PATH = `${AGENT_CONFIG_DIR}/opencode.json`;
+const AGENT_AUTH_DIR = `${CONTAINER_AGENT_HOME}/.local/share/opencode`;
+const AGENT_AUTH_PATH = `${AGENT_AUTH_DIR}/auth.json`;
+
 export type PlanMountsInput = {
   payload: OpencodeRuntimePayloadLocation;
-  /** Host dir to mount as the session-scoped agent HOME. */
-  sessionAgentHomeDir: string;
   /**
    * Host dir of materialized provider config files (the materializer's output
    * dir), mounted READ-ONLY. Omit/undefined when the chosen provider source
@@ -161,25 +188,58 @@ function shQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+/**
+ * Run `docker` with the given args, piping `stdin` to the child's stdin and
+ * closing it. Unlike {@link execFileAsync}, this can stream content over stdin,
+ * which is how {@link DevcontainerOpencodeBootstrap.prepareAgentHome} seeds
+ * config/auth into the container via `docker exec -i ... tee`.
+ *
+ * CRITICAL: `stdin` may contain secrets (e.g. `auth.json`). It is NEVER logged
+ * here and MUST NOT be logged by callers.
+ */
+function execDockerWithStdin(args: string[], stdin: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn("docker", args, {
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.on("error", (error: Error) => {
+      reject(error);
+    });
+    child.on("close", (code: number | null) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(
+          new Error(
+            `docker ${args[0] ?? ""} exited with code ${String(code)}` +
+              (stderr.trim() ? `: ${stderr.trim()}` : ""),
+          ),
+        );
+      }
+    });
+    child.stdin.end(stdin);
+  });
+}
+
 export class DevcontainerOpencodeBootstrap {
   /**
-   * Compute the bind mounts + host port to publish, and ensure the
-   * session-scoped agent HOME exists on the host. Called BEFORE the devcontainer
-   * config is patched and the container is launched.
+   * Compute the bind mounts + host port to publish. Called BEFORE the
+   * devcontainer config is patched and the container is launched.
+   *
+   * The agent HOME is intentionally NOT mounted here — it lives on the
+   * container's native overlay filesystem and is created + seeded post-launch by
+   * {@link prepareAgentHome}.
    */
   async planMounts(input: PlanMountsInput): Promise<PlanMountsResult> {
-    await mkdir(input.sessionAgentHomeDir, { recursive: true });
-
     const mounts: DevcontainerBindMount[] = [
       {
         source: input.payload.hostPayloadDir,
         target: input.payload.containerPayloadDir,
         readOnly: true,
-      },
-      {
-        source: input.sessionAgentHomeDir,
-        target: CONTAINER_AGENT_HOME,
-        readOnly: false,
       },
     ];
 
@@ -224,34 +284,82 @@ export class DevcontainerOpencodeBootstrap {
   }
 
   /**
-   * Copy the user's host global opencode config and auth credentials into the
-   * session-scoped agent HOME so OpenCode picks them up inside the container
-   * without touching the user's project repo.
+   * Create the agent HOME on the container's OVERLAY filesystem and seed the
+   * user's host global opencode config + provider auth into it, so OpenCode
+   * picks them up inside the container without touching the user's project repo
+   * and without a host bind mount.
+   *
+   * Because the agent HOME is NOT bind-mounted (a macOS host bind mount's
+   * unstable file metadata breaks tools like npm's `_npx` lock), it cannot be
+   * pre-populated on the host. Instead this runs `docker exec` against the
+   * ALREADY-RUNNING container: it `mkdir -p`s the XDG dirs on overlay, then
+   * pipes each present source file over stdin into `tee` and `chmod 600`s it.
    *
    * **Config** (`~/.config/opencode/opencode.json[c]`):
-   *   Written to `<sessionAgentHomeDir>/.config/opencode/opencode.json` —
-   *   OpenCode reads this at precedence level #2 (global config). Carries the
-   *   user's `model`, provider options, plugins, etc.
+   *   Written to `${AGENT_CONFIG_PATH}` — OpenCode reads this at precedence
+   *   level #2 (global config). Carries the user's `model`, provider options,
+   *   plugins, etc.
    *
    * **Auth** (`~/.local/share/opencode/auth.json`):
-   *   Written to `<sessionAgentHomeDir>/.local/share/opencode/auth.json` —
-   *   OpenCode reads provider credentials (`/connect`-stored keys for openai,
-   *   anthropic, github-copilot, etc.) from `$XDG_DATA_HOME/opencode/auth.json`.
-   *   Without this copy, OpenCode cannot authenticate with any provider other
-   *   than the one whose token Boboddy injects via `BOBODDY_PROVIDER_TOKEN`.
+   *   Written to `${AGENT_AUTH_PATH}` — OpenCode reads provider credentials
+   *   (`/connect`-stored keys for openai, anthropic, github-copilot, etc.) from
+   *   `$XDG_DATA_HOME/opencode/auth.json`. Without this, OpenCode cannot
+   *   authenticate with any provider other than the one whose token Boboddy
+   *   injects via `BOBODDY_PROVIDER_TOKEN`.
    *
-   * Must be called AFTER {@link planMounts} (so `sessionAgentHomeDir` exists)
-   * and BEFORE the container starts (the dir is bind-mounted RW into the
-   * container).
+   * Must be called AFTER the container is launched and BEFORE {@link start}.
+   * When neither source file exists on the host, only the `mkdir` runs.
    *
-   * When neither file exists on the host, this is a no-op.
+   * SECURITY: auth content is piped over stdin and NEVER logged.
    */
-  async prepareAgentHomeConfig(input: {
-    sessionAgentHomeDir: string;
+  async prepareAgentHome(input: {
+    containerId: string;
     /** Override host home dir (for tests). Defaults to resolved host home. */
     hostHomeDir?: string | undefined;
   }): Promise<{ hostConfigPath: string | null; hostAuthPath: string | null }> {
-    return await prepareAgentHomeConfig(input);
+    const { hostConfigPath, hostConfigContent, hostAuthPath, hostAuthContent } =
+      await resolveHostAgentHomeSources({ hostHomeDir: input.hostHomeDir });
+
+    await execFileAsync("docker", [
+      "exec",
+      input.containerId,
+      "sh",
+      "-lc",
+      `mkdir -p ${shQuote(AGENT_CONFIG_DIR)} ${shQuote(AGENT_AUTH_DIR)}`,
+    ]);
+
+    if (hostConfigContent !== null) {
+      await execDockerWithStdin(
+        [
+          "exec",
+          "-i",
+          input.containerId,
+          "sh",
+          "-lc",
+          `tee ${shQuote(AGENT_CONFIG_PATH)} >/dev/null && ` +
+            `chmod 600 ${shQuote(AGENT_CONFIG_PATH)}`,
+        ],
+        hostConfigContent,
+      );
+    }
+
+    if (hostAuthContent !== null) {
+      await execDockerWithStdin(
+        [
+          "exec",
+          "-i",
+          input.containerId,
+          "sh",
+          "-lc",
+          `tee ${shQuote(AGENT_AUTH_PATH)} >/dev/null && ` +
+            `chmod 600 ${shQuote(AGENT_AUTH_PATH)}`,
+        ],
+        hostAuthContent,
+      );
+    }
+
+    // `hostAuthPath` is already `null` when no auth content was resolved.
+    return { hostConfigPath, hostAuthPath };
   }
 
   /**
@@ -268,6 +376,14 @@ export class DevcontainerOpencodeBootstrap {
       `XDG_CONFIG_HOME=${CONTAINER_AGENT_HOME}/.config`,
       "-e",
       `XDG_DATA_HOME=${CONTAINER_AGENT_HOME}/.local/share`,
+      // Point npm's cache at the container's native overlay fs. The PRIMARY fix
+      // for the npm `_npx` lock issue is now that the agent HOME itself lives on
+      // overlay (no host bind mount), so npm's `_npx` install lock (libnpmexec
+      // `touchLock`) sees stable file metadata and no longer aborts with
+      // `ECOMPROMISED: Lock compromised`. This explicit cache override is kept as
+      // redundant belt-and-suspenders — harmless now that HOME is on overlay.
+      "-e",
+      `npm_config_cache=${CONTAINER_NPM_CACHE_DIR}`,
       // Boboddy's override layer: permission baseline, step MCPs, plugins, and
       // AGENT_DEFAULT_MODEL. Wins over global (#2) and project (#4) configs.
       "-e",
@@ -288,7 +404,9 @@ export class DevcontainerOpencodeBootstrap {
     }
 
     const serveCommand =
-      `mkdir -p ${shQuote(AGENT_LOG_DIR)}; ` +
+      // Ensure the overlay HOME base + log dir exist so a missing overlay HOME
+      // can't fail serve (the HOME is created by prepareAgentHome, but guard it).
+      `mkdir -p ${shQuote(CONTAINER_AGENT_HOME)} ${shQuote(AGENT_LOG_DIR)}; ` +
       `cd ${shQuote(input.workspaceFolder)}; ` +
       `nohup ${shQuote(input.launchWrapperPath)} serve ` +
       `--hostname 0.0.0.0 --port ${String(CONTAINER_OPENCODE_PORT)} ` +
@@ -338,7 +456,14 @@ export class DevcontainerOpencodeBootstrap {
     }
   }
 
-  /** Remove the session-scoped agent HOME from the host. */
+  /**
+   * Remove the session-scoped agent HOME from the host.
+   *
+   * For CONTAINER runs this is effectively a no-op: the agent HOME lives on the
+   * container's overlay filesystem and dies with the container, so there is no
+   * host dir to remove (the passed path never held container agent state). The
+   * host `no_workspace` path still relies on this to clean its host agent HOME.
+   */
   async cleanupSessionHome(sessionAgentHomeDir: string): Promise<void> {
     await cleanupSessionHome(sessionAgentHomeDir);
   }

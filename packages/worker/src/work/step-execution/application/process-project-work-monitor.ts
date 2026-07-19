@@ -217,6 +217,11 @@ export async function monitorStartedClaimedExecution(
             // completeStepExecution transitions it out of "running" and the
             // artifact API starts rejecting uploads. Latched so it runs once.
             onBeforeComplete: async () => {
+              // Commit the agent's changes to the work branch and push it while
+              // the workspace still exists and the step is still "running".
+              // No-op when the branch-per-step feature is off; push failures are
+              // swallowed inside the closure and never fail the step.
+              await startedExecution.environment.commitAndPushWorkBranch?.();
               if (!hasCollectedArtifacts) {
                 await collectStepArtifacts(deps, startedExecution, logger);
                 hasCollectedArtifacts = true;
@@ -256,6 +261,8 @@ export async function monitorStartedClaimedExecution(
             workspacePath: startedExecution.environment.workspacePath,
             opencodeLogDirectory:
               startedExecution.environment.opencodeLogDirectory,
+            runtimeContainerId:
+              startedExecution.environment.runtimeContainerId,
           });
           logger.log(
             "worker",

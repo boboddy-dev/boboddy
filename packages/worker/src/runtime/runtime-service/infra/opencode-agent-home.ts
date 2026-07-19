@@ -67,6 +67,70 @@ export const AGENT_HOME_CONFIG_SUBDIR = path.join(".config");
 export const AGENT_HOME_DATA_SUBDIR = path.join(".local", "share");
 
 /**
+ * Shared resolver for the host's global OpenCode config + provider auth.
+ *
+ * This reads (but does NOT write) the two host source files:
+ *   - global config: first hit of `HOST_GLOBAL_CONFIG_CANDIDATES` under
+ *     `<hostHome>/.config/opencode/`, and
+ *   - provider auth:  `<hostHome>/.local/share/opencode/auth.json`.
+ *
+ * It is the single source of truth used by BOTH seeding strategies:
+ *   - the host-write path (`prepareAgentHomeConfig`), which copies the resolved
+ *     contents into a session-scoped host agent HOME, and
+ *   - the container-tee path (`prepareAgentHome`), which pipes the resolved
+ *     contents into a running container over stdin via `docker exec ... tee`.
+ *
+ * `hostConfigPath`/`hostConfigContent` are both `null` when no config candidate
+ * exists. To preserve the historical external contract, `hostAuthPath` is the
+ * actual path string only when the auth file was read; it is `null` when the
+ * auth file is absent (in which case `hostAuthContent` is also `null`).
+ */
+export async function resolveHostAgentHomeSources(input: {
+  /** Override host home dir (for tests). Defaults to resolved host home. */
+  hostHomeDir?: string | undefined;
+}): Promise<{
+  hostConfigPath: string | null;
+  hostConfigContent: string | null;
+  hostAuthPath: string | null;
+  hostAuthContent: string | null;
+}> {
+  const hostHome = input.hostHomeDir ?? resolveHostHome();
+
+  // --- Config file ---
+  const hostConfigDir = path.join(hostHome, ".config", "opencode");
+  let hostConfigPath: string | null = null;
+  let hostConfigContent: string | null = null;
+
+  for (const candidate of HOST_GLOBAL_CONFIG_CANDIDATES) {
+    const candidatePath = path.join(hostConfigDir, candidate);
+    try {
+      hostConfigContent = await readFile(candidatePath, "utf8");
+      hostConfigPath = candidatePath;
+      break;
+    } catch {
+      // Not found — try next candidate.
+    }
+  }
+
+  // --- Auth file ---
+  const resolvedAuthPath = path.join(hostHome, ...HOST_AUTH_RELATIVE_PATH);
+  let hostAuthContent: string | null = null;
+  try {
+    hostAuthContent = await readFile(resolvedAuthPath, "utf8");
+  } catch {
+    // Not found — no auth file to copy.
+  }
+
+  return {
+    hostConfigPath,
+    hostConfigContent,
+    // Preserve historical contract: only surface the path when content exists.
+    hostAuthPath: hostAuthContent !== null ? resolvedAuthPath : null,
+    hostAuthContent,
+  };
+}
+
+/**
  * Copy the user's host global opencode config and auth credentials into the
  * session-scoped agent HOME so OpenCode picks them up without touching the
  * user's project repo.
@@ -87,32 +151,8 @@ export async function prepareAgentHomeConfig(input: {
   /** Override host home dir (for tests). Defaults to resolved host home. */
   hostHomeDir?: string | undefined;
 }): Promise<{ hostConfigPath: string | null; hostAuthPath: string | null }> {
-  const hostHome = input.hostHomeDir ?? resolveHostHome();
-
-  // --- Config file ---
-  const hostConfigDir = path.join(hostHome, ".config", "opencode");
-  let hostConfigPath: string | null = null;
-  let hostConfigContent: string | null = null;
-
-  for (const candidate of HOST_GLOBAL_CONFIG_CANDIDATES) {
-    const candidatePath = path.join(hostConfigDir, candidate);
-    try {
-      hostConfigContent = await readFile(candidatePath, "utf8");
-      hostConfigPath = candidatePath;
-      break;
-    } catch {
-      // Not found — try next candidate.
-    }
-  }
-
-  // --- Auth file ---
-  const hostAuthPath = path.join(hostHome, ...HOST_AUTH_RELATIVE_PATH);
-  let hostAuthContent: string | null = null;
-  try {
-    hostAuthContent = await readFile(hostAuthPath, "utf8");
-  } catch {
-    // Not found — no auth file to copy.
-  }
+  const { hostConfigPath, hostConfigContent, hostAuthPath, hostAuthContent } =
+    await resolveHostAgentHomeSources({ hostHomeDir: input.hostHomeDir });
 
   // Write config into the session agent HOME under .config/opencode/
   if (hostConfigContent !== null && hostConfigPath !== null) {
@@ -145,10 +185,9 @@ export async function prepareAgentHomeConfig(input: {
     });
   }
 
-  return {
-    hostConfigPath,
-    hostAuthPath: hostAuthContent !== null ? hostAuthPath : null,
-  };
+  // `hostAuthPath` is already `null` when no auth content was resolved, so it
+  // is returned directly here — preserving the original external contract.
+  return { hostConfigPath, hostAuthPath };
 }
 
 /** Remove the session-scoped agent HOME from the host. */

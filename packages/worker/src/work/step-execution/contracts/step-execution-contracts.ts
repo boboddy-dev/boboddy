@@ -20,6 +20,13 @@ export type StepExecutionWorkerContextContract = {
   projectId: string;
   gitUrl: string;
   requestedBranch: string | null;
+  /**
+   * The previous step's work branch that this (later) step must be created off
+   * of, instead of {@link requestedBranch}. DISTINCT from `requestedBranch`,
+   * which is the upstream base the repo is cloned at. Null for the first step
+   * and until the server populates it (Phase 2).
+   */
+  baseWorkBranch?: string | null;
   projectOpencodeConfig: {
     relativePath: string;
     present: boolean;

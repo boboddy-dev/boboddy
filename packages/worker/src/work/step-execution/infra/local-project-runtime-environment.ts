@@ -11,15 +11,14 @@ import type {
 } from "../contracts/process-project-work-types";
 import type { DevcontainerLauncher } from "../../../runtime/runtime-service/application/devcontainer-launcher";
 import type { GitCloneService } from "../../../runtime/runtime-service/application/git-clone-service";
+import type { GitCommitPushService } from "../../../runtime/runtime-service/application/git-commit-push-service";
 import type { WorkspaceManager } from "../../../runtime/runtime-service/application/workspace-manager";
 import { DevcontainerCliLauncher } from "../../../runtime/runtime-service/infra/devcontainer-cli-launcher";
 import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-cli-clone-service";
+import { GitCliCommitPushService } from "../../../runtime/runtime-service/infra/git-cli-commit-push-service";
 import { LocalWorkspaceManager } from "../../../runtime/runtime-service/infra/local-workspace-manager";
 import { OpencodeRuntimePayloadProvisioner } from "../../../runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
-import {
-  DevcontainerOpencodeBootstrap,
-  resolveSessionAgentHomeDir,
-} from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
+import { DevcontainerOpencodeBootstrap } from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
 import { logWork } from "../application/work-logger";
 import { noopLogger, type Logger } from "../../../lib/logger";
 import { noopReporter, type WorkReporter } from "../contracts/work-reporter";
@@ -33,6 +32,11 @@ import {
   patchDevcontainerEnv,
   resolveDevcontainerWorkspaceFolder,
 } from "./local-project-runtime-environment-helpers";
+import {
+  buildCommitAndPushWorkBranch,
+  isBranchPerStepEnabled,
+  prepareWorkBranch,
+} from "./work-branch-manager";
 
 export type LocalProjectRuntimeEnvironment = StepExecutionRuntimeEnvironment;
 
@@ -55,6 +59,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     private readonly deps: {
       workspaceManager: WorkspaceManager;
       gitCloneService: GitCloneService;
+      gitCommitPushService: GitCommitPushService;
       devcontainerLauncher: DevcontainerLauncher;
       // Boboddy-managed OpenCode runtime payload + in-devcontainer bootstrap +
       // provider-access resolution/materialization.
@@ -65,6 +70,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     } = {
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService: new GitCliCloneService(logger),
+      gitCommitPushService: new GitCliCommitPushService(logger),
       devcontainerLauncher: new DevcontainerCliLauncher(),
       payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
       opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
@@ -81,6 +87,8 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     requestedByUserId: UuidV7;
     gitUrl: string;
     requestedBranch?: string | null | undefined;
+    baseWorkBranch?: string | null | undefined;
+    stepKey?: string | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
     opencodePluginJson?: OpenCodePlugins | null | undefined;
     currentExecutionInfo: {
@@ -105,9 +113,6 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       input.stepExecutionId ?? input.currentExecutionInfo.stepExecutionId;
     let workspacePath: string | null = null;
     let devcontainerId: string | null = null;
-    // Session-scoped agent HOME (cleaned up below) for the in-container OpenCode
-    // process.
-    const sessionAgentHomeDir = resolveSessionAgentHomeDir(input.sessionId);
     let opencodeStarted = false;
 
     try {
@@ -140,6 +145,24 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         workspacePath,
         resolvedBranch: cloneResult.resolvedBranch,
       });
+
+      // Step 1b: When the branch-per-step feature is on, determine the base and
+      // create the `boboddy/...` work branch off it right after clone. Skipped
+      // (fields null) when the flag is off, so it ships dark.
+      let workBranch: string | null = null;
+      let createdFromBranch: string | null = null;
+      if (isBranchPerStepEnabled() && input.stepKey) {
+        const prepared = await prepareWorkBranch({
+          gitCommitPushService: this.deps.gitCommitPushService,
+          workspacePath,
+          resolvedBranch: cloneResult.resolvedBranch,
+          baseWorkBranch: input.baseWorkBranch ?? null,
+          stepKey: input.stepKey,
+          stepExecutionId: input.currentExecutionInfo.stepExecutionId,
+        });
+        workBranch = prepared.workBranch;
+        createdFromBranch = prepared.createdFromBranch;
+      }
 
       const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(
         workspacePath,
@@ -176,9 +199,11 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
 
       // Step 3: Patch the cloned devcontainer.json before `up`.
       //   3a. containerEnv from .boboddy/.env (baked in as `-e KEY=VALUE`).
-      //   3b. Boboddy-managed OpenCode runtime payload + session agent HOME +
-      //       (optional) provider config mounts, plus the host port OpenCode is
-      //       exposed on. Both use the same comment-safe JSON patch mechanism.
+      //   3b. Boboddy-managed OpenCode runtime payload + (optional) provider
+      //       config mounts, plus the host port OpenCode is exposed on. Both use
+      //       the same comment-safe JSON patch mechanism. The agent HOME is NOT
+      //       mounted — it lives on the container's overlay fs and is seeded
+      //       post-launch (see prepareAgentHome below).
       if (Object.keys(this.localEnvVars).length > 0) {
         await patchDevcontainerEnv(
           workspacePath,
@@ -232,7 +257,6 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
 
       const mountPlan = await this.deps.opencodeBootstrap.planMounts({
         payload,
-        sessionAgentHomeDir,
         providerConfigDir,
       });
       await this.deps.opencodeBootstrap.patchConfig({
@@ -245,19 +269,6 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         sessionId: input.sessionId,
         mountTargets: mountPlan.mounts.map((m) => m.target),
         hostPort: mountPlan.hostPort,
-      });
-
-      // Step 3c: Copy the user's host global opencode config into the
-      // session-scoped agent HOME so OpenCode sees it at precedence #2 (global
-      // config) inside the container. The project repo is not touched.
-      const { hostConfigPath, hostAuthPath } =
-        await this.deps.opencodeBootstrap.prepareAgentHomeConfig({
-          sessionAgentHomeDir,
-        });
-      logWork("runtime", "Agent HOME global config prepared", {
-        sessionId: input.sessionId,
-        hostConfigPath: hostConfigPath ?? "(none — no host global config found)",
-        hostAuthPath: hostAuthPath ?? "(none — no host auth.json found)",
       });
 
       // Step 4: Launch the devcontainer. Stream the CLI's lifecycle progress
@@ -290,6 +301,21 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         devcontainerId,
       });
 
+      // Step 4b: Seed the agent HOME NOW that the container is running. The
+      // agent HOME lives on the container's native overlay filesystem (not a
+      // host bind mount), so it cannot be pre-populated on the host — instead
+      // the user's host global opencode config (precedence #2) and provider
+      // auth are piped into the running container. The project repo is untouched.
+      const { hostConfigPath, hostAuthPath } =
+        await this.deps.opencodeBootstrap.prepareAgentHome({
+          containerId: devcontainerId,
+        });
+      logWork("runtime", "Agent HOME global config prepared", {
+        sessionId: input.sessionId,
+        hostConfigPath: hostConfigPath ?? "(none — no host global config found)",
+        hostAuthPath: hostAuthPath ?? "(none — no host auth.json found)",
+      });
+
       // Step 5: Build the OpenCode context. User `.opencode/tools` files and
       // npm `plugin[]` entries are trusted in the single-container model: they
       // load directly in the in-container OpenCode process. The in-container
@@ -301,8 +327,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       // Instead, buildOpencodeContext returns a JSON string carrying Boboddy's
       // required additions (permission baseline, step MCPs, AGENT_DEFAULT_MODEL)
       // that is passed to OpenCode as OPENCODE_CONFIG_CONTENT (precedence #6).
-      // The user's home config (model, providers) was already placed in the
-      // session agent HOME by prepareAgentHomeConfig and is loaded at #2.
+      // The user's home config (model, providers) was seeded into the
+      // container's overlay agent HOME post-launch by prepareAgentHome and is
+      // loaded at #2.
       const { opencodeConfigContent } = await buildOpencodeContext({
         workspacePath,
         stepMcpServers: input.opencodeMcpJson,
@@ -349,6 +376,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       const checkableDevcontainerId = devcontainerId;
       const capturedDevcontainerId = devcontainerId;
       const capturedWorkspacePath = workspacePath;
+      const capturedWorkBranch = workBranch;
 
       return {
         workspacePath,
@@ -357,6 +385,16 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         workspaceFolder: agentWorkspaceFolder,
         opencodeLogDirectory: opencodeStart.agentLogDirectory,
         resolvedBranch: cloneResult.resolvedBranch,
+        workBranch,
+        createdFromBranch,
+        commitAndPushWorkBranch: capturedWorkBranch
+          ? buildCommitAndPushWorkBranch({
+              gitCommitPushService: this.deps.gitCommitPushService,
+              workspacePath: capturedWorkspacePath,
+              workBranch: capturedWorkBranch,
+              stepExecutionId: input.currentExecutionInfo.stepExecutionId,
+            })
+          : undefined,
         devcontainerConfigPath,
         // Single runtime container id: the devcontainer, which also hosts
         // OpenCode.
@@ -375,9 +413,11 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
           ),
         }),
         cleanup: async () => {
+          // The agent HOME lives on the container's overlay fs and dies with
+          // the container, so no host-dir cleanup is needed — only stop the
+          // in-container OpenCode and tear down the container + workspace.
           await Promise.allSettled([
             this.deps.opencodeBootstrap.stop(capturedDevcontainerId),
-            this.deps.opencodeBootstrap.cleanupSessionHome(sessionAgentHomeDir),
             cleanupEnvironment({
               workspacePath: capturedWorkspacePath,
               devcontainerId: capturedDevcontainerId,
@@ -391,11 +431,12 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         sessionId: input.sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
+      // No host agent-HOME cleanup: it lives on the container's overlay fs and
+      // dies with the container.
       await Promise.allSettled([
         opencodeStarted && devcontainerId
           ? this.deps.opencodeBootstrap.stop(devcontainerId)
           : Promise.resolve(),
-        this.deps.opencodeBootstrap.cleanupSessionHome(sessionAgentHomeDir),
         cleanupEnvironment({
           workspacePath,
           devcontainerId,

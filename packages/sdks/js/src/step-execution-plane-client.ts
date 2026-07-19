@@ -97,6 +97,8 @@ const buildStepExecutionPlaneClient = (stepExecutions: StepExecutions) => {
         status: "succeeded" | "failed";
         resultJson: JsonValue;
         errorJson: JsonValue;
+        workBranch?: string | null;
+        createdFromBranch?: string | null;
       },
       options?: RequestOptions,
     ) => {

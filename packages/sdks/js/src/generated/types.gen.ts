@@ -3238,6 +3238,7 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
         projectId: string;
         gitUrl: string;
         requestedBranch: string | unknown;
+        baseWorkBranch: string | unknown;
         projectOpencodeConfig: {
             relativePath: string;
             present: boolean;
@@ -3324,6 +3325,8 @@ export type PostApiStepExecutionsByStepExecutionIdCompletionsData = {
         status: 'succeeded' | 'failed';
         resultJson: unknown;
         errorJson: unknown;
+        workBranch?: string | unknown;
+        createdFromBranch?: string | unknown;
     };
     path: {
         stepExecutionId: string;
@@ -7034,6 +7037,7 @@ export type GetApiLinearPipelineExecutionsResponses = {
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7243,6 +7247,7 @@ export type PostApiLinearPipelineExecutionsResponses = {
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7417,6 +7422,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7591,6 +7597,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7766,6 +7773,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -7813,6 +7821,8 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
         status: 'succeeded' | 'failed';
         resultJson: unknown;
         errorJson: unknown;
+        workBranch?: string | unknown;
+        createdFromBranch?: string | unknown;
     };
     path: {
         linearPipelineExecutionId: string;
@@ -7945,6 +7955,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -8126,6 +8137,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -8303,6 +8315,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -8477,6 +8490,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -8651,6 +8665,7 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;
@@ -8825,6 +8840,7 @@ export type GetApiLinearPipelineExecutionsByDefinitionByLinearPipelineDefinition
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
                 acceptanceReason: string | unknown;
+                workBranch: string | unknown;
                 outputJson: unknown;
                 evaluation: {
                     id: string;

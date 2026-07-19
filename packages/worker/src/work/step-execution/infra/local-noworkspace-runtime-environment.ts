@@ -212,6 +212,9 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
         hostAgentLogPath: started.agentLogPath,
         // No clone: there is no resolved branch.
         resolvedBranch: "",
+        // No repo: the branch-per-step feature is a no-op here.
+        workBranch: null,
+        createdFromBranch: null,
         // No devcontainer.
         devcontainerConfigPath: "",
         // No container: callers must treat this as "not a container".

@@ -102,6 +102,13 @@ export type StepExecutionWorkerClient = {
     claimToken: string;
     resultJson: unknown;
     errorJson: unknown;
+    /**
+     * The `boboddy/...` branch the agent committed to, and the branch it was
+     * created off of. Sent as dedicated fields (NOT inside `resultJson`). Null
+     * when the branch-per-step feature is off or nothing was committed.
+     */
+    workBranch: string | null;
+    createdFromBranch: string | null;
   }): Promise<void>;
   appendStepExecutionLogs(input: {
     stepExecutionId: UuidV7;
@@ -160,6 +167,25 @@ export type StepExecutionRuntimeEnvironment = {
   workspaceFolder: string;
   opencodeLogDirectory: string;
   resolvedBranch: string;
+  /**
+   * The `boboddy/...` branch the agent commits to, created off the checked-out
+   * base. `null` when the branch-per-step feature flag is off or for
+   * `no_workspace` runs (no repo).
+   */
+  workBranch: string | null;
+  /**
+   * The branch {@link workBranch} was created off of (the resolved clone branch
+   * for the first step, or the previous step's work branch for later steps).
+   * `null` when there is no work branch.
+   */
+  createdFromBranch: string | null;
+  /**
+   * Commit the agent's changes to {@link workBranch} and push it. Invoked while
+   * the workspace still exists and the step is still `running` (before cleanup /
+   * completion). Absent when there is no work branch (feature off / no_workspace).
+   * Implementations must not throw on push failure (findings remain valid).
+   */
+  commitAndPushWorkBranch?: (() => Promise<void>) | undefined;
   devcontainerConfigPath: string;
   /**
    * Single runtime container id. With the single-container model OpenCode runs
@@ -202,6 +228,14 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     requestedByUserId: UuidV7;
     gitUrl: string;
     requestedBranch?: string | null | undefined;
+    /**
+     * The previous step's work branch a later step must be created off of.
+     * DISTINCT from {@link requestedBranch}. Null for the first step / until the
+     * server populates it (Phase 2).
+     */
+    baseWorkBranch?: string | null | undefined;
+    /** Step key used (sanitized) in the work branch name `boboddy/<key>-<id>`. */
+    stepKey?: string | undefined;
     opencodeMcpJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodeMcpJson"];
     opencodePluginJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodePluginJson"];
     currentExecutionInfo: CurrentExecutionInfo;

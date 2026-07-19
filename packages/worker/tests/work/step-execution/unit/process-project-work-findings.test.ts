@@ -14,7 +14,30 @@ import type {
   StartedClaimedExecution,
 } from "../../../../src/work/step-execution/contracts/process-project-work-types";
 
-function createStartedExecution(workspacePath: string): StartedClaimedExecution {
+function createStartedExecution(
+  workspacePath: string,
+  overrides?: {
+    workBranch?: string | null;
+    createdFromBranch?: string | null;
+    commitAndPushWorkBranch?: (() => Promise<void>) | undefined;
+  },
+): StartedClaimedExecution {
+  const started = createBaseStartedExecution(workspacePath);
+  return {
+    ...started,
+    environment: {
+      ...started.environment,
+      workBranch: overrides?.workBranch ?? started.environment.workBranch,
+      createdFromBranch:
+        overrides?.createdFromBranch ?? started.environment.createdFromBranch,
+      commitAndPushWorkBranch: overrides?.commitAndPushWorkBranch,
+    },
+  };
+}
+
+function createBaseStartedExecution(
+  workspacePath: string,
+): StartedClaimedExecution {
   return {
     projectId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe001"),
     localRuntimeSessionId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe002"),
@@ -26,6 +49,8 @@ function createStartedExecution(workspacePath: string): StartedClaimedExecution 
       workspaceFolder: "/workspaces/repo",
       opencodeLogDirectory: path.join(workspacePath, ".logs"),
       resolvedBranch: "main",
+      workBranch: null,
+      createdFromBranch: null,
       devcontainerConfigPath: ".devcontainer/devcontainer.json",
       runtimeContainerId: "runtime-container-id",
       agentBaseUrl: "http://localhost:4096",
@@ -152,6 +177,10 @@ describe("processProjectWork findings persistence", () => {
         claimToken: startedExecution.claimToken,
         resultJson: { summary: "done" },
         errorJson: null,
+        // Branch-per-step fields are sent as dedicated fields; null here since
+        // the fixture env has no work branch.
+        workBranch: null,
+        createdFromBranch: null,
       });
       const submissionStillExists = await access(
         buildFindingsSubmissionPath(workspacePath),
@@ -191,6 +220,114 @@ describe("processProjectWork findings persistence", () => {
           "Current execution metadata file not found",
         );
       }
+    },
+  );
+
+  test.concurrent(
+    "commits + pushes the work branch (via onBeforeComplete) BEFORE completing, and forwards the branch fields",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-findings-branch-"),
+      );
+      const order: string[] = [];
+      const commitAndPushWorkBranch = vi.fn(() => {
+        order.push("commitAndPush");
+        return Promise.resolve();
+      });
+      const startedExecution = createStartedExecution(workspacePath, {
+        workBranch: "boboddy/step-abc",
+        createdFromBranch: "main",
+        commitAndPushWorkBranch,
+      });
+      const completeStepExecution = vi.fn(() => {
+        order.push("complete");
+        return Promise.resolve(undefined);
+      });
+
+      await writeCurrentExecutionInfoFile(workspacePath, {
+        stepExecutionId: startedExecution.stepExecutionId,
+        resultSchemaJson: {
+          type: "object",
+          required: ["summary"],
+          additionalProperties: false,
+          properties: { summary: { type: "string" } },
+        },
+      });
+      await writeFile(
+        buildFindingsSubmissionPath(workspacePath),
+        `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
+        "utf8",
+      );
+
+      const result = await tryPersistAgentFindings(
+        createDeps(completeStepExecution),
+        startedExecution,
+        {
+          onBeforeComplete: async () => {
+            await startedExecution.environment.commitAndPushWorkBranch?.();
+          },
+        },
+      );
+
+      expect(result).toBe("submitted");
+      // The commit/push ran while the workspace still existed and the step was
+      // still "running" — i.e. strictly before completion.
+      expect(order).toEqual(["commitAndPush", "complete"]);
+      expect(commitAndPushWorkBranch).toHaveBeenCalledTimes(1);
+      expect(completeStepExecution).toHaveBeenCalledWith({
+        stepExecutionId: startedExecution.stepExecutionId,
+        claimToken: startedExecution.claimToken,
+        resultJson: { summary: "done" },
+        errorJson: null,
+        workBranch: "boboddy/step-abc",
+        createdFromBranch: "main",
+      });
+    },
+  );
+
+  test.concurrent(
+    "push failure does not fail the step: the swallowing commit/push closure still completes",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-findings-push-fail-"),
+      );
+      // The production closure swallows push failures; simulate that contract
+      // here — a closure that internally handled a failed push and resolves.
+      const commitAndPushWorkBranch = vi.fn(() => Promise.resolve());
+      const startedExecution = createStartedExecution(workspacePath, {
+        workBranch: "boboddy/step-xyz",
+        createdFromBranch: "main",
+        commitAndPushWorkBranch,
+      });
+      const completeStepExecution = vi.fn(() => Promise.resolve(undefined));
+
+      await writeCurrentExecutionInfoFile(workspacePath, {
+        stepExecutionId: startedExecution.stepExecutionId,
+        resultSchemaJson: {
+          type: "object",
+          required: ["summary"],
+          additionalProperties: false,
+          properties: { summary: { type: "string" } },
+        },
+      });
+      await writeFile(
+        buildFindingsSubmissionPath(workspacePath),
+        `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
+        "utf8",
+      );
+
+      const result = await tryPersistAgentFindings(
+        createDeps(completeStepExecution),
+        startedExecution,
+        {
+          onBeforeComplete: async () => {
+            await startedExecution.environment.commitAndPushWorkBranch?.();
+          },
+        },
+      );
+
+      expect(result).toBe("submitted");
+      expect(completeStepExecution).toHaveBeenCalledTimes(1);
     },
   );
 });

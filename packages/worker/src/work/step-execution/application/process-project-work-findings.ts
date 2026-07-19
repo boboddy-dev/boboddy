@@ -213,6 +213,11 @@ export async function tryPersistAgentFindings(
     claimToken: startedExecution.claimToken,
     resultJson: findingsJson,
     errorJson: null,
+    // Dedicated fields (NOT inside resultJson): the work branch the agent
+    // committed to and the branch it was created off of. Null when the
+    // branch-per-step feature is off / for no_workspace runs.
+    workBranch: startedExecution.environment.workBranch,
+    createdFromBranch: startedExecution.environment.createdFromBranch,
   });
 
   await rm(
