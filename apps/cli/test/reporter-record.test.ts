@@ -48,7 +48,7 @@ describe("createRecordingReporter", () => {
     const event: WorkEvent = {
       type: "worker:claimed",
       count: 2,
-    } as WorkEvent;
+    };
     reporter.event(event);
     reporter.finish("Done");
 

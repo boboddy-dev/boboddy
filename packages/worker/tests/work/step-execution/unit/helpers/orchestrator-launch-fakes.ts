@@ -108,14 +108,14 @@ export class FakeGitCloneService implements GitCloneService {
       DEVCONTAINER_JSON,
       "utf8",
     );
-    return { resolvedBranch: input.requestedBranch ?? "main" };
+    return { resolvedBranch: "main" };
   }
 }
 
 /**
- * Recording commit/push fake. When `launch` is called without a `stepKey` (as in
- * the base tests) it is never invoked; the branch tests pass a `stepKey` and
- * assert against the recorded calls. `commitAll` reports "nothing to commit".
+ * Recording commit/push fake. The base tests omit `stepKey`, so `launch` never
+ * invokes it; the branch tests pass a `stepKey` and assert against the recorded
+ * calls. `commitAll` reports "nothing to commit".
  */
 export class FakeGitCommitPushService implements GitCommitPushService {
   checkoutBaseCalls: string[] = [];
@@ -333,7 +333,6 @@ export function buildLaunchInput() {
     projectId: createUuidV7(),
     requestedByUserId: createUuidV7(),
     gitUrl: "https://example.com/repo.git",
-    requestedBranch: "main",
     currentExecutionInfo: {
       stepExecutionId: createUuidV7(),
       resultSchemaJson: null,

@@ -22,7 +22,6 @@ function createWorkerContext(
   return {
     projectId,
     gitUrl: "https://github.com/example/repo.git",
-    requestedBranch: null,
     projectOpencodeConfig: {
       relativePath: ".boboddy/boboddy.jsonc",
       present: false,
@@ -163,12 +162,10 @@ function runClaim(deps: ProcessProjectWorkDeps) {
 describe("startProcessClaimedExecution", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env["BOBODDY_WORK_REQUESTED_BRANCH"];
     delete process.env["BASE_URL"];
   });
 
-  test("falls back to the worker branch env var when worker context omits requestedBranch", async () => {
-    process.env["BOBODDY_WORK_REQUESTED_BRANCH"] = "upgrade-ajv";
+  test("passes the server-handed baseWorkBranch to the runtime launch", async () => {
     process.env["BASE_URL"] = "https://app.example.com";
 
     const workspacePath = await mkdtemp(
@@ -181,7 +178,7 @@ describe("startProcessClaimedExecution", () => {
         // must be anchored here rather than a hardcoded `/workspace`.
         workspaceFolder: "/workspaces/repo",
         opencodeLogDirectory: path.join(workspacePath, ".logs"),
-        resolvedBranch: "upgrade-ajv",
+        resolvedBranch: "main",
         workBranch: null,
         createdFromBranch: null,
         devcontainerConfigPath: ".devcontainer/devcontainer.json",
@@ -194,8 +191,16 @@ describe("startProcessClaimedExecution", () => {
       }),
     );
 
+    const workerClient = createWorkerClient();
+    workerClient.getStepExecutionWorkerContext = vi.fn(() =>
+      Promise.resolve({
+        ...createWorkerContext(),
+        baseWorkBranch: "boboddy/prev-step",
+      }),
+    );
+
     const deps = {
-      workerClient: createWorkerClient(),
+      workerClient,
       createRunTracker,
       runtimeEnvironmentOrchestrator: { launch },
       agentRunner: {
@@ -233,7 +238,7 @@ describe("startProcessClaimedExecution", () => {
 
     expect(launch).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestedBranch: "upgrade-ajv",
+        baseWorkBranch: "boboddy/prev-step",
       }),
     );
     expect(deps.agentRunner.promptAsync).toHaveBeenCalledWith(

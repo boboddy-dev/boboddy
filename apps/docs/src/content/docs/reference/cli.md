@@ -60,7 +60,7 @@ Interactive project setup. Runs in sequence:
 
 1. Authenticates (device flow if not logged in)
 2. Creates or selects a project
-3. Writes `.boboddy/boboddy.jsonc` with the `projectId`
+3. Writes `.boboddy/boboddy.jsonc` with the `projectId` (you can also add an optional `branchPrefix` — see [Work branches](/boboddy/guides/workers/#work-branches))
 4. Requires an existing `.devcontainer/devcontainer.json` (init errors if one is missing — it does not create one)
 5. Analyzes the repo and recommends pipelines
 

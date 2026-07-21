@@ -43,6 +43,44 @@ boboddy work <projectId>
 7. **Report** — The worker marks the execution complete (or failed) and posts output + signals back to the server.
 8. **Cleanup** — The Docker environment is torn down (unless `--preserve-runtime-on-complete` is set).
 
+## Work branches
+
+For `workspace` steps, the worker creates a dedicated git branch for each step execution right after cloning, commits the agent's changes to it, and pushes it.
+
+Branches are named `<prefix>/<stepKey>-<stepExecutionId>`. The prefix defaults to `boboddy`. To use your own prefix, add `branchPrefix` to the repo's `.boboddy/boboddy.jsonc`:
+
+```jsonc
+{
+  "projectId": "your-project-id",
+  "branchPrefix": "myteam"
+}
+```
+
+With the config above, a step keyed `build` produces a branch like `myteam/build-<stepExecutionId>`.
+
+Notes:
+
+- The prefix is sanitized to a valid git ref (whitespace and unsafe characters become `-`). If it is missing, empty, or sanitizes to nothing, the worker falls back to `boboddy`.
+- The prefix is read from the cloned repo's config on disk, so it lives alongside the code it applies to.
+
+### Base branch
+
+The worker always clones the repo's default branch, then creates the step's work branch off a **base branch**:
+
+- **Later steps in a pipeline** are always created off the previous step's work branch.
+- **The first step** (and standalone steps) is created off a configurable base branch. Set `baseWorkBranch` in the repo's `.boboddy/boboddy.jsonc`:
+
+  ```jsonc
+  {
+    "projectId": "your-project-id",
+    "baseWorkBranch": "develop"
+  }
+  ```
+
+  You can override the configured value per worker with the `BOBODDY_BASE_WORK_BRANCH` env var in `.boboddy/.env`. The env var takes precedence over the jsonc field.
+
+When no base branch is configured, the first step is created off the repo's cloned default branch. If a configured base branch cannot be fetched/checked out, the step fails.
+
 ## Environment requirements
 
 - **Docker** must be running and accessible to the worker process — required for `workspace` steps. `no_workspace` steps do not use Docker.

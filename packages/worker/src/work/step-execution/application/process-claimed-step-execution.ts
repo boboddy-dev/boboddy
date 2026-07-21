@@ -11,7 +11,6 @@ import {
   buildPromptRenderContext,
   buildRunningMetadata,
   resolveBaseWorkBranch,
-  resolveRequestedBranch,
 } from "./process-claimed-step-execution-helpers";
 import {
   resolveProjectWorkLogger,
@@ -170,12 +169,7 @@ async function launchRuntimeEnvironment(
     projectId: parseUuidV7(input.workerContext.projectId),
     requestedByUserId: input.requestedByUserId,
     gitUrl: input.workerContext.gitUrl,
-    requestedBranch: resolveRequestedBranch(
-      input.workerContext.requestedBranch,
-    ),
-    baseWorkBranch: resolveBaseWorkBranch(
-      input.workerContext.baseWorkBranch,
-    ),
+    baseWorkBranch: resolveBaseWorkBranch(input.workerContext.baseWorkBranch),
     stepKey: input.workerContext.stepDefinition.key,
     opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
     opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
@@ -248,7 +242,7 @@ export async function startProcessClaimedExecution(
       stepExecutionId: input.claim.stepExecution.id,
       workerContextProjectId: workerContext.projectId,
       gitUrl: workerContext.gitUrl,
-      requestedBranch: workerContext.requestedBranch ?? null,
+      baseWorkBranch: workerContext.baseWorkBranch ?? null,
       stepDefinitionKey: workerContext.stepDefinition.key,
       stepDefinitionName: workerContext.stepDefinition.name,
       sessionTitle: workerContext.agentPrompt.sessionTitle,

@@ -231,7 +231,7 @@ export async function tryPersistAgentFindings(
     errorJson: null,
     // Dedicated fields (NOT inside resultJson): the work branch the agent
     // committed to and the branch it was created off of. Null for
-    // no_workspace runs.
+    // no_workspace runs or runs without a step key.
     workBranch: startedExecution.environment.workBranch,
     createdFromBranch: startedExecution.environment.createdFromBranch,
   });

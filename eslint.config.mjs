@@ -32,6 +32,8 @@ export default defineConfig(
       // Astro apps: only have minimal TS shims, no meaningful code to lint
       "apps/docs/**",
       "apps/landing/**",
+      // Throwaway demo app served during captures; not shipped code.
+      "packages/demo-video/demo-shop-template/**",
     ],
   },
   js.configs.recommended,
@@ -136,6 +138,14 @@ export default defineConfig(
   },
   {
     files: ["**/scripts/**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    // demo-video/src holds CLI/build scripts run via `bun src/*.ts`; console
+    // output is their intended interface.
+    files: ["packages/demo-video/src/**/*.{ts,tsx,mts,cts}"],
     rules: {
       "no-console": "off",
     },

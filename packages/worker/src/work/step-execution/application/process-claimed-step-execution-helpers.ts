@@ -46,27 +46,33 @@ export function buildPromptRenderContext(input: {
   };
 }
 
+/** Env var (in `.boboddy/.env`) that overrides the configured base branch. */
+export const BASE_WORK_BRANCH_ENV_VAR = "BOBODDY_BASE_WORK_BRANCH";
+
 /**
- * Resolve the upstream base branch the repo is cloned at: the explicit context
- * value, else the `BOBODDY_WORK_REQUESTED_BRANCH` env override, else the repo
- * default (null).
+ * Resolve the base branch the FIRST step's work branch is created off of, from
+ * repo-local configuration. Precedence: the `BOBODDY_BASE_WORK_BRANCH` env var
+ * (from `.boboddy/.env`) over the `.boboddy/boboddy.jsonc` `baseWorkBranch`
+ * field. Returns null when neither is set, in which case the step is created
+ * off the repo's cloned default branch.
+ *
+ * DISTINCT from {@link resolveBaseWorkBranch}, which passes through the branch
+ * the server hands down for later steps (the predecessor's work branch).
  */
-export function resolveRequestedBranch(
-  requestedBranch: string | null | undefined,
-): string | null {
-  const explicitBranch = requestedBranch?.trim();
-  if (explicitBranch) return explicitBranch;
+export function resolveConfiguredBaseWorkBranch(input: {
+  localEnvVars: Record<string, string>;
+  configuredBaseWorkBranch: string | null | undefined;
+}): string | null {
+  const envBranch = input.localEnvVars[BASE_WORK_BRANCH_ENV_VAR]?.trim();
+  if (envBranch) return envBranch;
 
-  const envBranch = process.env["BOBODDY_WORK_REQUESTED_BRANCH"]?.trim();
-
-  return envBranch || null;
+  return input.configuredBaseWorkBranch?.trim() || null;
 }
 
 /**
- * The previous step's work branch this step must be created off of. DISTINCT
- * from {@link resolveRequestedBranch}: `requestedBranch` is the upstream base the
- * repo is cloned at, `baseWorkBranch` is a prior `boboddy/...` branch. The
- * server populates the context field in Phase 2; for now it may be null.
+ * The branch a step must be created off of, as handed down by the server (the
+ * predecessor step's work branch). Later steps always chain off this; it takes
+ * precedence over any repo-local configured base branch.
  */
 export function resolveBaseWorkBranch(
   baseWorkBranch: string | null | undefined,

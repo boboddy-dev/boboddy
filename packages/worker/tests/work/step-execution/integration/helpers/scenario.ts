@@ -50,7 +50,6 @@ export function buildSingleStepScenario(input: {
   const workerContext: StepExecutionWorkerContextContract = {
     projectId: input.projectId,
     gitUrl: "https://github.com/boboddy-dev/integration-dummy.git",
-    requestedBranch: null,
     projectOpencodeConfig: {
       relativePath: ".boboddy/boboddy.jsonc",
       present: false,

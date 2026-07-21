@@ -1,9 +1,9 @@
 /**
- * Branch-per-step behavior for the single-container launch orchestrator. Shares
- * the launch fakes with the base sequence tests (see
- * `helpers/orchestrator-launch-fakes.ts`).
+ * Branch-per-step behavior for the single-container launch orchestrator (always
+ * on for `workspace` steps). Shares the launch fakes with the base sequence
+ * tests (see `helpers/orchestrator-launch-fakes.ts`).
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
@@ -74,6 +74,32 @@ describe("branch-per-step launch", () => {
     );
   });
 
+  test("first step: uses the branchPrefix from the repo's .boboddy/boboddy.jsonc", async () => {
+    // Seed the (already-created) workspace with a project config that overrides
+    // the branch prefix. The orchestrator reads it after clone.
+    await mkdir(path.join(workspacePath, ".boboddy"), { recursive: true });
+    await writeFile(
+      path.join(workspacePath, ".boboddy", "boboddy.jsonc"),
+      JSON.stringify({ projectId: "proj-1", branchPrefix: "myteam" }),
+      "utf8",
+    );
+
+    const log: CallLog = [];
+    const commitPush = new FakeGitCommitPushService(log);
+    const orchestrator = orchestratorFor(buildDeps(log, commitPush));
+
+    const stepExecutionId = createUuidV7();
+    const env = await orchestrator.launch({
+      ...buildLaunchInput(),
+      stepKey: "build",
+      currentExecutionInfo: { stepExecutionId, resultSchemaJson: null },
+    });
+
+    const expectedBranch = `myteam/build-${stepExecutionId}`;
+    expect(commitPush.createBranchCalls).toEqual([expectedBranch]);
+    expect(env.workBranch).toBe(expectedBranch);
+  });
+
   test("later step: checks out baseWorkBranch first and sets createdFromBranch = baseWorkBranch", async () => {
     const log: CallLog = [];
     const commitPush = new FakeGitCommitPushService(log);
@@ -140,13 +166,14 @@ describe("branch-per-step launch", () => {
     expect(commitPush.pushCalls).toEqual([]);
   });
 
-  test("no work branch fields are set when no stepKey is provided", async () => {
+  test("no work branch fields are set when no step key is provided", async () => {
     const log: CallLog = [];
     const commitPush = new FakeGitCommitPushService(log);
     const orchestrator = orchestratorFor(buildDeps(log, commitPush));
 
     const env = await orchestrator.launch({
       ...buildLaunchInput(),
+      // stepKey intentionally omitted.
     });
 
     expect(commitPush.createBranchCalls).toEqual([]);

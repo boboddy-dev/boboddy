@@ -74,7 +74,7 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
     projectId: UuidV7;
     requestedByUserId: UuidV7;
     gitUrl: string;
-    requestedBranch?: string | null | undefined;
+    baseWorkBranch?: string | null | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
     opencodePluginJson?: OpenCodePlugins | null | undefined;
     currentExecutionInfo: {
@@ -219,7 +219,7 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
         hostAgentLogPath: started.agentLogPath,
         // No clone: there is no resolved branch.
         resolvedBranch: "",
-        // No repo: the branch-per-step feature is a no-op here.
+        // No repo: no work branch is created here.
         workBranch: null,
         createdFromBranch: null,
         // No devcontainer.

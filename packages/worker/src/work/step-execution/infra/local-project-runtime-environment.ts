@@ -22,6 +22,8 @@ import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-c
 import { GitCliCommitPushService } from "../../../runtime/runtime-service/infra/git-cli-commit-push-service";
 import { GitCliSubmoduleService } from "../../../runtime/runtime-service/infra/git-cli-submodule-service";
 import { LocalWorkspaceManager } from "../../../runtime/runtime-service/infra/local-workspace-manager";
+import { loadProjectConfig } from "../../../project/project-config/infra/fs-project-config-repo";
+import { resolveConfiguredBaseWorkBranch } from "../application/process-claimed-step-execution-helpers";
 import { OpencodeRuntimePayloadProvisioner } from "../../../runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 import { DevcontainerOpencodeBootstrap } from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
 import { logWork } from "../application/work-logger";
@@ -92,7 +94,11 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     projectId: UuidV7;
     requestedByUserId: UuidV7;
     gitUrl: string;
-    requestedBranch?: string | null | undefined;
+    /**
+     * The branch a later step must be created off of, handed down by the server
+     * (the predecessor step's work branch). Takes precedence over any repo-local
+     * configured base branch. Null for the first step.
+     */
     baseWorkBranch?: string | null | undefined;
     stepKey?: string | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
@@ -127,7 +133,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         projectId: input.projectId,
         requestedByUserId: input.requestedByUserId,
         gitUrl: input.gitUrl,
-        requestedBranch: input.requestedBranch ?? null,
+        baseWorkBranch: input.baseWorkBranch ?? null,
       });
 
       // Step 1: Create workspace + clone the repo into it.
@@ -144,7 +150,6 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       const cloneResult = await this.deps.gitCloneService.cloneRepository({
         gitUrl: input.gitUrl,
         workspacePath,
-        requestedBranch: input.requestedBranch ?? null,
       });
       logWork("runtime", "Repository cloned into workspace", {
         sessionId: input.sessionId,
@@ -152,18 +157,33 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         resolvedBranch: cloneResult.resolvedBranch,
       });
 
-      // Step 1b: Determine the base and create the `boboddy/...` work branch off
-      // it right after clone. Only possible when the step provides a stepKey.
+      // Step 1b: Determine the base and create the work branch off it right
+      // after clone. Skipped (fields null) only when there is no step key.
       let workBranch: string | null = null;
       let createdFromBranch: string | null = null;
       if (input.stepKey) {
+        // The repo is cloned, so its `.boboddy/boboddy.jsonc` is on disk. Read
+        // the optional `branchPrefix` from it; a missing/invalid value falls
+        // back to the default `boboddy` prefix inside prepareWorkBranch.
+        const projectConfig = await loadProjectConfig(workspacePath);
+        // Resolve the base branch this step is created off of. The server-handed
+        // baseWorkBranch (predecessor step's work branch) wins for later steps.
+        // Otherwise use the repo-local configured base (env over jsonc); null
+        // means create off the cloned default branch.
+        const baseWorkBranch =
+          input.baseWorkBranch ??
+          resolveConfiguredBaseWorkBranch({
+            localEnvVars: this.localEnvVars,
+            configuredBaseWorkBranch: projectConfig?.baseWorkBranch ?? null,
+          });
         const prepared = await prepareWorkBranch({
           gitCommitPushService: this.deps.gitCommitPushService,
           workspacePath,
           resolvedBranch: cloneResult.resolvedBranch,
-          baseWorkBranch: input.baseWorkBranch ?? null,
+          baseWorkBranch,
           stepKey: input.stepKey,
           stepExecutionId: input.currentExecutionInfo.stepExecutionId,
+          branchPrefix: projectConfig?.branchPrefix ?? null,
         });
         workBranch = prepared.workBranch;
         createdFromBranch = prepared.createdFromBranch;

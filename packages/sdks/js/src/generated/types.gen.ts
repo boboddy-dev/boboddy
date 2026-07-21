@@ -3237,7 +3237,6 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
     200: {
         projectId: string;
         gitUrl: string;
-        requestedBranch: string | unknown;
         baseWorkBranch: string | unknown;
         projectOpencodeConfig: {
             relativePath: string;

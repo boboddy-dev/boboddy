@@ -14,24 +14,61 @@ export const WORK_BRANCH_EXCLUDE_PATHS = [
   ".devcontainer/devcontainer.json",
 ] as const;
 
-/** Build the work branch name `boboddy/<sanitized-key>-<stepExecutionId>`. */
+/** Prefix used when the repo config does not specify a valid `branchPrefix`. */
+export const DEFAULT_BRANCH_PREFIX = "boboddy";
+
+/**
+ * Build the work branch name `<prefix>/<sanitized-key>-<stepExecutionId>`.
+ *
+ * The prefix defaults to `boboddy`. A caller-supplied `branchPrefix` (from the
+ * repo's `.boboddy/boboddy.jsonc`) is sanitized with the same git-ref rules as
+ * the step key; if it sanitizes to empty it falls back to the default.
+ */
 export function buildWorkBranchName(input: {
   stepKey: string;
   stepExecutionId: string;
+  branchPrefix?: string | null | undefined;
 }): string {
   const key = sanitizeGitRefFragment(input.stepKey);
-  return `boboddy/${key}-${input.stepExecutionId}`;
+  const prefix = resolveBranchPrefix(input.branchPrefix);
+  return `${prefix}/${key}-${input.stepExecutionId}`;
+}
+
+/**
+ * Resolve the effective branch prefix: sanitize the configured value and fall
+ * back to {@link DEFAULT_BRANCH_PREFIX} when unset or empty after sanitizing.
+ *
+ * `sanitizeGitRefFragment` substitutes a `"step"` placeholder for input that is
+ * empty after sanitizing, which is meaningful for step keys but not for a
+ * prefix. To distinguish a user who literally configured `"step"` from invalid
+ * input, we sanitize and re-check: if sanitizing produced the placeholder AND
+ * the raw value was not already `"step"`, the prefix was invalid.
+ */
+function resolveBranchPrefix(branchPrefix: string | null | undefined): string {
+  const raw = branchPrefix?.trim();
+  if (!raw) return DEFAULT_BRANCH_PREFIX;
+  const sanitized = sanitizeGitRefFragment(raw);
+  if (sanitized === "step" && raw.toLowerCase() !== "step") {
+    return DEFAULT_BRANCH_PREFIX;
+  }
+  return sanitized;
 }
 
 export type PrepareWorkBranchInput = {
   gitCommitPushService: GitCommitPushService;
   workspacePath: string;
-  /** The resolved clone branch (base for the first step). */
+  /** The cloned default branch, used as the base when `baseWorkBranch` is null. */
   resolvedBranch: string;
-  /** The previous step's work branch (base for later steps), if any. */
+  /**
+   * The branch this step is created off of: the previous step's work branch
+   * (later steps) or a repo-local configured base branch (first step). Null
+   * means use the cloned default branch (`resolvedBranch`).
+   */
   baseWorkBranch: string | null;
   stepKey: string;
   stepExecutionId: string;
+  /** Optional prefix from the repo config; defaults to `boboddy`. */
+  branchPrefix?: string | null | undefined;
 };
 
 export type PreparedWorkBranch = {
@@ -41,8 +78,10 @@ export type PreparedWorkBranch = {
 
 /**
  * Determine the base for the work branch and create it right after clone:
- *  - later step (baseWorkBranch set): `checkoutBase` then branch off it.
- *  - first step: branch off the resolved clone branch.
+ *  - `baseWorkBranch` set (later step, or first step with a configured base):
+ *    `checkoutBase` then branch off it. A checkout failure propagates and fails
+ *    the step — the requested base branch must exist and be fetchable.
+ *  - otherwise: branch off the resolved (cloned default) branch.
  */
 export async function prepareWorkBranch(
   input: PrepareWorkBranchInput,
@@ -62,6 +101,7 @@ export async function prepareWorkBranch(
   const workBranch = buildWorkBranchName({
     stepKey: input.stepKey,
     stepExecutionId: input.stepExecutionId,
+    branchPrefix: input.branchPrefix,
   });
 
   await input.gitCommitPushService.createBranch({

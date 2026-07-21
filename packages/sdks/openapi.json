@@ -14076,17 +14076,6 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "requestedBranch": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
                     "baseWorkBranch": {
                       "anyOf": [
                         {
@@ -14558,7 +14547,6 @@
                   "required": [
                     "projectId",
                     "gitUrl",
-                    "requestedBranch",
                     "baseWorkBranch",
                     "projectOpencodeConfig",
                     "stepExecution",

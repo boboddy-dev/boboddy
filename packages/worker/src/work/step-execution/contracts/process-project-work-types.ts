@@ -105,7 +105,7 @@ export type StepExecutionWorkerClient = {
     /**
      * The `boboddy/...` branch the agent committed to, and the branch it was
      * created off of. Sent as dedicated fields (NOT inside `resultJson`). Null
-     * for `no_workspace` runs or when nothing was committed.
+     * for runs without a step key (e.g. no_workspace) or nothing was committed.
      */
     workBranch: string | null;
     createdFromBranch: string | null;
@@ -169,7 +169,7 @@ export type StepExecutionRuntimeEnvironment = {
   resolvedBranch: string;
   /**
    * The `boboddy/...` branch the agent commits to, created off the checked-out
-   * base. `null` for `no_workspace` runs (no repo).
+   * base. `null` for `no_workspace` runs (no repo) or runs without a step key.
    */
   workBranch: string | null;
   /**
@@ -226,11 +226,10 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     projectId: UuidV7;
     requestedByUserId: UuidV7;
     gitUrl: string;
-    requestedBranch?: string | null | undefined;
     /**
-     * The previous step's work branch a later step must be created off of.
-     * DISTINCT from {@link requestedBranch}. Null for the first step / until the
-     * server populates it (Phase 2).
+     * The branch a later step must be created off of, handed down by the server
+     * (the predecessor step's work branch). Takes precedence over any repo-local
+     * configured base branch. Null for the first step.
      */
     baseWorkBranch?: string | null | undefined;
     /** Step key used (sanitized) in the work branch name `boboddy/<key>-<id>`. */

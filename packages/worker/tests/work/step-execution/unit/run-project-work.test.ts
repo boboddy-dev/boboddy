@@ -44,7 +44,6 @@ function createWorkerClient(
       Promise.resolve({
         projectId: parseUuidV7(projectId),
         gitUrl: "https://github.com/example/repo.git",
-        requestedBranch: null,
         projectOpencodeConfig: {
           relativePath: ".boboddy/boboddy.jsonc",
           present: false,

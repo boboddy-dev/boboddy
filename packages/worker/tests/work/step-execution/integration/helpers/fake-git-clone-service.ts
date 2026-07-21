@@ -39,9 +39,7 @@ export class FakeGitCloneService implements GitCloneService {
       force: true,
     });
 
-    const branch = input.requestedBranch?.trim() || DEFAULT_BRANCH;
-
-    await this.git(input.workspacePath, ["init", "-b", branch]);
+    await this.git(input.workspacePath, ["init", "-b", DEFAULT_BRANCH]);
     await this.git(input.workspacePath, [
       "config",
       "user.email",
@@ -60,7 +58,7 @@ export class FakeGitCloneService implements GitCloneService {
       "Initial dummy commit",
     ]);
 
-    return { resolvedBranch: branch };
+    return { resolvedBranch: DEFAULT_BRANCH };
   }
 
   private async git(workspacePath: string, args: string[]): Promise<void> {

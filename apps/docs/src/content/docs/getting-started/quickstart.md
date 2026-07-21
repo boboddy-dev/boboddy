@@ -195,7 +195,7 @@ After completing setup, your repo will have:
 ```
 my-repo/
 ├── .boboddy/
-│   ├── boboddy.jsonc                    # project config (written by `boboddy init`)
+│   ├── boboddy.jsonc                    # project config (projectId, optional branchPrefix)
 │   └── pipeline-builder/                # steps and pipeline definitions
 │       ├── package.json
 │       ├── tsconfig.json

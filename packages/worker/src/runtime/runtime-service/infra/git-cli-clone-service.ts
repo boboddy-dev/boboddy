@@ -39,11 +39,9 @@ export class GitCliCloneService implements GitCloneService {
   async cloneRepository(
     input: CloneRepositoryInput,
   ): Promise<CloneRepositoryResult> {
+    // Always clone the repo's default HEAD. When a step needs a different base
+    // branch, the caller checks it out after clone (see prepareWorkBranch).
     const args = ["clone", "--origin", "origin", "--no-tags"];
-
-    if (input.requestedBranch?.trim()) {
-      args.push("--branch", input.requestedBranch.trim(), "--single-branch");
-    }
 
     args.push(input.gitUrl, input.workspacePath);
 
