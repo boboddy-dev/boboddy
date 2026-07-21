@@ -2,7 +2,10 @@ import { mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { buildOpencodeContext } from "@boboddy/opencode-plugin";
-import { writeCurrentExecutionInfoFile } from "../application/process-project-work-findings";
+import {
+  removeFindingsSubmissionFile,
+  writeCurrentExecutionInfoFile,
+} from "../application/process-project-work-findings";
 import { logWork } from "../application/work-logger";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
@@ -122,6 +125,10 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
         currentExecutionInfoPath,
         stepExecutionId: input.currentExecutionInfo.stepExecutionId,
       });
+
+      // Guarantee a clean slate: no leftover findings submission file from a
+      // reused temp dir. Symmetric with the workspace runtime path.
+      await removeFindingsSubmissionFile(workspacePath);
 
       // Step 3: Build the OpenCode context (embedded Boboddy plugin + step
       // MCPs/plugins) into the temp workspace. Same builder as the workspace

@@ -219,8 +219,8 @@ export async function monitorStartedClaimedExecution(
             onBeforeComplete: async () => {
               // Commit the agent's changes to the work branch and push it while
               // the workspace still exists and the step is still "running".
-              // No-op when the branch-per-step feature is off; push failures are
-              // swallowed inside the closure and never fail the step.
+              // No-op for no_workspace runs; push failures are swallowed inside
+              // the closure and never fail the step.
               await startedExecution.environment.commitAndPushWorkBranch?.();
               if (!hasCollectedArtifacts) {
                 await collectStepArtifacts(deps, startedExecution, logger);

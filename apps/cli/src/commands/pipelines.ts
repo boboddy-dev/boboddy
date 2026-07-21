@@ -11,7 +11,7 @@ import {
   readProjectConfig,
   resolveBoboddyBaseUrl,
   scaffoldPipelineBuilderDirectory,
-  type StepInfo,
+  STARTER_PIPELINE_FILENAME,
 } from "@boboddy/worker";
 import { version as CLI_VERSION } from "../../package.json";
 import { detectPipelineRuntime } from "../lib/detect-pipeline-runtime";
@@ -20,17 +20,6 @@ import {
   PUSH_SCRIPT_FILENAME,
   PUSH_SCRIPT_TEMPLATE,
 } from "../templates/push-script";
-
-const DUMMY_STEPS: StepInfo[] = [
-  {
-    key: "investigate",
-    name: "Investigate",
-    version: 1,
-    prompt:
-      "You are an expert investigator. Analyze the provided content thoroughly to identify the root cause, assess the severity, and recommend next steps.",
-    signals: [{ key: "confidence", sourcePath: "confidence", type: "number" }],
-  },
-];
 
 // init
 
@@ -43,11 +32,7 @@ const runInit = (): Promise<void> =>
     }
 
     const dir = join(process.cwd(), PIPELINE_BUILDER_DIR);
-    const result = scaffoldPipelineBuilderDirectory(
-      dir,
-      DUMMY_STEPS,
-      CLI_VERSION,
-    );
+    const result = scaffoldPipelineBuilderDirectory(dir, CLI_VERSION);
 
     for (const file of result.created) {
       reporter.success(`Created ${file}`);
@@ -62,7 +47,11 @@ const runInit = (): Promise<void> =>
     );
 
     reporter.info(
-      `Pipeline builder scaffolded at ${PIPELINE_BUILDER_DIR}. Run \`npm install\` or \`bun install\` to get started.`,
+      `Pipeline builder scaffolded at ${PIPELINE_BUILDER_DIR}. Next steps:
+  1. cd ${PIPELINE_BUILDER_DIR} && npm install   (or bun install)
+  2. open ${STARTER_PIPELINE_FILENAME} — the starter pipeline is a guided tour
+  3. boboddy pipelines push
+  4. create a work item, then run \`boboddy work\` and watch it advance`,
     );
   });
 

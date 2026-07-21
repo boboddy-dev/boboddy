@@ -4,6 +4,12 @@
   "bin": {
     "boboddy": "bin/boboddy"
   },
+  "exports": {
+    ".": "./src/index.ts",
+    "./reporter-clack": "./src/lib/reporter-clack.ts",
+    "./reporter-record": "./src/lib/reporter-record.ts",
+    "./reporter-types": "./src/lib/reporter-types.ts"
+  },
   "files": [
     "README.md",
     "bin",

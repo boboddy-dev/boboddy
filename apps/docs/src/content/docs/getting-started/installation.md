@@ -5,10 +5,25 @@ description: Install the Boboddy CLI and SDK
 
 ## Requirements
 
+To run the [Quickstart](/boboddy/getting-started/quickstart/) Stage 1
+(no-Docker) flow, you need:
+
 - **Node.js** 18+ or **Bun** 1.3+
-- **Docker** (required for `boboddy work` to execute steps locally)
-- **OpenCode** (required for `boboddy work` to run AI agents) — install and configure at [opencode.ai/docs](https://opencode.ai/docs)
-- **`.devcontainer`** — a `devcontainer.json` in your project root is required for `boboddy work` to spin up execution environments. See [Setting up a Dev Container](/boboddy/guides/devcontainer/) to generate one for your project.
+- **An AI provider configured for OpenCode** — `boboddy work` runs your steps
+  with a Boboddy-managed OpenCode runtime, but it reads your provider
+  credentials. Configure a provider at [opencode.ai/docs](https://opencode.ai/docs).
+
+To run steps in **`workspace` mode** (agents that clone and work inside your
+repository), you additionally need:
+
+- **Docker** — used to build the per-execution dev container.
+- **A `.devcontainer/devcontainer.json`** in your project root. See
+  [Setting up a Dev Container](/boboddy/guides/devcontainer/) to generate one.
+
+> Steps in **`no_workspace` mode** (like the ones in the starter pipeline) run
+> directly on the host and need neither Docker nor a dev container — that's what
+> makes the Quickstart's first stage container-free. See
+> [Execution mode](/boboddy/guides/steps/#execution-mode).
 
 ## Install the CLI
 

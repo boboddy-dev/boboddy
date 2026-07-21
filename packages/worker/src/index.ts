@@ -62,9 +62,9 @@ export { RuntimeNetworkGarbageCollector } from "./runtime/runtime-gc/application
 export { DevcontainerCliLauncher, buildDevcontainerCliCommand, resolveDevcontainerCliScriptPath } from "./runtime/runtime-service/infra/devcontainer-cli-launcher";
 export {
   PIPELINE_BUILDER_DIR,
+  STARTER_PIPELINE_FILENAME,
   scaffoldPipelineBuilderDirectory,
 } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
-export type { StepInfo, StepSignalInfo } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
 export { pullPipelineDefinitions, listExistingPipelineBuilderFiles } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
 export type { PullPipelineDefinitionsResult } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
 export { UnsupportedRuleError, generateDefaultPipelineAssignmentFileContent } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";

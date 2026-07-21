@@ -29,6 +29,22 @@ export function buildCurrentExecutionInfoPath(workspacePath: string): string {
   return path.join(workspacePath, CURRENT_EXECUTION_INFO_RELATIVE_PATH);
 }
 
+/**
+ * Delete any leftover findings submission file from the workspace. A step's
+ * work branch is cloned from the previous step's branch, which may carry a
+ * committed `.boboddy/step-findings-submission.json` from that earlier step.
+ * If left in place, the monitor's first poll (before the agent starts) reads
+ * the stale file and validates it against THIS step's schema, failing the step
+ * before the agent has done anything. Called during workspace setup to
+ * guarantee a clean slate regardless of git history. Best-effort: `force`
+ * makes a missing file a no-op.
+ */
+export async function removeFindingsSubmissionFile(
+  workspacePath: string,
+): Promise<void> {
+  await rm(buildFindingsSubmissionPath(workspacePath), { force: true });
+}
+
 export async function writeCurrentExecutionInfoFile(
   workspacePath: string,
   input: CurrentExecutionInfo,
@@ -214,8 +230,8 @@ export async function tryPersistAgentFindings(
     resultJson: findingsJson,
     errorJson: null,
     // Dedicated fields (NOT inside resultJson): the work branch the agent
-    // committed to and the branch it was created off of. Null when the
-    // branch-per-step feature is off / for no_workspace runs.
+    // committed to and the branch it was created off of. Null for
+    // no_workspace runs.
     workBranch: startedExecution.environment.workBranch,
     createdFromBranch: startedExecution.environment.createdFromBranch,
   });

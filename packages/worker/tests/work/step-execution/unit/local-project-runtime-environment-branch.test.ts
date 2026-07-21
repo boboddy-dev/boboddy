@@ -1,7 +1,7 @@
 /**
- * Branch-per-step behavior for the single-container launch orchestrator, gated
- * behind the `BOBODDY_BRANCH_PER_STEP` env flag. Shares the launch fakes with
- * the base sequence tests (see `helpers/orchestrator-launch-fakes.ts`).
+ * Branch-per-step behavior for the single-container launch orchestrator. Shares
+ * the launch fakes with the base sequence tests (see
+ * `helpers/orchestrator-launch-fakes.ts`).
  */
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -16,26 +16,18 @@ import {
   type CallLog,
 } from "./helpers/orchestrator-launch-fakes";
 
-describe("branch-per-step launch (BOBODDY_BRANCH_PER_STEP)", () => {
+describe("branch-per-step launch", () => {
   let workspacePath: string;
   let providerOutputDir: string;
-  let previousFlag: string | undefined;
 
   beforeEach(async () => {
     workspacePath = await mkdtemp(path.join(os.tmpdir(), "orchestrator-ws-"));
     providerOutputDir = await mkdtemp(
       path.join(os.tmpdir(), "orchestrator-provider-"),
     );
-    previousFlag = process.env["BOBODDY_BRANCH_PER_STEP"];
-    process.env["BOBODDY_BRANCH_PER_STEP"] = "1";
   });
 
   afterEach(async () => {
-    if (previousFlag === undefined) {
-      delete process.env["BOBODDY_BRANCH_PER_STEP"];
-    } else {
-      process.env["BOBODDY_BRANCH_PER_STEP"] = previousFlag;
-    }
     await rm(workspacePath, { recursive: true, force: true });
     await rm(providerOutputDir, { recursive: true, force: true });
   });
@@ -148,15 +140,13 @@ describe("branch-per-step launch (BOBODDY_BRANCH_PER_STEP)", () => {
     expect(commitPush.pushCalls).toEqual([]);
   });
 
-  test("no work branch fields are set when the flag is off", async () => {
-    process.env["BOBODDY_BRANCH_PER_STEP"] = "0";
+  test("no work branch fields are set when no stepKey is provided", async () => {
     const log: CallLog = [];
     const commitPush = new FakeGitCommitPushService(log);
     const orchestrator = orchestratorFor(buildDeps(log, commitPush));
 
     const env = await orchestrator.launch({
       ...buildLaunchInput(),
-      stepKey: "impl",
     });
 
     expect(commitPush.createBranchCalls).toEqual([]);

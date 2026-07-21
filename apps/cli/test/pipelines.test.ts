@@ -81,7 +81,7 @@ describe("boboddy pipelines", () => {
           expect(existsSync(join(builderDir, "tsconfig.json"))).toBe(true);
           expect(existsSync(join(builderDir, ".gitignore"))).toBe(true);
           expect(
-            existsSync(join(builderDir, "example-pipeline.ts")),
+            existsSync(join(builderDir, "triage-and-plan.ts")),
           ).toBe(true);
         } finally {
           rmSync(fakeProjectDir, { recursive: true, force: true });
@@ -90,7 +90,7 @@ describe("boboddy pipelines", () => {
     );
 
     concurrentTest(
-      "example-pipeline.ts contains step and pipeline definitions",
+      "triage-and-plan.ts contains step and pipeline definitions",
       () => {
         const fakeProjectDir = mkdtempSync(
           join(tmpdir(), "boboddy-pipelines-init-test-"),
@@ -99,13 +99,13 @@ describe("boboddy pipelines", () => {
           createFakeGitRoot(fakeProjectDir);
           run(["pipelines", "init"], { cwd: fakeProjectDir });
 
-          const exampleFile = join(
+          const starterFile = join(
             fakeProjectDir,
             ".boboddy",
             "pipeline-builder",
-            "example-pipeline.ts",
+            "triage-and-plan.ts",
           );
-          expect(existsSync(exampleFile)).toBe(true);
+          expect(existsSync(starterFile)).toBe(true);
         } finally {
           rmSync(fakeProjectDir, { recursive: true, force: true });
         }
@@ -128,7 +128,7 @@ describe("boboddy pipelines", () => {
           "package.json",
           "tsconfig.json",
           ".gitignore",
-          "example-pipeline.ts",
+          "triage-and-plan.ts",
         ]) {
           expect(createdLines.some((line) => line.includes(file))).toBe(true);
         }

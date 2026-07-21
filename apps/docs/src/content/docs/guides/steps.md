@@ -40,6 +40,8 @@ The agent is automatically given the step's input as default context — the ful
 | `result`          | `ZodType`                         | No       | Zod schema for the step's output                                                |
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result for pipeline advancement logic                |
 | `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configurations for tool-using agents                                 |
+| `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the generated config when this step runs           |
+| `features`        | `StepFeature[]`                   | No       | Built-in feature plugins that extend the result schema, signals, and prompt     |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are not executed; defaults to `"active"`                            |
 | `executionMode`   | `"workspace" \| "no_workspace"`   | No       | Whether the step needs your repository. Defaults to `"workspace"`               |
 
@@ -130,17 +132,116 @@ computedSignals: [
 
 ## MCP servers
 
-Steps can be given access to MCP (Model Context Protocol) servers, giving the agent tools like file access, web browsing, or custom APIs.
+Steps can be given access to MCP (Model Context Protocol) servers, giving the agent tools like database access, browser automation, or custom APIs. `mcpServers` is a record keyed by server name. Each value is one of three shapes: a **local** server, a **remote** server, or an **enabled override**.
+
+### Local servers
+
+A local server is launched as a subprocess. `command` is an **array** — the executable followed by its arguments (there is no separate `args` field).
 
 ```typescript
 mcpServers: {
-  filesystem: {
-    type: 'local',
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-filesystem', '/workspace'],
+  postgres: {
+    type: "local",
+    command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+    environment: { DATABASE_URI: "{env:DATABASE_URI}" },
+    enabled: true,
   },
 },
 ```
+
+| Field         | Type                     | Required | Description                                                        |
+| ------------- | ------------------------ | -------- | ------------------------------------------------------------------ |
+| `type`        | `"local"`                | Yes      | Marks a locally launched server                                    |
+| `command`     | `string[]`               | Yes      | Executable plus arguments; must have at least one entry            |
+| `environment` | `Record<string, string>` | No       | Environment variables. `{env:VAR}` interpolates a worker env var   |
+| `enabled`     | `boolean`                | No       | Set `false` to define but disable the server                       |
+| `timeout`     | `number`                 | No       | Startup/request timeout in milliseconds                            |
+
+### Remote servers
+
+A remote server is reached over HTTP.
+
+```typescript
+mcpServers: {
+  docs: {
+    type: "remote",
+    url: "https://mcp.example.com/sse",
+    headers: { Authorization: "Bearer {env:MCP_TOKEN}" },
+    enabled: true,
+  },
+},
+```
+
+| Field     | Type                          | Required | Description                                              |
+| --------- | ----------------------------- | -------- | -------------------------------------------------------- |
+| `type`    | `"remote"`                    | Yes      | Marks a remote HTTP server                               |
+| `url`     | `string`                      | Yes      | Server URL                                               |
+| `headers` | `Record<string, string>`      | No       | Extra request headers                                    |
+| `oauth`   | `object \| false`             | No       | OAuth config (`clientId`, `clientSecret`, `scope`, `redirectUri`), or `false` to disable |
+| `enabled` | `boolean`                     | No       | Set `false` to define but disable the server             |
+| `timeout` | `number`                      | No       | Request timeout in milliseconds                          |
+
+### Enabled override
+
+To toggle an inherited server without redefining it, pass just `enabled`:
+
+```typescript
+mcpServers: {
+  postgres: { enabled: false },
+},
+```
+
+## Plugins
+
+Attach Opencode plugins to a step with `plugins`. When the step runs, Boboddy merges these into the generated Opencode config for that execution. Use plain package names, or the `[packageName, options]` tuple form when a plugin needs configuration.
+
+```typescript
+export const investigateStep = defineStep({
+  key: "bad-data-investigation",
+  name: "Bad Data Investigation",
+  agentPrompt: "Investigate the reported data issue.",
+  plugins: ["@datadog/opencode-plugin"],
+});
+```
+
+Plugin entries are deduplicated by package name when Boboddy combines your baseline Opencode config with the step-specific plugins.
+
+## Features
+
+`features` adds built-in **feature plugins** to a step. Each feature extends the step's `result` schema, appends signals, and injects supporting text into the prompt — so you get a consistent, typed convention without hand-writing the schema, signals, and instructions yourself.
+
+```typescript
+import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+
+export const reproStep = defineStep({
+  key: "browser-reproduction",
+  name: "Browser Reproduction",
+  agentPrompt: "Reproduce the reported bug.",
+  result: z.object({ reproduced: z.boolean() }),
+  features: [Features.notifications()],
+});
+```
+
+### `Features.notifications()`
+
+Adds a `$boboddy_notifications_v1` array to the result and a matching (optional) signal, plus prompt text instructing the agent how to surface messages for humans. Use it whenever a step may need to escalate a question, report a block, or flag a warning.
+
+Each notification item has:
+
+| Field               | Type                                                                        | Required | Description                                                        |
+| ------------------- | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------ |
+| `kind`              | `"feedback_request" \| "status_update" \| "blocked" \| "result_ready" \| "warning"` | Yes | The kind of notification                                           |
+| `title`             | `string`                                                                    | Yes      | Short, human-readable title                                        |
+| `body`              | `string`                                                                    | Yes      | Notification details                                               |
+| `priority`          | `"low" \| "normal" \| "high" \| "urgent"`                                   | Yes      | How important the notification is                                  |
+| `suggestedChannels` | `("in_app" \| "work_item_platform_comment" \| "email" \| "slack")[]`        | No       | Channels the agent suggests; the platform policy decides the final channels |
+| `payload`           | `Record<string, unknown>`                                                   | No       | Kind-specific data. For `feedback_request`: `{ category, urgency, suggestedKey? }` |
+
+The feature contributes a single signal, `$boboddy_notifications_v1` (type `array`, not required), so downstream advancement rules can react to emitted notifications.
+
+### `Features.feedbackRequests()`
+
+A convenience wrapper over `Features.notifications()`, backed by the same `$boboddy_notifications_v1` signal. Use it when a step's primary escalation path is asking the project team clarifying questions.
 
 ## Execution mode
 

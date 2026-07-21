@@ -1,7 +1,10 @@
 import path from "node:path";
 import os from "node:os";
 import { buildOpencodeContext } from "@boboddy/opencode-plugin";
-import { writeCurrentExecutionInfoFile } from "../application/process-project-work-findings";
+import {
+  removeFindingsSubmissionFile,
+  writeCurrentExecutionInfoFile,
+} from "../application/process-project-work-findings";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
@@ -12,10 +15,12 @@ import type {
 import type { DevcontainerLauncher } from "../../../runtime/runtime-service/application/devcontainer-launcher";
 import type { GitCloneService } from "../../../runtime/runtime-service/application/git-clone-service";
 import type { GitCommitPushService } from "../../../runtime/runtime-service/application/git-commit-push-service";
+import type { SubmoduleService } from "../../../runtime/runtime-service/application/submodule-service";
 import type { WorkspaceManager } from "../../../runtime/runtime-service/application/workspace-manager";
 import { DevcontainerCliLauncher } from "../../../runtime/runtime-service/infra/devcontainer-cli-launcher";
 import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-cli-clone-service";
 import { GitCliCommitPushService } from "../../../runtime/runtime-service/infra/git-cli-commit-push-service";
+import { GitCliSubmoduleService } from "../../../runtime/runtime-service/infra/git-cli-submodule-service";
 import { LocalWorkspaceManager } from "../../../runtime/runtime-service/infra/local-workspace-manager";
 import { OpencodeRuntimePayloadProvisioner } from "../../../runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 import { DevcontainerOpencodeBootstrap } from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
@@ -34,7 +39,6 @@ import {
 } from "./local-project-runtime-environment-helpers";
 import {
   buildCommitAndPushWorkBranch,
-  isBranchPerStepEnabled,
   prepareWorkBranch,
 } from "./work-branch-manager";
 
@@ -60,6 +64,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       workspaceManager: WorkspaceManager;
       gitCloneService: GitCloneService;
       gitCommitPushService: GitCommitPushService;
+      submoduleService: SubmoduleService;
       devcontainerLauncher: DevcontainerLauncher;
       // Boboddy-managed OpenCode runtime payload + in-devcontainer bootstrap +
       // provider-access resolution/materialization.
@@ -71,6 +76,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService: new GitCliCloneService(logger),
       gitCommitPushService: new GitCliCommitPushService(logger),
+      submoduleService: new GitCliSubmoduleService(logger),
       devcontainerLauncher: new DevcontainerCliLauncher(),
       payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
       opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
@@ -146,12 +152,11 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         resolvedBranch: cloneResult.resolvedBranch,
       });
 
-      // Step 1b: When the branch-per-step feature is on, determine the base and
-      // create the `boboddy/...` work branch off it right after clone. Skipped
-      // (fields null) when the flag is off, so it ships dark.
+      // Step 1b: Determine the base and create the `boboddy/...` work branch off
+      // it right after clone. Only possible when the step provides a stepKey.
       let workBranch: string | null = null;
       let createdFromBranch: string | null = null;
-      if (isBranchPerStepEnabled() && input.stepKey) {
+      if (input.stepKey) {
         const prepared = await prepareWorkBranch({
           gitCommitPushService: this.deps.gitCommitPushService,
           workspacePath,
@@ -174,6 +179,12 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         currentExecutionInfoPath,
         stepExecutionId: input.currentExecutionInfo.stepExecutionId,
       });
+
+      // Remove any findings submission file carried over from the previous
+      // step's work branch (this branch was cloned from it). Otherwise the
+      // monitor's first poll reads the stale file and fails the step before
+      // the agent starts.
+      await removeFindingsSubmissionFile(workspacePath);
 
       // Step 2: Resolve the cloned devcontainer config + its workspace folder.
       const devcontainerConfigPath =
@@ -390,6 +401,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         commitAndPushWorkBranch: capturedWorkBranch
           ? buildCommitAndPushWorkBranch({
               gitCommitPushService: this.deps.gitCommitPushService,
+              submoduleService: this.deps.submoduleService,
               workspacePath: capturedWorkspacePath,
               workBranch: capturedWorkBranch,
               stepExecutionId: input.currentExecutionInfo.stepExecutionId,

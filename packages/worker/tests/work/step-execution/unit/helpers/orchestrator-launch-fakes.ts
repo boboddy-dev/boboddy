@@ -32,7 +32,15 @@ import type {
   CloneRepositoryResult,
   GitCloneService,
 } from "../../../../../src/runtime/runtime-service/application/git-clone-service";
-import type { GitCommitPushService } from "../../../../../src/runtime/runtime-service/application/git-commit-push-service";
+import type {
+  CommitSubmoduleResult,
+  GitCommitPushService,
+} from "../../../../../src/runtime/runtime-service/application/git-commit-push-service";
+import type {
+  DetectSubmodulesInput,
+  SubmoduleService,
+} from "../../../../../src/runtime/runtime-service/application/submodule-service";
+import type { SubmoduleInfo } from "../../../../../src/runtime/runtime-service/domain/submodules";
 import type {
   ProvisionedWorkspace,
   WorkspaceManager,
@@ -105,9 +113,9 @@ export class FakeGitCloneService implements GitCloneService {
 }
 
 /**
- * Recording commit/push fake. With the branch-per-step flag OFF (the default in
- * the base tests) `launch` never invokes it; the branch tests flip the flag on
- * and assert against the recorded calls. `commitAll` reports "nothing to commit".
+ * Recording commit/push fake. When `launch` is called without a `stepKey` (as in
+ * the base tests) it is never invoked; the branch tests pass a `stepKey` and
+ * assert against the recorded calls. `commitAll` reports "nothing to commit".
  */
 export class FakeGitCommitPushService implements GitCommitPushService {
   checkoutBaseCalls: string[] = [];
@@ -132,6 +140,28 @@ export class FakeGitCommitPushService implements GitCommitPushService {
   push(input: { branchName: string }): Promise<void> {
     this.pushCalls.push(input.branchName);
     return Promise.resolve();
+  }
+  submoduleHasChanges(): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+  commitInSubmodule(): Promise<CommitSubmoduleResult> {
+    return Promise.resolve({ committed: false, branchCreated: true });
+  }
+  pushSubmodule(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+/**
+ * Detect-only submodule fake. Defaults to "no submodules" so the base and
+ * branch launch tests are unaffected by the submodule orchestration.
+ */
+export class FakeSubmoduleService implements SubmoduleService {
+  detectSubmoduleCalls: DetectSubmodulesInput[] = [];
+  constructor(private readonly submodules: SubmoduleInfo[] = []) {}
+  detectSubmodules(input: DetectSubmodulesInput): Promise<SubmoduleInfo[]> {
+    this.detectSubmoduleCalls.push(input);
+    return Promise.resolve(this.submodules);
   }
 }
 
@@ -255,6 +285,7 @@ export type OrchestratorFakeDeps = {
   workspaceManager: FakeWorkspaceManager;
   gitCloneService: FakeGitCloneService;
   gitCommitPushService: FakeGitCommitPushService;
+  submoduleService: FakeSubmoduleService;
   devcontainerLauncher: FakeDevcontainerLauncher;
   payloadProvisioner: FakePayloadProvisioner;
   opencodeBootstrap: FakeOpencodeBootstrap;
@@ -268,6 +299,7 @@ export function buildOrchestratorFakeDeps(input: {
   providerOutputDir: string;
   log: CallLog;
   gitCommitPushService?: FakeGitCommitPushService;
+  submoduleService?: FakeSubmoduleService;
 }): OrchestratorFakeDeps {
   const providerEnv = envFrom({
     [PROVIDER_ACCESS_ENV_VARS.baseUrl]: "https://api.example.com",
@@ -279,6 +311,7 @@ export function buildOrchestratorFakeDeps(input: {
     gitCloneService: new FakeGitCloneService(input.log),
     gitCommitPushService:
       input.gitCommitPushService ?? new FakeGitCommitPushService(),
+    submoduleService: input.submoduleService ?? new FakeSubmoduleService(),
     devcontainerLauncher: new FakeDevcontainerLauncher(input.log),
     payloadProvisioner: new FakePayloadProvisioner(input.log),
     opencodeBootstrap: new FakeOpencodeBootstrap(input.log),

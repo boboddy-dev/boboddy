@@ -105,7 +105,7 @@ export type StepExecutionWorkerClient = {
     /**
      * The `boboddy/...` branch the agent committed to, and the branch it was
      * created off of. Sent as dedicated fields (NOT inside `resultJson`). Null
-     * when the branch-per-step feature is off or nothing was committed.
+     * for `no_workspace` runs or when nothing was committed.
      */
     workBranch: string | null;
     createdFromBranch: string | null;
@@ -169,8 +169,7 @@ export type StepExecutionRuntimeEnvironment = {
   resolvedBranch: string;
   /**
    * The `boboddy/...` branch the agent commits to, created off the checked-out
-   * base. `null` when the branch-per-step feature flag is off or for
-   * `no_workspace` runs (no repo).
+   * base. `null` for `no_workspace` runs (no repo).
    */
   workBranch: string | null;
   /**

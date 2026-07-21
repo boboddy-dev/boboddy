@@ -14,6 +14,7 @@ import {
   resolveLogFilePath,
 } from "../lib/logger";
 import { createReporter } from "../lib/reporter";
+import { createRecordingReporter } from "../lib/reporter-record";
 
 async function readLocalEnvVars(): Promise<Record<string, string>> {
   const envFilePath = path.join(process.cwd(), ".boboddy", ".env");
@@ -48,7 +49,10 @@ async function handler(
   createTransport();
 
   const logger = createCliLogger("work-command");
-  const reporter = createReporter({ logFilePath });
+  const recordReportPath = process.env["BOBODDY_RECORD_REPORT"];
+  const reporter = recordReportPath
+    ? createRecordingReporter(createReporter({ logFilePath }), recordReportPath)
+    : createReporter({ logFilePath });
   const baseUrl = resolveBoboddyBaseUrl(arguments_.baseUrl);
   const projectId =
     arguments_.projectId ?? (await readProjectConfig())?.projectId;

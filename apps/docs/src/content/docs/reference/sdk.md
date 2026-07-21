@@ -59,6 +59,8 @@ Return a summary and quality score.
 | `result`          | `ZodType`                         | No       | Output payload schema                                                     |
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result                                         |
 | `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configs for tool-using agents                                  |
+| `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the step's execution config                  |
+| `features`        | `StepFeature[]`                   | No       | Built-in feature plugins (e.g. `Features.notifications()`)                |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are skipped by workers                                        |
 | `executionMode`   | `"workspace" \| "no_workspace"`   | No       | `"no_workspace"` runs the agent without cloning your repo or a dev container; defaults to `"workspace"`. See [Execution mode](/boboddy/guides/steps/#execution-mode) |
 
@@ -108,6 +110,85 @@ type Signal = {
   required?: boolean; // fail execution if signal is missing
 };
 ```
+
+### `mcpServers`
+
+`mcpServers` is a `Record<string, McpServerConfig>` where each value is one of three shapes:
+
+```typescript
+// Local subprocess server. `command` is [executable, ...args] — no separate `args` field.
+type LocalMcpServer = {
+  type: "local";
+  command: string[];
+  environment?: Record<string, string>; // {env:VAR} interpolates a worker env var
+  enabled?: boolean;
+  timeout?: number;
+};
+
+// Remote HTTP server.
+type RemoteMcpServer = {
+  type: "remote";
+  url: string;
+  headers?: Record<string, string>;
+  oauth?:
+    | { clientId?: string; clientSecret?: string; scope?: string; redirectUri?: string }
+    | false;
+  enabled?: boolean;
+  timeout?: number;
+};
+
+// Enabled override — toggle an inherited server without redefining it.
+type McpEnabledOverride = { enabled: boolean };
+```
+
+See [MCP servers](/boboddy/guides/steps/#mcp-servers) for examples.
+
+### `plugins`
+
+`plugins` is an array of Opencode plugin entries merged into the step's execution config:
+
+```typescript
+type OpenCodePluginEntry = string | [packageName: string, options: Record<string, unknown>];
+```
+
+Entries are deduplicated by package name when combined with the baseline Opencode config.
+
+### `Features`
+
+`features` accepts built-in feature plugins from the `Features` namespace (imported from `@boboddy/sdk/definitions/steps`). A feature extends the step's `result` schema, appends signals, and injects prompt text.
+
+```typescript
+import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+
+const step = defineStep({
+  key: "repro",
+  name: "Repro",
+  agentPrompt: "Reproduce the bug.",
+  features: [Features.notifications()],
+});
+```
+
+| Feature                       | Effect                                                                                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Features.notifications()`    | Adds a `$boboddy_notifications_v1` result array + signal (type `array`, not required) and prompt text for emitting user notifications.            |
+| `Features.feedbackRequests()` | Convenience wrapper over `notifications()`, backed by the same `$boboddy_notifications_v1` signal, aimed at asking the project team questions.     |
+
+Each notification item is:
+
+```typescript
+type NotificationItem = {
+  kind: "feedback_request" | "status_update" | "blocked" | "result_ready" | "warning";
+  title: string;
+  body: string;
+  priority: "low" | "normal" | "high" | "urgent";
+  suggestedChannels?: ("in_app" | "work_item_platform_comment" | "email" | "slack")[];
+  payload?: Record<string, unknown>; // feedback_request: { category, urgency, suggestedKey? }
+};
+```
+
+`Features.notifications.signal.find(signals)` and `Features.notifications.signal.key` are helpers for reading emitted notifications from a step's signals.
+
+See [Features](/boboddy/guides/steps/#features) for the guide.
 
 ---
 

@@ -6,6 +6,7 @@ import { parseUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import {
   buildCurrentExecutionInfoPath,
   buildFindingsSubmissionPath,
+  removeFindingsSubmissionFile,
   tryPersistAgentFindings,
   writeCurrentExecutionInfoFile,
 } from "../../../../src/work/step-execution/application/process-project-work-findings";
@@ -95,6 +96,47 @@ function createDeps(
 }
 
 describe("processProjectWork findings persistence", () => {
+  test.concurrent(
+    "removeFindingsSubmissionFile deletes a leftover submission file",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-findings-cleanup-"),
+      );
+      const submissionPath = buildFindingsSubmissionPath(workspacePath);
+      await mkdir(path.dirname(submissionPath), { recursive: true });
+      await writeFile(
+        submissionPath,
+        `${JSON.stringify({ findingsJson: { summary: "stale" } }, null, 2)}\n`,
+        "utf8",
+      );
+
+      await removeFindingsSubmissionFile(workspacePath);
+
+      const stillExists = await access(submissionPath)
+        .then(() => true)
+        .catch(() => false);
+      expect(stillExists).toBe(false);
+    },
+  );
+
+  test.concurrent(
+    "removeFindingsSubmissionFile is a no-op when no submission file exists",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-findings-cleanup-missing-"),
+      );
+
+      // Must not throw when the submission file was never written.
+      let threw = false;
+      try {
+        await removeFindingsSubmissionFile(workspacePath);
+      } catch {
+        threw = true;
+      }
+      expect(threw).toBe(false);
+    },
+  );
+
   test.concurrent(
     "writes current execution metadata and gitignore into .boboddy/current-execution",
     async () => {

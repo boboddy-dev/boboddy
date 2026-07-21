@@ -1,4 +1,5 @@
 import type { GitCommitPushService } from "../../../runtime/runtime-service/application/git-commit-push-service";
+import type { SubmoduleService } from "../../../runtime/runtime-service/application/submodule-service";
 import { sanitizeGitRefFragment } from "../../../runtime/runtime-service/domain/git-ref-name";
 import { logWork } from "../application/work-logger";
 
@@ -9,18 +10,9 @@ import { logWork } from "../application/work-logger";
 export const WORK_BRANCH_EXCLUDE_PATHS = [
   ".opencode/plugins/boboddy.js",
   ".boboddy/current-execution",
+  ".boboddy/step-findings-submission.json",
   ".devcontainer/devcontainer.json",
 ] as const;
-
-const FEATURE_FLAG_ENV = "BOBODDY_BRANCH_PER_STEP";
-
-/** True when the branch-per-step feature is enabled via env flag. */
-export function isBranchPerStepEnabled(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  const raw = env[FEATURE_FLAG_ENV]?.trim().toLowerCase();
-  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-}
 
 /** Build the work branch name `boboddy/<sanitized-key>-<stepExecutionId>`. */
 export function buildWorkBranchName(input: {
@@ -87,21 +79,135 @@ export async function prepareWorkBranch(
 }
 
 /**
+ * Outcome of processing all submodules: which ones were pushed successfully
+ * (their gitlink may be recorded by the superproject) and which failed (their
+ * gitlink must be excluded to avoid a dangling pointer).
+ */
+type SubmoduleProcessingResult = {
+  detected: number;
+  pushedSubmodulePaths: string[];
+  failedSubmodulePaths: string[];
+};
+
+/**
+ * For each initialized submodule that HAS changes: lazily create the same work
+ * branch, commit, and push to the submodule's own `origin`. Push success →
+ * gitlink recordable; push failure → log-and-continue and DO NOT record the
+ * gitlink. Uninitialized submodules are skipped (never branched/committed).
+ */
+async function processSubmodules(input: {
+  gitCommitPushService: GitCommitPushService;
+  submoduleService: SubmoduleService;
+  workspacePath: string;
+  workBranch: string;
+  message: string;
+}): Promise<SubmoduleProcessingResult> {
+  const submodules = await input.submoduleService.detectSubmodules({
+    workspacePath: input.workspacePath,
+  });
+
+  const pushedSubmodulePaths: string[] = [];
+  const failedSubmodulePaths: string[] = [];
+
+  for (const submodule of submodules) {
+    // Uninitialized/empty submodules are treated as "no changes".
+    if (!submodule.initialized) {
+      continue;
+    }
+
+    const hasChanges = await input.gitCommitPushService.submoduleHasChanges({
+      workspacePath: input.workspacePath,
+      submodulePath: submodule.path,
+    });
+    if (!hasChanges) {
+      continue;
+    }
+
+    await input.gitCommitPushService.commitInSubmodule({
+      workspacePath: input.workspacePath,
+      submodulePath: submodule.path,
+      branchName: input.workBranch,
+      message: input.message,
+    });
+
+    try {
+      await input.gitCommitPushService.pushSubmodule({
+        workspacePath: input.workspacePath,
+        submodulePath: submodule.path,
+        branchName: input.workBranch,
+      });
+      pushedSubmodulePaths.push(submodule.path);
+      logWork("runtime", "Pushed submodule work branch", {
+        submodulePath: submodule.path,
+        workBranch: input.workBranch,
+      });
+    } catch (error) {
+      // Locked decision: submodule push failure does NOT fail the step, and its
+      // gitlink must NOT be recorded by the superproject (dangling pointer).
+      failedSubmodulePaths.push(submodule.path);
+      logWork("runtime", "Failed to push submodule work branch (continuing)", {
+        submodulePath: submodule.path,
+        workBranch: input.workBranch,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    detected: submodules.length,
+    pushedSubmodulePaths,
+    failedSubmodulePaths,
+  };
+}
+
+/**
  * Build the closure that commits the agent's changes to the work branch and
- * pushes it. Commit "nothing to commit" is a success. Push failures are logged
- * but NOT propagated (the findings are still valid).
+ * pushes it. Submodules with changes are branched/committed/pushed FIRST so
+ * successfully-pushed gitlinks can be recorded by the superproject commit;
+ * failed ones are excluded to avoid dangling pointers. Commit "nothing to
+ * commit" is a success. Push failures are logged but NOT propagated.
  */
 export function buildCommitAndPushWorkBranch(input: {
   gitCommitPushService: GitCommitPushService;
+  submoduleService: SubmoduleService;
   workspacePath: string;
   workBranch: string;
   stepExecutionId: string;
 }): () => Promise<void> {
   return async () => {
+    const message = `boboddy: step ${input.stepExecutionId}`;
+
+    // Process submodules FIRST so their pushed SHAs are reachable before the
+    // superproject records the moved gitlinks.
+    const submoduleResult = await processSubmodules({
+      gitCommitPushService: input.gitCommitPushService,
+      submoduleService: input.submoduleService,
+      workspacePath: input.workspacePath,
+      workBranch: input.workBranch,
+      message,
+    });
+
+    logWork("runtime", "Submodule work-branch summary", {
+      // Every changed submodule reuses this same superproject work-branch name.
+      workBranch: input.workBranch,
+      detected: submoduleResult.detected,
+      changed:
+        submoduleResult.pushedSubmodulePaths.length +
+        submoduleResult.failedSubmodulePaths.length,
+      pushed: submoduleResult.pushedSubmodulePaths,
+      failed: submoduleResult.failedSubmodulePaths,
+    });
+
+    // Exclude the gitlinks of submodules whose push FAILED so the superproject
+    // commit never records an unreachable SHA. Reuses the same pathspec-exclude
+    // mechanism as the Boboddy runtime files.
     const { committed } = await input.gitCommitPushService.commitAll({
       workspacePath: input.workspacePath,
-      message: `boboddy: step ${input.stepExecutionId}`,
-      excludePaths: WORK_BRANCH_EXCLUDE_PATHS,
+      message,
+      excludePaths: [
+        ...WORK_BRANCH_EXCLUDE_PATHS,
+        ...submoduleResult.failedSubmodulePaths,
+      ],
     });
     logWork("runtime", "Committed work branch changes", {
       workspacePath: input.workspacePath,

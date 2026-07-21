@@ -1,12 +1,18 @@
 import { execFile } from "node:child_process";
+import path from "node:path";
+import { access } from "node:fs/promises";
 import { promisify } from "node:util";
 import type {
   CheckoutBaseInput,
   CommitAllInput,
   CommitAllResult,
+  CommitSubmoduleInput,
+  CommitSubmoduleResult,
   CreateBranchInput,
   GitCommitPushService,
   PushInput,
+  PushSubmoduleInput,
+  SubmoduleHasChangesInput,
 } from "../application/git-commit-push-service";
 import { noopLogger, type Logger } from "../../../lib/logger";
 import {
@@ -105,38 +111,104 @@ export class GitCliCommitPushService implements GitCommitPushService {
   }
 
   async commitAll(input: CommitAllInput): Promise<CommitAllResult> {
+    const committed = await this.stageExcludingAndCommit(
+      input.workspacePath,
+      input.message,
+      input.excludePaths,
+    );
+    return { committed };
+  }
+
+  /**
+   * Shared commit machinery for both the superproject and submodules: stage
+   * everything except `excludePaths`, restore those excluded paths, then commit
+   * the index with the injected Boboddy identity (no global config mutation).
+   * Returns false when there was nothing to commit.
+   */
+  private async stageExcludingAndCommit(
+    workspacePath: string,
+    message: string,
+    excludePaths: readonly string[],
+  ): Promise<boolean> {
     // Stage everything EXCEPT the Boboddy runtime files.
     const addArgs = [
       "add",
       "-A",
       "--",
       ".",
-      ...input.excludePaths.map(excludePathspec),
+      ...excludePaths.map(excludePathspec),
     ];
-    await this.gitWithPermissionRetry(input.workspacePath, addArgs);
+    await this.gitWithPermissionRetry(workspacePath, addArgs);
 
     // pathspec-exclude on `add` leaves excluded paths UNSTAGED, but if they are
     // tracked + modified they must be actively restored so a later `-a`-free
     // commit of the index doesn't include their prior staged state, and the
     // working tree is left clean of Boboddy edits for those paths.
-    await this.restoreExcludedPaths(input.workspacePath, input.excludePaths);
+    await this.restoreExcludedPaths(workspacePath, excludePaths);
 
-    if (!(await this.hasStagedChanges(input.workspacePath))) {
-      return { committed: false };
+    if (!(await this.hasStagedChanges(workspacePath))) {
+      return false;
     }
 
-    await this.gitWithPermissionRetry(input.workspacePath, [
+    await this.gitWithPermissionRetry(workspacePath, [
       ...identityArgs(),
       "commit",
       "--no-gpg-sign",
       "-m",
-      input.message,
+      message,
     ]);
-    return { committed: true };
+    return true;
   }
 
   async push(input: PushInput): Promise<void> {
     await this.git(input.workspacePath, [
+      "push",
+      "--set-upstream",
+      "origin",
+      input.branchName,
+    ]);
+  }
+
+  async submoduleHasChanges(
+    input: SubmoduleHasChangesInput,
+  ): Promise<boolean> {
+    const subPath = path.join(input.workspacePath, input.submodulePath);
+    // Guard: an uninitialized submodule has no `.git` (file or dir) inside it.
+    // Treat it as "no changes" so it is never branched/committed.
+    try {
+      await access(path.join(subPath, ".git"));
+    } catch {
+      return false;
+    }
+    const { stdout } = await this.git(subPath, ["status", "--porcelain"]);
+    return stdout.trim().length > 0;
+  }
+
+  async commitInSubmodule(
+    input: CommitSubmoduleInput,
+  ): Promise<CommitSubmoduleResult> {
+    const subPath = path.join(input.workspacePath, input.submodulePath);
+    // Submodules are typically in a detached HEAD; `checkout -b` works from it.
+    await this.gitWithPermissionRetry(subPath, [
+      "checkout",
+      "-b",
+      input.branchName,
+    ]);
+    // Boboddy runtime files are superproject-root-relative, so no excludes apply
+    // inside a submodule — commit everything the agent changed.
+    const committed = await this.stageExcludingAndCommit(
+      subPath,
+      input.message,
+      [],
+    );
+    return { committed, branchCreated: true };
+  }
+
+  async pushSubmodule(input: PushSubmoduleInput): Promise<void> {
+    const subPath = path.join(input.workspacePath, input.submodulePath);
+    // Intentionally NOT wrapped: the orchestrator applies log-and-continue and
+    // decides whether the superproject may record this submodule's gitlink.
+    await this.git(subPath, [
       "push",
       "--set-upstream",
       "origin",

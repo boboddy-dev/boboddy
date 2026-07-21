@@ -7,6 +7,7 @@ import { DefaultOpencodeStepRunner } from "../../../../../src/work/step-executio
 import { SqliteLocalRuntimeSessionStore } from "../../../../../src/work/step-execution/infra/sqlite-local-runtime-session-store";
 import { LocalWorkspaceManager } from "../../../../../src/runtime/runtime-service/infra/local-workspace-manager";
 import { GitCliCommitPushService } from "../../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
+import { GitCliSubmoduleService } from "../../../../../src/runtime/runtime-service/infra/git-cli-submodule-service";
 import { OpencodeRuntimePayloadProvisioner } from "../../../../../src/runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 import { DevcontainerOpencodeBootstrap } from "../../../../../src/runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
 import { DirectProviderAccessResolver } from "../../../../../src/work/step-execution/infra/provider-access/direct-provider-access-resolver";
@@ -164,6 +165,7 @@ export function buildIntegrationDeps(input: {
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService,
       gitCommitPushService: new GitCliCommitPushService(logger),
+      submoduleService: new GitCliSubmoduleService(logger),
       devcontainerLauncher: new TestcontainersDevcontainerLauncher(
         containerRegistry,
       ),

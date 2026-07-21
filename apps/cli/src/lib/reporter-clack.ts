@@ -58,7 +58,19 @@ export class ClackReporter implements WorkReporter {
   /** Live spinner state, keyed by stepExecutionId. At most one is active. */
   private readonly activeSteps = new Map<string, ActiveStep>();
 
-  constructor(private readonly logFilePath?: string) {}
+  /**
+   * Clock used for step `startedAt` capture and elapsed-duration labels.
+   * Injectable so replay tooling can render original wall-clock durations
+   * while dispatching on a compressed schedule.
+   */
+  private readonly now: () => number;
+
+  constructor(
+    private readonly logFilePath?: string,
+    options?: { now?: () => number },
+  ) {
+    this.now = options?.now ?? Date.now;
+  }
 
   start(title: string): void {
     clack.intro(pc.bgCyan(pc.black(` ${title} `)));
@@ -144,7 +156,7 @@ export class ClackReporter implements WorkReporter {
         spin.start(this.stepLabel(event.stepExecutionId, "starting"));
         this.activeSteps.set(event.stepExecutionId, {
           spinner: spin,
-          startedAt: Date.now(),
+          startedAt: this.now(),
           phase: "starting",
         });
         return;
@@ -186,7 +198,7 @@ export class ClackReporter implements WorkReporter {
         this.endDevcontainerLog(event.stepExecutionId, true);
         const step = this.activeSteps.get(event.stepExecutionId);
         if (step) {
-          const duration = formatElapsed(Date.now() - step.startedAt);
+          const duration = formatElapsed(this.now() - step.startedAt);
           step.spinner.stop(
             pc.green(`Step ${pc.dim(shortId(event.stepExecutionId))} succeeded`) +
               pc.dim(` (${duration})`),
@@ -213,7 +225,7 @@ export class ClackReporter implements WorkReporter {
         this.endDevcontainerLog(event.stepExecutionId, false);
         const step = this.activeSteps.get(event.stepExecutionId);
         if (step) {
-          const duration = formatElapsed(Date.now() - step.startedAt);
+          const duration = formatElapsed(this.now() - step.startedAt);
           step.spinner.error(
             pc.red(`Step ${pc.dim(shortId(event.stepExecutionId))} failed`) +
               pc.dim(` (${duration})`) +
@@ -244,7 +256,7 @@ export class ClackReporter implements WorkReporter {
    */
   private stepLabel(stepExecutionId: string, phase: string, startedAt?: number): string {
     const elapsed = startedAt !== undefined
-      ? pc.dim(` · ${formatElapsed(Date.now() - startedAt)}`)
+      ? pc.dim(` · ${formatElapsed(this.now() - startedAt)}`)
       : "";
     return `step ${pc.cyan(shortId(stepExecutionId))} ${pc.dim(phase)}${elapsed}`;
   }
