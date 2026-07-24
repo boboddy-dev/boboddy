@@ -111,10 +111,12 @@ export type GetApiProjectsResponses = {
     200: Array<{
         id: string;
         name: string;
+        slug: string;
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
         orgId: string;
+        ownerUsername: string | unknown;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -283,10 +285,12 @@ export type PostApiProjectsResponses = {
     200: {
         id: string;
         name: string;
+        slug: string;
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
         orgId: string;
+        ownerUsername: string | unknown;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -351,6 +355,179 @@ export type PostApiProjectsResponses = {
 };
 
 export type PostApiProjectsResponse = PostApiProjectsResponses[keyof PostApiProjectsResponses];
+
+export type GetApiProjectsResolveData = {
+    body?: never;
+    path?: never;
+    query: {
+        username: string;
+        slug: string;
+    };
+    url: '/api/projects/resolve';
+};
+
+export type GetApiProjectsResolveErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiProjectsResolveError = GetApiProjectsResolveErrors[keyof GetApiProjectsResolveErrors];
+
+export type GetApiProjectsResolveResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        name: string;
+        slug: string;
+        description: string | unknown;
+        gitUrl: string;
+        createdByUserId: string;
+        orgId: string;
+        ownerUsername: string | unknown;
+        memberships: Array<{
+            userId: string;
+            permissions: Array<string>;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        defaultPipelineAssignment: {
+            linearPipelineDefinitionId: string;
+            rulesJson: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            };
+            defaultEventType: 'assign' | 'skip';
+            defaultEventParamsJson: {
+                [key: string]: unknown;
+            } | unknown;
+            allowedEventTypes: Array<'assign' | 'skip'>;
+        } | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type GetApiProjectsResolveResponse = GetApiProjectsResolveResponses[keyof GetApiProjectsResolveResponses];
 
 export type GetApiProjectsByProjectIdWorkItemsData = {
     body?: never;
@@ -462,6 +639,8 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -570,10 +749,12 @@ export type GetApiProjectsByProjectIdResponses = {
     200: {
         id: string;
         name: string;
+        slug: string;
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
         orgId: string;
+        ownerUsername: string | unknown;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -887,10 +1068,12 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentResponses = {
     200: {
         id: string;
         name: string;
+        slug: string;
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
         orgId: string;
+        ownerUsername: string | unknown;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -1058,10 +1241,12 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsResponses = {
     200: {
         id: string;
         name: string;
+        slug: string;
         description: string | unknown;
         gitUrl: string;
         createdByUserId: string;
         orgId: string;
+        ownerUsername: string | unknown;
         memberships: Array<{
             userId: string;
             permissions: Array<string>;
@@ -9033,6 +9218,8 @@ export type PostApiWorkItemsResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -9175,6 +9362,8 @@ export type PutApiWorkItemsResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -9395,6 +9584,8 @@ export type GetApiWorkItemsBatchResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -9553,6 +9744,8 @@ export type PostApiWorkItemsBatchResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -9695,6 +9888,8 @@ export type PutApiWorkItemsBatchResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -9915,12 +10110,658 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
 };
 
 export type GetApiWorkItemsByWorkItemIdResponse = GetApiWorkItemsByWorkItemIdResponses[keyof GetApiWorkItemsByWorkItemIdResponses];
+
+export type GetApiWorkItemCommentsData = {
+    body?: never;
+    path?: never;
+    query: {
+        workItemId: string;
+    };
+    url: '/api/work-item-comments';
+};
+
+export type GetApiWorkItemCommentsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiWorkItemCommentsError = GetApiWorkItemCommentsErrors[keyof GetApiWorkItemCommentsErrors];
+
+export type GetApiWorkItemCommentsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        projectId: string;
+        workItemId: string;
+        authorUserId: string;
+        authorUsername: string | unknown;
+        authorImage: string | unknown;
+        body: string;
+        isPinned: boolean;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiWorkItemCommentsResponse = GetApiWorkItemCommentsResponses[keyof GetApiWorkItemCommentsResponses];
+
+export type PostApiWorkItemCommentsData = {
+    body: {
+        workItemId: string;
+        body: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/work-item-comments';
+};
+
+export type PostApiWorkItemCommentsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiWorkItemCommentsError = PostApiWorkItemCommentsErrors[keyof PostApiWorkItemCommentsErrors];
+
+export type PostApiWorkItemCommentsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string;
+        authorUserId: string;
+        authorUsername: string | unknown;
+        authorImage: string | unknown;
+        body: string;
+        isPinned: boolean;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiWorkItemCommentsResponse = PostApiWorkItemCommentsResponses[keyof PostApiWorkItemCommentsResponses];
+
+export type DeleteApiWorkItemCommentsByCommentIdData = {
+    body?: never;
+    path: {
+        commentId: string;
+    };
+    query?: never;
+    url: '/api/work-item-comments/{commentId}';
+};
+
+export type DeleteApiWorkItemCommentsByCommentIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type DeleteApiWorkItemCommentsByCommentIdError = DeleteApiWorkItemCommentsByCommentIdErrors[keyof DeleteApiWorkItemCommentsByCommentIdErrors];
+
+export type DeleteApiWorkItemCommentsByCommentIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: number;
+};
+
+export type DeleteApiWorkItemCommentsByCommentIdResponse = DeleteApiWorkItemCommentsByCommentIdResponses[keyof DeleteApiWorkItemCommentsByCommentIdResponses];
+
+export type PatchApiWorkItemCommentsByCommentIdData = {
+    body: {
+        body: string;
+    };
+    path: {
+        commentId: string;
+    };
+    query?: never;
+    url: '/api/work-item-comments/{commentId}';
+};
+
+export type PatchApiWorkItemCommentsByCommentIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PatchApiWorkItemCommentsByCommentIdError = PatchApiWorkItemCommentsByCommentIdErrors[keyof PatchApiWorkItemCommentsByCommentIdErrors];
+
+export type PatchApiWorkItemCommentsByCommentIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string;
+        authorUserId: string;
+        authorUsername: string | unknown;
+        authorImage: string | unknown;
+        body: string;
+        isPinned: boolean;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PatchApiWorkItemCommentsByCommentIdResponse = PatchApiWorkItemCommentsByCommentIdResponses[keyof PatchApiWorkItemCommentsByCommentIdResponses];
+
+export type PostApiWorkItemCommentsByCommentIdPinData = {
+    body: {
+        isPinned: boolean;
+    };
+    path: {
+        commentId: string;
+    };
+    query?: never;
+    url: '/api/work-item-comments/{commentId}/pin';
+};
+
+export type PostApiWorkItemCommentsByCommentIdPinErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiWorkItemCommentsByCommentIdPinError = PostApiWorkItemCommentsByCommentIdPinErrors[keyof PostApiWorkItemCommentsByCommentIdPinErrors];
+
+export type PostApiWorkItemCommentsByCommentIdPinResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string;
+        authorUserId: string;
+        authorUsername: string | unknown;
+        authorImage: string | unknown;
+        body: string;
+        isPinned: boolean;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiWorkItemCommentsByCommentIdPinResponse = PostApiWorkItemCommentsByCommentIdPinResponses[keyof PostApiWorkItemCommentsByCommentIdPinResponses];
 
 export type GetApiProjectsByProjectIdContextEntriesData = {
     body?: never;
@@ -12021,6 +12862,8 @@ export type GetApiProjectInvitesByTokenResponses = {
         inviteId: string;
         projectId: string;
         projectName: string;
+        projectSlug: string;
+        ownerUsername: string | unknown;
         role: 'admin' | 'contributor' | 'reviewer';
         restriction: 'specific_email' | 'any_authenticated_user';
         permissions: Array<string>;
@@ -12652,3 +13495,206 @@ export type GetApiOrgsByOrgIdUsageResponses = {
 };
 
 export type GetApiOrgsByOrgIdUsageResponse = GetApiOrgsByOrgIdUsageResponses[keyof GetApiOrgsByOrgIdUsageResponses];
+
+export type GetApiUsernameAvailableData = {
+    body?: never;
+    path?: never;
+    query: {
+        u: string;
+    };
+    url: '/api/username/available';
+};
+
+export type GetApiUsernameAvailableErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiUsernameAvailableError = GetApiUsernameAvailableErrors[keyof GetApiUsernameAvailableErrors];
+
+export type GetApiUsernameAvailableResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        valid: boolean;
+        available: boolean;
+    };
+};
+
+export type GetApiUsernameAvailableResponse = GetApiUsernameAvailableResponses[keyof GetApiUsernameAvailableResponses];
+
+export type PostApiUsernameData = {
+    body: {
+        username: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/username';
+};
+
+export type PostApiUsernameErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiUsernameError = PostApiUsernameErrors[keyof PostApiUsernameErrors];
+
+export type PostApiUsernameResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        email: string;
+        username: string | unknown;
+        name: string;
+        emailVerified: boolean;
+        usernameChosen: boolean;
+        image: string | unknown;
+        createdAt: string | unknown;
+        updatedAt: string | unknown;
+    };
+};
+
+export type PostApiUsernameResponse = PostApiUsernameResponses[keyof PostApiUsernameResponses];

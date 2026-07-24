@@ -33,9 +33,18 @@ export type WorkItemAccessor = {
   readonly field: (fieldName: string) => WorkItemBinding;
 };
 
+export type PinnedWorkItemComment = {
+  createdAt: string;
+  body: string;
+};
+
 export type WithWorkItemFields<T> = {
   workItemTitle: string;
   workItemDescription: string | null;
+  // Auto-injected pinned work item comments (chronological). Unlike
+  // workItemTitle/workItemDescription this is NOT a `work_item` scalar binding;
+  // it is injected on the resolved step input at runtime and has no binding form.
+  workItemComments: PinnedWorkItemComment[];
 } & T;
 
 type RequiredInputKeys<T extends object> = {
@@ -62,7 +71,10 @@ export type StepInputCtx<
   literal: (value: unknown) => LiteralBinding;
 };
 
-type ReservedPipelineInputKeys = "workItemTitle" | "workItemDescription";
+type ReservedPipelineInputKeys =
+  | "workItemTitle"
+  | "workItemDescription"
+  | "workItemComments";
 
 // Resolves to T when the schema shape has none of the reserved keys, never otherwise.
 // Uses `.shape` (the raw key map on ZodObject) rather than `_output` to avoid a
