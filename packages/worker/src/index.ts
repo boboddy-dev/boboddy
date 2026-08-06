@@ -51,18 +51,66 @@ export { readProjectConfig } from "./project/project-config/application/read-pro
 export { writeProjectConfig } from "./project/project-config/application/write-project-config";
 export { deriveProjectName, loadProjectConfig, saveProjectConfig } from "./project/project-config/infra/fs-project-config-repo";
 export type { ProjectConfig } from "./project/project-config/domain/project-config";
-export { hasDevcontainer, requireDevcontainer } from "./project/project-setup/application/ensure-devcontainer";
+export { DEVCONTAINER_CONFIG_PATH, hasDevcontainer } from "./project/project-setup/application/ensure-devcontainer";
 export { globalSetup } from "./project/project-setup/application/global-setup";
 export { localConfigSetup } from "./project/project-setup/application/local-config-setup";
-export { analyzeRepo } from "./project/project-setup/application/repo-analysis";
-export type { RepoAnalysis } from "./project/project-setup/application/repo-analysis";
-export { recommendPipelines } from "./project/project-setup/application/recommend-pipelines";
 export { verifyRequirements } from "./project/project-setup/application/verify-requirements";
 export { RuntimeNetworkGarbageCollector } from "./runtime/runtime-gc/application/runtime-network-garbage-collector";
 export { DevcontainerCliLauncher, buildDevcontainerCliCommand, resolveDevcontainerCliScriptPath } from "./runtime/runtime-service/infra/devcontainer-cli-launcher";
+export { OpencodeRuntimePayloadProvisioner } from "./runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
+export type { OpencodeRuntimePayloadLocation } from "./runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
+export {
+  OPENCODE_RUNTIME_VERSION,
+  resolveHostNativePlatform,
+  resolveOpencodeRuntimeVersion,
+} from "./runtime/runtime-service/domain/opencode-runtime-payload";
+export type {
+  OpencodePayloadProgressListener,
+  OpencodePayloadProvisionProgress,
+  PayloadPlatform,
+} from "./runtime/runtime-service/domain/opencode-runtime-payload";
+export {
+  PIPELINE_DESIGNER_AGENT_NAME,
+  PIPELINE_DESIGNER_BASH_PERMISSIONS,
+  PIPELINE_DESIGNER_EDIT_PERMISSIONS,
+  buildDesignerPermissions,
+  buildOpencodeTuiConfig,
+  resolvePermission,
+  serializeOpencodeTuiConfig,
+} from "./runtime/host-opencode-tui/domain/opencode-tui-config";
+export type {
+  BuildOpencodeTuiConfigInput,
+  OpencodeAgentPermissionConfig,
+  OpencodeInjectedAgentConfig,
+  OpencodeInjectedConfig,
+  OpencodePermissionAction,
+  OpencodePermissionRules,
+} from "./runtime/host-opencode-tui/domain/opencode-tui-config";
+export {
+  assertInteractiveTerminal,
+  buildOpencodeTuiArgs,
+  buildOpencodeTuiEnv,
+  ensureHostOpencodePayload,
+  launchOpencodeTui,
+  resolveHostOpencodeBinary,
+} from "./runtime/host-opencode-tui/infra/host-opencode-tui-launcher";
+export type {
+  EnsureHostOpencodePayloadOptions,
+  LaunchOpencodeTuiInput,
+  LaunchOpencodeTuiResult,
+} from "./runtime/host-opencode-tui/infra/host-opencode-tui-launcher";
+export { checkOpencodeProviderCredentials } from "./runtime/host-opencode-tui/application/check-opencode-provider-credentials";
+export type {
+  CheckOpencodeProviderCredentialsInput,
+  OpencodeProviderCredentialCheck,
+} from "./runtime/host-opencode-tui/application/check-opencode-provider-credentials";
 export {
   PIPELINE_BUILDER_DIR,
+  PIPELINE_BUILDER_TSCONFIG,
+  PIPELINE_BUILDER_TYPECHECK_SCRIPT,
+  PIPELINE_BUILDER_TYPECHECK_SCRIPT_NAME,
   STARTER_PIPELINE_FILENAME,
+  buildPipelineBuilderPackageJson,
   scaffoldPipelineBuilderDirectory,
 } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
 export { pullPipelineDefinitions, listExistingPipelineBuilderFiles } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
@@ -93,3 +141,14 @@ export type {
   WorkReporter,
   WorkTask,
 } from "./work/step-execution/contracts/work-reporter";
+export {
+  runWorkDryRun,
+  listProjectStepDefinitionsForDryRun,
+} from "./work/step-execution/application/run-work-dry-run";
+export type {
+  McpCanaryOutcome,
+  WorkDryRunMcpServerReport,
+  WorkDryRunOptions,
+  WorkDryRunReport,
+  WorkDryRunScope,
+} from "./work/step-execution/application/run-work-dry-run";

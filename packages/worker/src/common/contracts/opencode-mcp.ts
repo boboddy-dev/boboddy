@@ -1,5 +1,4 @@
-export type OpenCodeMcpServers = Record<
-  string,
+export type OpenCodeMcpServerConfig =
   | {
       type: "local";
       command: string[];
@@ -25,5 +24,6 @@ export type OpenCodeMcpServers = Record<
     }
   | {
       enabled: boolean;
-    }
->;
+    };
+
+export type OpenCodeMcpServers = Record<string, OpenCodeMcpServerConfig>;

@@ -1,20 +1,29 @@
 /**
- * Minimal Anthropic-compatible HTTP server used across the Boboddy test suites
- * (worker integration tests and the CLI-to-server e2e tests).
+ * Minimal Anthropic-compatible HTTP server used to force an OpenCode provider
+ * backed by `@ai-sdk/anthropic` (pointed at it via `baseURL`) to make a
+ * single, scripted `tool_use` call, then close the turn once it sees the
+ * matching `tool_result`.
  *
- * This is the SINGLE source of truth for the fake AI provider. The AI agent runs
- * inside the user's devcontainer (OpenCode); OpenCode's Anthropic provider
- * `baseURL` is pointed at this server via a seeded opencode config (see
- * {@link seedOpencodeConfig}) so tests never call a real AI provider.
+ * This is the SINGLE source of truth for the fake AI provider. It is used both
+ * by the worker/e2e test suites (which never call a real AI provider) and by
+ * the dry-run "canary" feature, which forces an arbitrary MCP tool call
+ * through a real OpenCode session to verify it actually works.
+ *
+ * The tool forced on the first turn — and the exact arguments it is called
+ * with — are explicit parameters passed to {@link FakeAiServer.configure};
+ * this server never infers the tool from the request's `tools` array.
  *
  * On each `POST /messages` or `/v1/messages`:
  *   - If the conversation already contains a `tool_result` block, returns an
  *     `end_turn` text response so OpenCode closes the session.
- *   - Otherwise, returns a streaming `tool_use` call for
- *     `boboddy-submit-step-findings` with the configured `findingsJson`.
+ *   - Otherwise, returns a streaming `tool_use` call for the configured tool
+ *     name and arguments.
  *
- * Point OpenCode at this server with:
- *   provider.anthropic.options.baseURL = http://host.docker.internal:<port>
+ * Point OpenCode at this server with, for provider id `<id>`:
+ *   provider.<id>.npm = "@ai-sdk/anthropic"
+ *   provider.<id>.options.baseURL = http://host.docker.internal:<port>
+ * (`npm` is implicit only when `<id>` is a real registry id such as
+ * `anthropic`; see `fake-provider-config.ts`.)
  */
 import {
   createServer,
@@ -30,11 +39,9 @@ type AnthropicMessage = {
   content: string | MessageContentBlock[];
 };
 
-type AnthropicTool = { name: string };
-
 type AnthropicRequest = {
   messages: AnthropicMessage[];
-  tools?: AnthropicTool[];
+  tools?: { name: string }[];
   stream?: boolean;
 };
 
@@ -52,6 +59,20 @@ export type FakeAiServerOptions = {
    * a session never progressed. Defaults to false.
    */
   verbose?: boolean;
+};
+
+/**
+ * The tool name to force on the first turn, and the exact arguments to call it
+ * with. Set via {@link FakeAiServer.configure}.
+ */
+export type FakeAiForcedToolCall = {
+  toolName: string;
+  toolArgs: unknown;
+};
+
+const DEFAULT_FORCED_TOOL_CALL: FakeAiForcedToolCall = {
+  toolName: "boboddy-submit-step-findings",
+  toolArgs: {},
 };
 
 const INITIAL_TOOL_USE_DELAY_MS = 1000;
@@ -99,15 +120,6 @@ function hasToolResult(messages: AnthropicMessage[]): boolean {
   );
 }
 
-function findSubmitFindingsToolName(
-  tools: AnthropicTool[] | undefined,
-): string {
-  return (
-    tools?.find((t) => t.name.includes("submit"))?.name ??
-    "boboddy-submit-step-findings"
-  );
-}
-
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -120,8 +132,8 @@ function sseEvent(type: string, data: unknown): string {
 function buildToolUseStream(
   toolName: string,
   // eslint-disable-next-line local/no-unknown-parameter-type
-  toolInput: unknown,
-  findingsText: string,
+  toolArgs: unknown,
+  announcementText: string,
 ): string {
   return [
     sseEvent("message_start", {
@@ -147,7 +159,7 @@ function buildToolUseStream(
     }),
     sseEvent("content_block_delta", {
       index: 0,
-      delta: { type: "text_delta", text: findingsText },
+      delta: { type: "text_delta", text: announcementText },
     }),
     sseEvent("content_block_stop", { index: 0 }),
     sseEvent("content_block_start", {
@@ -163,7 +175,7 @@ function buildToolUseStream(
       index: 1,
       delta: {
         type: "input_json_delta",
-        partial_json: JSON.stringify(toolInput),
+        partial_json: JSON.stringify(toolArgs),
       },
     }),
     sseEvent("content_block_stop", { index: 1 }),
@@ -214,8 +226,8 @@ function buildEndTurnStream(): string {
 function buildToolUseResponse(
   toolName: string,
   // eslint-disable-next-line local/no-unknown-parameter-type
-  toolInput: unknown,
-  findingsText: string,
+  toolArgs: unknown,
+  announcementText: string,
 ): string {
   return JSON.stringify({
     id: `msg_${uid()}`,
@@ -223,12 +235,12 @@ function buildToolUseResponse(
     role: "assistant",
     model: "claude-3-5-haiku-latest",
     content: [
-      { type: "text", text: findingsText },
+      { type: "text", text: announcementText },
       {
         type: "tool_use",
         id: `toolu_${uid()}`,
         name: toolName,
-        input: toolInput,
+        input: toolArgs,
       },
     ],
     stop_reason: "tool_use",
@@ -275,8 +287,9 @@ function buildModelListResponse(): string {
 }
 
 export class FakeAiServer {
-  private findings: unknown = {};
+  private forcedToolCall: FakeAiForcedToolCall = DEFAULT_FORCED_TOOL_CALL;
   private messageRequestCount = 0;
+  private startedPort: number | undefined;
   private readonly verbose: boolean;
   private readonly server = createServer((req, res) => {
     void this.handle(req, res);
@@ -287,12 +300,13 @@ export class FakeAiServer {
   }
 
   /**
-   * Sets the `findingsJson` payload the fake agent will submit via the
-   * boboddy-submit-step-findings tool on its first turn.
+   * Sets the tool name and arguments the fake agent will force a `tool_use`
+   * call for on its first turn. Both are explicit — this server never infers
+   * the tool from the request's `tools` array.
    */
   // eslint-disable-next-line local/no-unknown-parameter-type
-  configure(findings: unknown): this {
-    this.findings = findings;
+  configure(toolName: string, toolArgs: unknown): this {
+    this.forcedToolCall = { toolName, toolArgs };
     return this;
   }
 
@@ -301,9 +315,22 @@ export class FakeAiServer {
     return this.messageRequestCount;
   }
 
+  /**
+   * The port {@link start} bound to. Callers that need to point a live
+   * OpenCode agent's `provider.*.options.baseURL` at this server (e.g. the MCP
+   * canary feature) read this instead of threading the `start()` return value
+   * through separately. Throws if read before `start()` resolves.
+   */
+  get port(): number {
+    if (this.startedPort === undefined) {
+      throw new Error("FakeAiServer.port was read before start() resolved");
+    }
+    return this.startedPort;
+  }
+
   private log(message: string): void {
     if (this.verbose) {
-      console.log(message);
+      console.warn(message);
     }
   }
 
@@ -312,7 +339,7 @@ export class FakeAiServer {
       return;
     }
 
-    const toolName = findSubmitFindingsToolName(parsed.tools);
+    const { toolName } = this.forcedToolCall;
     const lastMessage = parsed.messages.at(-1);
 
     this.log(
@@ -320,7 +347,7 @@ export class FakeAiServer {
         parsed.stream !== false,
       )} messages=${String(parsed.messages.length)} toolCount=${String(
         parsed.tools?.length ?? 0,
-      )} hasToolResult=${String(hasToolResult(parsed.messages))} selectedTool=${toolName}`,
+      )} hasToolResult=${String(hasToolResult(parsed.messages))} forcedTool=${toolName}`,
     );
     if (parsed.tools?.length) {
       this.log(
@@ -375,7 +402,8 @@ export class FakeAiServer {
       this.logRequest(url, method, parsed);
 
       const hasStream = parsed.stream !== false;
-      const toolName = findSubmitFindingsToolName(parsed.tools);
+      const { toolName, toolArgs } = this.forcedToolCall;
+      const announcementText = `Forcing tool call: ${toolName}(${JSON.stringify(toolArgs)})`;
 
       if (hasStream) {
         res.writeHead(200, {
@@ -388,15 +416,9 @@ export class FakeAiServer {
           res.end(buildEndTurnStream());
         } else {
           // Give the runtime a moment to write .boboddy/current-execution into
-          // the mounted workspace before the findings tool tries to read it.
+          // the mounted workspace before the forced tool call reads it.
           await delay(INITIAL_TOOL_USE_DELAY_MS);
-          res.end(
-            buildToolUseStream(
-              toolName,
-              { findingsJson: this.findings },
-              `this.findings = ${JSON.stringify(this.findings, null, 2)}`,
-            ),
-          );
+          res.end(buildToolUseStream(toolName, toolArgs, announcementText));
         }
         return;
       }
@@ -406,13 +428,7 @@ export class FakeAiServer {
         res.end(buildEndTurnResponse());
       } else {
         await delay(INITIAL_TOOL_USE_DELAY_MS);
-        res.end(
-          buildToolUseResponse(
-            toolName,
-            { findingsJson: this.findings },
-            `this.findings = ${JSON.stringify(this.findings, null, 2)}`,
-          ),
-        );
+        res.end(buildToolUseResponse(toolName, toolArgs, announcementText));
       }
       return;
     }
@@ -435,7 +451,9 @@ export class FakeAiServer {
   async start(): Promise<number> {
     return new Promise((resolve, reject) => {
       this.server.listen(0, "0.0.0.0", () => {
-        resolve((this.server.address() as AddressInfo).port);
+        const port = (this.server.address() as AddressInfo).port;
+        this.startedPort = port;
+        resolve(port);
       });
       this.server.once("error", reject);
     });

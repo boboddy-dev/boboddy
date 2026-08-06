@@ -248,6 +248,14 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
     onDevcontainerLogLine?:
       | ((line: string, level: "info" | "warn" | "error") => void)
       | undefined;
+    /**
+     * Opt-in hook that bakes a fake AI provider into the launch-time inline
+     * config, pointed at `baseUrl`, instead of PATCHing `/config` on an
+     * already-running agent (proven to have zero live effect — see #109).
+     * Used only by the #109/#110 dry-run MCP canary feature. Production step
+     * execution never sets this field, so real runs are unaffected.
+     */
+    fakeAiProviderOverride?: { baseUrl: string } | undefined;
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
 

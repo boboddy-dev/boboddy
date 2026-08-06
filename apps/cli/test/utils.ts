@@ -1,4 +1,5 @@
 import { test } from "bun:test";
+import type { BaseReporter } from "../src/lib/reporter-types";
 
 export const concurrentTest =
   ("concurrent" in test &&
@@ -35,3 +36,59 @@ export function reporterLines(stderr: string): string[] {
 export function hasReporterLine(stderr: string, substring: string): boolean {
   return reporterLines(stderr).some((line) => line.includes(substring));
 }
+
+/** One reporter call: which method, and what it was passed. */
+export type RecordedReport = { method: string; message: string };
+
+/**
+ * A {@link BaseReporter} that records instead of rendering, for the command tails
+ * and preflights whose behaviour is a sequence of reporter calls rather than
+ * anything on a terminal.
+ *
+ * `calls` and `tasks` are separate because the assertions are: `calls` is the
+ * message stream (did the user get told?), `tasks` is the spinner lifecycle (did
+ * the step resolve, and did it succeed or fail?). Both preserve order, which is
+ * usually the point — a block has to be closed before a child takes the tty.
+ */
+export function createReporterRecorder(): {
+  reporter: BaseReporter;
+  calls: RecordedReport[];
+  tasks: RecordedReport[];
+} {
+  const calls: RecordedReport[] = [];
+  const tasks: RecordedReport[] = [];
+  const push = (method: string) => (message: string) => {
+    calls.push({ method, message });
+  };
+  const pushTask = (method: string) => (message?: string) => {
+    tasks.push({ method, message: message ?? "" });
+  };
+  return {
+    calls,
+    tasks,
+    reporter: {
+      start: push("start"),
+      finish: push("finish"),
+      startTask: (message: string) => {
+        tasks.push({ method: "startTask", message });
+        return {
+          update: pushTask("update"),
+          succeed: pushTask("succeed"),
+          fail: pushTask("fail"),
+        };
+      },
+      info: push("info"),
+      success: push("success"),
+      warn: push("warn"),
+      error: push("error"),
+    },
+  };
+}
+
+/** The `message` of each recorded call, in order. */
+export const reportedMessages = (calls: readonly RecordedReport[]): string[] =>
+  calls.map((call) => call.message);
+
+/** The `method` of each recorded call, in order. */
+export const reportedMethods = (calls: readonly RecordedReport[]): string[] =>
+  calls.map((call) => call.method);

@@ -40,7 +40,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import { LocalArtifactStore } from "../../../../src/artifacts/artifact-store/infra/local-artifact-store";
 import { runProjectWork } from "../../../../src/work/step-execution/application/run-project-work";
-import { FakeAiServer, seedOpencodeConfig } from "../../../support/fake-ai";
+import {
+  FakeAiServer,
+  seedOpencodeConfig,
+} from "../../../../src/work/step-execution/infra/fake-ai";
 import { FakeStepExecutionWorkerClient } from "./helpers/fake-worker-client";
 import { buildIntegrationDeps } from "./helpers/build-integration-deps";
 import { buildSingleStepScenario } from "./helpers/scenario";
@@ -134,7 +137,9 @@ describe.skipIf(!integrationEnabled)(
         const artifactStore = new LocalArtifactStore(artifactsBaseDir);
 
         const fakeAiPort = await fakeAi.start();
-        fakeAi.configure(findings);
+        fakeAi.configure("boboddy-submit-step-findings", {
+          findingsJson: findings,
+        });
         await seedOpencodeConfig(homeDir, fakeAiPort);
 
         const workerClient = new FakeStepExecutionWorkerClient(scenario);

@@ -1,18 +1,5 @@
-import { execFile } from "node:child_process";
-import {
-  chmod,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
-import os from "node:os";
+import { chmod, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import {
   logWork,
   logWorkDebug,
@@ -23,20 +10,25 @@ import {
   LINUX_PAYLOAD_PLATFORMS,
   PAYLOAD_BIN_SUBDIR,
   PAYLOAD_FORMAT_REVISION,
-  PAYLOAD_MANIFEST_FILENAME,
   containerOpencodeRuntimeVersionDir,
   hostOpencodeRuntimeRoot,
   hostOpencodeRuntimeVersionDir,
-  opencodePlatformPackage,
   resolveHostHome,
   resolveHostNativePlatform,
   resolveOpencodeRuntimeVersion,
-  type OpencodeRuntimePayloadManifest,
+  type OpencodePayloadProgressListener,
   type PayloadPlatform,
 } from "../domain/opencode-runtime-payload";
+import { fetchOpencodePlatformBinary } from "./opencode-platform-binary-fetcher";
+import {
+  carryForwardCachedPlatforms,
+  gcStalePayloadVersions,
+  payloadBinaryPath,
+  payloadFileExists,
+  readPayloadManifest,
+  writePayloadManifest,
+} from "./opencode-runtime-payload-cache";
 import { buildOpencodeLaunchWrapper } from "./opencode-runtime-launch-wrapper";
-
-const execFileAsync = promisify(execFile);
 
 /**
  * Provisions the Boboddy-managed OpenCode runtime payload into the host cache
@@ -49,11 +41,16 @@ const execFileAsync = promisify(execFile);
  * then renamed into place) so concurrent/aborted provisions never leave a
  * partial payload mounted into a container.
  *
+ * Provisioning is also ADDITIVE: platform binaries already cached for the same
+ * version but outside the requested `platforms` set are carried forward into the
+ * new payload (see `opencode-runtime-payload-cache.ts`). Callers request
+ * different subsets of the same shared cache — the worker needs the full Linux
+ * set, the CLI's interactive TUI needs only the host-native binary.
+ *
  * The standalone binaries are sourced from the `opencode-<platform>` npm
  * optional-dependency packages of `opencode-ai` (each ships a single,
- * embedded-Bun ELF executable). They are downloaded and extracted with the
- * registry tarball + system `tar`, which is universally available on worker
- * hosts.
+ * embedded-Bun ELF executable). Download + extraction lives in
+ * `opencode-platform-binary-fetcher.ts`.
  */
 
 export type OpencodeRuntimePayloadLocation = {
@@ -86,6 +83,11 @@ export type OpencodeRuntimePayloadProvisionerOptions = {
    * host is unsupported for host execution and only the Linux set is provisioned.
    */
   hostNativePlatform?: PayloadPlatform | null | undefined;
+  /**
+   * Optional progress sink for interactive callers (the CLI renders a download
+   * spinner). Never receives secrets.
+   */
+  onProgress?: OpencodePayloadProgressListener | undefined;
 };
 
 const DEFAULT_REGISTRY = "https://registry.npmjs.org";
@@ -113,8 +115,10 @@ export class OpencodeRuntimePayloadProvisioner {
   private readonly homeDir: string;
   private readonly registryBaseUrl: string;
   private readonly platforms: readonly PayloadPlatform[];
+  private readonly onProgress: OpencodePayloadProgressListener | undefined;
 
   constructor(options: OpencodeRuntimePayloadProvisionerOptions = {}) {
+    this.onProgress = options.onProgress;
     this.homeDir = options.homeDir ?? resolveHostHome();
     this.registryBaseUrl = (
       options.registryBaseUrl ?? DEFAULT_REGISTRY
@@ -141,11 +145,15 @@ export class OpencodeRuntimePayloadProvisioner {
         version,
         hostPayloadDir,
       });
+      this.onProgress?.({ phase: "cache-hit", version });
     } else {
       await this.provision(version, hostPayloadDir);
     }
 
-    await this.gcStaleVersions(version);
+    await gcStalePayloadVersions(
+      hostOpencodeRuntimeRoot(this.homeDir),
+      version,
+    );
 
     return {
       version,
@@ -166,7 +174,7 @@ export class OpencodeRuntimePayloadProvisioner {
     hostPayloadDir: string,
     version: string,
   ): Promise<boolean> {
-    const manifest = await this.readManifest(hostPayloadDir);
+    const manifest = await readPayloadManifest(hostPayloadDir);
     if (
       !manifest ||
       manifest.version !== version ||
@@ -175,36 +183,26 @@ export class OpencodeRuntimePayloadProvisioner {
       return false;
     }
     for (const platform of this.platforms) {
-      const binaryPath = path.join(
-        hostPayloadDir,
-        PAYLOAD_BIN_SUBDIR,
-        platform,
-        "opencode",
-      );
-      if (!(await fileExists(binaryPath))) {
+      if (
+        !(await payloadFileExists(payloadBinaryPath(hostPayloadDir, platform)))
+      ) {
         return false;
       }
     }
     return true;
   }
 
-  private async readManifest(
-    hostPayloadDir: string,
-  ): Promise<OpencodeRuntimePayloadManifest | undefined> {
-    try {
-      const raw = await readFile(
-        path.join(hostPayloadDir, PAYLOAD_MANIFEST_FILENAME),
-        "utf8",
-      );
-      const parsed = JSON.parse(raw) as OpencodeRuntimePayloadManifest;
-      return parsed;
-    } catch {
-      return undefined;
-    }
-  }
-
   /**
    * Build the payload in a staging dir and atomically rename it into place.
+   *
+   * Provisioning is ADDITIVE: platform binaries already cached for this same
+   * version/format revision but NOT in `this.platforms` are carried forward into
+   * the staging dir. Different callers request different platform subsets (the
+   * worker needs the full Linux set to mount into a devcontainer; the CLI's
+   * interactive TUI needs only the host-native binary), and they share one
+   * version-keyed cache directory. Without the carry-forward, each caller's
+   * atomic republish would delete the other's binaries and the two would
+   * re-download ~100 MB apiece in a loop.
    */
   private async provision(
     version: string,
@@ -215,6 +213,11 @@ export class OpencodeRuntimePayloadProvisioner {
       hostPayloadDir,
       platforms: [...this.platforms],
     });
+    this.onProgress?.({
+      phase: "provision-start",
+      version,
+      platforms: this.platforms,
+    });
 
     const cacheRoot = hostOpencodeRuntimeRoot(this.homeDir);
     await mkdir(cacheRoot, { recursive: true });
@@ -224,14 +227,49 @@ export class OpencodeRuntimePayloadProvisioner {
     );
 
     try {
+      const total = this.platforms.length;
       const provisionedPlatforms: PayloadPlatform[] = [];
-      for (const platform of this.platforms) {
-        await this.provisionPlatform(version, platform, stagingDir);
+      for (const [index, platform] of this.platforms.entries()) {
+        this.onProgress?.({
+          phase: "platform-start",
+          version,
+          platform,
+          index,
+          total,
+        });
+        const { bytes } = await fetchOpencodePlatformBinary({
+          version,
+          platform,
+          registryBaseUrl: this.registryBaseUrl,
+          destinationPath: path.join(
+            stagingDir,
+            PAYLOAD_BIN_SUBDIR,
+            platform,
+            "opencode",
+          ),
+          onProgress: this.onProgress,
+        });
         provisionedPlatforms.push(platform);
+        this.onProgress?.({
+          phase: "platform-done",
+          version,
+          platform,
+          index,
+          total,
+          bytes,
+        });
       }
 
+      const carried = await carryForwardCachedPlatforms({
+        hostPayloadDir,
+        stagingDir,
+        version,
+        requestedPlatforms: this.platforms,
+      });
+      const allPlatforms = [...provisionedPlatforms, ...carried];
+
       await this.writeLaunchWrapper(stagingDir);
-      await this.writeManifest(stagingDir, version, provisionedPlatforms);
+      await writePayloadManifest(stagingDir, version, allPlatforms);
 
       // Atomic publish: remove any partial/old dir, then rename staging in.
       await rm(hostPayloadDir, { recursive: true, force: true });
@@ -240,7 +278,13 @@ export class OpencodeRuntimePayloadProvisioner {
       logWork("runtime", "OpenCode runtime payload provisioned", {
         version,
         hostPayloadDir,
-        platforms: provisionedPlatforms,
+        platforms: allPlatforms,
+        carriedForward: carried,
+      });
+      this.onProgress?.({
+        phase: "provision-done",
+        version,
+        platforms: allPlatforms,
       });
     } catch (error) {
       await rm(stagingDir, { recursive: true, force: true });
@@ -253,140 +297,9 @@ export class OpencodeRuntimePayloadProvisioner {
     }
   }
 
-  /**
-   * Download the `opencode-<platform>` registry tarball and extract its single
-   * `package/bin/opencode` binary into `<staging>/bin/<platform>/opencode`.
-   */
-  private async provisionPlatform(
-    version: string,
-    platform: PayloadPlatform,
-    stagingDir: string,
-  ): Promise<void> {
-    const pkg = opencodePlatformPackage(platform);
-    const tarballUrl = `${this.registryBaseUrl}/${pkg}/-/${pkg}-${version}.tgz`;
-
-    const downloadDir = await mkdtemp(
-      path.join(os.tmpdir(), `oc-payload-${platform}-`),
-    );
-    const tarballPath = path.join(downloadDir, "package.tgz");
-    const extractDir = path.join(downloadDir, "extract");
-
-    try {
-      logWorkDebug("runtime", "Downloading OpenCode platform binary", {
-        version,
-        platform,
-        tarballUrl,
-      });
-      const response = await fetch(tarballUrl);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to download ${pkg}@${version} (${tarballUrl}): ` +
-            `HTTP ${String(response.status)}`,
-        );
-      }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      await writeFile(tarballPath, bytes);
-
-      await mkdir(extractDir, { recursive: true });
-      // System tar is universally present on worker hosts; the tarball is a
-      // standard gzipped npm package with `package/bin/opencode`.
-      await execFileAsync("tar", [
-        "-xzf",
-        tarballPath,
-        "-C",
-        extractDir,
-        "package/bin/opencode",
-      ]);
-
-      const extractedBinary = path.join(
-        extractDir,
-        "package",
-        "bin",
-        "opencode",
-      );
-      if (!(await fileExists(extractedBinary))) {
-        throw new Error(
-          `Extracted ${pkg}@${version} but bin/opencode was not present`,
-        );
-      }
-
-      const destDir = path.join(stagingDir, PAYLOAD_BIN_SUBDIR, platform);
-      await mkdir(destDir, { recursive: true });
-      const destBinary = path.join(destDir, "opencode");
-      // Move within the same temp filesystem then copy into the cache dir.
-      const contents = await readFile(extractedBinary);
-      await writeFile(destBinary, contents);
-      await chmod(destBinary, 0o755);
-    } finally {
-      await rm(downloadDir, { recursive: true, force: true });
-    }
-  }
-
   private async writeLaunchWrapper(stagingDir: string): Promise<void> {
     const wrapperPath = path.join(stagingDir, LAUNCH_WRAPPER_FILENAME);
     await writeFile(wrapperPath, buildOpencodeLaunchWrapper(), "utf8");
     await chmod(wrapperPath, 0o755);
-  }
-
-  private async writeManifest(
-    stagingDir: string,
-    version: string,
-    platforms: PayloadPlatform[],
-  ): Promise<void> {
-    const manifest: OpencodeRuntimePayloadManifest = {
-      version,
-      platforms,
-      provisionedAt: new Date().toISOString(),
-      formatRevision: PAYLOAD_FORMAT_REVISION,
-    };
-    await writeFile(
-      path.join(stagingDir, PAYLOAD_MANIFEST_FILENAME),
-      `${JSON.stringify(manifest, null, 2)}\n`,
-      "utf8",
-    );
-  }
-
-  /**
-   * GC payload versions other than the pinned one. Reused payloads are cached,
-   * so on a version bump older directories accumulate; remove them. Staging
-   * dirs (prefixed `.staging-`) left by aborted provisions are also swept.
-   */
-  private async gcStaleVersions(keepVersion: string): Promise<void> {
-    const cacheRoot = hostOpencodeRuntimeRoot(this.homeDir);
-    let entries: string[];
-    try {
-      entries = await readdir(cacheRoot);
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const isStaging = entry.startsWith(".staging-");
-      if (entry === keepVersion && !isStaging) {
-        continue;
-      }
-      const target = path.join(cacheRoot, entry);
-      try {
-        await rm(target, { recursive: true, force: true });
-        logWorkDebug("runtime", "GC'd stale OpenCode runtime payload", {
-          entry,
-          keepVersion,
-        });
-      } catch (error) {
-        logWorkDebug("runtime", "Failed to GC OpenCode runtime payload entry", {
-          entry,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-  }
-}
-
-async function fileExists(target: string): Promise<boolean> {
-  try {
-    await stat(target);
-    return true;
-  } catch {
-    return false;
   }
 }

@@ -304,4 +304,68 @@ describe("buildOpencodeContext", () => {
     const afterContent = await readFile(userConfigPath, "utf8");
     expect(afterContent).toBe(originalContent);
   });
+
+  test("providerOverride is absent by default (no provider key in output)", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    const { opencodeConfigContent } = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+    });
+
+    const config = JSON.parse(opencodeConfigContent) as {
+      provider?: unknown;
+    };
+    expect(config.provider).toBeUndefined();
+  });
+
+  test("providerOverride is merged into opencodeConfigContent.provider", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    const { opencodeConfigContent } = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      providerOverride: {
+        provider: {
+          anthropic: {
+            options: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
+            models: { "boboddy-fake-canary": { name: "Boboddy Fake Canary Model" } },
+          },
+        },
+      },
+    });
+
+    const config = JSON.parse(opencodeConfigContent) as {
+      provider?: Record<string, unknown>;
+    };
+
+    expect(config.provider?.["anthropic"]).toEqual({
+      options: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
+      models: { "boboddy-fake-canary": { name: "Boboddy Fake Canary Model" } },
+    });
+  });
+
+  test("providerOverride of null/undefined leaves rest of config identical to omitting it", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "build-opencode-context-test-"),
+    );
+
+    const withoutField = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+    });
+    const withNull = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      providerOverride: null,
+    });
+
+    expect(withNull.opencodeConfigContent).toBe(
+      withoutField.opencodeConfigContent,
+    );
+  });
 });

@@ -297,14 +297,18 @@ export type SignalKeysOf<TSignals extends readonly unknown[]> =
 export function defineStep<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
-  // Simpler constraint lets TypeScript preserve string literal types for `key` and `sourcePath`.
-  // The intersection in the config type enforces validity against the result schema.
+  // The loose `sourcePath: string` constraint is what lets TypeScript infer and
+  // preserve string literal types for `key` and `sourcePath`; narrowing it here
+  // would widen them back to `string` and lose the signal-key typing that
+  // `definePipeline` depends on. Validity against the result schema is enforced
+  // instead by the intersection on `config.signals` below, which re-applies
+  // `SignalSpecInput` — the constraint `Omit` strips off `DefineStepInput`.
   const TSignals extends ReadonlyArray<{ sourcePath: string; key?: string }> =
     never[],
   const TFeatures extends ReadonlyArray<AnyStepFeature> = never[],
 >(
   config: Omit<DefineStepInput<TInput, TResult>, "signals" | "features"> & {
-    signals?: TSignals;
+    signals?: TSignals & readonly SignalSpecInput<TResult["_output"]>[];
     features?: TFeatures;
   },
 ): TypedStepDefinitionSpec<

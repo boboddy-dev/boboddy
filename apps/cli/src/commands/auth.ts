@@ -1,16 +1,12 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import {
-  CLI_AUTH_CLIENT_ID,
   deleteAuthProfile,
   loadAuthenticatedSession,
   loadAuthProfile,
-  persistAuthenticatedSession,
-  pollForAccessToken,
-  requestDeviceAuthorization,
   resolveBoboddyBaseUrl,
 } from "@boboddy/worker";
 import { withReporter } from "../lib/command-output";
-import { openBrowser } from "../auth/browser";
+import { performDeviceLogin } from "../lib/device-login";
 
 const addBaseUrlOption = (argv: Argv<object>) =>
   argv.option("base-url", {
@@ -26,49 +22,7 @@ const getBaseUrlArgument = (arguments_: ArgumentsCamelCase<object>) => {
 const runLogin = async (arguments_: ArgumentsCamelCase<object>) =>
   withReporter("auth", async ({ reporter, logger }) => {
     const baseUrl = resolveBoboddyBaseUrl(getBaseUrlArgument(arguments_));
-    const deviceAuth = await requestDeviceAuthorization(baseUrl);
-
-    const verificationUri =
-      deviceAuth.verification_uri_complete || deviceAuth.verification_uri;
-
-    reporter.info("Open this URL to approve the CLI");
-    reporter.info(`URL: ${verificationUri}`);
-    reporter.info(`Code: ${deviceAuth.user_code}`);
-
-    logger.info(
-      { url: verificationUri, code: deviceAuth.user_code, clientId: CLI_AUTH_CLIENT_ID },
-      "Approval details",
-    );
-
-    try {
-      await openBrowser(verificationUri);
-    } catch {
-      reporter.warn(
-        "Could not open a browser automatically. Open the URL above manually.",
-      );
-    }
-
-    const task = reporter.startTask("Waiting for approval…");
-
-    let tokenResponse;
-    try {
-      tokenResponse = await pollForAccessToken({
-        baseUrl,
-        deviceCode: deviceAuth.device_code,
-        intervalSeconds: deviceAuth.interval,
-        expiresInSeconds: deviceAuth.expires_in,
-      });
-    } catch (error) {
-      task.fail("Approval failed");
-      throw error;
-    }
-
-    const session = await persistAuthenticatedSession({
-      baseUrl,
-      accessToken: tokenResponse.access_token,
-    });
-
-    task.succeed(`Signed in as ${session.user.email}`);
+    await performDeviceLogin({ baseUrl, reporter, logger });
   });
 
 const runStatus = async (arguments_: ArgumentsCamelCase<object>) =>

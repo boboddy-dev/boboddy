@@ -259,3 +259,73 @@ describe("pushFromDirectory route validation", () => {
     );
   });
 });
+
+// The validator has to run for real users at push time, not only in fixtures,
+// and it has to run before the first write — a batch that half-pushes and then
+// rejects is worse than one that rejects.
+describe("pushFromDirectory offline validation", () => {
+  const previousFetch = globalThis.fetch;
+  let dir: string;
+  const captured: CapturedRequest[] = [];
+
+  const STEP_WITH_DEAD_SIGNAL = `
+    export const step = {
+      key: "step-a",
+      name: "Step A",
+      description: null,
+      version: 1,
+      kind: "user_defined",
+      status: "active",
+      prompt: null,
+      inputSchemaJson: null,
+      resultSchemaJson: {
+        type: "object",
+        properties: { outcome: { type: "string" } },
+        required: ["outcome"],
+        additionalProperties: false,
+      },
+      signalExtractorDefinitions: [{
+        key: "dead",
+        sourcePath: "totally.not.real",
+        type: "string",
+        required: true,
+        availableWhenResultStatusIn: null,
+      }],
+      opencodeMcpJson: null,
+      opencodePluginJson: null,
+    };
+  `;
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "boboddy-pfd-validate-"));
+    writeFileSync(join(dir, "steps.js"), STEP_WITH_DEAD_SIGNAL);
+    globalThis.fetch = makeMockFetch(captured);
+  });
+
+  afterAll(() => {
+    globalThis.fetch = previousFetch;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("rejects a dead signal sourcePath without writing anything", async () => {
+    let caught: unknown;
+    try {
+      await pushFromDirectory(dir, {
+        baseUrl: BASE_URL,
+        projectId: "proj-4",
+        accessToken: "tok",
+        log: () => undefined,
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    const message = (caught as Error).message;
+    expect(message).toContain('Step "step-a"');
+    expect(message).toContain('sourcePath "totally.not.real"');
+    expect(message).toContain("Valid sourcePaths for this step: outcome.");
+
+    expect(captured.filter((r) => r.method !== "GET")).toEqual([]);
+  });
+});

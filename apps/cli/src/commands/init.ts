@@ -1,36 +1,38 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import * as clack from "@clack/prompts";
 import {
-  analyzeRepo,
   globalSetup,
+  hasDevcontainer,
   localConfigSetup,
-  recommendPipelines,
-  requireDevcontainer,
   resolveBoboddyBaseUrl,
   verifyRequirements,
 } from "@boboddy/worker";
 import { withReporter } from "../lib/command-output";
+import { reportDevcontainerStatus } from "../lib/init-devcontainer-notice";
+import { runInitHandoff } from "../lib/init-handoff";
+import { runPipelineDesign } from "./pipelines-design";
 
-async function promptForConfirmation(question: string): Promise<boolean> {
-  const answer = await clack.confirm({ message: question, initialValue: true });
-  if (clack.isCancel(answer)) {
-    throw new Error("Initialization cancelled.");
-  }
-  return answer;
-}
+/**
+ * `boboddy init` — everything a repository needs before pipelines exist:
+ * requirements, global config, and the project record in
+ * `.boboddy/boboddy.jsonc`. It writes no analysis of the repository: the
+ * pipeline designer orients itself by reading the repository directly.
+ *
+ * A missing devcontainer is reported, not enforced — see
+ * `lib/init-devcontainer-notice.ts`. Nothing here can fail on account of it,
+ * because the handoff below is what fixes it.
+ *
+ * It deliberately does NOT create any pipeline. Authoring happens in exactly
+ * one place — `boboddy pipelines design` — which this command hands over to.
+ */
 
-async function promptForAppAccessInstructions(): Promise<string | null> {
-  const answer = await clack.text({
-    message: "Application access instructions (leave blank or 'skip' to skip setup):",
+async function promptToLaunchDesigner(): Promise<boolean> {
+  const answer = await clack.confirm({
+    message: "Design your first pipeline now?",
+    initialValue: true,
   });
-  if (clack.isCancel(answer)) {
-    throw new Error("Initialization cancelled.");
-  }
-  const trimmed = answer.trim();
-  if (trimmed.length === 0 || trimmed.toLowerCase() === "skip") {
-    return null;
-  }
-  return trimmed;
+  // Cancelling the epilogue is not a failed init: everything is already done.
+  return !clack.isCancel(answer) && answer;
 }
 
 function runInit(
@@ -55,44 +57,26 @@ function runInit(
     t2.succeed("Global setup complete");
 
     const t3 = reporter.startTask("Configuring project…");
-    const result = await localConfigSetup({ headers, client });
+    // Returns null when the project is already configured; the remaining steps
+    // are idempotent, so a re-run still checks the devcontainer and offers the
+    // handoff instead of exiting silently.
+    await localConfigSetup({ headers, client });
     t3.succeed("Project configured");
 
-    if (!result) return;
-
-    const interactive = process.stdin.isTTY && process.stdout.isTTY;
-
-    const t4 = reporter.startTask("Checking devcontainer…");
-    try {
-      await requireDevcontainer(process.cwd());
-    } catch (error) {
-      t4.fail("Devcontainer check failed");
-      throw error;
-    }
-    t4.succeed("Devcontainer ready");
-
-    const t5 = reporter.startTask("Analyzing repository…");
-    const analysis = await analyzeRepo();
-    t5.succeed("Repository analyzed");
-
-    const accepted =
-      interactive && analysis.kind === "web_app"
-        ? await promptForConfirmation("Create it now?")
-        : false;
-    const appAccessInstructions = accepted
-      ? await promptForAppAccessInstructions()
-      : null;
-
-    const t6 = reporter.startTask("Recommending pipelines…");
-    await recommendPipelines({
-      baseUrl,
-      client,
-      headers,
-      projectId: result.projectId,
-      accepted,
-      appAccessInstructions,
+    await reportDevcontainerStatus({
+      reporter,
+      ports: { hasDevcontainer: () => hasDevcontainer(process.cwd()) },
     });
-    t6.succeed("Pipelines recommended");
+
+    await runInitHandoff({
+      interactive: process.stdin.isTTY && process.stdout.isTTY,
+      reporter,
+      ports: {
+        confirmLaunch: promptToLaunchDesigner,
+        launchDesign: () =>
+          runPipelineDesign({ projectId: undefined, baseUrl: argv.baseUrl }),
+      },
+    });
   });
 }
 

@@ -199,37 +199,6 @@ export default defineConfig(
     },
   },
   {
-    files: [
-      "packages/core/src/pipeline-executions/step-execution/application/**/*.ts",
-    ],
-    ignores: [
-      "packages/core/src/pipeline-executions/step-execution/application/load-status-adjusted-step-executions.ts",
-    ],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.object.name='stepExecutionRepo'][callee.property.name='load']",
-          message:
-            "Use the status-adjusted loader service for step execution reads.",
-        },
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.object.name='stepExecutionRepo'][callee.property.name='listByProjectId']",
-          message:
-            "Use the status-adjusted loader service for step execution reads.",
-        },
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.object.name='stepExecutionRepo'][callee.property.name='loadClaimableByProjectId']",
-          message:
-            "Use the status-adjusted loader service for step execution reads.",
-        },
-      ],
-    },
-  },
-  {
     // JS/MJS/CJS files don't have a tsconfig project, so type-aware rules
     // must be disabled for them to avoid "parserOptions not set" errors.
     files: ["**/*.{js,mjs,cjs}"],

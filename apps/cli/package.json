@@ -37,7 +37,7 @@
     "@boboddy/worker": "workspace:*",
     "@clack/prompts": "^1.0.0",
     "@devcontainers/cli": "0.86.0",
-    "@opencode-ai/sdk": "1.17.3",
+    "@opencode-ai/sdk": "1.18.11",
     "ajv": "^8.20.0",
     "better-auth": "^1.6.7",
     "dotenv": "^16.0.0",

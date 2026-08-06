@@ -14,6 +14,7 @@ import {
   STARTER_PIPELINE_FILENAME,
 } from "@boboddy/worker";
 import { version as CLI_VERSION } from "../../package.json";
+import { designCommand } from "./pipelines-design";
 import { detectPipelineRuntime } from "../lib/detect-pipeline-runtime";
 import { withReporter } from "../lib/command-output";
 import {
@@ -290,6 +291,7 @@ export const pipelinesCommand: CommandModule<object, object> = {
   builder: (argv) =>
     argv
       .command(initCommand)
+      .command(designCommand)
       .command(pushCommand)
       .command(pullCommand)
       .demandCommand(1, "A pipelines command is required."),

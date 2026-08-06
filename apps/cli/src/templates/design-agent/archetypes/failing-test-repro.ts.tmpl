@@ -1,0 +1,142 @@
+import { z } from "zod";
+import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+
+// Archetype B — code-level failing-test reproduction.
+// failing test (workspace) → gate → fix. The safe default when the repository
+// is the only thing the execution environment can reach.
+
+export const reproduceWithTest = defineStep({
+  key: "reproduce-with-test",
+  name: "Reproduce With Test",
+  description: "Write a test that fails for the reported reason.",
+  status: "active",
+  executionMode: "workspace",
+
+  agentPrompt: `
+Reproduce the reported problem as an automated test that FAILS. You have the
+repository and its test suite; there is no running instance of this system, so do
+not try to start one or reach a deployed environment.
+
+1. Read the report and locate the code paths it implicates.
+2. Follow the existing test suite's conventions exactly — same framework,
+   directory layout, naming, fixtures, and helpers. Do not introduce a new
+   runner or a new fixture style.
+3. Write the smallest test asserting the behaviour the report says should
+   happen. Extend an existing file when one obviously belongs.
+4. Run it. Confirm it fails, and that it fails from the reported defect rather
+   than a mistake in your setup.
+
+Report:
+
+- \`testPaths\`: every file you created or changed.
+- \`testCommand\`: the exact command running just these tests.
+- \`testsFail\`: true only if you ran them and saw them fail.
+- \`failureOutput\`: verbatim failure output, not a paraphrase.
+- \`capturesReportedBug\`: true only if the failure is this bug.
+- \`confidence\`: 0 = guessing at the problem from the report alone, 1 = the
+  failure message restates the report. Score low rather than assuming context
+  you do not have.
+- \`summary\`: what you reproduced, and explicitly what you could NOT.
+
+If the report is too vague to turn into an assertion, do not guess: leave
+\`testsFail\` false and emit a \`feedback_request\` notification naming the one
+thing you need.
+`,
+
+  result: z.object({
+    testPaths: z.array(z.string()),
+    testCommand: z.string(),
+    testsFail: z.boolean(),
+    failureOutput: z.string(),
+    capturesReportedBug: z.boolean(),
+    confidence: z.number().min(0).max(1),
+    summary: z.string(),
+  }),
+
+  signals: [
+    { sourcePath: "testPaths" },
+    { sourcePath: "testCommand" },
+    { sourcePath: "testsFail" },
+    { sourcePath: "failureOutput" },
+    { sourcePath: "capturesReportedBug" },
+    { sourcePath: "confidence" },
+    { sourcePath: "summary" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export const fixFailingTest = defineStep({
+  key: "fix-failing-test",
+  name: "Fix Failing Test",
+  description: "Fix the defect so the reproduction test passes.",
+  status: "active",
+  executionMode: "workspace",
+
+  agentPrompt: ({ input }) => `
+A previous step wrote a test that fails because of a real defect. Fix the defect.
+
+Failing tests: ${input.failingTestPaths}
+Run them with: ${input.testCommand}
+Observed failure: ${input.failureOutput}
+
+Fix the root cause, not the assertion. You may not weaken, skip, or delete the
+failing test — if you are convinced the test is wrong, stop and emit a
+\`feedback_request\` notification rather than editing it. Then run the wider suite
+to confirm you broke nothing else.
+
+Report \`changedFiles\`, \`testsPass\` (the reproduction test passes AND the wider
+suite is green), a \`summary\` a reviewer reads before the diff, and
+\`remainingRisks\` — anything you could not verify in this environment.
+`,
+
+  additionalInput: z.object({
+    failingTestPaths: z.array(z.string()),
+    testCommand: z.string(),
+    failureOutput: z.string(),
+  }),
+
+  result: z.object({
+    changedFiles: z.array(z.string()),
+    testsPass: z.boolean(),
+    summary: z.string(),
+    remainingRisks: z.string(),
+  }),
+
+  signals: [
+    { sourcePath: "changedFiles" },
+    { sourcePath: "testsPass" },
+    { sourcePath: "summary" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export default pipeline({
+  key: "failing-test-repro",
+  name: "Failing Test Repro",
+  description: "Reproduce a defect as a failing test, then fix it.",
+  status: "active",
+})
+  .step(reproduceWithTest, () => ({}))
+  .advance(({ stepSignals, all }) => ({
+    default: "block",
+    rules: [
+      all(
+        stepSignals.testsFail.eq(true),
+        stepSignals.capturesReportedBug.eq(true),
+        stepSignals.confidence.gte(0.8),
+      ).then("continue"),
+    ],
+  }))
+  .step(fixFailingTest, ({ signal }) => ({
+    failingTestPaths: signal(reproduceWithTest, "testPaths"),
+    testCommand: signal(reproduceWithTest, "testCommand"),
+    failureOutput: signal(reproduceWithTest, "failureOutput"),
+  }))
+  .advance(({ stepSignals }) => ({
+    default: "block",
+    rules: [stepSignals.testsPass.eq(true).then("complete")],
+  }))
+  .build();

@@ -1,0 +1,84 @@
+import { z } from "zod";
+import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+
+// Archetype D — triage / intake quality scoring.
+// score (no_workspace) → gate on the average of the sub-scores. Needs nothing
+// but the work item's title and description, bound on every step automatically.
+
+export const scoreIntakeQuality = defineStep({
+  key: "score-intake-quality",
+  name: "Score Intake Quality",
+  description: "Rate whether a report contains enough detail to act on.",
+  status: "active",
+  executionMode: "no_workspace",
+
+  agentPrompt: `
+Rate how actionable this report is. You have only its title and description — you
+cannot read the code, query anything, or ask the reporter. Judge the text in
+front of you and nothing else.
+
+Score each dimension independently from 0 to 1. Do not average them yourself;
+the pipeline does that.
+
+- \`observedBehaviorScore\`: is it clear what actually happened? 0 = "it's
+  broken". 1 = a specific behaviour with its surrounding context.
+- \`expectedBehaviorScore\`: is it clear what should have happened instead? 0 =
+  never stated and not inferable. 1 = explicit.
+- \`reproductionScore\`: could someone else make this happen? 0 = no steps, no
+  environment, no identifiers. 1 = ordered steps plus the account, URL, or record
+  needed to follow them.
+
+Be strict. Score low rather than filling gaps with plausible assumptions — a
+generous score sends an unactionable report to an agent that will waste its run
+guessing, which is worse than parking it for a human.
+
+Also report \`missingInformation\` — the specific questions that would raise the
+low scores, written so they could be pasted to the reporter verbatim — and
+\`restatedProblem\`, one or two sentences restating the problem as you understand
+it, so a human can see whether you read it the way they meant it.
+`,
+
+  result: z.object({
+    observedBehaviorScore: z.number().min(0).max(1),
+    expectedBehaviorScore: z.number().min(0).max(1),
+    reproductionScore: z.number().min(0).max(1),
+    missingInformation: z.array(z.string()),
+    restatedProblem: z.string(),
+  }),
+
+  signals: [
+    { sourcePath: "observedBehaviorScore", key: "observed" },
+    { sourcePath: "expectedBehaviorScore", key: "expected" },
+    { sourcePath: "reproductionScore", key: "reproduction" },
+    { sourcePath: "restatedProblem" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export default pipeline({
+  key: "intake-triage",
+  name: "Intake Triage",
+  description: "Score incoming reports and park the ones nobody can act on.",
+  status: "active",
+})
+  .step(scoreIntakeQuality, () => ({}))
+  // Averaging in the rule rather than asking the model for one holistic number
+  // keeps the sub-scores visible in the dashboard and keeps the threshold here,
+  // where it can be tuned without touching the prompt.
+  .advance(({ stepSignals, avg, any }) => ({
+    default: "block",
+    rules: [
+      // Any dimension that is nearly absent blocks regardless of the average.
+      any(
+        stepSignals.observed.lt(0.3),
+        stepSignals.expected.lt(0.3),
+        stepSignals.reproduction.lt(0.3),
+      ).then("block"),
+      avg(stepSignals.observed, stepSignals.expected, stepSignals.reproduction)
+        .gte(0.7)
+        .then("complete"),
+    ],
+  }))
+  .build();

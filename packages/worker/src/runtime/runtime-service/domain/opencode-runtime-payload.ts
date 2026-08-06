@@ -43,7 +43,7 @@ import path from "node:path";
  *
  * This constant is the single pin for the in-devcontainer OpenCode runtime.
  */
-export const OPENCODE_RUNTIME_VERSION = "1.17.3";
+export const OPENCODE_RUNTIME_VERSION = "1.18.11";
 
 /**
  * Override the pinned version via the worker env (e.g. for local dev).
@@ -208,3 +208,52 @@ export type OpencodeRuntimePayloadManifest = {
  * provisioner treats a manifest with a different revision as stale.
  */
 export const PAYLOAD_FORMAT_REVISION = 2;
+
+/**
+ * Progress events emitted while provisioning a runtime payload.
+ *
+ * Provisioning downloads ~100 MB per platform binary, so any interactive caller
+ * (notably the CLI) needs to render a spinner/progress bar rather than appear
+ * to hang. Worker code ignores these; the events are purely presentational and
+ * carry no secrets.
+ */
+export type OpencodePayloadProvisionProgress =
+  | { phase: "cache-hit"; version: string }
+  | {
+      phase: "provision-start";
+      version: string;
+      platforms: readonly PayloadPlatform[];
+    }
+  | {
+      phase: "platform-start";
+      version: string;
+      platform: PayloadPlatform;
+      index: number;
+      total: number;
+    }
+  | {
+      phase: "platform-progress";
+      version: string;
+      platform: PayloadPlatform;
+      receivedBytes: number;
+      /** `null` when the registry did not send a `content-length`. */
+      totalBytes: number | null;
+    }
+  | {
+      phase: "platform-done";
+      version: string;
+      platform: PayloadPlatform;
+      index: number;
+      total: number;
+      bytes: number;
+    }
+  | {
+      phase: "provision-done";
+      version: string;
+      platforms: readonly PayloadPlatform[];
+    };
+
+/** Sink for {@link OpencodePayloadProvisionProgress} events. */
+export type OpencodePayloadProgressListener = (
+  event: OpencodePayloadProvisionProgress,
+) => void;

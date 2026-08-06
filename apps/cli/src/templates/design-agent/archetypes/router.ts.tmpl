@@ -1,0 +1,91 @@
+import { z } from "zod";
+import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+
+// Archetype E — router in front of other pipelines.
+// classify (no_workspace) → one route rule per target.
+//
+// ROUTE_KEYS must be the exact keys of pipelines that already exist on the
+// server or are in the same push batch; push validates them and throws
+// otherwise. A router with one target is pointless — build the target first.
+const ROUTE_KEYS = [
+  "browser-repro",
+  "failing-test-repro",
+  "data-investigation",
+] as const;
+
+export const classifyWorkItem = defineStep({
+  key: "classify-work-item",
+  name: "Classify Work Item",
+  description: "Choose which pipeline should handle this work item.",
+  status: "active",
+  executionMode: "no_workspace",
+
+  agentPrompt: `
+Choose exactly one pipeline to handle this work item, using only its title and
+description. Do not investigate; you are dispatching, not solving.
+
+Pick \`routeKey\` from these values and only these:
+
+- \`browser-repro\` — a user-visible failure in the running application: a page, a
+  form, a flow, something visibly wrong in the UI.
+- \`failing-test-repro\` — a defect in code with no user-facing surface: an API
+  returning the wrong shape, a library, a CLI, a background job crashing.
+- \`data-investigation\` — the code may be fine but a value is wrong, missing, or
+  stale: a report showing the wrong number, a record that did not sync.
+
+If you are torn between two and one is \`failing-test-repro\`, choose
+\`failing-test-repro\`; it needs nothing but the repository, so a missing
+environment cannot block it. If it fits none of them, still pick your best guess,
+set \`confidence\` low, and explain in \`reasoning\` — a low score parks the item for
+a human rather than sending it down the wrong pipeline.
+
+\`confidence\`: 0 = you could not tell what kind of problem this is, 1 = the report
+names the surface unambiguously.
+
+\`reasoning\`: one or two sentences a human can check without rereading the
+report. Name the words in the report that decided it.
+`,
+
+  result: z.object({
+    routeKey: z.enum(ROUTE_KEYS),
+    confidence: z.number().min(0).max(1),
+    reasoning: z.string(),
+  }),
+
+  signals: [
+    { sourcePath: "routeKey" },
+    { sourcePath: "confidence" },
+    { sourcePath: "reasoning" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export default pipeline({
+  key: "work-item-router",
+  name: "Work Item Router",
+  description: "Classify an incoming work item and route it to a pipeline.",
+  status: "active",
+})
+  .step(classifyWorkItem, () => ({}))
+  // One rule per target, guarded by a shared confidence floor. `block` is the
+  // default so an unconfident classification parks instead of picking a lane.
+  .advance(({ stepSignals, all, route }) => ({
+    default: "block",
+    rules: [
+      all(
+        stepSignals.confidence.gte(0.7),
+        stepSignals.routeKey.eq("browser-repro"),
+      ).then(route("browser-repro")),
+      all(
+        stepSignals.confidence.gte(0.7),
+        stepSignals.routeKey.eq("failing-test-repro"),
+      ).then(route("failing-test-repro")),
+      all(
+        stepSignals.confidence.gte(0.7),
+        stepSignals.routeKey.eq("data-investigation"),
+      ).then(route("data-investigation")),
+    ],
+  }))
+  .build();

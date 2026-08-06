@@ -43,13 +43,15 @@ This creates (or overwrites) the following files inside `.boboddy/pipeline-build
 | `package.json` | SDK and zod dependencies (written once, never overwritten) |
 | `tsconfig.json` | TypeScript config for the package (written once, never overwritten) |
 
-For a brand-new project with no definitions on the server yet, use `boboddy pipelines init` instead to get a starter template.
+For a brand-new project with no definitions on the server yet, use [`boboddy pipelines design`](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) — it scaffolds the directory, interviews you, and writes the definitions. `boboddy pipelines init` scaffolds a starter template for hand-authoring instead.
 
 After pulling, install dependencies inside the directory:
 
 ```bash
 cd .boboddy/pipeline-builder && npm install
 ```
+
+Your pipeline and step definitions in this directory are source code — commit them. The scaffolded `.gitignore` only excludes `node_modules/`, lockfiles, and the generated `push.ts`. Run `npm run typecheck` in the directory to validate definitions before pushing.
 
 When you're ready to publish changes back:
 
@@ -325,7 +327,7 @@ The default pipeline assignment controls which pipeline is automatically started
 
 ### File location and authoring
 
-`boboddy pipelines init` scaffolds an example file. `boboddy pipelines pull` writes or removes the file based on the server configuration. `boboddy pipelines push` syncs it back to the server when it is present.
+`boboddy pipelines init` scaffolds an example file, and `boboddy pipelines design` writes one wired to the pipeline it builds. `boboddy pipelines pull` writes or removes the file based on the server configuration. `boboddy pipelines push` syncs it back to the server when it is present.
 
 ```typescript
 import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";

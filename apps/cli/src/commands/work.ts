@@ -15,6 +15,7 @@ import {
 } from "../lib/logger";
 import { createReporter } from "../lib/reporter";
 import { createRecordingReporter } from "../lib/reporter-record";
+import { runWorkDryRunCommand } from "../lib/dry-run-command";
 
 async function readLocalEnvVars(): Promise<Record<string, string>> {
   const envFilePath = path.join(process.cwd(), ".boboddy", ".env");
@@ -38,11 +39,39 @@ export interface WorkArguments {
   pollIntervalMs: number | undefined;
   workerId: string | undefined;
   workItemId: string | undefined;
+  /**
+   * Rehearse the environment a real step execution would launch — devcontainer
+   * + in-container OpenCode, with the targeted step's real MCP servers
+   * injected — then report container/OpenCode/MCP health instead of claiming
+   * and running a real step. See `stepId` / `globalOnly`.
+   */
+  dryRun: boolean;
+  /** Dry run only: fetch this step definition's real MCP servers to test. */
+  stepId: string | undefined;
+  /**
+   * Dry run only: skip step-specific MCP injection and test whatever MCP
+   * servers are already configured. Implied automatically when the project
+   * has no step definitions yet.
+   */
+  globalOnly: boolean;
 }
 
-async function handler(
-  arguments_: ArgumentsCamelCase<WorkArguments>,
-): Promise<void> {
+/**
+ * What a programmatic caller has to decide. Every field is optional because each
+ * one has a flag default: {@link WorkArguments} is the yargs envelope, where
+ * "absent" is spelled `undefined`, so writing all ten out at a call site would
+ * say nothing beyond which few were actually chosen.
+ */
+export type WorkOptions = Partial<WorkArguments>;
+
+/**
+ * The command body, callable without yargs' argv envelope so
+ * `boboddy pipelines design` can run the worker in-process when the user accepts
+ * its closing offer (see `lib/design-run-offer.ts`) instead of re-spawning the
+ * CLI. It owns the terminal for as long as it polls, and throws only on failures
+ * that stop the worker outright — a failing step is absorbed by the polling loop.
+ */
+export async function runWork(arguments_: WorkOptions): Promise<void> {
   await ensureLogDir();
   const logFilePath = resolveLogFilePath();
   // Initialize the transport (and open the log file) before anything else logs.
@@ -56,6 +85,12 @@ async function handler(
   const baseUrl = resolveBoboddyBaseUrl(arguments_.baseUrl);
   const projectId =
     arguments_.projectId ?? (await readProjectConfig())?.projectId;
+  // The two flag defaults yargs would have supplied, applied here so a
+  // programmatic caller only has to name what it actually chose.
+  const once = arguments_.once ?? false;
+  const preserveRuntimeOnComplete = arguments_.preserveRuntimeOnComplete ?? false;
+  const dryRun = arguments_.dryRun ?? false;
+  const globalOnly = arguments_.globalOnly ?? false;
 
   if (!projectId) {
     reporter.error(
@@ -67,7 +102,7 @@ async function handler(
     process.exit(1);
   }
 
-  reporter.start("Boboddy worker");
+  reporter.start(dryRun ? "Boboddy worker (dry run)" : "Boboddy worker");
 
   logger.info({
     projectId,
@@ -75,11 +110,14 @@ async function handler(
     batchSize: arguments_.batchSize,
     concurrency: arguments_.concurrency,
     leaseDurationSeconds: arguments_.leaseDurationSeconds,
-    once: arguments_.once,
-    preserveRuntimeOnComplete: arguments_.preserveRuntimeOnComplete,
+    once,
+    preserveRuntimeOnComplete,
     pollIntervalMs: arguments_.pollIntervalMs,
     workerId: arguments_.workerId,
     workItemId: arguments_.workItemId,
+    dryRun,
+    stepId: arguments_.stepId,
+    globalOnly,
   }, "Starting worker command");
 
   const localEnvVars = await readLocalEnvVars();
@@ -89,14 +127,37 @@ async function handler(
   );
 
   try {
+    if (dryRun) {
+      const { ok } = await runWorkDryRunCommand({
+        projectId,
+        baseUrl,
+        stepId: arguments_.stepId,
+        globalOnly,
+        // Reuses the same flag as the real path: "preserve the runtime
+        // instead of tearing it down" means the same thing for a dry run.
+        keep: preserveRuntimeOnComplete,
+        localEnvVars,
+        reporter,
+      });
+
+      if (!ok) {
+        throw new Error(
+          "Dry run found unhealthy checks — see the report above.",
+        );
+      }
+
+      reporter.finish("Dry run healthy");
+      return;
+    }
+
     const result = await runProjectWork({
       projectId,
       baseUrl,
       batchSize: arguments_.batchSize,
       concurrency: arguments_.concurrency,
       leaseDurationSeconds: arguments_.leaseDurationSeconds,
-      preserveRuntimeOnComplete: arguments_.preserveRuntimeOnComplete,
-      once: arguments_.once,
+      preserveRuntimeOnComplete,
+      once,
       pollIntervalMs: arguments_.pollIntervalMs,
       workerId: arguments_.workerId,
       workItemId: arguments_.workItemId,
@@ -105,7 +166,7 @@ async function handler(
       reporter,
     });
 
-    if (arguments_.once) {
+    if (once) {
       logger.info(
         {
           projectId,
@@ -120,8 +181,8 @@ async function handler(
     const message =
       error instanceof Error ? error.message : String(error);
     reporter.error(message);
-    reporter.finish("Worker stopped with errors");
-    logger.error({ err: error }, "Worker command failed");
+    reporter.finish(dryRun ? "Dry run found problems" : "Worker stopped with errors");
+    logger.error({ err: error }, dryRun ? "Work dry run failed" : "Worker command failed");
     throw error;
   }
 }
@@ -168,7 +229,9 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       })
       .option("preserveRuntimeOnComplete", {
         alias: "k",
-        describe: "Keep runtime containers and workspace after step completion",
+        describe:
+          "Keep runtime containers and workspace after step completion " +
+          "(or, with --dry-run, after the health report)",
         type: "boolean",
         default: false,
       })
@@ -181,6 +244,29 @@ export const workCommand: CommandModule<object, WorkArguments> = {
         alias: "work-item-id",
         describe: "Only process step executions for this work item ID",
         type: "string",
+      })
+      .option("dryRun", {
+        alias: "dry-run",
+        describe:
+          "Rehearse the environment a real step would launch (devcontainer + " +
+          "OpenCode + MCP servers) and report its health instead of running work",
+        type: "boolean",
+        default: false,
+      })
+      .option("stepId", {
+        alias: "step-id",
+        describe:
+          "Dry run only: fetch this step definition's real MCP servers to test",
+        type: "string",
+      })
+      .option("globalOnly", {
+        alias: "global-only",
+        describe:
+          "Dry run only: skip step-specific MCP injection and test whatever " +
+          "is already configured",
+        type: "boolean",
+        default: false,
       }),
-  handler,
+  handler: (arguments_: ArgumentsCamelCase<WorkArguments>) =>
+    runWork(arguments_),
 };

@@ -1,0 +1,242 @@
+import { z } from "zod";
+import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+
+// Archetype A — browser / deployed-app reproduction.
+// reproduce (workspace + browser MCP) → gate → failing test → gate → fix.
+// Replace APP_URL, the credential instructions, and the test conventions.
+
+const APP_URL = "https://staging.example.com";
+
+export const reproduceInBrowser = defineStep({
+  key: "reproduce-in-browser",
+  name: "Reproduce In Browser",
+  description: "Drive the deployed app until the reported bug is observed.",
+  status: "active",
+  executionMode: "workspace",
+
+  mcpServers: {
+    browser: {
+      type: "local",
+      command: ["playwright-mcp", "--headless"],
+      enabled: true,
+    },
+  },
+
+  // The step ordering below is not stylistic. Starting the trace before the
+  // viewport is set, or stopping it before the post-action wait, loses the
+  // evidence.
+  agentPrompt: ({ input, env, boboddy }) => `
+Reproduce the reported bug against the running application at ${input.appUrl}.
+
+Sign in as ${env.APP_TEST_USER} with APP_TEST_PASSWORD. If either is missing or
+sign-in fails, stop and emit a \`feedback_request\` notification naming exactly
+what you could not obtain. Never invent a credential, URL, or workflow.
+
+Follow this order exactly:
+
+1. Navigate to the application.
+2. Set the viewport immediately — mobile if the report is about mobile,
+   otherwise desktop. Bugs disappear at the wrong width.
+3. Snapshot the initial state.
+4. Start a Playwright trace now: after the browser is open and resized, before
+   any meaningful interaction. Use raw code execution ONLY to start and stop the
+   trace; drive everything else with the ordinary browser tools.
+5. Work through the reported steps, snapshotting before every major transition
+   (a modal, a redirect, any click whose target you are unsure of).
+6. Perform the final triggering action.
+7. WAIT. Delayed redirects, toasts, validation errors and forced logouts are the
+   actual bug more often than not, and stopping here is the single most common
+   way to lose the evidence.
+8. Collect console messages and network requests.
+9. Only now, stop the trace into ${boboddy.artifactsDir}.
+
+Then report:
+
+- \`reproduced\`: true only if you personally observed the reported failure.
+- \`confidence\`: 0 = guessing, 1 = you watched the exact reported failure and can
+  point at the trace. Score low when unsure — that parks this for a human, which
+  is the correct outcome.
+- \`observedBehavior\` / \`expectedBehavior\`: what happened, and what the report
+  says should have happened.
+- \`reproductionSteps\`: the minimal ordered steps, concrete enough to replay
+  with no context.
+- \`tracePath\`: the trace you wrote, or null.
+- \`consoleErrors\`: verbatim error text, not a summary.
+
+The next step turns this into a failing test, so be specific about selectors,
+URLs, and payloads.
+`,
+
+  additionalInput: z.object({
+    appUrl: z.string().nullable().optional(),
+  }),
+
+  result: z.object({
+    reproduced: z.boolean(),
+    confidence: z.number().min(0).max(1),
+    observedBehavior: z.string(),
+    expectedBehavior: z.string(),
+    reproductionSteps: z.array(z.string()),
+    tracePath: z.string().nullable(),
+    consoleErrors: z.array(z.string()),
+  }),
+
+  signals: [
+    { sourcePath: "reproduced" },
+    { sourcePath: "confidence" },
+    { sourcePath: "observedBehavior" },
+    { sourcePath: "expectedBehavior" },
+    { sourcePath: "reproductionSteps" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export const writeFailingTest = defineStep({
+  key: "write-failing-test",
+  name: "Write Failing Test",
+  description: "Encode the confirmed reproduction as a test that fails.",
+  status: "active",
+  executionMode: "workspace",
+
+  agentPrompt: ({ input }) => `
+A previous step reproduced this bug in a browser. Encode it as an automated test
+that FAILS for the reported reason.
+
+Observed: ${input.observedBehavior}
+Expected: ${input.expectedBehavior}
+
+1. Find the existing test suite and follow its conventions — same framework,
+   directory, naming, and helpers. Do not introduce a new runner.
+2. Write or extend a test asserting the expected behaviour.
+3. Run it. Confirm it fails, and that it fails from this bug rather than a
+   mistake in your setup.
+
+Report \`testPaths\` (files touched), \`testCommand\` (the exact command running
+just these tests), \`testsFail\`, and \`capturesReportedBug\` — true only if the
+failure is this bug and not an unrelated defect you stumbled into.
+
+\`confidence\`: 0 = the test guesses at the shape of the bug, 1 = the failure
+message directly describes the report. If you could only partially reproduce it,
+say so in \`summary\` and score low.
+`,
+
+  additionalInput: z.object({
+    observedBehavior: z.string(),
+    expectedBehavior: z.string(),
+    reproductionSteps: z.array(z.string()),
+  }),
+
+  result: z.object({
+    testPaths: z.array(z.string()),
+    testCommand: z.string(),
+    testsFail: z.boolean(),
+    capturesReportedBug: z.boolean(),
+    confidence: z.number().min(0).max(1),
+    summary: z.string(),
+  }),
+
+  signals: [
+    { sourcePath: "testPaths" },
+    { sourcePath: "testCommand" },
+    { sourcePath: "testsFail" },
+    { sourcePath: "capturesReportedBug" },
+    { sourcePath: "confidence" },
+    { sourcePath: "summary" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export const implementFix = defineStep({
+  key: "implement-fix",
+  name: "Implement Fix",
+  description: "Make the failing test pass without weakening it.",
+  status: "active",
+  executionMode: "workspace",
+
+  agentPrompt: ({ input }) => `
+Make the failing test pass by fixing the underlying defect.
+
+Failing tests: ${input.failingTestPaths}
+Run them with: ${input.testCommand}
+
+Fix the cause, not the symptom. You may not weaken, skip, or delete the failing
+test — if you believe the test itself is wrong, stop and emit a
+\`feedback_request\` notification instead of editing it. Then run the wider suite
+to confirm you broke nothing else.
+
+Report \`changedFiles\`, \`testsPass\` (the failing test passes AND the wider suite
+is green), a \`summary\` a reviewer reads before the diff, and \`remainingRisks\` —
+anything you could not verify. An empty risk list on a non-trivial fix reads as
+carelessness.
+`,
+
+  additionalInput: z.object({
+    failingTestPaths: z.array(z.string()),
+    testCommand: z.string(),
+  }),
+
+  result: z.object({
+    changedFiles: z.array(z.string()),
+    testsPass: z.boolean(),
+    summary: z.string(),
+    remainingRisks: z.string(),
+  }),
+
+  signals: [
+    { sourcePath: "changedFiles" },
+    { sourcePath: "testsPass" },
+    { sourcePath: "summary" },
+  ],
+
+  features: [Features.notifications()],
+});
+
+export default pipeline({
+  key: "browser-repro",
+  name: "Browser Repro",
+  description: "Reproduce a bug in the deployed app, encode it as a test, fix it.",
+  status: "active",
+  additionalPipelineInput: {
+    schema: z.object({ appUrl: z.string().nullable() }),
+    bindings: ({ literal }) => ({ appUrl: literal(APP_URL) }),
+  },
+})
+  // `appUrl` arrives from the pipeline-level binding, so the mapper is empty.
+  // Re-mapping it here would replace that binding and resolve to null.
+  .step(reproduceInBrowser, () => ({}))
+  .advance(({ stepSignals, all }) => ({
+    default: "block",
+    rules: [
+      all(
+        stepSignals.reproduced.eq(true),
+        stepSignals.confidence.gte(0.8),
+      ).then("continue"),
+    ],
+  }))
+  .step(writeFailingTest, ({ signal }) => ({
+    observedBehavior: signal(reproduceInBrowser, "observedBehavior"),
+    expectedBehavior: signal(reproduceInBrowser, "expectedBehavior"),
+    reproductionSteps: signal(reproduceInBrowser, "reproductionSteps"),
+  }))
+  .advance(({ stepSignals, all }) => ({
+    default: "block",
+    rules: [
+      all(
+        stepSignals.testsFail.eq(true),
+        stepSignals.capturesReportedBug.eq(true),
+        stepSignals.confidence.gte(0.8),
+      ).then("continue"),
+    ],
+  }))
+  .step(implementFix, ({ signal }) => ({
+    failingTestPaths: signal(writeFailingTest, "testPaths"),
+    testCommand: signal(writeFailingTest, "testCommand"),
+  }))
+  .advance(({ stepSignals }) => ({
+    default: "block",
+    rules: [stepSignals.testsPass.eq(true).then("complete")],
+  }))
+  .build();

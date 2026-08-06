@@ -74,6 +74,16 @@ export async function buildOpencodeContext(input: {
    */
   stepPlugins?: OpenCodePlugins | null | undefined;
   agentPromptText?: string | null | undefined;
+  /**
+   * Optional `provider` overlay (e.g. from `buildFakeProviderConfig`)
+   * merged onto `overrideConfig.provider`. This lets callers such as the
+   * dry-run MCP canary (#109) bake a fake AI provider into the same
+   * launch-time inline config (precedence #6) as everything else, so it's
+   * live from process boot — instead of PATCHing `/config` on an already-
+   * running agent, which has zero live effect. The embedded baseline config
+   * never sets `provider`, so this merge is shallow-merge-safe.
+   */
+  providerOverride?: Partial<Config> | null | undefined;
 }): Promise<{ opencodeConfigContent: string }> {
   const targetRoot = path.join(input.workspacePath, ".opencode");
 
@@ -94,6 +104,13 @@ export async function buildOpencodeContext(input: {
     ),
     prepareOpencodeDir(targetRoot),
   ]);
+
+  if (input.providerOverride?.provider) {
+    overrideConfig.provider = {
+      ...overrideConfig.provider,
+      ...input.providerOverride.provider,
+    };
+  }
 
   const opencodeConfigContent = `${JSON.stringify(overrideConfig, null, 2)}\n`;
 

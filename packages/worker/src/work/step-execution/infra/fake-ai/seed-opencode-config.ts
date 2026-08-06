@@ -52,6 +52,16 @@ export async function seedOpencodeConfig(
 ): Promise<void> {
   const fakeAiHost = options.fakeAiHost ?? resolveFakeAiHost();
 
+  // Do NOT "unify" the `anthropic` provider id below with the synthetic
+  // `FAKE_PROVIDER_ID` in `fake-provider-config.ts`. The two are deliberately
+  // different. Here `anthropic` is load-bearing: the `auth.json` written at
+  // the bottom of this function is keyed by provider id, and the worker-host
+  // DirectProviderAccessResolver only discovers a credential for a provider it
+  // recognises — a synthetic id resolves to no provider access at all. This
+  // seeder also only ever runs against a fully isolated test `HOME` with no
+  // user OpenCode config, so it cannot hit the credential/plugin collision
+  // that forced the canary's provider id to become synthetic.
+  //
   // OpenCode's standalone binary already bundles the `@ai-sdk/anthropic`
   // provider SDK, so the built-in `anthropic` provider needs no `npm` install.
   // What it DOES need is a resolvable model id: OpenCode looks the model up in

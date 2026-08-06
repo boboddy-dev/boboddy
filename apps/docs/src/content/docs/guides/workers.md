@@ -84,8 +84,8 @@ When no base branch is configured, the first step is created off the repo's clon
 ## Environment requirements
 
 - **Docker** must be running and accessible to the worker process — required for `workspace` steps. `no_workspace` steps do not use Docker.
-- **OpenCode** must be installed and configured (`~/.config/opencode/opencode.jsonc`). See [opencode.ai/docs](https://opencode.ai/docs) for setup instructions.
-- Your repo must have a `.devcontainer/devcontainer.json` (you provide this; `boboddy init` requires it but does not generate one). See [Setting up a Dev Container](/boboddy/guides/devcontainer/).
+- **AI provider credentials** must be available. Boboddy ships and launches its own pinned OpenCode runtime, so you do not need OpenCode installed — but it reads your provider credentials from `~/.config/opencode/` or from env vars such as `ANTHROPIC_API_KEY`. See [opencode.ai/docs](https://opencode.ai/docs) for provider setup.
+- Your repo must have a `.devcontainer/devcontainer.json` by the time a `workspace` step runs. `boboddy init` only reports a missing one; the [pipeline designer](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) authors it during a design session, and this worker run is what first builds it. See [Setting up a Dev Container](/boboddy/guides/devcontainer/) to write one by hand.
 - Credentials must be present (`boboddy auth login`).
 
 ## Single-job mode

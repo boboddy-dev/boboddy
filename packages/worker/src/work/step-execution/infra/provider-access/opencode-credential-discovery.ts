@@ -238,6 +238,38 @@ export async function discoverOpencodeCredential(
   };
 }
 
+/**
+ * List the provider ids that have a usable credential in the local OpenCode
+ * auth store, sorted alphabetically.
+ *
+ * Returns provider NAMES ONLY — never tokens, key material, or any part of a
+ * credential value. Used by the CLI to tell the user whether `opencode auth
+ * login` still needs to be run before an interactive session can start.
+ *
+ * Reads ONLY `<home>/.local/share/opencode/auth.json`.
+ */
+export async function listOpencodeAuthProviders(
+  input: { homeDir?: string | undefined } = {},
+): Promise<string[]> {
+  const homeDir = input.homeDir?.trim() || resolveHostHome();
+  const authPath = path.join(homeDir, ...OPENCODE_AUTH_RELATIVE_PATH);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(authPath, "utf8"));
+  } catch {
+    return [];
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    return [];
+  }
+
+  return Object.entries(parsed as Record<string, unknown>)
+    .filter(([, entry]) => isApiAuthEntry(entry) || isOAuthAuthEntry(entry))
+    .map(([providerId]) => providerId)
+    .sort((left, right) => left.localeCompare(right));
+}
+
 export const __opencodeCredentialDiscoveryInternals = {
   DISCOVERED_TOKEN_ENV,
   DEFAULT_DISCOVERY_PROVIDER_ID,

@@ -325,4 +325,62 @@ describe("defineStep", () => {
     });
   });
 
+  // `packages/sdks/js/tsconfig.json` includes `test/**/*.ts`, so every
+  // `@ts-expect-error` below IS the assertion: `bun run typecheck` fails if the
+  // error it claims stops being reported. `bun test` only proves the runtime
+  // still behaves, since the types are erased by then.
+  describe("signal sourcePath is checked against the result schema", () => {
+    const result = z.object({
+      findings: z.string(),
+      nested: z.object({ deep: z.number() }),
+    });
+
+    test("rejects a sourcePath that does not exist in the result schema", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        result,
+        // @ts-expect-error "totally.not.real" is not a path in `result`.
+        signals: [{ sourcePath: "totally.not.real" }],
+      });
+
+      // The type error is the point; the runtime is unchanged and still emits
+      // the (dead) extractor, which is what `validateDefinitionSpecs` catches
+      // for JS and hand-edited callers.
+      expect(spec.signalExtractorDefinitions[0]?.sourcePath).toBe(
+        "totally.not.real",
+      );
+    });
+
+    test("accepts top-level and nested paths that do exist", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        result,
+        signals: [
+          { sourcePath: "findings" },
+          { key: "deep", sourcePath: "nested.deep" },
+        ],
+      });
+
+      expect(spec.signalExtractorDefinitions.map((s) => s.key)).toEqual([
+        "findings",
+        "deep",
+      ]);
+    });
+
+    test("accepts signals on a step with no result schema", () => {
+      const spec = defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        signals: [{ sourcePath: "whatever.the.agent.returns" }],
+      });
+
+      expect(spec.resultSchemaJson).toBeNull();
+      expect(spec.signalExtractorDefinitions).toHaveLength(1);
+    });
+  });
 });

@@ -48,6 +48,7 @@ describe("boboddy pipelines", () => {
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain("init");
       expect(result.stdout).toContain("push");
+      expect(result.stdout).toContain("design");
     });
 
     concurrentTest("top-level --help includes pipelines command", () => {
@@ -166,6 +167,47 @@ describe("boboddy pipelines", () => {
         expect(hasReporterLine(result.stderr, "git repository")).toBe(true);
       } finally {
         rmSync(fakeProjectDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe("pipelines design", () => {
+    concurrentTest("design --help shows its arguments", () => {
+      const result = run(["pipelines", "design", "--help"]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("projectId");
+      expect(result.stdout).toContain("--base-url");
+    });
+
+    concurrentTest("rejects unknown options (strict mode)", () => {
+      const result = run(["pipelines", "design", "--nope"]);
+
+      expect(result.exitCode).toBe(1);
+    });
+
+    concurrentTest("refuses to run without an interactive terminal", () => {
+      // spawnSync gives the child pipes, not a tty. The TUI cannot render into
+      // a pipe, so the command must bail before doing any provisioning work —
+      // this also proves the handler is wired up and its args parse.
+      const fakeHome = mkdtempSync(
+        join(tmpdir(), "boboddy-pipelines-design-home-"),
+      );
+      try {
+        const result = run(
+          ["pipelines", "design", "01966a2c-9494-7db5-aa46-0f8f5cbbe001"],
+          { env: { HOME: fakeHome } },
+        );
+
+        expect(result.exitCode).toBe(1);
+        expect(
+          reporterLines(result.stderr).some((line) =>
+            line.includes("interactive terminal"),
+          ),
+        ).toBe(true);
+      } finally {
+        rmSync(fakeHome, { recursive: true, force: true });
       }
     });
   });

@@ -43,6 +43,7 @@ import {
   buildCommitAndPushWorkBranch,
   prepareWorkBranch,
 } from "./work-branch-manager";
+import { buildFakeProviderConfig } from "./fake-ai";
 
 export type LocalProjectRuntimeEnvironment = StepExecutionRuntimeEnvironment;
 
@@ -119,6 +120,14 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
     onDevcontainerLogLine?:
       | ((line: string, level: "info" | "warn" | "error") => void)
       | undefined;
+    /**
+     * Opt-in hook that bakes a fake AI provider into the launch-time inline
+     * config, pointed at `baseUrl`, instead of PATCHing `/config` on an
+     * already-running agent (proven to have zero live effect — see #109).
+     * Used only by the #109/#110 dry-run MCP canary feature. Production step
+     * execution never sets this field, so real runs are unaffected.
+     */
+    fakeAiProviderOverride?: { baseUrl: string } | undefined;
   }): Promise<LocalProjectRuntimeEnvironment> {
     const reporter = input.reporter ?? noopReporter;
     const stepExecutionId =
@@ -367,6 +376,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         stepPlugins: input.opencodePluginJson,
         // No agent system prompt: the step prompt is delivered as the user
         // message, so opencode keeps its default build agent prompt.
+        providerOverride: input.fakeAiProviderOverride
+          ? buildFakeProviderConfig(input.fakeAiProviderOverride.baseUrl)
+          : undefined,
       });
       logWork("runtime", "OpenCode context built", {
         sessionId: input.sessionId,

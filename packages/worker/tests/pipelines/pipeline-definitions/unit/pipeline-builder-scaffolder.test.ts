@@ -3,12 +3,43 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  PIPELINE_BUILDER_TYPECHECK_SCRIPT,
   scaffoldPipelineBuilderDirectory,
   STARTER_PIPELINE_FILENAME,
 } from "../../../../src/pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), "pipeline-builder-test-"));
+}
+
+/** Strip comments and blank lines, leaving the actual ignore patterns. */
+function parseIgnoreRules(content: string): string[] {
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+}
+
+/**
+ * Does any rule ignore `path` (relative to the .gitignore's own directory)?
+ *
+ * A deliberately minimal stand-in for git's matcher, valid only because every
+ * generated rule is a literal path — the ".gitignore uses only literal,
+ * non-glob rules" test above enforces that precondition.
+ */
+function ignoresPath(rules: string[], path: string): boolean {
+  const segments = path.split("/");
+  return rules.some((rule) => {
+    // A leading slash anchors the rule to the .gitignore's directory.
+    if (rule.startsWith("/")) return path === rule.slice(1);
+    // A trailing slash means "directory named X, at any depth".
+    if (rule.endsWith("/")) {
+      const name = rule.slice(0, -1);
+      return segments.includes(name);
+    }
+    // Otherwise: a bare name matching at any depth.
+    return segments.at(-1) === rule;
+  });
 }
 
 describe("scaffoldPipelineBuilderDirectory", () => {
@@ -60,12 +91,82 @@ describe("scaffoldPipelineBuilderDirectory", () => {
   });
 
   describe("file contents", () => {
-    test(".gitignore contains a wildcard to ignore everything", () => {
+    test(".gitignore ignores only generated and vendored artifacts", () => {
       const dir = makeTempDir();
       try {
         scaffoldPipelineBuilderDirectory(dir, "0.0.0");
         const content = readFileSync(join(dir, ".gitignore"), "utf-8");
-        expect(content.trim()).toBe("*");
+
+        const rules = parseIgnoreRules(content);
+
+        expect(rules).toEqual([
+          "node_modules/",
+          "/bun.lock",
+          "/bun.lockb",
+          "/package-lock.json",
+          "/pnpm-lock.yaml",
+          "/yarn.lock",
+          "/deno.lock",
+          "/push.ts",
+        ]);
+
+        // Every rule is a literal path — no `*`, `?`, `[]`, or `!` negation.
+        // That precondition is what lets `ignoresPath` compare names directly
+        // instead of reimplementing git's glob semantics.
+        for (const rule of rules) {
+          expect(rule).not.toMatch(/[*?[\]!]/);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test(".gitignore does not ignore pipeline definitions or project config", () => {
+      const dir = makeTempDir();
+      try {
+        scaffoldPipelineBuilderDirectory(dir, "0.0.0");
+        const rules = parseIgnoreRules(
+          readFileSync(join(dir, ".gitignore"), "utf-8"),
+        );
+
+        // The files a teammate needs on a fresh clone must stay committable.
+        for (const committable of [
+          STARTER_PIPELINE_FILENAME,
+          "default-pipeline-assignment.ts",
+          "steps.ts",
+          "my-custom-pipeline.ts",
+          "package.json",
+          "tsconfig.json",
+          ".gitignore",
+        ]) {
+          expect(ignoresPath(rules, committable)).toBe(false);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test(".gitignore ignores node_modules, lockfiles, and the push script", () => {
+      const dir = makeTempDir();
+      try {
+        scaffoldPipelineBuilderDirectory(dir, "0.0.0");
+        const rules = parseIgnoreRules(
+          readFileSync(join(dir, ".gitignore"), "utf-8"),
+        );
+
+        for (const ignored of [
+          "node_modules",
+          "node_modules/@boboddy/sdk/package.json",
+          "bun.lock",
+          "bun.lockb",
+          "package-lock.json",
+          "pnpm-lock.yaml",
+          "yarn.lock",
+          "deno.lock",
+          "push.ts",
+        ]) {
+          expect(ignoresPath(rules, ignored)).toBe(true);
+        }
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -139,6 +240,25 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       }
     });
 
+    test("package.json exposes a typecheck script backed by typescript", () => {
+      const dir = makeTempDir();
+      try {
+        scaffoldPipelineBuilderDirectory(dir, "0.0.0");
+        const content = readFileSync(join(dir, "package.json"), "utf-8");
+        const parsed = JSON.parse(content) as Record<string, unknown>;
+        const scripts = parsed["scripts"] as Record<string, unknown>;
+        const devDeps = parsed["devDependencies"] as Record<string, unknown>;
+        // The designer agent's bash allowlist matches `<pm> run typecheck`
+        // exactly, so this script has to exist for the carve-out to mean
+        // anything.
+        expect(scripts["typecheck"]).toBe(PIPELINE_BUILDER_TYPECHECK_SCRIPT);
+        expect(devDeps).toHaveProperty("typescript");
+        expect(devDeps).toHaveProperty("tsx");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
     test("tsconfig.json is self-contained with essential compiler options", () => {
       const dir = makeTempDir();
       try {
@@ -152,6 +272,30 @@ describe("scaffoldPipelineBuilderDirectory", () => {
         >;
         expect(compilerOptions["strict"]).toBe(true);
         expect(compilerOptions["moduleResolution"]).toBe("Bundler");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test("tsconfig.json makes a fresh scaffold typecheck clean", () => {
+      // Each of these exists to keep `tsc -p tsconfig.json` silent out of the
+      // box; a noisy baseline teaches everyone (human and agent) to ignore it.
+      // Verified empirically against a real install: without skipLibCheck AND
+      // without DOM, the SDK's client types fail on `fetch`/`Response`; with
+      // push.ts included, it fails on `import.meta.dirname`.
+      const dir = makeTempDir();
+      try {
+        scaffoldPipelineBuilderDirectory(dir, "0.0.0");
+        const content = readFileSync(join(dir, "tsconfig.json"), "utf-8");
+        const parsed = JSON.parse(content) as Record<string, unknown>;
+        const compilerOptions = parsed["compilerOptions"] as Record<
+          string,
+          unknown
+        >;
+        expect(compilerOptions["skipLibCheck"]).toBe(true);
+        expect(compilerOptions["noEmit"]).toBe(true);
+        expect(compilerOptions["lib"]).toEqual(["ES2022", "DOM"]);
+        expect(parsed["exclude"]).toEqual(["node_modules", "push.ts"]);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
