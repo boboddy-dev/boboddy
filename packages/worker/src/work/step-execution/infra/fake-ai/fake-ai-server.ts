@@ -6,7 +6,7 @@
  *
  * This is the SINGLE source of truth for the fake AI provider. It is used both
  * by the worker/e2e test suites (which never call a real AI provider) and by
- * the dry-run "canary" feature, which forces an arbitrary MCP tool call
+ * the dry-run health-check feature, which forces an arbitrary MCP tool call
  * through a real OpenCode session to verify it actually works.
  *
  * The tool forced on the first turn — and the exact arguments it is called
@@ -318,8 +318,8 @@ export class FakeAiServer {
   /**
    * The port {@link start} bound to. Callers that need to point a live
    * OpenCode agent's `provider.*.options.baseURL` at this server (e.g. the MCP
-   * canary feature) read this instead of threading the `start()` return value
-   * through separately. Throws if read before `start()` resolves.
+   * health-check feature) read this instead of threading the `start()` return
+   * value through separately. Throws if read before `start()` resolves.
    */
   get port(): number {
     if (this.startedPort === undefined) {
@@ -334,7 +334,11 @@ export class FakeAiServer {
     }
   }
 
-  private logRequest(url: string, method: string, parsed: AnthropicRequest): void {
+  private logRequest(
+    url: string,
+    method: string,
+    parsed: AnthropicRequest,
+  ): void {
     if (!this.verbose) {
       return;
     }

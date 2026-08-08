@@ -111,7 +111,7 @@ The read-only database is at ${env.READONLY_DB_URL}.
   mcpServers: {
     browser: {
       type: "local",
-      command: ["playwright-mcp", "--headless"],
+      command: ["<launch your local MCP server package here>"],
       enabled: true,
     },
     warehouse: {
@@ -121,6 +121,9 @@ The read-only database is at ${env.READONLY_DB_URL}.
     },
   },
   ```
+
+  For a Playwright or Postgres server specifically, see §10 below — do not
+  invent a command for either; there is no single correct invocation.
 
   A `local` command must be resolvable **inside the execution environment**
   (the devcontainer for `workspace` steps), not on the user's laptop.

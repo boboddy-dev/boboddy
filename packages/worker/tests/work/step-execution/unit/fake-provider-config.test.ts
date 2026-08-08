@@ -13,11 +13,15 @@ describe("buildFakeProviderConfig", () => {
 
     expect(config).toEqual({
       provider: {
-        "boboddy-fake": {
+        "boboddy-healthchecker": {
           npm: "@ai-sdk/anthropic",
-          name: "Boboddy Fake Canary Provider",
+          name: "Boboddy Health Checker (internal)",
           options: { baseURL: fakeAiBaseUrl, apiKey: "fake-key" },
-          models: { "boboddy-fake-canary": { name: "Boboddy Fake Canary Model" } },
+          models: {
+            "boboddy-healthchecker-model": {
+              name: "Boboddy Health Checker (internal)",
+            },
+          },
         },
       },
     });
@@ -38,11 +42,11 @@ describe("buildFakeProviderConfig", () => {
     expect(config.provider?.[FAKE_PROVIDER_ID]?.npm).toBe("@ai-sdk/anthropic");
   });
 
-  test("declares the canary model inline, since no models.dev entry exists for a synthetic id", () => {
+  test("declares the health check model inline, since no models.dev entry exists for a synthetic id", () => {
     const config = buildFakeProviderConfig("http://127.0.0.1:4097");
 
     expect(config.provider?.[FAKE_PROVIDER_ID]?.models).toEqual({
-      [FAKE_MODEL_ID]: { name: "Boboddy Fake Canary Model" },
+      [FAKE_MODEL_ID]: { name: "Boboddy Health Checker (internal)" },
     });
   });
 
@@ -50,8 +54,12 @@ describe("buildFakeProviderConfig", () => {
     const first = buildFakeProviderConfig("http://127.0.0.1:1111");
     const second = buildFakeProviderConfig("http://127.0.0.1:2222");
 
-    expect(first.provider?.[FAKE_PROVIDER_ID]?.options?.baseURL).toBe("http://127.0.0.1:1111");
-    expect(second.provider?.[FAKE_PROVIDER_ID]?.options?.baseURL).toBe("http://127.0.0.1:2222");
+    expect(first.provider?.[FAKE_PROVIDER_ID]?.options?.baseURL).toBe(
+      "http://127.0.0.1:1111",
+    );
+    expect(second.provider?.[FAKE_PROVIDER_ID]?.options?.baseURL).toBe(
+      "http://127.0.0.1:2222",
+    );
   });
 });
 
@@ -59,8 +67,8 @@ describe("FAKE_PROVIDER_ID", () => {
   /**
    * Registering the fake provider under a real provider id lets a user's own
    * credential (`auth.json`, env var, OAuth token) or a provider-scoped plugin
-   * in their OpenCode config bind to it and hijack the canary session, which
-   * made every canary fail. The id must stay synthetic.
+   * in their OpenCode config bind to it and hijack the health check session,
+   * which made every health check fail. The id must stay synthetic.
    */
   const REAL_PROVIDER_IDS = [
     "anthropic",

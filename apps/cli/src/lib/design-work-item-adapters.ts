@@ -54,6 +54,46 @@ export async function listRecentWorkItems(input: {
   }));
 }
 
+/**
+ * Look up one specific item by id, for `--work-item-id`.
+ *
+ * `getWorkItem` is not itself project-scoped, so a mismatch is checked
+ * client-side: an id from a different project is treated the same as a 404
+ * rather than silently designing against the wrong project's item.
+ */
+export async function getDesignWorkItemById(input: {
+  baseUrl: string;
+  projectId: string;
+  workItemId: string;
+}): Promise<DesignWorkItem | undefined> {
+  const { client, headers } = await connectApi(input.baseUrl);
+
+  const { data, error } = await client.workItems.getWorkItem({
+    path: { workItemId: input.workItemId },
+    headers,
+  });
+
+  if (error !== undefined) {
+    if (error.status === 404) {
+      return undefined;
+    }
+    throw new Error(
+      `Could not load work item ${input.workItemId}: ${describeApiError(error)}`,
+    );
+  }
+
+  if (data.projectId !== input.projectId) {
+    return undefined;
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    platform: data.platform,
+  };
+}
+
 /** Create the item the user described. See {@link buildCreateWorkItemBody}. */
 export async function createDesignWorkItem(input: {
   baseUrl: string;

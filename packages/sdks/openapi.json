@@ -4816,6 +4816,60 @@
                       }
                     ]
                   },
+                  "healthChecksJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mcp": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "args": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "severity": {
+                              "default": "required",
+                              "type": "string",
+                              "enum": [
+                                "required",
+                                "warn"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "default": 15000,
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "severity",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -5124,6 +5178,60 @@
                       }
                     ]
                   },
+                  "healthChecksJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mcp": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "args": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "severity": {
+                              "default": "required",
+                              "type": "string",
+                              "enum": [
+                                "required",
+                                "warn"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "default": 15000,
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "severity",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -5425,6 +5533,60 @@
                               }
                             }
                           ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "healthChecksJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mcp": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "args": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "severity": {
+                              "default": "required",
+                              "type": "string",
+                              "enum": [
+                                "required",
+                                "warn"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "default": 15000,
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "severity",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       {
@@ -5756,6 +5918,60 @@
                         }
                       ]
                     },
+                    "healthChecksJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "mcp": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "args": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "severity": {
+                                "default": "required",
+                                "type": "string",
+                                "enum": [
+                                  "required",
+                                  "warn"
+                                ]
+                              },
+                              "timeoutMs": {
+                                "default": 15000,
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "severity",
+                              "timeoutMs"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -5857,6 +6073,7 @@
                     "resultSchemaJson",
                     "opencodeMcpJson",
                     "opencodePluginJson",
+                    "healthChecksJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -6558,6 +6775,60 @@
                           }
                         ]
                       },
+                      "healthChecksJson": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "tool",
+                                "severity",
+                                "timeoutMs"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "status": {
                         "type": "string",
                         "enum": [
@@ -6659,6 +6930,7 @@
                       "resultSchemaJson",
                       "opencodeMcpJson",
                       "opencodePluginJson",
+                      "healthChecksJson",
                       "status",
                       "signalExtractorDefinitions",
                       "createdAt",
@@ -7155,6 +7427,60 @@
                       }
                     ]
                   },
+                  "healthChecksJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mcp": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "args": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "severity": {
+                              "default": "required",
+                              "type": "string",
+                              "enum": [
+                                "required",
+                                "warn"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "default": 15000,
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "severity",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -7463,6 +7789,60 @@
                       }
                     ]
                   },
+                  "healthChecksJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mcp": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "args": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "severity": {
+                              "default": "required",
+                              "type": "string",
+                              "enum": [
+                                "required",
+                                "warn"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "default": 15000,
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "severity",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -7764,6 +8144,60 @@
                               }
                             }
                           ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "healthChecksJson": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mcp": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "args": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "severity": {
+                              "default": "required",
+                              "type": "string",
+                              "enum": [
+                                "required",
+                                "warn"
+                              ]
+                            },
+                            "timeoutMs": {
+                              "default": 15000,
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "severity",
+                            "timeoutMs"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       {
@@ -8095,6 +8529,60 @@
                         }
                       ]
                     },
+                    "healthChecksJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "mcp": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "args": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "severity": {
+                                "default": "required",
+                                "type": "string",
+                                "enum": [
+                                  "required",
+                                  "warn"
+                                ]
+                              },
+                              "timeoutMs": {
+                                "default": 15000,
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "severity",
+                              "timeoutMs"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -8196,6 +8684,7 @@
                     "resultSchemaJson",
                     "opencodeMcpJson",
                     "opencodePluginJson",
+                    "healthChecksJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -8775,6 +9264,60 @@
                         }
                       ]
                     },
+                    "healthChecksJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "mcp": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "args": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "severity": {
+                                "default": "required",
+                                "type": "string",
+                                "enum": [
+                                  "required",
+                                  "warn"
+                                ]
+                              },
+                              "timeoutMs": {
+                                "default": 15000,
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "severity",
+                              "timeoutMs"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -8876,6 +9419,7 @@
                     "resultSchemaJson",
                     "opencodeMcpJson",
                     "opencodePluginJson",
+                    "healthChecksJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -9455,6 +9999,60 @@
                         }
                       ]
                     },
+                    "healthChecksJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "mcp": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "args": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "severity": {
+                                "default": "required",
+                                "type": "string",
+                                "enum": [
+                                  "required",
+                                  "warn"
+                                ]
+                              },
+                              "timeoutMs": {
+                                "default": 15000,
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "severity",
+                              "timeoutMs"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -9556,6 +10154,7 @@
                     "resultSchemaJson",
                     "opencodeMcpJson",
                     "opencodePluginJson",
+                    "healthChecksJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -15002,47 +15601,6 @@
                                   "protocol"
                                 ],
                                 "additionalProperties": false
-                              },
-                              "healthcheck": {
-                                "type": "object",
-                                "properties": {
-                                  "protocol": {
-                                    "type": "string",
-                                    "enum": [
-                                      "tcp",
-                                      "http"
-                                    ]
-                                  },
-                                  "path": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string",
-                                        "minLength": 1
-                                      },
-                                      {
-                                        "type": "null"
-                                      }
-                                    ]
-                                  },
-                                  "expectedStatus": {
-                                    "anyOf": [
-                                      {
-                                        "type": "integer",
-                                        "minimum": 100,
-                                        "maximum": 599
-                                      },
-                                      {
-                                        "type": "null"
-                                      }
-                                    ]
-                                  }
-                                },
-                                "required": [
-                                  "protocol",
-                                  "path",
-                                  "expectedStatus"
-                                ],
-                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -15051,8 +15609,7 @@
                               "run",
                               "cwd",
                               "dependsOn",
-                              "expose",
-                              "healthcheck"
+                              "expose"
                             ],
                             "additionalProperties": false
                           }
@@ -15317,6 +15874,60 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "healthChecksJson": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "tool",
+                                  "severity",
+                                  "timeoutMs"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -15327,7 +15938,8 @@
                         "executionMode",
                         "resultSchemaJson",
                         "opencodeMcpJson",
-                        "opencodePluginJson"
+                        "opencodePluginJson",
+                        "healthChecksJson"
                       ],
                       "additionalProperties": false
                     },
@@ -55196,6 +55808,60 @@
                           }
                         ]
                       },
+                      "healthChecksJson": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "tool",
+                                "severity",
+                                "timeoutMs"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "signalExtractorDefinitions": {
                         "type": "array",
                         "items": {
@@ -55329,6 +55995,7 @@
                       "resultSchemaJson",
                       "opencodeMcpJson",
                       "opencodePluginJson",
+                      "healthChecksJson",
                       "signalExtractorDefinitions",
                       "parameters",
                       "status",
@@ -55705,6 +56372,60 @@
                         }
                       ]
                     },
+                    "healthChecksJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "mcp": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "args": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "severity": {
+                                "default": "required",
+                                "type": "string",
+                                "enum": [
+                                  "required",
+                                  "warn"
+                                ]
+                              },
+                              "timeoutMs": {
+                                "default": 15000,
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "severity",
+                              "timeoutMs"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "signalExtractorDefinitions": {
                       "type": "array",
                       "items": {
@@ -55838,6 +56559,7 @@
                     "resultSchemaJson",
                     "opencodeMcpJson",
                     "opencodePluginJson",
+                    "healthChecksJson",
                     "signalExtractorDefinitions",
                     "parameters",
                     "status",
@@ -56455,6 +57177,60 @@
                         }
                       ]
                     },
+                    "healthChecksJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tool": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "mcp": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "args": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "severity": {
+                                "default": "required",
+                                "type": "string",
+                                "enum": [
+                                  "required",
+                                  "warn"
+                                ]
+                              },
+                              "timeoutMs": {
+                                "default": 15000,
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "tool",
+                              "severity",
+                              "timeoutMs"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -56556,6 +57332,7 @@
                     "resultSchemaJson",
                     "opencodeMcpJson",
                     "opencodePluginJson",
+                    "healthChecksJson",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",

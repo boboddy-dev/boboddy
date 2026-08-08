@@ -1,4 +1,9 @@
-import type { AssistantMessage, Message, Part, ToolPart } from "@opencode-ai/sdk";
+import type {
+  AssistantMessage,
+  Message,
+  Part,
+  ToolPart,
+} from "@opencode-ai/sdk";
 import { createOpencodeClient } from "@opencode-ai/sdk";
 import { STEP_EXECUTION_AGENT } from "@boboddy/opencode-plugin";
 import type { FakeAiServer } from "../infra/fake-ai/fake-ai-server";
@@ -6,19 +11,19 @@ import {
   FAKE_MODEL_ID,
   FAKE_PROVIDER_ID,
 } from "../infra/fake-ai/fake-provider-config";
-import type { McpCanaryCall } from "./mcp-canary-registry";
 import { logWork, logWorkError } from "./work-logger";
 
 /**
  * Forces a single MCP tool call through a REAL OpenCode session and reports
  * whether it actually succeeded, using the production fake-LLM server
- * promoted in #107. This is the verification step behind the dry-run "canary"
- * feature: completing the MCP handshake only proves a server started, not
- * that any of its tools actually work — this proves the latter.
+ * promoted in #107. This is the verification step behind the dry-run "health
+ * check" feature: completing the MCP handshake only proves a server started,
+ * not that any of its tools actually work — this proves the latter.
  *
- * Assumes {@link ForceAndVerifyMcpCanaryInput.fakeAiServer} is a single,
+ * Assumes {@link ForceAndVerifyMcpHealthCheckInput.fakeAiServer} is a single,
  * already-started instance the caller owns; starting/stopping it (and reusing
- * it across multiple canaries in one dry run) is the caller's responsibility.
+ * it across multiple health checks in one dry run) is the caller's
+ * responsibility.
  *
  * IMPORTANT — this function does NOT redirect the agent's LLM provider at
  * anything. It assumes the OpenCode agent process at `agentBaseUrl` was
@@ -29,30 +34,41 @@ import { logWork, logWorkError } from "./work-logger";
  * and the two runtime-environment orchestrators). That is a deliberate
  * change from an earlier approach: this function used to PATCH `/config`
  * (and set an `/auth` credential) on the already-running agent immediately
- * before forcing the canary prompt, then revert both in a `finally` block.
- * That was proven to have ZERO live effect (see #109) — OpenCode reads
+ * before forcing the health check prompt, then revert both in a `finally`
+ * block. That was proven to have ZERO live effect (see #109) — OpenCode reads
  * provider config once at process startup and does not react to `config.update`
  * calls on a running agent, so the "fake" provider override was silently
- * ignored and the canary prompt was actually going to whatever provider the
- * agent booted with. Do not reintroduce a call-time `/config` or `/auth`
- * PATCH here; it is a proven dead end. If a future canary needs a
+ * ignored and the health check prompt was actually going to whatever provider
+ * the agent booted with. Do not reintroduce a call-time `/config` or `/auth`
+ * PATCH here; it is a proven dead end. If a future health check needs a
  * *different* fake-provider target than the one the agent launched with, the
  * only way to make that live is to relaunch the agent with a new
  * `fakeAiProviderOverride`, not to patch the running one.
  */
 
-const DEFAULT_CANARY_TIMEOUT_MS = 30_000;
-const DEFAULT_CANARY_POLL_INTERVAL_MS = 500;
+const DEFAULT_HEALTH_CHECK_TIMEOUT_MS = 30_000;
+const DEFAULT_HEALTH_CHECK_POLL_INTERVAL_MS = 500;
 
 /** Max attempts for the session.create call. */
 const SESSION_CREATE_MAX_ATTEMPTS = 3;
 const SESSION_CREATE_BACKOFF_BASE_MS = 200;
 
-export type ForceAndVerifyMcpCanaryInput = {
+/**
+ * The qualified `{tool, args}` call to force, with `tool` already qualified as
+ * `${serverName}_${toolName}` per OpenCode's MCP tool naming when the caller's
+ * check names an `mcp` server, or used verbatim for a flat plugin/standalone
+ * tool id.
+ */
+export type McpHealthCheckCall = {
+  tool: string;
+  args: Record<string, unknown>;
+};
+
+export type ForceAndVerifyMcpHealthCheckInput = {
   agentBaseUrl: string;
   workspaceFolder: string;
-  /** The qualified `{tool, args}` call, as produced by `matchMcpCanary` (#108). */
-  canary: McpCanaryCall;
+  /** The qualified `{tool, args}` call to force. */
+  healthCheck: McpHealthCheckCall;
   /** Already started; this function only calls `.configure()` on it. */
   fakeAiServer: FakeAiServer;
   /** The agent whose MCP tools are enabled. Defaults to `STEP_EXECUTION_AGENT` ("build"). */
@@ -63,7 +79,7 @@ export type ForceAndVerifyMcpCanaryInput = {
   pollIntervalMs?: number | undefined;
 };
 
-export type McpCanaryVerification =
+export type McpHealthCheckVerification =
   | { passed: true }
   | {
       passed: false;
@@ -92,10 +108,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 function createClient(agentBaseUrl: string, workspaceFolder: string) {
-  return createOpencodeClient({ baseUrl: agentBaseUrl, directory: workspaceFolder });
+  return createOpencodeClient({
+    baseUrl: agentBaseUrl,
+    directory: workspaceFolder,
+  });
 }
 
-async function createCanarySession(
+async function createHealthCheckSession(
   client: ReturnType<typeof createClient>,
   title: string,
   agentBaseUrl: string,
@@ -112,14 +131,18 @@ async function createCanarySession(
     } catch (error) {
       lastError = error;
       const willRetry = attempt < SESSION_CREATE_MAX_ATTEMPTS;
-      logWorkError("mcp-canary", "OpenCode session.create attempt failed", {
-        agentBaseUrl,
-        title,
-        attempt,
-        maxAttempts: SESSION_CREATE_MAX_ATTEMPTS,
-        willRetry,
-        error: errorMessage(error),
-      });
+      logWorkError(
+        "mcp-health-check",
+        "OpenCode session.create attempt failed",
+        {
+          agentBaseUrl,
+          title,
+          attempt,
+          maxAttempts: SESSION_CREATE_MAX_ATTEMPTS,
+          willRetry,
+          error: errorMessage(error),
+        },
+      );
       if (willRetry) {
         await sleep(SESSION_CREATE_BACKOFF_BASE_MS * 2 ** (attempt - 1));
       }
@@ -128,7 +151,7 @@ async function createCanarySession(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-async function abortCanarySession(
+async function abortHealthCheckSession(
   client: ReturnType<typeof createClient>,
   sessionId: string,
   agentBaseUrl: string,
@@ -136,15 +159,19 @@ async function abortCanarySession(
   try {
     await client.session.abort({ path: { id: sessionId } });
   } catch (error) {
-    logWorkError("mcp-canary", "Failed to abort a timed-out canary session", {
-      agentBaseUrl,
-      sessionId,
-      error: errorMessage(error),
-    });
+    logWorkError(
+      "mcp-health-check",
+      "Failed to abort a timed-out health check session",
+      {
+        agentBaseUrl,
+        sessionId,
+        error: errorMessage(error),
+      },
+    );
   }
 }
 
-async function deleteCanarySession(
+async function deleteHealthCheckSession(
   client: ReturnType<typeof createClient>,
   sessionId: string,
   agentBaseUrl: string,
@@ -152,11 +179,15 @@ async function deleteCanarySession(
   try {
     await client.session.delete({ path: { id: sessionId } });
   } catch (error) {
-    logWorkError("mcp-canary", "Failed to delete the canary session", {
-      agentBaseUrl,
-      sessionId,
-      error: errorMessage(error),
-    });
+    logWorkError(
+      "mcp-health-check",
+      "Failed to delete the health check session",
+      {
+        agentBaseUrl,
+        sessionId,
+        error: errorMessage(error),
+      },
+    );
   }
 }
 
@@ -199,7 +230,7 @@ function describeAssistantMessageError(error: AssistantMessageError): string {
 /**
  * Finds the first assistant message whose turn failed outright.
  *
- * `MessageAbortedError` is deliberately ignored: {@link abortCanarySession}
+ * `MessageAbortedError` is deliberately ignored: {@link abortHealthCheckSession}
  * aborts the session ourselves once the deadline passes, so reporting an abort
  * as the *cause* of the failure would be circular.
  */
@@ -218,31 +249,44 @@ function findAssistantMessageError(
   return undefined;
 }
 
-async function pollForCanaryResult(input: {
+async function pollForHealthCheckResult(input: {
   client: ReturnType<typeof createClient>;
   sessionId: string;
   qualifiedTool: string;
   timeoutMs: number;
   pollIntervalMs: number;
   agentBaseUrl: string;
-}): Promise<McpCanaryVerification> {
-  const { client, sessionId, qualifiedTool, timeoutMs, pollIntervalMs, agentBaseUrl } = input;
+}): Promise<McpHealthCheckVerification> {
+  const {
+    client,
+    sessionId,
+    qualifiedTool,
+    timeoutMs,
+    pollIntervalMs,
+    agentBaseUrl,
+  } = input;
   const deadline = Date.now() + timeoutMs;
 
   for (;;) {
     try {
-      const response = await client.session.messages({ path: { id: sessionId } });
+      const response = await client.session.messages({
+        path: { id: sessionId },
+      });
       const messages = response.data ?? [];
 
       // The tool part is checked FIRST: if the call reached "completed" the
-      // canary passed, even if a later turn errored.
+      // health check passed, even if a later turn errored.
       const toolPart = findQualifiedToolPart(messages, qualifiedTool);
       if (toolPart) {
         if (toolPart.state.status === "completed") {
           return { passed: true };
         }
         if (toolPart.state.status === "error") {
-          return { passed: false, reason: "tool-error", detail: toolPart.state.error };
+          return {
+            passed: false,
+            reason: "tool-error",
+            detail: toolPart.state.error,
+          };
         }
         // "pending" / "running" — fall through to the session-error check.
       }
@@ -253,24 +297,32 @@ async function pollForCanaryResult(input: {
       const assistantError = findAssistantMessageError(messages);
       if (assistantError) {
         const detail = describeAssistantMessageError(assistantError);
-        logWorkError("mcp-canary", "The canary OpenCode session failed at the assistant-message level", {
-          agentBaseUrl,
-          sessionId,
-          tool: qualifiedTool,
-          error: detail,
-        });
+        logWorkError(
+          "mcp-health-check",
+          "The health check OpenCode session failed at the assistant-message level",
+          {
+            agentBaseUrl,
+            sessionId,
+            tool: qualifiedTool,
+            error: detail,
+          },
+        );
         return { passed: false, reason: "session-error", detail };
       }
     } catch (error) {
-      logWorkError("mcp-canary", "Failed to read session messages while polling for the canary result", {
-        agentBaseUrl,
-        sessionId,
-        error: errorMessage(error),
-      });
+      logWorkError(
+        "mcp-health-check",
+        "Failed to read session messages while polling for the health check result",
+        {
+          agentBaseUrl,
+          sessionId,
+          error: errorMessage(error),
+        },
+      );
     }
 
     if (Date.now() >= deadline) {
-      await abortCanarySession(client, sessionId, agentBaseUrl);
+      await abortHealthCheckSession(client, sessionId, agentBaseUrl);
       const timeoutSeconds = Math.round(timeoutMs / 1000);
       return {
         passed: false,
@@ -283,28 +335,29 @@ async function pollForCanaryResult(input: {
   }
 }
 
-export async function forceAndVerifyMcpCanary(
-  input: ForceAndVerifyMcpCanaryInput,
-): Promise<McpCanaryVerification> {
-  const { agentBaseUrl, workspaceFolder, canary, fakeAiServer } = input;
+export async function forceAndVerifyMcpHealthCheck(
+  input: ForceAndVerifyMcpHealthCheckInput,
+): Promise<McpHealthCheckVerification> {
+  const { agentBaseUrl, workspaceFolder, healthCheck, fakeAiServer } = input;
   const client = createClient(agentBaseUrl, workspaceFolder);
-  const timeoutMs = input.timeoutMs ?? DEFAULT_CANARY_TIMEOUT_MS;
-  const pollIntervalMs = input.pollIntervalMs ?? DEFAULT_CANARY_POLL_INTERVAL_MS;
+  const timeoutMs = input.timeoutMs ?? DEFAULT_HEALTH_CHECK_TIMEOUT_MS;
+  const pollIntervalMs =
+    input.pollIntervalMs ?? DEFAULT_HEALTH_CHECK_POLL_INTERVAL_MS;
   const agent = input.agent ?? STEP_EXECUTION_AGENT;
 
-  logWork("mcp-canary", "Forcing MCP canary tool call", {
+  logWork("mcp-health-check", "Forcing MCP health check tool call", {
     agentBaseUrl,
-    tool: canary.tool,
+    tool: healthCheck.tool,
   });
 
   let sessionId: string | undefined;
 
   try {
-    fakeAiServer.configure(canary.tool, canary.args);
+    fakeAiServer.configure(healthCheck.tool, healthCheck.args);
 
-    sessionId = await createCanarySession(
+    sessionId = await createHealthCheckSession(
       client,
-      `boboddy-mcp-canary:${canary.tool}`,
+      `boboddy-mcp-health-check:${healthCheck.tool}`,
       agentBaseUrl,
     );
 
@@ -313,29 +366,38 @@ export async function forceAndVerifyMcpCanary(
       body: {
         agent,
         model: { providerID: FAKE_PROVIDER_ID, modelID: FAKE_MODEL_ID },
-        parts: [{ type: "text", text: `Call the ${canary.tool} tool to verify it works.` }],
+        parts: [
+          {
+            type: "text",
+            text: `Call the ${healthCheck.tool} tool to verify it works.`,
+          },
+        ],
       },
     });
 
-    return await pollForCanaryResult({
+    return await pollForHealthCheckResult({
       client,
       sessionId,
-      qualifiedTool: canary.tool,
+      qualifiedTool: healthCheck.tool,
       timeoutMs,
       pollIntervalMs,
       agentBaseUrl,
     });
   } catch (error) {
     const detail = errorMessage(error);
-    logWorkError("mcp-canary", "Failed to force-and-verify the MCP canary tool call", {
-      agentBaseUrl,
-      tool: canary.tool,
-      error: detail,
-    });
+    logWorkError(
+      "mcp-health-check",
+      "Failed to force-and-verify the MCP health check tool call",
+      {
+        agentBaseUrl,
+        tool: healthCheck.tool,
+        error: detail,
+      },
+    );
     return { passed: false, reason: "session-error", detail };
   } finally {
     if (sessionId) {
-      await deleteCanarySession(client, sessionId, agentBaseUrl);
+      await deleteHealthCheckSession(client, sessionId, agentBaseUrl);
     }
   }
 }

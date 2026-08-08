@@ -49,6 +49,18 @@ export interface DesignPreflightPorts {
     projectId: string;
   }): Promise<readonly DesignWorkItem[]>;
   /**
+   * Look up one specific item by id, for `--work-item-id`. `undefined` when it
+   * does not exist, or exists but belongs to a different project — either way,
+   * not a valid target for this session. Unlike {@link listWorkItems}, a throw
+   * here is NOT tolerated: an explicit id is the user overriding the picker on
+   * purpose, so a lookup failure is reported, not silently downgraded to one.
+   */
+  getWorkItemById(input: {
+    baseUrl: string;
+    projectId: string;
+    workItemId: string;
+  }): Promise<DesignWorkItem | undefined>;
+  /**
    * Show the picker over `items` plus the free-text rung. Resolves to the
    * chosen item, {@link FREE_TEXT_WORK_ITEM}, or `undefined` on cancel.
    */
@@ -83,13 +95,17 @@ export interface DesignPreflightPorts {
    */
   ensureRuntime(): Promise<string>;
   /** Check for a usable AI provider credential. */
-  checkCredentials(launcherPath: string): Promise<OpencodeProviderCredentialCheck>;
+  checkCredentials(
+    launcherPath: string,
+  ): Promise<OpencodeProviderCredentialCheck>;
 }
 
 export type DesignPreflightInput = {
   baseUrl: string;
   /** Positional `projectId`, when the user passed one. */
   projectIdArgument: string | undefined;
+  /** `--work-item-id`, when the user passed one. Wins outright over the picker. */
+  workItemIdArgument: string | undefined;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
 };
@@ -115,6 +131,17 @@ export const NO_WORK_ITEM_MESSAGE =
   "Boboddy to handle — run `boboddy pipelines design` again and either pick an " +
   "item or describe what you want handled.";
 
+/** The message for an explicit `--work-item-id` that does not resolve. */
+export function workItemNotFoundMessage(
+  workItemId: string,
+  projectId: string,
+): string {
+  return (
+    `Work item ${workItemId} was not found in project ${projectId}. Check the ` +
+    "id, or omit --work-item-id to pick from the project's recent items instead."
+  );
+}
+
 /**
  * Run every precondition in dependency order, healing what it can, and return
  * everything the launch needs. Throws on the two unrecoverable cases: no
@@ -135,7 +162,13 @@ export async function runDesignPreflight(
   // Every prompt runs before the slow, non-interactive work below: a user who
   // cancels here should not have paid for a scaffold, an install, and a 100 MB
   // runtime download first.
-  const workItem = await ensureWorkItem({ baseUrl, projectId, reporter, ports });
+  const workItem = await ensureWorkItem({
+    baseUrl,
+    projectId,
+    workItemIdArgument: input.workItemIdArgument,
+    reporter,
+    ports,
+  });
   await ensureBuilderDirectory(reporter, ports);
   const launcherPath = await ports.ensureRuntime();
   const providers = await ensureProviderCredentials(launcherPath, ports);
@@ -235,21 +268,40 @@ async function resolveProjectFromRepo(
  * Step 3 — the work item.
  *
  * A design session is an interview about one concrete thing, so the item is a
- * precondition rather than an option; there are deliberately no flags for it.
- * It heals the same way the rest of the preflight does: if the project has
- * ingested items the user picks one, and if it has none — or the listing fails,
- * or nothing in the list is what they care about — they describe what they
- * want handled and it becomes a real item server-side.
+ * precondition rather than an option. `--work-item-id` is the one flag for it,
+ * and it wins outright — reaching for an item older than the picker's recent
+ * window is the exact case it exists for, so it skips the picker entirely
+ * rather than pre-selecting a rung in it. It does NOT heal like the rest of
+ * the preflight: an id that does not resolve is a hard stop, not a silent
+ * fall-through to the picker, because that would run the session against a
+ * different item than the one the user named.
+ *
+ * Absent that flag, it heals the same way the rest of the preflight does: if
+ * the project has ingested items the user picks one, and if it has none — or
+ * the listing fails, or nothing in the list is what they care about — they
+ * describe what they want handled and it becomes a real item server-side.
  *
  * A cancel is the hard stop. There is no item-less session to fall back to.
  */
 async function ensureWorkItem(input: {
   baseUrl: string;
   projectId: string;
+  workItemIdArgument: string | undefined;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
 }): Promise<DesignWorkItem> {
   const { reporter, ports } = input;
+
+  const requestedId = input.workItemIdArgument?.trim() ?? "";
+  if (requestedId.length > 0) {
+    return resolveRequestedWorkItem({
+      baseUrl: input.baseUrl,
+      projectId: input.projectId,
+      workItemId: requestedId,
+      reporter,
+      ports,
+    });
+  }
 
   const items = await loadPickableItems(input);
 
@@ -285,6 +337,44 @@ async function ensureWorkItem(input: {
     task.fail("Could not create the work item");
     throw error;
   }
+}
+
+/**
+ * Resolve `--work-item-id` directly, bypassing the picker entirely. This is
+ * the escape hatch for an item older than the picker's recent window — or
+ * simply one the user already has the id for — so unlike every other step
+ * here, a miss is NOT healed by falling back to the next option; it is
+ * reported so the user knows the id they passed did not resolve.
+ */
+async function resolveRequestedWorkItem(input: {
+  baseUrl: string;
+  projectId: string;
+  workItemId: string;
+  reporter: BaseReporter;
+  ports: DesignPreflightPorts;
+}): Promise<DesignWorkItem> {
+  const { reporter, ports } = input;
+
+  const task = reporter.startTask(`Loading work item ${input.workItemId}…`);
+  let item: DesignWorkItem | undefined;
+  try {
+    item = await ports.getWorkItemById({
+      baseUrl: input.baseUrl,
+      projectId: input.projectId,
+      workItemId: input.workItemId,
+    });
+  } catch (error) {
+    task.fail("Could not load the work item");
+    throw error;
+  }
+
+  if (item === undefined) {
+    task.fail("Work item not found");
+    throw new Error(workItemNotFoundMessage(input.workItemId, input.projectId));
+  }
+
+  task.succeed(`Designing for “${item.title}”`);
+  return item;
 }
 
 /**

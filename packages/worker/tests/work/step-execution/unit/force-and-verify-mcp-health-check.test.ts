@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { forceAndVerifyMcpCanary } from "../../../../src/work/step-execution/application/force-and-verify-mcp-canary";
+import {
+  forceAndVerifyMcpHealthCheck,
+  type McpHealthCheckCall,
+} from "../../../../src/work/step-execution/application/force-and-verify-mcp-health-check";
 import { FakeAiServer } from "../../../../src/work/step-execution/infra/fake-ai/fake-ai-server";
-import type { McpCanaryCall } from "../../../../src/work/step-execution/application/mcp-canary-registry";
 
 const previousFetch = globalThis.fetch;
 
@@ -33,7 +35,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** A minimal router over `globalThis.fetch` that mimics enough of a real OpenCode agent's HTTP API to drive `forceAndVerifyMcpCanary` end to end. */
+/** A minimal router over `globalThis.fetch` that mimics enough of a real OpenCode agent's HTTP API to drive `forceAndVerifyMcpHealthCheck` end to end. */
 function installFakeAgent(script: FakeAgentScript): { calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
 
@@ -43,16 +45,23 @@ function installFakeAgent(script: FakeAgentScript): { calls: RecordedCall[] } {
     const method = request.method;
     let body: unknown;
     if (method !== "GET" && method !== "DELETE") {
-      body = await request.clone().json().catch(() => undefined);
+      body = await request
+        .clone()
+        .json()
+        .catch(() => undefined);
     }
     calls.push({ method, pathname: url.pathname, body });
 
     if (method === "POST" && url.pathname === "/session") {
-      return jsonResponse(script.sessionCreate?.(body) ?? { id: "canary-session" });
+      return jsonResponse(
+        script.sessionCreate?.(body) ?? { id: "health-check-session" },
+      );
     }
     const promptMatch = /^\/session\/([^/]+)\/prompt_async$/.exec(url.pathname);
     if (method === "POST" && promptMatch?.[1]) {
-      return jsonResponse(script.sessionPromptAsync?.(promptMatch[1], body) ?? {});
+      return jsonResponse(
+        script.sessionPromptAsync?.(promptMatch[1], body) ?? {},
+      );
     }
     const messagesMatch = /^\/session\/([^/]+)\/message$/.exec(url.pathname);
     if (method === "GET" && messagesMatch?.[1]) {
@@ -72,15 +81,18 @@ function installFakeAgent(script: FakeAgentScript): { calls: RecordedCall[] } {
   return { calls };
 }
 
-// eslint-disable-next-line local/no-unknown-parameter-type -- test helper: an arbitrary ToolState fixture
-function toolPartMessages(state: unknown, tool = "playwright_browser_navigate") {
+function toolPartMessages(
+  // eslint-disable-next-line local/no-unknown-parameter-type -- test helper: an arbitrary ToolState fixture
+  state: unknown,
+  tool = "playwright_browser_navigate",
+) {
   return [
     {
       info: { id: "msg-1", role: "assistant" },
       parts: [
         {
           id: "part-1",
-          sessionID: "canary-session",
+          sessionID: "health-check-session",
           messageID: "msg-1",
           type: "tool",
           callID: "call-1",
@@ -92,7 +104,7 @@ function toolPartMessages(state: unknown, tool = "playwright_browser_navigate") 
   ];
 }
 
-const canary: McpCanaryCall = {
+const healthCheck: McpHealthCheckCall = {
   tool: "playwright_browser_navigate",
   args: { url: "about:blank" },
 };
@@ -103,7 +115,7 @@ async function startedFakeAiServer(): Promise<FakeAiServer> {
   return server;
 }
 
-describe("forceAndVerifyMcpCanary", () => {
+describe("forceAndVerifyMcpHealthCheck", () => {
   test("reports success when the tool call completes", async () => {
     const fakeAiServer = await startedFakeAiServer();
     try {
@@ -119,10 +131,10 @@ describe("forceAndVerifyMcpCanary", () => {
           }),
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         pollIntervalMs: 5,
       });
@@ -135,8 +147,10 @@ describe("forceAndVerifyMcpCanary", () => {
       // The session was created, prompted, and cleaned up.
       const methods = calls.map((call) => `${call.method} ${call.pathname}`);
       expect(methods).toContain("POST /session");
-      expect(methods).toContain("POST /session/canary-session/prompt_async");
-      expect(methods).toContain("DELETE /session/canary-session");
+      expect(methods).toContain(
+        "POST /session/health-check-session/prompt_async",
+      );
+      expect(methods).toContain("DELETE /session/health-check-session");
     } finally {
       await fakeAiServer.stop();
     }
@@ -166,10 +180,10 @@ describe("forceAndVerifyMcpCanary", () => {
           }),
       });
 
-      await forceAndVerifyMcpCanary({
+      await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         pollIntervalMs: 5,
       });
@@ -194,10 +208,10 @@ describe("forceAndVerifyMcpCanary", () => {
           }),
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         pollIntervalMs: 5,
       });
@@ -221,10 +235,10 @@ describe("forceAndVerifyMcpCanary", () => {
           toolPartMessages({ status: "pending", input: {}, raw: "{}" }),
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         timeoutMs: 200,
         pollIntervalMs: 20,
@@ -237,8 +251,8 @@ describe("forceAndVerifyMcpCanary", () => {
       });
 
       const methods = calls.map((call) => `${call.method} ${call.pathname}`);
-      expect(methods).toContain("POST /session/canary-session/abort");
-      expect(methods).toContain("DELETE /session/canary-session");
+      expect(methods).toContain("POST /session/health-check-session/abort");
+      expect(methods).toContain("DELETE /session/health-check-session");
     } finally {
       await fakeAiServer.stop();
     }
@@ -267,10 +281,10 @@ describe("forceAndVerifyMcpCanary", () => {
         ],
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         timeoutMs: 200,
         pollIntervalMs: 20,
@@ -285,8 +299,8 @@ describe("forceAndVerifyMcpCanary", () => {
 
       // It bails out immediately rather than waiting out the timeout, so no abort.
       const methods = calls.map((call) => `${call.method} ${call.pathname}`);
-      expect(methods).not.toContain("POST /session/canary-session/abort");
-      expect(methods).toContain("DELETE /session/canary-session");
+      expect(methods).not.toContain("POST /session/health-check-session/abort");
+      expect(methods).toContain("DELETE /session/health-check-session");
     } finally {
       await fakeAiServer.stop();
     }
@@ -309,17 +323,20 @@ describe("forceAndVerifyMcpCanary", () => {
             info: {
               id: "msg-2",
               role: "assistant",
-              error: { name: "APIError", data: { message: "overloaded", isRetryable: true } },
+              error: {
+                name: "APIError",
+                data: { message: "overloaded", isRetryable: true },
+              },
             },
             parts: [],
           },
         ],
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         timeoutMs: 200,
         pollIntervalMs: 20,
@@ -340,17 +357,20 @@ describe("forceAndVerifyMcpCanary", () => {
             info: {
               id: "msg-1",
               role: "assistant",
-              error: { name: "MessageAbortedError", data: { message: "aborted" } },
+              error: {
+                name: "MessageAbortedError",
+                data: { message: "aborted" },
+              },
             },
             parts: [],
           },
         ],
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         timeoutMs: 200,
         pollIntervalMs: 20,
@@ -375,10 +395,10 @@ describe("forceAndVerifyMcpCanary", () => {
         },
       });
 
-      const result = await forceAndVerifyMcpCanary({
+      const result = await forceAndVerifyMcpHealthCheck({
         agentBaseUrl: "http://127.0.0.1:4096",
         workspaceFolder: "/workspaces/repo",
-        canary,
+        healthCheck,
         fakeAiServer,
         pollIntervalMs: 5,
       });

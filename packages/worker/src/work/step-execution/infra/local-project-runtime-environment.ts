@@ -101,6 +101,15 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
      * configured base branch. Null for the first step.
      */
     baseWorkBranch?: string | null | undefined;
+    /**
+     * The CLI's resolved (or explicitly overridden) current local branch at
+     * `boboddy work` invocation. Checked out immediately after clone for the
+     * FIRST step of a pipeline attempt only (when `baseWorkBranch` above is
+     * absent) — takes precedence over the repo-local configured base branch,
+     * which in turn falls back to the cloned default branch. Ignored entirely
+     * when `baseWorkBranch` is present (a later step).
+     */
+    sourceBranch?: string | null | undefined;
     stepKey?: string | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
     opencodePluginJson?: OpenCodePlugins | null | undefined;
@@ -118,14 +127,14 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
      * presentation-only.
      */
     onDevcontainerLogLine?:
-      | ((line: string, level: "info" | "warn" | "error") => void)
-      | undefined;
+      ((line: string, level: "info" | "warn" | "error") => void) | undefined;
     /**
      * Opt-in hook that bakes a fake AI provider into the launch-time inline
      * config, pointed at `baseUrl`, instead of PATCHing `/config` on an
      * already-running agent (proven to have zero live effect — see #109).
-     * Used only by the #109/#110 dry-run MCP canary feature. Production step
-     * execution never sets this field, so real runs are unaffected.
+     * Set by `run --dry-run` (#109/#110) and, since #120, by real step
+     * execution for steps that declare `healthChecks` — a step declaring none
+     * never sets this field, so it launches unaffected exactly as before.
      */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
   }): Promise<LocalProjectRuntimeEnvironment> {
@@ -143,6 +152,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         requestedByUserId: input.requestedByUserId,
         gitUrl: input.gitUrl,
         baseWorkBranch: input.baseWorkBranch ?? null,
+        sourceBranch: input.sourceBranch ?? null,
       });
 
       // Step 1: Create workspace + clone the repo into it.
@@ -167,7 +177,10 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       });
 
       // Step 1b: Determine the base and create the work branch off it right
-      // after clone. Skipped (fields null) only when there is no step key.
+      // after clone. Work-branch creation is skipped (fields null) only when
+      // there is no step key — but the base-branch checkout below still runs
+      // in that case (e.g. a dry run) so the devcontainer config resolved
+      // later reflects the right branch.
       let workBranch: string | null = null;
       let createdFromBranch: string | null = null;
       if (input.stepKey) {
@@ -175,12 +188,16 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         // the optional `branchPrefix` from it; a missing/invalid value falls
         // back to the default `boboddy` prefix inside prepareWorkBranch.
         const projectConfig = await loadProjectConfig(workspacePath);
-        // Resolve the base branch this step is created off of. The server-handed
-        // baseWorkBranch (predecessor step's work branch) wins for later steps.
-        // Otherwise use the repo-local configured base (env over jsonc); null
-        // means create off the cloned default branch.
+        // Resolve the base branch this step is created off of. Precedence:
+        //   1. server-handed baseWorkBranch (predecessor step's work branch,
+        //      later steps only) — always wins, untouched by sourceBranch.
+        //   2. sourceBranch (the CLI's resolved/overridden current branch at
+        //      `boboddy work` invocation) — first step only.
+        //   3. repo-local configured base (env over jsonc) — first step only.
+        //   4. null => create off the cloned default branch.
         const baseWorkBranch =
           input.baseWorkBranch ??
+          input.sourceBranch ??
           resolveConfiguredBaseWorkBranch({
             localEnvVars: this.localEnvVars,
             configuredBaseWorkBranch: projectConfig?.baseWorkBranch ?? null,
@@ -196,6 +213,14 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         });
         workBranch = prepared.workBranch;
         createdFromBranch = prepared.createdFromBranch;
+      } else if (!input.baseWorkBranch && input.sourceBranch) {
+        // No step key (e.g. a dry-run rehearsal): still check out the CLI's
+        // resolved source branch so the devcontainer config below reflects it,
+        // even though there is no work branch to create.
+        await this.deps.gitCommitPushService.checkoutBase({
+          workspacePath,
+          baseWorkBranch: input.sourceBranch,
+        });
       }
 
       const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(
@@ -250,16 +275,24 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
           devcontainerConfigPath,
           this.localEnvVars,
         );
-        logWork("runtime", "Patched devcontainer.json with .boboddy/.env vars", {
-          sessionId: input.sessionId,
-          devcontainerConfigPath,
-          varCount: Object.keys(this.localEnvVars).length,
-          varNames: Object.keys(this.localEnvVars),
-        });
+        logWork(
+          "runtime",
+          "Patched devcontainer.json with .boboddy/.env vars",
+          {
+            sessionId: input.sessionId,
+            devcontainerConfigPath,
+            varCount: Object.keys(this.localEnvVars).length,
+            varNames: Object.keys(this.localEnvVars),
+          },
+        );
       } else {
-        logWork("runtime", "No .boboddy/.env vars to inject into devcontainer", {
-          sessionId: input.sessionId,
-        });
+        logWork(
+          "runtime",
+          "No .boboddy/.env vars to inject into devcontainer",
+          {
+            sessionId: input.sessionId,
+          },
+        );
       }
 
       const payload = await this.deps.payloadProvisioner.ensure();
@@ -275,13 +308,12 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         sessionId: input.sessionId,
         requestedByUserId: input.requestedByUserId,
       });
-      const materialized = await this.deps.runtimeConfigMaterializer.materialize(
-        {
+      const materialized =
+        await this.deps.runtimeConfigMaterializer.materialize({
           runtimeContainerId: input.sessionId,
           workspaceFolder: agentWorkspaceFolder,
           providerAccess,
-        },
-      );
+        });
       // Mount the materialized provider config dir READ-ONLY only when the
       // chosen source produced config files (never broad host credential dirs).
       const providerConfigDir =
@@ -305,16 +337,23 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         mounts: mountPlan.mounts,
         hostPort: mountPlan.hostPort,
       });
-      logWork("runtime", "Patched devcontainer.json with OpenCode runtime mounts", {
-        sessionId: input.sessionId,
-        mountTargets: mountPlan.mounts.map((m) => m.target),
-        hostPort: mountPlan.hostPort,
-      });
+      logWork(
+        "runtime",
+        "Patched devcontainer.json with OpenCode runtime mounts",
+        {
+          sessionId: input.sessionId,
+          mountTargets: mountPlan.mounts.map((m) => m.target),
+          hostPort: mountPlan.hostPort,
+        },
+      );
 
       // Step 4: Launch the devcontainer. Stream the CLI's lifecycle progress
       // (notably the long-running postCreateCommand) to the reporter so the
       // user sees real activity instead of a seemingly-frozen spinner.
-      reporter.event({ type: "step:runtime-container-starting", stepExecutionId });
+      reporter.event({
+        type: "step:runtime-container-starting",
+        stepExecutionId,
+      });
       const devcontainerResult = await this.deps.devcontainerLauncher.launch({
         sessionId: input.sessionId,
         projectId: input.projectId,
@@ -352,7 +391,8 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         });
       logWork("runtime", "Agent HOME global config prepared", {
         sessionId: input.sessionId,
-        hostConfigPath: hostConfigPath ?? "(none — no host global config found)",
+        hostConfigPath:
+          hostConfigPath ?? "(none — no host global config found)",
         hostAuthPath: hostAuthPath ?? "(none — no host auth.json found)",
       });
 

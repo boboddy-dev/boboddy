@@ -11,6 +11,7 @@ export type StepDefContract = {
   resultSchemaJson: Record<string, unknown> | null;
   opencodeMcpJson: Record<string, unknown> | null;
   opencodePluginJson: unknown[] | null;
+  healthChecksJson: unknown[] | null;
   signalExtractorDefinitions: Array<{
     key: string;
     sourcePath: string;
@@ -148,6 +149,14 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
         2,
       ).replace(/\n/g, "\n  ");
       fields.push(`  plugins: ${pluginJson}`);
+    }
+    if (step.healthChecksJson && step.healthChecksJson.length > 0) {
+      const healthChecksJson = JSON.stringify(
+        step.healthChecksJson,
+        null,
+        2,
+      ).replace(/\n/g, "\n  ");
+      fields.push(`  healthChecks: ${healthChecksJson}`);
     }
 
     return `export const ${varName} = defineStep({\n${fields.join(",\n")},\n});`;

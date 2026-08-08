@@ -50,9 +50,7 @@ export type LocalNoWorkspaceRuntimeEnvironmentOrchestrator =
  * (no container) and `hostAgentLogPath` set so the monitor tails the host log
  * file rather than doing `docker exec`.
  */
-export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
-  implements LocalNoWorkspaceRuntimeEnvironmentOrchestrator
-{
+export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements LocalNoWorkspaceRuntimeEnvironmentOrchestrator {
   constructor(
     private readonly logger: Logger = noopLogger,
     private readonly deps: {
@@ -76,6 +74,12 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
     requestedByUserId: UuidV7;
     gitUrl: string;
     baseWorkBranch?: string | null | undefined;
+    /**
+     * Unused here: `no_workspace` steps never clone a repo, so there is
+     * nothing to check out. Accepted only for structural compatibility with
+     * {@link StepExecutionRuntimeEnvironmentOrchestrator}.
+     */
+    sourceBranch?: string | null | undefined;
     opencodeMcpJson?: OpenCodeMcpServers | null | undefined;
     opencodePluginJson?: OpenCodePlugins | null | undefined;
     currentExecutionInfo: {
@@ -85,14 +89,14 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
     reporter?: WorkReporter | undefined;
     stepExecutionId?: string | undefined;
     onDevcontainerLogLine?:
-      | ((line: string, level: "info" | "warn" | "error") => void)
-      | undefined;
+      ((line: string, level: "info" | "warn" | "error") => void) | undefined;
     /**
      * Opt-in hook that bakes a fake AI provider into the launch-time inline
      * config, pointed at `baseUrl`, instead of PATCHing `/config` on an
      * already-running agent (proven to have zero live effect — see #109).
-     * Used only by the #109/#110 dry-run MCP canary feature. Production step
-     * execution never sets this field, so real runs are unaffected.
+     * Set by `run --dry-run` (#109/#110) and, since #120, by real step
+     * execution for steps that declare `healthChecks` — a step declaring none
+     * never sets this field, so it launches unaffected exactly as before.
      */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
   }): Promise<StepExecutionRuntimeEnvironment> {
@@ -178,13 +182,12 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator
         sessionId: input.sessionId,
         requestedByUserId: input.requestedByUserId,
       });
-      const materialized = await this.deps.runtimeConfigMaterializer.materialize(
-        {
+      const materialized =
+        await this.deps.runtimeConfigMaterializer.materialize({
           runtimeContainerId: input.sessionId,
           workspaceFolder: workspacePath,
           providerAccess,
-        },
-      );
+        });
       logWork("runtime", "Provider access resolved (no_workspace)", {
         sessionId: input.sessionId,
         providerMode: providerAccess.mode,

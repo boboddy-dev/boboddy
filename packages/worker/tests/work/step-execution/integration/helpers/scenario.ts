@@ -71,6 +71,7 @@ export function buildSingleStepScenario(input: {
       resultSchemaJson,
       opencodeMcpJson: null,
       opencodePluginJson: null,
+      healthChecksJson: null,
     },
     agentPrompt: {
       sessionTitle: "Integration Step",

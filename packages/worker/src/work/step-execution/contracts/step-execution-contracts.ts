@@ -1,3 +1,4 @@
+import type { HealthCheck } from "@boboddy/sdk/health-checks";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 
@@ -44,11 +45,6 @@ export type StepExecutionWorkerContextContract = {
         targetPort: number;
         protocol: "tcp" | "http";
       };
-      healthcheck: {
-        protocol: "tcp" | "http";
-        path: string | null;
-        expectedStatus: number | null;
-      };
     }>;
   };
   stepExecution: {
@@ -72,6 +68,13 @@ export type StepExecutionWorkerContextContract = {
     resultSchemaJson: Record<string, unknown> | null;
     opencodeMcpJson: OpenCodeMcpServers | null;
     opencodePluginJson: OpenCodePlugins | null;
+    /**
+     * The step's declared health checks (see `defineStep`'s `healthChecks`
+     * field). `null`/empty means the step declares none — real step execution
+     * then skips the health-check gate entirely (#120): no fake-AI harness
+     * starts, no synthetic provider is registered, launch is unchanged.
+     */
+    healthChecksJson: HealthCheck[] | null;
   };
   agentPrompt: {
     sessionTitle: string;

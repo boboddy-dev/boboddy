@@ -50,6 +50,58 @@ describe("defineStep — plugins", () => {
   });
 });
 
+describe("defineStep — healthChecks", () => {
+  test("healthChecksJson defaults to null when not provided", () => {
+    const spec = defineStep({
+      key: "my-step",
+      name: "My Step",
+      agentPrompt: "Do the work.",
+    });
+    expect(spec.healthChecksJson).toBeNull();
+  });
+
+  test("maps healthChecks to healthChecksJson", () => {
+    const spec = defineStep({
+      key: "my-step",
+      name: "My Step",
+      agentPrompt: "Do the work.",
+      mcpServers: {
+        playwright: {
+          type: "local",
+          command: ["npx", "-y", "@playwright/mcp"],
+        },
+      },
+      healthChecks: [
+        {
+          mcp: "playwright",
+          tool: "browser_navigate",
+          args: { url: "about:blank" },
+        },
+        { tool: "my_plugin_tool", severity: "warn", timeoutMs: 5000 },
+      ],
+    });
+
+    expect(spec.healthChecksJson).toEqual([
+      {
+        mcp: "playwright",
+        tool: "browser_navigate",
+        args: { url: "about:blank" },
+      },
+      { tool: "my_plugin_tool", severity: "warn", timeoutMs: 5000 },
+    ]);
+  });
+
+  test("explicit null healthChecks stores null", () => {
+    const spec = defineStep({
+      key: "my-step",
+      name: "My Step",
+      agentPrompt: "Do the work.",
+      healthChecks: null,
+    });
+    expect(spec.healthChecksJson).toBeNull();
+  });
+});
+
 describe("defineStep — signals", () => {
   test("key defaults to sourcePath, type is derived from result schema", () => {
     const spec = defineStep({

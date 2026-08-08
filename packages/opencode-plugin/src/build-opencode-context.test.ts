@@ -46,7 +46,9 @@ describe("buildOpencodeContext", () => {
       stepMcpServers: null,
     });
 
-    expect(() => { JSON.parse(opencodeConfigContent); }).not.toThrow();
+    expect(() => {
+      JSON.parse(opencodeConfigContent);
+    }).not.toThrow();
   });
 
   test("opencodeConfigContent has no plugin key when no plugins provided", async () => {
@@ -236,7 +238,9 @@ describe("buildOpencodeContext", () => {
     await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
     // Tools dir and file must still exist — they are trusted and load directly.
-    const toolsExists = await access(toolsDir).then(() => true).catch(() => false);
+    const toolsExists = await access(toolsDir)
+      .then(() => true)
+      .catch(() => false);
     expect(toolsExists).toBe(true);
 
     const toolFileExists = await access(path.join(toolsDir, "my-tool.ts"))
@@ -275,7 +279,9 @@ describe("buildOpencodeContext", () => {
     await buildOpencodeContext({ workspacePath, stepMcpServers: null });
 
     // User file must remain — trusted, loaded directly in-container.
-    const userPluginExists = await access(path.join(pluginsDir, "user-plugin.js"))
+    const userPluginExists = await access(
+      path.join(pluginsDir, "user-plugin.js"),
+    )
       .then(() => true)
       .catch(() => false);
     expect(userPluginExists).toBe(true);
@@ -333,7 +339,11 @@ describe("buildOpencodeContext", () => {
         provider: {
           anthropic: {
             options: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
-            models: { "boboddy-fake-canary": { name: "Boboddy Fake Canary Model" } },
+            models: {
+              "boboddy-healthchecker-model": {
+                name: "Boboddy Health Checker (internal)",
+              },
+            },
           },
         },
       },
@@ -345,7 +355,11 @@ describe("buildOpencodeContext", () => {
 
     expect(config.provider?.["anthropic"]).toEqual({
       options: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
-      models: { "boboddy-fake-canary": { name: "Boboddy Fake Canary Model" } },
+      models: {
+        "boboddy-healthchecker-model": {
+          name: "Boboddy Health Checker (internal)",
+        },
+      },
     });
   });
 

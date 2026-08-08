@@ -27,6 +27,20 @@ import type {
 
 type EnqueuedLine = { stream: string; content: string; level: LogLevel };
 
+/** Polls `predicate` until it's true, or throws once `timeoutMs` elapses. */
+async function waitFor(
+  predicate: () => boolean,
+  { timeoutMs = 2000, intervalMs = 20 }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) {
+      throw new Error(`waitFor: condition not met within ${String(timeoutMs)}ms`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 /** Minimal shipper fake that records enqueued lines. */
 function createFakeShipper(): {
   shipper: Pick<StepExecutionLogShipper, "enqueue">;
@@ -68,10 +82,10 @@ describe("OpencodeLogTail host-file mode (containerId: null)", () => {
     });
     tail.start();
 
-    // Give `tail -n +1 -F` time to emit the existing content, then append more.
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Wait for `tail -n +1 -F` to emit the existing content, then append more.
+    await waitFor(() => lines.some((l) => l.content === "first line"));
     await writeFile(logPath, "first line\nsecond line\n", "utf8");
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await waitFor(() => lines.some((l) => l.content === "second line"));
 
     const contents = lines.map((l) => l.content);
     expect(contents).toContain("first line");

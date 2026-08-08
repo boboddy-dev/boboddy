@@ -9,9 +9,12 @@ const OPENCODE_HEALTH_CHECK_TIMEOUT_MS = 5_000;
 
 /**
  * The MCP handshake-only view of a server: whatever `client.mcp.status()`
- * reports, before any canary has run against it. The dry-run report's
- * per-server shape ({@link WorkDryRunMcpServerReport} in
- * `run-work-dry-run-mcp-canaries.ts`) extends this with a `canary` outcome.
+ * reports. This is also the dry-run report's whole per-server shape
+ * ({@link WorkDryRunReport.mcpServers} in `run-work-dry-run.ts`) — as of
+ * #121, per-server entries report handshake status only. A server's declared
+ * health checks (if any) are reported separately, in the report's top-level
+ * `healthChecks` array, alongside plugin- and standalone-tool checks that
+ * have no server to nest under.
  */
 export type McpHandshakeReport = {
   name: string;
@@ -64,7 +67,8 @@ export async function pollMcpStatus(
           name,
           status: status.status,
           error: "error" in status ? status.error : undefined,
-          healthy: status.status === "connected" || status.status === "disabled",
+          healthy:
+            status.status === "connected" || status.status === "disabled",
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     }

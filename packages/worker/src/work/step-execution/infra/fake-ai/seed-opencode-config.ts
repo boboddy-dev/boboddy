@@ -60,7 +60,7 @@ export async function seedOpencodeConfig(
   // recognises — a synthetic id resolves to no provider access at all. This
   // seeder also only ever runs against a fully isolated test `HOME` with no
   // user OpenCode config, so it cannot hit the credential/plugin collision
-  // that forced the canary's provider id to become synthetic.
+  // that forced the health check's provider id to become synthetic.
   //
   // OpenCode's standalone binary already bundles the `@ai-sdk/anthropic`
   // provider SDK, so the built-in `anthropic` provider needs no `npm` install.
@@ -97,11 +97,7 @@ export async function seedOpencodeConfig(
   ];
   for (const configDir of configDirs) {
     await mkdir(configDir, { recursive: true });
-    await writeFile(
-      path.join(configDir, "config.json"),
-      configContent,
-      "utf8",
-    );
+    await writeFile(path.join(configDir, "config.json"), configContent, "utf8");
   }
 
   // The worker-host DirectProviderAccessResolver discovers a local OpenCode

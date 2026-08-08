@@ -74,7 +74,11 @@ function runInit(
       ports: {
         confirmLaunch: promptToLaunchDesigner,
         launchDesign: () =>
-          runPipelineDesign({ projectId: undefined, baseUrl: argv.baseUrl }),
+          runPipelineDesign({
+            projectId: undefined,
+            baseUrl: argv.baseUrl,
+            workItemId: undefined,
+          }),
       },
     });
   });

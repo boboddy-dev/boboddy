@@ -1,17 +1,22 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { renderPromptTemplate } from "@boboddy/sdk/definitions/steps";
-import {
-  createUuidV7,
-  parseUuidV7,
-  type UuidV7,
-} from "../../../common/contracts/uuid-v7";
+import type { HealthCheck } from "@boboddy/sdk/health-checks";
+import { createUuidV7, type UuidV7 } from "../../../common/contracts/uuid-v7";
 import {
   buildContainerStepArtifactsDir,
   buildPromptRenderContext,
-  buildRunningMetadata,
-  resolveBaseWorkBranch,
 } from "./process-claimed-step-execution-helpers";
+import {
+  fetchWorkerContext,
+  launchRuntimeEnvironment,
+} from "./process-claimed-step-execution-launch";
+import {
+  attachTrackedAgentSession,
+  createTrackedSession,
+  markTrackedSessionFailed,
+  markTrackedSessionRunning,
+} from "./process-claimed-step-execution-tracker";
 import {
   resolveProjectWorkLogger,
   resolveProjectWorkReporter,
@@ -23,7 +28,11 @@ import type {
   StepExecutionWorkerClaim,
   StepExecutionWorkerClient,
 } from "../contracts/process-project-work-types";
-import type { WorkReporter } from "../contracts/work-reporter";
+import type { FakeAiServer } from "../infra/fake-ai";
+import {
+  runDeclaredHealthChecksOrThrow,
+  startHealthCheckHarnessIfDeclared,
+} from "./health-check-gate";
 
 /**
  * The subset of {@link StepExecutionLogStream} this module drives: attaching
@@ -48,156 +57,14 @@ type ClaimedExecutionLogStream = {
   ): void;
 };
 
-async function createTrackedSession(
-  tracker: StepExecutionRunTracker,
-  input: {
-    localRuntimeSessionId: UuidV7;
-    projectId: UuidV7;
-    stepExecutionId: UuidV7;
-  },
-) {
-  await tracker.createSession({
-    id: input.localRuntimeSessionId,
-    projectId: input.projectId,
-    stepExecutionId: input.stepExecutionId,
-  });
-}
-
-async function markTrackedSessionRunning(
-  tracker: StepExecutionRunTracker,
-  input: {
-    localRuntimeSessionId: UuidV7;
-    workspacePath: string;
-    runtimeContainerId: string | null;
-    agentBaseUrl: string;
-    resolvedBranch: string;
-    devcontainerConfigPath: string;
-    aiImage: string;
-    networkName: string;
-  },
-) {
-  await tracker.markRunning({
-    id: input.localRuntimeSessionId,
-    workspacePath: input.workspacePath,
-    runtimeContainerId: input.runtimeContainerId,
-    agentBaseUrl: input.agentBaseUrl,
-    metadataJson: buildRunningMetadata({
-      resolvedBranch: input.resolvedBranch,
-      devcontainerConfigPath: input.devcontainerConfigPath,
-      aiImage: input.aiImage,
-      networkName: input.networkName,
-    }),
-  });
-}
-
-async function markTrackedSessionFailed(
-  tracker: StepExecutionRunTracker,
-  input: {
-    localRuntimeSessionId: UuidV7;
-    failureReason: string;
-    metadataJson?: string | undefined;
-  },
-) {
-  await tracker.markFailed({
-    id: input.localRuntimeSessionId,
-    failureReason: input.failureReason,
-    metadataJson: input.metadataJson,
-  });
-}
-
-async function attachTrackedAgentSession(
-  tracker: StepExecutionRunTracker,
-  localRuntimeSessionId: UuidV7,
-  agentSessionId: string,
-) {
-  await tracker.attachAgentSession({
-    id: localRuntimeSessionId,
-    agentSessionId,
-  });
-}
-
-async function fetchWorkerContext(
-  client: StepExecutionWorkerClient,
-  claim: StepExecutionWorkerClaim,
-) {
-  return await client.getStepExecutionWorkerContext({
-    stepExecutionId: claim.stepExecution.id,
-    claimToken: claim.claimToken,
-  });
-}
-
-/**
- * Select the runtime orchestrator for the step's execution mode. `no_workspace`
- * steps run OpenCode directly on the host (no clone, no devcontainer) via the
- * dedicated orchestrator; everything else uses the default workspace path.
- */
-function resolveRuntimeEnvironmentOrchestrator(
-  deps: ProcessProjectWorkDeps,
-  executionMode: "workspace" | "no_workspace",
-) {
-  if (executionMode === "no_workspace") {
-    if (!deps.noWorkspaceRuntimeEnvironmentOrchestrator) {
-      throw new Error(
-        "Step requires no_workspace execution mode but no " +
-          "noWorkspaceRuntimeEnvironmentOrchestrator is configured.",
-      );
-    }
-    return deps.noWorkspaceRuntimeEnvironmentOrchestrator;
-  }
-  return deps.runtimeEnvironmentOrchestrator;
-}
-
-async function launchRuntimeEnvironment(
-  deps: ProcessProjectWorkDeps,
-  input: {
-    localRuntimeSessionId: UuidV7;
-    workerContext: Awaited<ReturnType<typeof fetchWorkerContext>>;
-    requestedByUserId: UuidV7;
-    reporter: WorkReporter;
-    stepExecutionId: string;
-    onDevcontainerLogLine?:
-      | ((line: string, level: "info" | "warn" | "error") => void)
-      | undefined;
-  },
-) {
-  const orchestrator = resolveRuntimeEnvironmentOrchestrator(
-    deps,
-    input.workerContext.stepDefinition.executionMode,
-  );
-  return await orchestrator.launch({
-    sessionId: input.localRuntimeSessionId,
-    projectId: parseUuidV7(input.workerContext.projectId),
-    requestedByUserId: input.requestedByUserId,
-    gitUrl: input.workerContext.gitUrl,
-    baseWorkBranch: resolveBaseWorkBranch(input.workerContext.baseWorkBranch),
-    stepKey: input.workerContext.stepDefinition.key,
-    opencodeMcpJson: input.workerContext.stepDefinition.opencodeMcpJson,
-    opencodePluginJson: input.workerContext.stepDefinition.opencodePluginJson,
-    // The step prompt is delivered solely as the user message via promptAsync
-    // below. We deliberately do NOT also set it as the build agent's system
-    // prompt: doing so duplicated the entire prompt in every request (system +
-    // user). On the OpenAI ChatGPT/OAuth path (store:false + encrypted
-    // reasoning), that whole payload is re-uploaded on every turn and retry,
-    // which inflates requests enough to trip mid-stream `server_error`s that
-    // never occur for the smaller, single-message prompts used directly on a
-    // workstation. Leaving this unset keeps opencode's default build agent
-    // system prompt, matching local usage.
-    currentExecutionInfo: {
-      stepExecutionId: input.workerContext.stepExecution.id,
-      resultSchemaJson: input.workerContext.stepDefinition.resultSchemaJson,
-    },
-    reporter: input.reporter,
-    stepExecutionId: input.stepExecutionId,
-    onDevcontainerLogLine: input.onDevcontainerLogLine,
-  });
-}
-
 export async function startProcessClaimedExecution(
   input: {
     projectId: UuidV7;
     requestedByUserId: UuidV7;
     claim: StepExecutionWorkerClaim;
     leaseDurationSeconds: number;
+    /** See `ProcessProjectWorkInput.sourceBranch`. */
+    sourceBranch?: string | null | undefined;
   },
   deps: ProcessProjectWorkDeps,
   client: StepExecutionWorkerClient,
@@ -222,6 +89,12 @@ export async function startProcessClaimedExecution(
   });
   let cleanup: (() => Promise<void>) | null = null;
   let stepExecutionId: UuidV7 = input.claim.stepExecution.id;
+  // The fake-AI harness (#120): only started for a step that declares
+  // `healthChecks`, stopped again as soon as those checks finish (success or
+  // failure) — well before the agent is prompted. Tracked here (rather than
+  // scoped to the `try` block) so the `catch` block can stop it too if
+  // something throws before the normal stop point is reached.
+  let fakeAiServer: FakeAiServer | undefined;
 
   await createTrackedSession(tracker, {
     localRuntimeSessionId,
@@ -249,9 +122,23 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
+    // A step declaring no health checks must be byte-identical to today: no
+    // fake-AI harness starts, no synthetic provider is registered, and
+    // `fakeAiProviderOverride` stays unset below.
+    const declaredHealthChecks: HealthCheck[] =
+      workerContext.stepDefinition.healthChecksJson ?? [];
+    const harness = await startHealthCheckHarnessIfDeclared({
+      healthChecks: declaredHealthChecks,
+      isNoWorkspace:
+        workerContext.stepDefinition.executionMode === "no_workspace",
+      createFakeAiServer: deps.createFakeAiServer,
+    });
+    fakeAiServer = harness.fakeAiServer;
+
     logger.log("step", "Launching runtime environment", {
       stepExecutionId: input.claim.stepExecution.id,
       localRuntimeSessionId,
+      declaredHealthCheckCount: declaredHealthChecks.length,
     });
     reporter.event({
       type: "step:runtime-launching",
@@ -263,9 +150,11 @@ export async function startProcessClaimedExecution(
       requestedByUserId: input.requestedByUserId,
       reporter,
       stepExecutionId: input.claim.stepExecution.id,
+      sourceBranch: input.sourceBranch,
       onDevcontainerLogLine: logStream
         ? (line, level) => { logStream.shipDevcontainerLogLine(line, level); }
         : undefined,
+      fakeAiProviderOverride: harness.fakeAiProviderOverride,
     });
     cleanup = async () => {
       await environment.cleanup();
@@ -297,6 +186,31 @@ export async function startProcessClaimedExecution(
       type: "step:runtime-ready",
       stepExecutionId: input.claim.stepExecution.id,
     });
+
+    // The health check gate (#120): a required failure throws here, before
+    // any provider tokens are spent and before the prompt is even rendered.
+    // A gate, not a race — see `run-health-checks.ts` for why checks are not
+    // run concurrently with the agent. The forced call's announcement and
+    // the tool's output land in the durable log feed for free: the in-container
+    // OpenCode log tail was already attached above, before this point.
+    if (fakeAiServer) {
+      try {
+        await runDeclaredHealthChecksOrThrow({
+          fakeAiServer,
+          agentBaseUrl: environment.agentBaseUrl,
+          workspaceFolder: environment.workspaceFolder,
+          healthChecks: declaredHealthChecks,
+          runHealthChecksOverride: deps.runHealthChecks,
+          logger,
+          reporter,
+          stepExecutionId: input.claim.stepExecution.id,
+        });
+      } finally {
+        // Already stopped internally; cleared so the `catch` block below
+        // doesn't try to stop it again.
+        fakeAiServer = undefined;
+      }
+    }
 
     // Render the prompt now that the runtime is up: artifact paths embedded in
     // the prompt must be anchored at the resolved workspace folder OpenCode
@@ -439,6 +353,19 @@ export async function startProcessClaimedExecution(
       localRuntimeSessionId,
       hasCleanup: cleanup !== null,
     });
+    // Normally already stopped (and cleared) right after health checks
+    // complete; only still set here if something threw before that point
+    // (e.g. the runtime launch itself failed).
+    if (fakeAiServer) {
+      // eslint-disable-next-line local/no-unknown-parameter-type -- narrows a caught value, not a real input boundary
+      await fakeAiServer.stop().catch((stopError: unknown) => {
+        logger.error("step", "Failed to stop the fake AI server after failure", {
+          stepExecutionId: input.claim.stepExecution.id,
+          error:
+            stopError instanceof Error ? stopError.message : String(stopError),
+        });
+      });
+    }
     await cleanup?.();
     throw error;
   }

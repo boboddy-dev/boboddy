@@ -406,7 +406,7 @@ The read-only database is at ${env.READONLY_DB_URL}.
   mcpServers: {
     browser: {
       type: "local",
-      command: ["playwright-mcp", "--headless"],
+      command: ["<launch your local MCP server package here>"],
       enabled: true,
     },
     warehouse: {
@@ -416,6 +416,9 @@ The read-only database is at ${env.READONLY_DB_URL}.
     },
   },
   ```
+
+  For a Playwright or Postgres server specifically, see §10 below — do not
+  invent a command for either; there is no single correct invocation.
 
   A `local` command must be resolvable **inside the execution environment**
   (the devcontainer for `workspace` steps), not on the user's laptop.
@@ -735,7 +738,12 @@ export const reproduceInBrowser = defineStep({
   mcpServers: {
     browser: {
       type: "local",
-      command: ["playwright-mcp", "--headless"],
+      // "@playwright/mcp" is the real package; there is no single correct
+      // invocation (base image, headless flags, and version pin all vary
+      // by execution environment), so this is a placeholder, not something
+      // to copy verbatim. See §10 of the authoring reference for the
+      // matching health check and its caveats.
+      command: ["<launch @playwright/mcp here>"],
       enabled: true,
     },
   },
@@ -1465,3 +1473,89 @@ back to plain `boboddy pipelines push`.
 Push order is steps → pipelines → assignment, so one command publishes a new
 pipeline and the assignment that routes to it. A successful push is the finish
 line: the definitions are live.
+
+## 10. Well-known MCP server health checks
+
+A step's `healthChecks` field runs a real tool call against its launched environment before the agent starts working. Never ask the user about this feature; just apply the rules below.
+
+1. Add a catalogued server's health check to `healthChecks` **without
+   asking** — every call below is safe by construction (it navigates to a
+   blank page or lists schema names), so there is nothing to confirm.
+2. Add a health check for any other tool **only if the user supplied the
+   tool name and arguments themselves.**
+3. **Never invent a tool name or arguments.** A fabricated tool name is cheap
+   to catch — the runner fails on it in milliseconds. A guessed argument set
+   on a real tool is not: it runs automatically, at `required` severity by
+   default, with nothing to catch it.
+
+- **No secrets in check arguments.** There is no interpolation mechanism, and
+  the values are persisted in the database, returned by the API, and rendered
+  in the UI. Put a secret in the MCP server's `environment` or `headers`
+  instead, referenced as `{env:VAR}`.
+- **Prefer tools whose output is trivial.** Health check output is logged in
+  full.
+
+If this step's `mcpServers` declares one of these servers, add its row's health check:
+
+| Server | Package hint | `mcpServers` key | Tool |
+| --- | --- | --- | --- |
+| Playwright (browser automation) | `@playwright/mcp` | `playwright` | `browser_navigate` |
+| Postgres (read-only database access) | `postgres-mcp` | `postgres` | `list_schemas` |
+
+### The catalog examples
+
+#### Playwright (browser automation)
+
+Needs a Chromium binary reachable inside the execution environment. The shipped Playwright system template pins an exact version and passes `--executable-path` for its own base image — copy neither verbatim; match both to whatever image this step actually runs in. Add `--headless` for a `workspace` step with no display.
+
+```ts
+import { z } from "zod";
+import { defineStep } from "@boboddy/sdk/definitions/steps";
+
+export const playwrightHealthCheckExample = defineStep({
+  key: "playwright-health-check-example",
+  name: "Playwright (browser automation)",
+  status: "active",
+  agentPrompt: "Use the playwright MCP tools.",
+  mcpServers: {
+    playwright: {
+      type: "local",
+      // "@playwright/mcp" is the package to launch — a hint, not a
+      // literal command. See the caveats above for what this needs.
+      command: ["<launch @playwright/mcp here>"],
+      enabled: true,
+    },
+  },
+  healthChecks: [{ mcp: "playwright", tool: "browser_navigate", args: {"url":"about:blank"} }],
+  result: z.object({ ok: z.boolean() }),
+  signals: [{ sourcePath: "ok" }],
+});
+```
+
+#### Postgres (read-only database access)
+
+Launched with `uvx`, not `npx` — it is a Python package. Needs a real connection string on the server's `environment`, referenced as `{env:VAR}`; never inline a connection string as a health check argument or write it into the command.
+
+```ts
+import { z } from "zod";
+import { defineStep } from "@boboddy/sdk/definitions/steps";
+
+export const postgresHealthCheckExample = defineStep({
+  key: "postgres-health-check-example",
+  name: "Postgres (read-only database access)",
+  status: "active",
+  agentPrompt: "Use the postgres MCP tools.",
+  mcpServers: {
+    postgres: {
+      type: "local",
+      // "postgres-mcp" is the package to launch — a hint, not a
+      // literal command. See the caveats above for what this needs.
+      command: ["<launch postgres-mcp here>"],
+      enabled: true,
+    },
+  },
+  healthChecks: [{ mcp: "postgres", tool: "list_schemas", args: {} }],
+  result: z.object({ ok: z.boolean() }),
+  signals: [{ sourcePath: "ok" }],
+});
+```

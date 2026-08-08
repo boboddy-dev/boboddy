@@ -189,6 +189,9 @@ export class ClackReporter implements WorkReporter {
         this.endDevcontainerLog(event.stepExecutionId, true);
         this.updateSpinner(event.stepExecutionId, "runtime ready");
         return;
+      case "step:health-checks-running":
+        this.updateSpinner(event.stepExecutionId, "running health checks…");
+        return;
       case "step:agent-running":
         this.updateSpinner(event.stepExecutionId, "agent running");
         return;

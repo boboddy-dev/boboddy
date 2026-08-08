@@ -47,6 +47,7 @@ type Calls = {
   resolveProjectFromRepo: number;
   promptProjectId: number;
   listWorkItems: number;
+  getWorkItemById: number;
   promptWorkItemChoice: number;
   promptWorkItemText: number;
   createWorkItem: number;
@@ -66,6 +67,7 @@ function createPorts(overrides: PortOverrides = {}): {
     resolveProjectFromRepo: 0,
     promptProjectId: 0,
     listWorkItems: 0,
+    getWorkItemById: 0,
     promptWorkItemChoice: 0,
     promptWorkItemText: 0,
     createWorkItem: 0,
@@ -93,6 +95,10 @@ function createPorts(overrides: PortOverrides = {}): {
     listWorkItems: () => {
       calls.listWorkItems += 1;
       return Promise.resolve([INGESTED_ITEM]);
+    },
+    getWorkItemById: () => {
+      calls.getWorkItemById += 1;
+      return Promise.resolve(undefined);
     },
     promptWorkItemChoice: () => {
       calls.promptWorkItemChoice += 1;
@@ -142,10 +148,15 @@ async function expectRejection(promise: Promise<unknown>): Promise<Error> {
   throw new Error("Expected the preflight to reject, but it resolved.");
 }
 
-function run(ports: DesignPreflightPorts, projectIdArgument?: string) {
+function run(
+  ports: DesignPreflightPorts,
+  projectIdArgument?: string,
+  workItemIdArgument?: string,
+) {
   return runDesignPreflight({
     baseUrl: BASE_URL,
     projectIdArgument,
+    workItemIdArgument,
     reporter: noopBaseReporter,
     ports,
   });
@@ -308,8 +319,7 @@ describe("runDesignPreflight — work item", () => {
 
   test("creates the pasted item against the resolved project", async () => {
     let seen:
-      | { baseUrl: string; projectId: string; draft: WorkItemDraft }
-      | undefined;
+      { baseUrl: string; projectId: string; draft: WorkItemDraft } | undefined;
     const { ports } = createPorts({
       listWorkItems: () => Promise.resolve([]),
       createWorkItem: (input) => {
@@ -471,7 +481,8 @@ describe("runDesignPreflight — builder directory", () => {
 describe("runDesignPreflight — provider credentials", () => {
   test("hard-stops with the remediation when no credential is found", async () => {
     // The one thing the command cannot heal: we can't obtain the user's API key.
-    const remediation = 'No AI provider credentials were found.\n\n  "…" auth login';
+    const remediation =
+      'No AI provider credentials were found.\n\n  "…" auth login';
     const { ports } = createPorts({
       checkCredentials: () => Promise.resolve({ ok: false, remediation }),
     });

@@ -38,7 +38,16 @@ export function stepSpec(
     })),
     opencodeMcpJson: null,
     opencodePluginJson: null,
+    healthChecksJson: null,
   };
+}
+
+/** `stepSpec`, but with arbitrary field overrides (e.g. mcpServers, healthChecks). */
+export function stepSpecWithOverrides(
+  key: string,
+  overrides: Partial<StepDefinitionSpec> = {},
+): StepDefinitionSpec {
+  return { ...stepSpec(key, null, []), ...overrides };
 }
 
 export function pipelineStep(

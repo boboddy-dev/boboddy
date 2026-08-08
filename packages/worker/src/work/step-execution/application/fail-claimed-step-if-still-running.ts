@@ -55,7 +55,7 @@ export async function failClaimedStepIfStillRunning(
   const failurePayload = buildStepExecutionFailurePayload(input.error);
   logger.log("step", "Reporting claimed step failure", {
     stepExecutionId: input.stepExecutionId,
-    code: "BOBODDY_WORKER_EXECUTION_FAILED",
+    code: failurePayload.errorJson.code,
     message: getFailureMessage(failurePayload.errorJson),
   });
   await client.failStepExecution({

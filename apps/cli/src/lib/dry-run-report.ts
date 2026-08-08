@@ -1,66 +1,38 @@
-import type { McpCanaryOutcome, WorkDryRunReport } from "@boboddy/worker";
+import type { HealthCheckReport, WorkDryRunReport } from "@boboddy/worker";
 import type { BaseReporter } from "./reporter-types";
 
 /**
- * The line plus the reporter method to render it with — a single switch, so
- * adding a new {@link McpCanaryOutcome} kind can't update the text and the
- * severity out of lockstep.
+ * The line plus the reporter method to render it with — a single exhaustive
+ * switch over {@link HealthCheckReport.outcome}'s `kind`, so adding a new
+ * outcome kind can't update the text and the severity out of lockstep.
  */
-function describeCanaryOutcome(
-  serverName: string,
-  canary: McpCanaryOutcome,
-): { line: string; severity: "success" | "error" | "info" | "warn" } {
-  switch (canary.kind) {
-    case "ran-and-passed":
-      return { line: `MCP ${serverName} canary: passed`, severity: "success" };
-    case "ran-and-failed":
+function describeHealthCheckOutcome(report: HealthCheckReport): {
+  line: string;
+  severity: "success" | "error" | "info" | "warn";
+} {
+  const label = `Health check "${report.name}" (${report.resolvedId})`;
+  const outcome = report.outcome;
+  switch (outcome.kind) {
+    case "passed":
+      return { line: `${label}: passed`, severity: "success" };
+    case "failed": {
+      const availableIdsSuffix =
+        outcome.availableIds && outcome.availableIds.length > 0
+          ? ` Available tool ids: ${outcome.availableIds.join(", ")}.`
+          : "";
       return {
-        line: `MCP ${serverName} canary: failed (${canary.reason}) — ${canary.detail}`,
+        line: `${label}: failed [${outcome.reason}] — ${outcome.detail}${availableIdsSuffix}`,
         severity: "error",
       };
-    case "unverified":
-      // `harness-unavailable` isn't a verdict about this server at all: the AI
-      // harness died on an earlier canary, so this one never ran. Warn rather
-      // than info, because it counts against the report's `ok`.
-      return canary.reason === "harness-unavailable"
-        ? {
-            line:
-              `MCP ${serverName} canary: unverified (harness-unavailable) — the AI ` +
-              "harness failed, so this canary never ran; see the failed canary above " +
-              "for the cause",
-            severity: "warn",
-          }
-        : {
-            line: `MCP ${serverName} canary: unverified (${canary.reason})`,
-            severity: "info",
-          };
+    }
+    case "skipped":
+      // Never attempted because an earlier `required` check aborted the run —
+      // still counts against the report's `ok`, since the user asked for it.
+      return {
+        line: `${label}: skipped — an earlier required health check failed first`,
+        severity: "warn",
+      };
   }
-}
-
-/**
- * The single top-level line for a harness failure, or `undefined` when the
- * harness held up. Derived from the per-server outcomes rather than carried as
- * its own report field — `harness-unavailable` exists only because some canary
- * hit a `session-error`, so the report already says everything needed.
- */
-function describeHarnessFailure(
-  mcpServers: WorkDryRunReport["mcpServers"],
-): string | undefined {
-  const skipped = mcpServers.filter(
-    (server) =>
-      server.canary.kind === "unverified" &&
-      server.canary.reason === "harness-unavailable",
-  ).length;
-
-  if (skipped === 0) {
-    return undefined;
-  }
-
-  return (
-    `AI harness unavailable — ${String(skipped)} MCP ` +
-    `${skipped === 1 ? "canary was" : "canaries were"} skipped; ` +
-    "see the failed canary above for the cause"
-  );
 }
 
 /**
@@ -97,7 +69,9 @@ export function renderDryRunReport(
     const line = report.opencodeHealth.healthy
       ? "OpenCode: healthy"
       : `OpenCode: unhealthy${
-          report.opencodeHealth.detail ? ` (${report.opencodeHealth.detail})` : ""
+          report.opencodeHealth.detail
+            ? ` (${report.opencodeHealth.detail})`
+            : ""
         }`;
     if (report.opencodeHealth.healthy) {
       reporter.success(line);
@@ -125,15 +99,16 @@ export function renderDryRunReport(
       } else {
         reporter.error(line);
       }
-
-      const canary = describeCanaryOutcome(server.name, server.canary);
-      reporter[canary.severity](canary.line);
     }
   }
 
-  const harnessFailure = describeHarnessFailure(report.mcpServers);
-  if (harnessFailure) {
-    reporter.error(harnessFailure);
+  if (report.healthChecks.length === 0) {
+    reporter.info("Health checks: none declared");
+  } else {
+    for (const check of report.healthChecks) {
+      const { line, severity } = describeHealthCheckOutcome(check);
+      reporter[severity](line);
+    }
   }
 
   if (report.kept) {

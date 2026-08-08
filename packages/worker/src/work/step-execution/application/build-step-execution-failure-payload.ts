@@ -1,3 +1,10 @@
+import {
+  HEALTH_CHECK_FAILED_ERROR_CODE,
+  HealthCheckFailedError,
+} from "./health-check-failed-error";
+
+const WORKER_EXECUTION_FAILED_ERROR_CODE = "BOBODDY_WORKER_EXECUTION_FAILED";
+
 type StepExecutionFailureInputError =
   | Error
   | { message?: string | undefined }
@@ -29,13 +36,17 @@ function toFailureMessage(error: StepExecutionFailureInputError): string {
 
 export function buildStepExecutionFailurePayload(error: StepExecutionFailureInputError) {
   const message = toFailureMessage(error);
+  const code =
+    error instanceof HealthCheckFailedError
+      ? HEALTH_CHECK_FAILED_ERROR_CODE
+      : WORKER_EXECUTION_FAILED_ERROR_CODE;
 
   return {
     resultJson: {
       status: "failed",
     },
     errorJson: {
-      code: "BOBODDY_WORKER_EXECUTION_FAILED",
+      code,
       message,
     },
   };

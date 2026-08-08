@@ -105,6 +105,28 @@ type OpenCodePluginEntry = string | [string, Record<string, unknown>];
 /** Full value of the OpenCode `plugin` config field. */
 type OpenCodePlugins = OpenCodePluginEntry[];
 
+type HealthCheckSeverity = "required" | "warn";
+
+/**
+ * A single step-declared health check: a real tool call made against the
+ * launched environment before the agent starts working.
+ *
+ * `tool` is a bare name when `mcp` is set (resolved at runtime to
+ * `${mcp}_${tool}`); otherwise it is a flat tool id. `mcp`, when present,
+ * must name a server declared in this step's `mcpServers`.
+ */
+type HealthCheck = {
+  tool: string;
+  mcp?: string;
+  name?: string;
+  args?: Record<string, unknown>;
+  severity?: HealthCheckSeverity;
+  timeoutMs?: number;
+};
+
+/** Full value of a step's `healthChecks` field. */
+type HealthChecks = HealthCheck[];
+
 type SignalTypeStr = "string" | "number" | "boolean" | "object" | "array";
 
 // Produces dot-notation paths for an object type up to 4 levels deep.
@@ -192,6 +214,7 @@ export type DefineStepInput<
   features?: AnyStepFeature[];
   mcpServers?: OpenCodeMcpServers | null;
   plugins?: OpenCodePlugins | null;
+  healthChecks?: HealthChecks | null;
   status?: "draft" | "active";
   executionMode?: "workspace" | "no_workspace";
 };
@@ -228,6 +251,7 @@ export type StepDefinitionSpec = {
   }>;
   opencodeMcpJson: OpenCodeMcpServers | null;
   opencodePluginJson: OpenCodePlugins | null;
+  healthChecksJson: HealthChecks | null;
 };
 
 // Maps a signal type string literal to its TypeScript type.
@@ -385,6 +409,7 @@ export function defineStep<
     ],
     opencodeMcpJson: config.mcpServers ?? null,
     opencodePluginJson: config.plugins ?? null,
+    healthChecksJson: config.healthChecks ?? null,
   };
   return spec as TypedStepDefinitionSpec<
     TInput["_output"],

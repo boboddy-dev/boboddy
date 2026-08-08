@@ -68,18 +68,21 @@ Notes:
 The worker always clones the repo's default branch, then creates the step's work branch off a **base branch**:
 
 - **Later steps in a pipeline** are always created off the previous step's work branch.
-- **The first step** (and standalone steps) is created off a configurable base branch. Set `baseWorkBranch` in the repo's `.boboddy/boboddy.jsonc`:
+- **The first step** (and standalone steps) is created off a base branch resolved with the following precedence:
+  1. **Your current local branch.** `boboddy work` resolves the branch you're on in the directory you ran it from and checks it out immediately after clone — so the devcontainer config and everything the step runs against comes from the branch you're actually working on, not the repo's default branch. Before proceeding, the CLI verifies your current branch exists on `origin` and is in exact sync with it (not just an ancestor/descendant); if it isn't pushed, has diverged, or doesn't exist on `origin` at all, the command fails fast with a message telling you what to do — it never auto-pushes on your behalf. Use `--source-branch <branch>` to target a different branch instead (e.g. from CI, or a colleague's branch) — an override only needs to exist on `origin`, not be checked out locally. `--dry-run` performs the same resolution and checks.
+  2. **A configured base branch**, when your current branch can't be resolved (e.g. `boboddy work` isn't run from inside a git checkout, or `HEAD` is detached). Set `baseWorkBranch` in the repo's `.boboddy/boboddy.jsonc`:
 
-  ```jsonc
-  {
-    "projectId": "your-project-id",
-    "baseWorkBranch": "develop"
-  }
-  ```
+     ```jsonc
+     {
+       "projectId": "your-project-id",
+       "baseWorkBranch": "develop"
+     }
+     ```
 
-  You can override the configured value per worker with the `BOBODDY_BASE_WORK_BRANCH` env var in `.boboddy/.env`. The env var takes precedence over the jsonc field.
+     You can override the configured value per worker with the `BOBODDY_BASE_WORK_BRANCH` env var in `.boboddy/.env`. The env var takes precedence over the jsonc field.
+  3. **The repo's cloned default branch**, when neither of the above applies.
 
-When no base branch is configured, the first step is created off the repo's cloned default branch. If a configured base branch cannot be fetched/checked out, the step fails.
+If the resolved base branch cannot be fetched/checked out, the step fails.
 
 ## Environment requirements
 

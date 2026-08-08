@@ -1463,6 +1463,16 @@ export type GetApiStepDefinitionsResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1521,6 +1531,16 @@ export type PostApiStepDefinitionsData = {
             };
         } | unknown;
         opencodePluginJson?: Array<string | Array<unknown>> | unknown;
+        healthChecksJson?: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -1696,6 +1716,16 @@ export type PostApiStepDefinitionsResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1754,6 +1784,16 @@ export type PutApiStepDefinitionsData = {
             };
         } | unknown;
         opencodePluginJson?: Array<string | Array<unknown>> | unknown;
+        healthChecksJson?: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -1897,6 +1937,16 @@ export type PutApiStepDefinitionsResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -2053,6 +2103,16 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -2209,6 +2269,16 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -3471,11 +3541,6 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                     targetPort: number;
                     protocol: 'tcp' | 'http';
                 };
-                healthcheck: {
-                    protocol: 'tcp' | 'http';
-                    path: string | unknown;
-                    expectedStatus: number | unknown;
-                };
             }>;
         };
         stepExecution: {
@@ -3521,6 +3586,16 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                 };
             } | unknown;
             opencodePluginJson: Array<string | Array<unknown>> | unknown;
+            healthChecksJson: Array<{
+                tool: string;
+                mcp?: string;
+                name?: string;
+                args?: {
+                    [key: string]: unknown;
+                };
+                severity: 'required' | 'warn';
+                timeoutMs: number;
+            }> | unknown;
         };
         agentPrompt: {
             sessionTitle: string;
@@ -11924,6 +11999,16 @@ export type GetApiStepDefinitionTemplatesResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
@@ -12065,6 +12150,16 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
@@ -12264,6 +12359,16 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             };
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
+        healthChecksJson: Array<{
+            tool: string;
+            mcp?: string;
+            name?: string;
+            args?: {
+                [key: string]: unknown;
+            };
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+        }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;

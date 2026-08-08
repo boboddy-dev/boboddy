@@ -16,6 +16,7 @@ function makeStep(overrides: Partial<StepDefContract> = {}): StepDefContract {
     resultSchemaJson: null,
     opencodeMcpJson: null,
     opencodePluginJson: null,
+    healthChecksJson: null,
     signalExtractorDefinitions: [],
     ...overrides,
   };
@@ -57,5 +58,77 @@ describe("generateStepsFileContent", () => {
     expect(content).toContain(
       "agentPrompt: ({ input }) => `Legacy {{title}} with new ${input.title}`",
     );
+  });
+
+  test("emits mcpServers when present and non-empty", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        opencodeMcpJson: {
+          browser: { type: "local", command: ["npx", "-y", "pkg"] },
+        },
+      }),
+    ]);
+
+    expect(content).toContain("mcpServers: {");
+    expect(content).toContain('"browser"');
+  });
+
+  test("omits mcpServers when null or empty", () => {
+    const nullContent = generateStepsFileContent([
+      makeStep({ opencodeMcpJson: null }),
+    ]);
+    const emptyContent = generateStepsFileContent([
+      makeStep({ opencodeMcpJson: {} }),
+    ]);
+
+    expect(nullContent).not.toContain("mcpServers:");
+    expect(emptyContent).not.toContain("mcpServers:");
+  });
+
+  test("emits plugins when present and non-empty", () => {
+    const content = generateStepsFileContent([
+      makeStep({ opencodePluginJson: [{ path: "./my-plugin.ts" }] }),
+    ]);
+
+    expect(content).toContain("plugins: [");
+    expect(content).toContain("./my-plugin.ts");
+  });
+
+  test("omits plugins when null or empty", () => {
+    const nullContent = generateStepsFileContent([
+      makeStep({ opencodePluginJson: null }),
+    ]);
+    const emptyContent = generateStepsFileContent([
+      makeStep({ opencodePluginJson: [] }),
+    ]);
+
+    expect(nullContent).not.toContain("plugins:");
+    expect(emptyContent).not.toContain("plugins:");
+  });
+
+  test("emits healthChecks when present and non-empty, formatted like mcpServers/plugins", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        healthChecksJson: [
+          { tool: "browser_navigate", mcp: "browser", args: { url: "about:blank" } },
+        ],
+      }),
+    ]);
+
+    expect(content).toContain("healthChecks: [");
+    expect(content).toContain('"browser_navigate"');
+    expect(content).toContain('"browser"');
+  });
+
+  test("omits healthChecks when null or empty", () => {
+    const nullContent = generateStepsFileContent([
+      makeStep({ healthChecksJson: null }),
+    ]);
+    const emptyContent = generateStepsFileContent([
+      makeStep({ healthChecksJson: [] }),
+    ]);
+
+    expect(nullContent).not.toContain("healthChecks:");
+    expect(emptyContent).not.toContain("healthChecks:");
   });
 });

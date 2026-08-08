@@ -30,7 +30,12 @@ export type ValidateDefinitionSpecsOptions = {
 };
 
 export type DefinitionValidationIssue = {
-  readonly check: "signal-source-path" | "route-target" | "signal-binding";
+  readonly check:
+    | "signal-source-path"
+    | "route-target"
+    | "signal-binding"
+    | "health-check-mcp-server"
+    | "health-check-double-qualified";
   readonly message: string;
 };
 
@@ -92,7 +97,53 @@ function checkSignalSourcePaths(
   return issues;
 }
 
-// ─── Check 2: route outcomes name a pipeline that exists ─────────────────────
+// ─── Check 2: health checks reference declared, single-qualified MCP tools ───
+
+function checkHealthChecks(
+  steps: readonly StepDefinitionSpec[],
+): DefinitionValidationIssue[] {
+  const issues: DefinitionValidationIssue[] = [];
+
+  for (const step of steps) {
+    const checks = step.healthChecksJson ?? [];
+    if (checks.length === 0) continue;
+
+    const mcpServerKeys = Object.keys(step.opencodeMcpJson ?? {});
+    const mcpServerKeySet = new Set(mcpServerKeys);
+
+    checks.forEach((check, index) => {
+      const label = check.name ?? check.tool;
+      const where = `Step "${step.key}" health check #${String(index + 1)} ("${label}")`;
+
+      if (!check.mcp) return;
+
+      if (!mcpServerKeySet.has(check.mcp)) {
+        issues.push({
+          check: "health-check-mcp-server",
+          message:
+            `${where} names MCP server "${check.mcp}", but the step declares no ` +
+            `such server in mcpServers. Declared servers: ${mcpServerKeys.length > 0 ? listPaths([...mcpServerKeys].sort()) : "(none)"}.`,
+        });
+      }
+
+      const prefix = `${check.mcp}_`;
+      if (check.tool.startsWith(prefix)) {
+        issues.push({
+          check: "health-check-double-qualified",
+          message:
+            `${where} sets mcp "${check.mcp}" and tool "${check.tool}", which already ` +
+            `starts with "${prefix}". When "mcp" is set, "tool" should be the bare tool ` +
+            `name — OpenCode resolves it to "${prefix}${check.tool}". Did you mean ` +
+            `tool: "${check.tool.slice(prefix.length)}"?`,
+        });
+      }
+    });
+  }
+
+  return issues;
+}
+
+// ─── Check 3: route outcomes name a pipeline that exists ─────────────────────
 
 function routeTargets(
   policy: PipelineDefinitionSpec["steps"][number]["advancementPolicyDefinition"],
@@ -143,7 +194,7 @@ function checkRouteTargets(
   return issues;
 }
 
-// ─── Check 3: signal bindings point at earlier steps that declare them ───────
+// ─── Check 4: signal bindings point at earlier steps that declare them ───────
 
 /**
  * Execution order of a pipeline's steps, as array indexes.
@@ -299,6 +350,7 @@ export function validateDefinitionSpecs(
 
   return [
     ...checkSignalSourcePaths(specs.steps),
+    ...checkHealthChecks(specs.steps),
     ...checkRouteTargets(specs.pipelines, options.knownPipelineKeys ?? []),
     ...checkSignalBindings(specs.pipelines, stepsByKey),
   ];

@@ -65,6 +65,7 @@ function createWorkerClient(
           resultSchemaJson: { type: "object" },
           opencodeMcpJson: null,
           opencodePluginJson: null,
+          healthChecksJson: null,
         },
         agentPrompt: {
           sessionTitle: "Demo Step",

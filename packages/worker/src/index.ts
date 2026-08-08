@@ -15,7 +15,11 @@ export {
   PersistenceError,
   ConfigurationError,
 } from "./lib/errors";
-export { parseJsonc, stripJsoncComments, stripTrailingCommas } from "./lib/jsonc";
+export {
+  parseJsonc,
+  stripJsoncComments,
+  stripTrailingCommas,
+} from "./lib/jsonc";
 export { systemTimeProvider } from "./lib/time-provider";
 export type { TimeProvider } from "./lib/time-provider";
 export {
@@ -29,10 +33,17 @@ export type {
   AnyJsonPrimitive,
   AnyJsonValue,
 } from "./common/contracts/json";
-export { createUuidV7, isUuidV7, parseUuidV7 } from "./common/contracts/uuid-v7";
+export {
+  createUuidV7,
+  isUuidV7,
+  parseUuidV7,
+} from "./common/contracts/uuid-v7";
 export type { UuidV7 } from "./common/contracts/uuid-v7";
 export type { OpenCodeMcpServers } from "./common/contracts/opencode-mcp";
-export { CLI_AUTH_CLIENT_ID, resolveBoboddyBaseUrl } from "./auth/session/infra/auth-config";
+export {
+  CLI_AUTH_CLIENT_ID,
+  resolveBoboddyBaseUrl,
+} from "./auth/session/infra/auth-config";
 export { createCliAuthClient } from "./auth/session/infra/auth-client";
 export {
   deleteAuthProfile,
@@ -49,14 +60,34 @@ export { pollForAccessToken } from "./auth/session/application/poll-for-access-t
 export { requestDeviceAuthorization } from "./auth/session/application/request-device-authorization";
 export { readProjectConfig } from "./project/project-config/application/read-project-config";
 export { writeProjectConfig } from "./project/project-config/application/write-project-config";
-export { deriveProjectName, loadProjectConfig, saveProjectConfig } from "./project/project-config/infra/fs-project-config-repo";
+export {
+  deriveProjectName,
+  loadProjectConfig,
+  saveProjectConfig,
+} from "./project/project-config/infra/fs-project-config-repo";
 export type { ProjectConfig } from "./project/project-config/domain/project-config";
-export { DEVCONTAINER_CONFIG_PATH, hasDevcontainer } from "./project/project-setup/application/ensure-devcontainer";
+export {
+  resolveSourceBranch,
+  SourceBranchVerificationError,
+} from "./project/source-branch/application/resolve-source-branch";
+export type {
+  ResolveSourceBranchInput,
+  SourceBranchGitPort,
+} from "./project/source-branch/application/resolve-source-branch";
+export { GitCliSourceBranchPort } from "./project/source-branch/infra/git-cli-source-branch-port";
+export {
+  DEVCONTAINER_CONFIG_PATH,
+  hasDevcontainer,
+} from "./project/project-setup/application/ensure-devcontainer";
 export { globalSetup } from "./project/project-setup/application/global-setup";
 export { localConfigSetup } from "./project/project-setup/application/local-config-setup";
 export { verifyRequirements } from "./project/project-setup/application/verify-requirements";
 export { RuntimeNetworkGarbageCollector } from "./runtime/runtime-gc/application/runtime-network-garbage-collector";
-export { DevcontainerCliLauncher, buildDevcontainerCliCommand, resolveDevcontainerCliScriptPath } from "./runtime/runtime-service/infra/devcontainer-cli-launcher";
+export {
+  DevcontainerCliLauncher,
+  buildDevcontainerCliCommand,
+  resolveDevcontainerCliScriptPath,
+} from "./runtime/runtime-service/infra/devcontainer-cli-launcher";
 export { OpencodeRuntimePayloadProvisioner } from "./runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 export type { OpencodeRuntimePayloadLocation } from "./runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 export {
@@ -113,9 +144,15 @@ export {
   buildPipelineBuilderPackageJson,
   scaffoldPipelineBuilderDirectory,
 } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
-export { pullPipelineDefinitions, listExistingPipelineBuilderFiles } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
+export {
+  pullPipelineDefinitions,
+  listExistingPipelineBuilderFiles,
+} from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
 export type { PullPipelineDefinitionsResult } from "./pipelines/pipeline-definitions/application/pull-pipeline-definitions";
-export { UnsupportedRuleError, generateDefaultPipelineAssignmentFileContent } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
+export {
+  UnsupportedRuleError,
+  generateDefaultPipelineAssignmentFileContent,
+} from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
 export type { DefaultPipelineAssignmentContract } from "./pipelines/pipeline-definitions/infra/default-pipeline-assignment-file-generator";
 export { LocalArtifactStore } from "./artifacts/artifact-store/infra/local-artifact-store";
 export { RemoteArtifactStore } from "./artifacts/artifact-store/infra/remote-artifact-store";
@@ -128,7 +165,10 @@ export type {
   SaveArtifactResult,
 } from "./artifacts/artifact-store/domain/artifact-store";
 export { DefaultOpencodeStepRunner } from "./work/step-execution/infra/opencode-step-runner";
-export { processProjectWork, runProjectWork } from "./work/step-execution/application/run-project-work";
+export {
+  processProjectWork,
+  runProjectWork,
+} from "./work/step-execution/application/run-project-work";
 export type {
   ProcessProjectWorkDeps,
   ProcessProjectWorkOptions,
@@ -146,8 +186,9 @@ export {
   listProjectStepDefinitionsForDryRun,
 } from "./work/step-execution/application/run-work-dry-run";
 export type {
-  McpCanaryOutcome,
-  WorkDryRunMcpServerReport,
+  HealthCheckOutcome,
+  HealthCheckReport,
+  McpHandshakeReport,
   WorkDryRunOptions,
   WorkDryRunReport,
   WorkDryRunScope,

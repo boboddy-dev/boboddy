@@ -45,6 +45,7 @@ import {
 } from "../lib/design-seed-prompt";
 import {
   createDesignWorkItem,
+  getDesignWorkItemById,
   listRecentWorkItems,
   promptWorkItemChoice,
   promptWorkItemText,
@@ -75,6 +76,7 @@ import type { CommandContext } from "../lib/command-output";
 interface DesignArguments {
   projectId: string | undefined;
   baseUrl: string | undefined;
+  workItemId: string | undefined;
 }
 
 /**
@@ -134,9 +136,7 @@ function buildPorts(
   return {
     loadSession: async (baseUrl) => {
       const authenticated = await loadAuthenticatedSession(baseUrl);
-      return authenticated
-        ? { email: authenticated.session.user.email }
-        : null;
+      return authenticated ? { email: authenticated.session.user.email } : null;
     },
     login: (baseUrl) =>
       performDeviceLogin({
@@ -144,11 +144,11 @@ function buildPorts(
         reporter: ctx.reporter,
         logger: ctx.logger,
       }),
-    readConfiguredProjectId: async () =>
-      (await readProjectConfig())?.projectId,
+    readConfiguredProjectId: async () => (await readProjectConfig())?.projectId,
     resolveProjectFromRepo,
     promptProjectId,
     listWorkItems: listRecentWorkItems,
+    getWorkItemById: getDesignWorkItemById,
     promptWorkItemChoice,
     promptWorkItemText,
     createWorkItem: createDesignWorkItem,
@@ -237,6 +237,7 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
     const preflight = await runDesignPreflight({
       baseUrl,
       projectIdArgument: args.projectId,
+      workItemIdArgument: args.workItemId,
       reporter: ctx.reporter,
       ports: buildPorts(builderDir, ctx),
     });
@@ -314,8 +315,7 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
 
 export const designCommand: CommandModule<object, DesignArguments> = {
   command: "design [projectId]",
-  describe:
-    "Interactively design pipelines with an AI agent, then push them",
+  describe: "Interactively design pipelines with an AI agent, then push them",
   builder: (argv: Argv<object>) =>
     argv
       .positional("projectId", {
@@ -327,6 +327,13 @@ export const designCommand: CommandModule<object, DesignArguments> = {
         alias: "base-url",
         type: "string",
         describe: "Boboddy app base URL",
+      })
+      .option("workItemId", {
+        alias: "work-item-id",
+        type: "string",
+        describe:
+          "Design around this specific work item ID instead of picking " +
+          "from the project's recent items (for one older than the picker shows)",
       }),
   handler: (args: ArgumentsCamelCase<DesignArguments>) =>
     runPipelineDesign(args),

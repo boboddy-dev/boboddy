@@ -90,6 +90,7 @@ boboddy pipelines design <projectId>
 | Flag | Description |
 |------|-------------|
 | `--base-url <url>` | Override the API server URL |
+| `--work-item-id <id>` | Design around this specific work item ID instead of picking from the project's recent items. Wins outright and skips the picker entirely — use it for an item older than the picker's recent window, or any time you already have the id. An id that does not resolve (wrong id, or belongs to a different project) is a hard stop, not a silent fall-through to the picker |
 
 **Preflight.** Every precondition is self-healing except the last one:
 
@@ -97,7 +98,7 @@ boboddy pipelines design <projectId>
 |-------|------------|
 | Boboddy session | Runs the device-flow login inline |
 | Project ID | Uses the positional argument, else `.boboddy/boboddy.jsonc`, else matches this repo's `origin` remote to a project on the server (creating it when absent) and writes `.boboddy/boboddy.jsonc`. Only prompts when the repo has no `origin` remote |
-| A work item to design around | Shows a picker of the project's most recent ingested items, whose last option is always *paste or describe a different one*. That option takes a ticket URL or a plain description and creates the item server-side (platform `boboddy`). Every session designs around a real work item |
+| A work item to design around | With `--work-item-id`, loads that item directly and skips the picker. Otherwise shows a picker of the project's most recent ingested items, whose last option is always *paste or describe a different one*. That option takes a ticket URL or a plain description and creates the item server-side (platform `boboddy`). Every session designs around a real work item |
 | `.boboddy/pipeline-builder/` | Scaffolds it (requires a `.git` or `.boboddy` directory in the current directory) |
 | Dependencies | Installs them with the package manager matching the directory's lockfile, else `bun` or `npm` from your `PATH` |
 | AI runtime | Downloads the pinned OpenCode runtime once (~100 MB, with progress) |
@@ -205,6 +206,7 @@ boboddy work <projectId>
 | `--poll-interval-ms <n>` | `-p` | `5000` | Milliseconds between poll cycles (env: `BOBODDY_WORK_POLL_INTERVAL_MS`) |
 | `--worker-id <id>` | `-w` | auto | Worker identifier used while claiming steps |
 | `--work-item-id <id>` | — | — | Only process step executions for this work item ID |
+| `--source-branch <branch>` | — | your current local branch | Override the branch checked out for the first step of this run. Defaults to your current local branch, which must exist and be in exact sync with `origin` (push it first if it isn't) |
 | `--preserve-runtime-on-complete` | `-k` | `false` | Keep runtime containers and workspace after step completion |
 
 ---

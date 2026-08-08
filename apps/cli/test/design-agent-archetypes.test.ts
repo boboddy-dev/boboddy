@@ -12,6 +12,10 @@ import { validateDefinitionSpecs } from "@boboddy/sdk/definitions/validation";
 import { collectDefinitionsFromDirectory } from "@boboddy/sdk/push";
 import { PIPELINE_BUILDER_TSCONFIG } from "@boboddy/worker";
 import {
+  buildHealthCheckCatalogSection,
+  buildPipelineAuthoringReference,
+  HEALTH_CHECK_CATALOG,
+  HEALTH_CHECK_CATALOG_EXAMPLES,
   PIPELINE_ARCHETYPES,
   PIPELINE_AUTHORING_REFERENCE,
 } from "../src/lib/design-agent-assets";
@@ -181,6 +185,84 @@ describe("authoring reference fences", () => {
   });
 });
 
+describe("the health check catalog section", () => {
+  const section = buildHealthCheckCatalogSection();
+  const blocks = extractFencedBlocks(section);
+
+  test("holds both entries with every field the catalog promises", () => {
+    expect(HEALTH_CHECK_CATALOG.map((entry) => entry.id)).toEqual([
+      "playwright",
+      "postgres",
+    ]);
+    for (const entry of HEALTH_CHECK_CATALOG) {
+      expect(entry.label.length, entry.id).toBeGreaterThan(0);
+      expect(entry.packageHint.length, entry.id).toBeGreaterThan(0);
+      expect(entry.mcp.length, entry.id).toBeGreaterThan(0);
+      expect(entry.tool.length, entry.id).toBeGreaterThan(0);
+      expect(entry.caveats.length, entry.id).toBeGreaterThan(20);
+    }
+  });
+
+  test("states the three origination rules and the two guidance lines", () => {
+    expect(section).toContain("without\n   asking");
+    expect(section).toContain(
+      "only if the user supplied the\n   tool name and arguments themselves",
+    );
+    expect(section).toContain("Never invent a tool name or arguments");
+    expect(section).toContain("No secrets in check arguments");
+    expect(section).toContain("Prefer tools whose output is trivial");
+  });
+
+  test("every entry's label and tool appear in the rendered section", () => {
+    for (const entry of HEALTH_CHECK_CATALOG) {
+      expect(section).toContain(entry.label);
+      expect(section).toContain(entry.tool);
+      expect(section).toContain(entry.mcp);
+    }
+  });
+
+  test("no fenced block in the health check material is a non-compiled fragment", () => {
+    expect(blocks.length).toBe(HEALTH_CHECK_CATALOG.length);
+    for (const block of blocks) {
+      expect(block.tag).toBe("ts");
+    }
+  });
+
+  test("never invents a literal launch command from the package hint", () => {
+    // Guards the catalog's core design choice (a package hint, not a literal
+    // command — see `HealthCheckCatalogEntry.packageHint`'s doc comment) in
+    // every place a package hint reaches: the generated section, AND the
+    // archetypes, which reference the same real packages (e.g. Playwright)
+    // and could just as easily reintroduce a literal there instead.
+    for (const entry of HEALTH_CHECK_CATALOG) {
+      const literalCommand = `"npx", "-y", "${entry.packageHint}"`;
+      expect(section).not.toContain(literalCommand);
+      for (const { name, source } of PIPELINE_ARCHETYPES) {
+        expect(source, name).not.toContain(literalCommand);
+      }
+    }
+  });
+
+  test("is spliced into the composed authoring reference", () => {
+    const reference = buildPipelineAuthoringReference();
+    expect(reference).toContain("## 10. Well-known MCP server health checks");
+    expect(reference.indexOf("## 9. Validate, then push")).toBeLessThan(
+      reference.indexOf("## 10. Well-known MCP server health checks"),
+    );
+    for (const entry of HEALTH_CHECK_CATALOG) {
+      expect(reference).toContain(entry.label);
+    }
+  });
+
+  test("`playwright-mcp` — the non-existent package — appears nowhere", () => {
+    expect(PIPELINE_AUTHORING_REFERENCE).not.toContain("playwright-mcp");
+    expect(buildPipelineAuthoringReference()).not.toContain("playwright-mcp");
+    for (const { source } of PIPELINE_ARCHETYPES) {
+      expect(source).not.toContain("playwright-mcp");
+    }
+  });
+});
+
 describe("everything the agent is told to copy compiles against the SDK", () => {
   let dir = "";
   let elapsedMs = 0;
@@ -196,6 +278,14 @@ describe("everything the agent is told to copy compiles against the SDK", () => 
 
     for (const { name, source } of PIPELINE_ARCHETYPES) {
       writeFileSync(join(dir, `${name}.ts`), source, "utf-8");
+    }
+
+    // The health check catalog's rendered examples, compiled the same way as
+    // the archetypes — written directly from the exported array rather than
+    // re-extracted from markdown, since that array (not the generated
+    // section's markdown) is their source of truth.
+    for (const { id, source } of HEALTH_CHECK_CATALOG_EXAMPLES) {
+      writeFileSync(join(dir, `health-check-${id}.ts`), source, "utf-8");
     }
 
     // Snippets that import `./steps` rely on the shared-steps file the
@@ -223,7 +313,11 @@ describe("everything the agent is told to copy compiles against the SDK", () => 
     elapsedMs = (Bun.nanoseconds() - startedAt) / 1_000_000;
     output = `${result.stdout.toString()}${result.stderr.toString()}`.trim();
     exitCode = result.exitCode;
-  });
+    // A cold `tsc` invocation that typechecks the real (unbuilt) SDK source
+    // tree against every archetype, health-check example, and authoring-doc
+    // snippet routinely takes several seconds — well past bun:test's default
+    // 5000ms hook timeout under CI load.
+  }, { timeout: 30_000 });
 
   afterAll(() => {
     if (dir) rmSync(dir, { recursive: true, force: true });

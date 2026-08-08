@@ -77,7 +77,7 @@ export async function buildOpencodeContext(input: {
   /**
    * Optional `provider` overlay (e.g. from `buildFakeProviderConfig`)
    * merged onto `overrideConfig.provider`. This lets callers such as the
-   * dry-run MCP canary (#109) bake a fake AI provider into the same
+   * dry-run MCP health check (#109) bake a fake AI provider into the same
    * launch-time inline config (precedence #6) as everything else, so it's
    * live from process boot — instead of PATCHing `/config` on an already-
    * running agent, which has zero live effect. The embedded baseline config

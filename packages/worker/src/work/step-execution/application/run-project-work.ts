@@ -56,6 +56,12 @@ export type ProcessProjectWorkOptions = {
    * human-facing output is rendered by the worker.
    */
   reporter?: WorkReporter | undefined;
+  /**
+   * The CLI's resolved/overridden current local branch at invocation (see
+   * `resolveSourceBranch`). Only affects the FIRST step of each pipeline
+   * attempt claimed during this run; see `ProcessProjectWorkInput.sourceBranch`.
+   */
+  sourceBranch?: string | null | undefined;
 };
 
 export type ProcessProjectWorkDeps = {
@@ -212,6 +218,7 @@ export async function runProjectWork(
       // Seed each claimed step's log masker with the .boboddy/.env values
       // (Path A) so injected secrets are redacted from the shipped feed.
       secretValues: Object.values(options.localEnvVars ?? {}),
+      sourceBranch: options.sourceBranch,
     },
     {
       workerClient,

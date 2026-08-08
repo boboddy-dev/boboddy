@@ -98,6 +98,7 @@ export class PlainReporter implements WorkReporter {
       case "step:runtime-container-starting":
       case "step:runtime-ai-starting":
       case "step:runtime-ready":
+      case "step:health-checks-running":
       case "step:agent-running":
         return;
     }

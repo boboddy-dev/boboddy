@@ -49,6 +49,13 @@ export type WorkEvent =
     }
   | { type: "step:runtime-ai-starting"; stepExecutionId: string }
   | { type: "step:runtime-ready"; stepExecutionId: string }
+  /**
+   * The step declared health checks and they are now running against the
+   * launched environment, before the agent is prompted (#120). Only emitted
+   * for steps with a non-empty `healthChecks`; a step declaring none jumps
+   * straight from `runtime-ready` to `agent-running` as before.
+   */
+  | { type: "step:health-checks-running"; stepExecutionId: string }
   | { type: "step:agent-running"; stepExecutionId: string }
   | { type: "step:succeeded"; stepExecutionId: string }
   | {

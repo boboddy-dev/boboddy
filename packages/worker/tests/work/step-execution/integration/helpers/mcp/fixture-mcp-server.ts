@@ -1,6 +1,6 @@
 /**
  * A tiny, REAL (not mocked) stdio MCP server used only as an integration-test
- * fixture for `force-and-verify-mcp-canary.integration.test.ts`.
+ * fixture for `force-and-verify-mcp-health-check.integration.test.ts`.
  *
  * It speaks the actual MCP protocol over stdio via the official SDK — there is
  * no in-process faking here, unlike `FakeAiServer` (which fakes the AI
@@ -11,8 +11,9 @@
  * Two tools:
  *   - `echo`  — always succeeds, echoing back its `text` argument.
  *   - `boom`  — always throws, so the SDK returns a JSON-RPC error response.
- *     This is the "genuinely broken" tool call the canary is meant to catch —
- *     the MCP handshake completes fine, but the tool call itself fails.
+ *     This is the "genuinely broken" tool call the health check is meant to
+ *     catch — the MCP handshake completes fine, but the tool call itself
+ *     fails.
  *
  * Run directly: `bun run fixture-mcp-server.ts`.
  */

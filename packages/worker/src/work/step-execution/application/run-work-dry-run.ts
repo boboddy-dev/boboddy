@@ -1,5 +1,6 @@
 import type { DestinationStream } from "pino";
 import { createBoboddyClient } from "@boboddy/sdk";
+import type { HealthCheck } from "@boboddy/sdk/health-checks";
 import { createUuidV7, parseUuidV7 } from "../../../common/contracts/uuid-v7";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
@@ -11,7 +12,7 @@ import { DirectProviderAccessResolver } from "../infra/provider-access/direct-pr
 import { SafeProviderAccessResolver } from "../infra/provider-access/safe-provider-access-resolver";
 import { logWork, logWorkError } from "./work-logger";
 import { noopReporter, type WorkReporter } from "../contracts/work-reporter";
-import { FakeAiServer, resolveFakeAiHost } from "../infra/fake-ai";
+import { buildFakeAiProviderOverride, FakeAiServer } from "../infra/fake-ai";
 import {
   buildDryRunNoWorkspaceOrchestrator,
   buildDryRunWorkspaceOrchestrator,
@@ -19,15 +20,16 @@ import {
 import {
   checkOpencodeHealth,
   pollMcpStatus,
+  type McpHandshakeReport,
 } from "./run-work-dry-run-health-checks";
-import {
-  computeDryRunOk,
-  runMcpCanaries,
-  type WorkDryRunMcpServerReport,
-} from "./run-work-dry-run-mcp-canaries";
+import { runHealthChecks, type HealthCheckReport } from "./run-health-checks";
+import { computeDryRunOk } from "./compute-dry-run-ok";
 
-export type { WorkDryRunMcpServerReport };
-export type { McpCanaryOutcome } from "./run-work-dry-run-mcp-canaries";
+export type { McpHandshakeReport } from "./run-work-dry-run-health-checks";
+export type {
+  HealthCheckOutcome,
+  HealthCheckReport,
+} from "./run-health-checks";
 
 export type WorkDryRunScope =
   | {
@@ -40,7 +42,7 @@ export type WorkDryRunScope =
   | { kind: "global-only" };
 
 export type WorkDryRunReport = {
-  /** See {@link computeDryRunOk} — health, handshakes, and canary outcomes combined. */
+  /** See {@link computeDryRunOk} — health, handshakes, and health check outcomes combined. */
   ok: boolean;
   scope: WorkDryRunScope;
   workspacePath: string | null;
@@ -51,7 +53,16 @@ export type WorkDryRunReport = {
   containerHealth: { status: string; healthy: boolean } | null;
   opencodeHealth: { healthy: boolean; detail?: string | undefined } | null;
   providerCredentials: { ok: boolean; detail: string };
-  mcpServers: WorkDryRunMcpServerReport[];
+  /** Handshake status only — whether each server's declared health checks (if any) passed lives in {@link WorkDryRunReport.healthChecks}. */
+  mcpServers: McpHandshakeReport[];
+  /**
+   * The step's declared health checks (#121), run via the shared runner
+   * (`runHealthChecks`, #119) and reported flat — a check on a plugin or
+   * standalone tool has no MCP server to nest under, so this is a top-level
+   * array covering every declared check regardless of source. Empty when the
+   * step declares none; there is no fallback verification in that case.
+   */
+  healthChecks: HealthCheckReport[];
   /** Set only when the environment failed to launch at all (no health data below applies). */
   launchError?: string | undefined;
 };
@@ -74,6 +85,13 @@ export type WorkDryRunOptions = {
   /** Env vars read from .boboddy/.env in the user's local project directory. */
   localEnvVars?: Record<string, string> | undefined;
   reporter?: WorkReporter | undefined;
+  /**
+   * The CLI's resolved/overridden current local branch at invocation (see
+   * `resolveSourceBranch`). A dry run has no step key (no work branch is
+   * created), but this branch is still checked out after clone so the
+   * rehearsed devcontainer config matches what a real run would use.
+   */
+  sourceBranch?: string | null | undefined;
 };
 
 type StepDefinitionForDryRun = {
@@ -84,6 +102,7 @@ type StepDefinitionForDryRun = {
   resultSchemaJson: Record<string, unknown> | null;
   opencodeMcpJson: OpenCodeMcpServers | null;
   opencodePluginJson: OpenCodePlugins | null;
+  healthChecksJson: HealthCheck[] | null;
 };
 
 function buildAuthHeaders(accessToken: string) {
@@ -126,6 +145,7 @@ async function fetchStepDefinition(
         resultSchemaJson: Record<string, unknown> | null;
         opencodeMcpJson: OpenCodeMcpServers | null;
         opencodePluginJson: OpenCodePlugins | null;
+        healthChecksJson: HealthCheck[] | null;
       }
     | undefined;
   if (!data) {
@@ -141,6 +161,7 @@ async function fetchStepDefinition(
     resultSchemaJson: data.resultSchemaJson,
     opencodeMcpJson: data.opencodeMcpJson,
     opencodePluginJson: data.opencodePluginJson,
+    healthChecksJson: data.healthChecksJson,
   };
 }
 
@@ -193,7 +214,10 @@ export async function runWorkDryRun(
 
   const reporter = options.reporter ?? noopReporter;
   const logger = createLogger(
-    { name: "@boboddy/worker", level: process.env["BOBODDY_LOG_LEVEL"] ?? "info" },
+    {
+      name: "@boboddy/worker",
+      level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
+    },
     options.dest,
   ).child({ scope: "work-dry-run" });
 
@@ -205,7 +229,8 @@ export async function runWorkDryRun(
   const safeProviderAccessResolver = new SafeProviderAccessResolver(
     new DirectProviderAccessResolver({ logger }),
   );
-  const isNoWorkspace = scope.kind === "step" && scope.executionMode === "no_workspace";
+  const isNoWorkspace =
+    scope.kind === "step" && scope.executionMode === "no_workspace";
   const orchestrator = isNoWorkspace
     ? buildDryRunNoWorkspaceOrchestrator(logger, safeProviderAccessResolver)
     : buildDryRunWorkspaceOrchestrator(
@@ -221,11 +246,11 @@ export async function runWorkDryRun(
   });
   reporter.event({ type: "step:starting", stepExecutionId });
 
-  // Started unconditionally (rather than only once a canary-worthy server is
-  // found) because the fake provider must be baked into the agent's
-  // launch-time config, before this dry run knows which of its MCP servers
-  // (if any) the canary registry will match. Shared across every canary run
-  // below and stopped once, regardless of outcome.
+  // Started unconditionally (rather than only when the step declares
+  // `healthChecks`) because the fake provider must be baked into the agent's
+  // launch-time config, before any forced tool call can run. Shared across
+  // every declared health check below and stopped once, regardless of
+  // outcome.
   const fakeAiServer = new FakeAiServer();
   await fakeAiServer.start();
 
@@ -238,6 +263,7 @@ export async function runWorkDryRun(
         requestedByUserId,
         gitUrl,
         baseWorkBranch: null,
+        sourceBranch: options.sourceBranch ?? null,
         // No stepKey: skips work-branch creation, so a dry run never pushes or
         // even creates a `boboddy/...` branch.
         stepKey: undefined,
@@ -249,12 +275,10 @@ export async function runWorkDryRun(
         },
         reporter,
         stepExecutionId,
-        // `no_workspace` runs the agent directly on the host, alongside this
-        // fake-LLM server — reachable via loopback. `workspace` runs it inside
-        // a devcontainer, which needs the Docker host-gateway alias instead.
-        fakeAiProviderOverride: {
-          baseUrl: `http://${isNoWorkspace ? "127.0.0.1" : resolveFakeAiHost()}:${String(fakeAiServer.port)}`,
-        },
+        fakeAiProviderOverride: buildFakeAiProviderOverride({
+          fakeAiServer,
+          isNoWorkspace,
+        }),
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -277,6 +301,7 @@ export async function runWorkDryRun(
           ? { ok: false, detail: safeProviderAccessResolver.lastError.message }
           : { ok: true, detail: "resolved" },
         mcpServers: [],
+        healthChecks: [],
         launchError: reason,
       };
     }
@@ -296,14 +321,22 @@ export async function runWorkDryRun(
     const providerCredentials = safeProviderAccessResolver.lastError
       ? { ok: false, detail: safeProviderAccessResolver.lastError.message }
       : { ok: true, detail: "resolved" };
-    const handshakeReports = await pollMcpStatus(
+    const mcpServers = await pollMcpStatus(
       environment.agentBaseUrl,
       environment.workspaceFolder,
     );
-    const mcpServers = await runMcpCanaries({
+    // Same runner the real-execution gate uses (`runHealthChecks`, #119) —
+    // its declaration-order, abort-required-then-skip-the-rest semantics are
+    // unchanged here. Dry run's "different policy" (#121) is at the level
+    // above this call, not inside it: a failing check here never throws or
+    // cuts the dry run short the way `runDeclaredHealthChecksOrThrow` does
+    // for a real execution. Every check still gets a reported outcome —
+    // `passed`, `failed`, or `skipped` — so the full table below always
+    // reflects what actually ran.
+    const healthChecks = await runHealthChecks({
       agentBaseUrl: environment.agentBaseUrl,
       workspaceFolder: environment.workspaceFolder,
-      mcpServers: handshakeReports,
+      healthChecks: stepDefinition?.healthChecksJson ?? [],
       fakeAiServer,
     });
 
@@ -311,6 +344,7 @@ export async function runWorkDryRun(
       containerHealthy: containerHealth?.healthy,
       opencodeHealthy: opencodeHealth.healthy,
       mcpServers,
+      healthChecks,
     });
 
     reporter.event(
@@ -350,6 +384,7 @@ export async function runWorkDryRun(
       opencodeHealth,
       providerCredentials,
       mcpServers,
+      healthChecks,
     };
   } finally {
     // eslint-disable-next-line local/no-unknown-parameter-type -- narrows a caught value, not a real input boundary
@@ -393,5 +428,9 @@ export async function listProjectStepDefinitionsForDryRun(input: {
       latestByKey.set(step.key, step);
     }
   }
-  return [...latestByKey.values()].map(({ id, key, name }) => ({ id, key, name }));
+  return [...latestByKey.values()].map(({ id, key, name }) => ({
+    id,
+    key,
+    name,
+  }));
 }

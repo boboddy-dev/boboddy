@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { WorkDryRunMcpServerReport, WorkDryRunReport } from "@boboddy/worker";
+import type {
+  HealthCheckReport,
+  McpHandshakeReport,
+  WorkDryRunReport,
+} from "@boboddy/worker";
 import { renderDryRunReport } from "../src/lib/dry-run-report";
 import type { BaseReporter } from "../src/lib/reporter-types";
 
@@ -17,12 +21,34 @@ function createSpyReporter(calls: string[]): BaseReporter {
 
 function connected(
   name: string,
-  canary: WorkDryRunMcpServerReport["canary"],
-): WorkDryRunMcpServerReport {
-  return { name, status: "connected", error: undefined, healthy: true, canary };
+  overrides: Partial<McpHandshakeReport> = {},
+): McpHandshakeReport {
+  return {
+    name,
+    status: "connected",
+    error: undefined,
+    healthy: true,
+    ...overrides,
+  };
 }
 
-function reportWith(mcpServers: WorkDryRunMcpServerReport[]): WorkDryRunReport {
+function healthCheckReport(
+  overrides: Partial<HealthCheckReport> & {
+    outcome: HealthCheckReport["outcome"];
+  },
+): HealthCheckReport {
+  return {
+    name: overrides.name ?? "browser_navigate",
+    resolvedId: overrides.resolvedId ?? "browser_navigate",
+    severity: overrides.severity ?? "required",
+    outcome: overrides.outcome,
+  };
+}
+
+function reportWith(input: {
+  mcpServers?: McpHandshakeReport[];
+  healthChecks?: HealthCheckReport[];
+}): WorkDryRunReport {
   return {
     ok: false,
     scope: { kind: "global-only" },
@@ -33,78 +59,106 @@ function reportWith(mcpServers: WorkDryRunMcpServerReport[]): WorkDryRunReport {
     containerHealth: null,
     opencodeHealth: null,
     providerCredentials: { ok: true, detail: "resolved" },
-    mcpServers,
+    mcpServers: input.mcpServers ?? [],
+    healthChecks: input.healthChecks ?? [],
   };
 }
 
-function render(mcpServers: WorkDryRunMcpServerReport[]): string[] {
+function render(input: {
+  mcpServers?: McpHandshakeReport[];
+  healthChecks?: HealthCheckReport[];
+}): string[] {
   const calls: string[] = [];
-  renderDryRunReport(reportWith(mcpServers), createSpyReporter(calls));
+  renderDryRunReport(reportWith(input), createSpyReporter(calls));
   return calls;
 }
 
-const AUTH_DETAIL =
-  "UnknownError: Claude Code credentials are unavailable or expired.";
-
-describe("renderDryRunReport canary lines", () => {
-  test("blames the harness once, not every skipped server", () => {
-    const lines = render([
-      connected("postgres", {
-        kind: "ran-and-failed",
-        reason: "session-error",
-        detail: AUTH_DETAIL,
-      }),
-      connected("playwright", { kind: "unverified", reason: "harness-unavailable" }),
-      connected("browser", { kind: "unverified", reason: "harness-unavailable" }),
-    ]);
+describe("renderDryRunReport", () => {
+  test("per-server lines report handshake status only", () => {
+    const lines = render({
+      mcpServers: [
+        connected("postgres"),
+        connected("playwright", {
+          status: "failed",
+          healthy: false,
+          error: "boom",
+        }),
+      ],
+    });
 
     expect(lines).toEqual([
       "info:Scope: global-only — no step MCP overrides injected",
       "success:Provider credentials: resolved",
       "success:MCP postgres: connected",
-      `error:MCP postgres canary: failed (session-error) — ${AUTH_DETAIL}`,
-      "success:MCP playwright: connected",
-      "warn:MCP playwright canary: unverified (harness-unavailable) — the AI harness " +
-        "failed, so this canary never ran; see the failed canary above for the cause",
-      "success:MCP browser: connected",
-      "warn:MCP browser canary: unverified (harness-unavailable) — the AI harness " +
-        "failed, so this canary never ran; see the failed canary above for the cause",
-      "error:AI harness unavailable — 2 MCP canaries were skipped; see the failed " +
-        "canary above for the cause",
+      "error:MCP playwright: failed — boom",
+      "info:Health checks: none declared",
     ]);
-    // Exactly one line carries the underlying cause.
-    expect(lines.filter((line) => line.includes(AUTH_DETAIL))).toHaveLength(1);
   });
 
-  test("uses singular wording for a single skipped canary", () => {
-    const lines = render([
-      connected("postgres", {
-        kind: "ran-and-failed",
-        reason: "session-error",
-        detail: AUTH_DETAIL,
-      }),
-      connected("playwright", { kind: "unverified", reason: "harness-unavailable" }),
-    ]);
+  test("reports 'MCP servers: none configured' when there are none", () => {
+    const lines = render({});
+    expect(lines).toContain("info:MCP servers: none configured");
+  });
+
+  test("renders a passed health check as success", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "browser_navigate",
+          resolvedId: "browser_navigate",
+          outcome: { kind: "passed" },
+        }),
+      ],
+    });
 
     expect(lines).toContain(
-      "error:AI harness unavailable — 1 MCP canary was skipped; see the failed " +
-        "canary above for the cause",
+      'success:Health check "browser_navigate" (browser_navigate): passed',
     );
   });
 
-  test("adds no top-level harness line when nothing was skipped", () => {
-    const lines = render([
-      connected("postgres", { kind: "ran-and-passed" }),
-      connected("playwright", { kind: "unverified", reason: "no-match" }),
-    ]);
+  test("renders a failed health check with reason, detail, and available ids", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "not_a_real_tool",
+          resolvedId: "not_a_real_tool",
+          outcome: {
+            kind: "failed",
+            reason: "not-registered",
+            detail:
+              'Tool "not_a_real_tool" is not registered in this environment.',
+            availableIds: ["browser_navigate", "list_schemas"],
+          },
+        }),
+      ],
+    });
 
-    expect(lines).toEqual([
-      "info:Scope: global-only — no step MCP overrides injected",
-      "success:Provider credentials: resolved",
-      "success:MCP postgres: connected",
-      "success:MCP postgres canary: passed",
-      "success:MCP playwright: connected",
-      "info:MCP playwright canary: unverified (no-match)",
-    ]);
+    expect(lines).toContain(
+      'error:Health check "not_a_real_tool" (not_a_real_tool): failed [not-registered] — ' +
+        'Tool "not_a_real_tool" is not registered in this environment. ' +
+        "Available tool ids: browser_navigate, list_schemas.",
+    );
+  });
+
+  test("renders a skipped health check as a warning", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "list_schemas",
+          resolvedId: "postgres_list_schemas",
+          outcome: { kind: "skipped" },
+        }),
+      ],
+    });
+
+    expect(lines).toContain(
+      'warn:Health check "list_schemas" (postgres_list_schemas): skipped — an ' +
+        "earlier required health check failed first",
+    );
+  });
+
+  test("reports 'Health checks: none declared' when the step declares none", () => {
+    const lines = render({});
+    expect(lines).toContain("info:Health checks: none declared");
   });
 });

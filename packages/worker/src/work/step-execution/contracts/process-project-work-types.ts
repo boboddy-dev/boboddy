@@ -1,11 +1,16 @@
 import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
+import type { FakeAiServer } from "../infra/fake-ai/fake-ai-server";
 import type {
   StepExecutionContract,
   StepExecutionWorkerContextContract,
 } from "./step-execution-contracts";
 import type { CurrentExecutionInfo } from "../application/process-project-work-findings";
+import type {
+  RunHealthChecksInput,
+  HealthCheckReport,
+} from "../application/run-health-checks";
 import type { WorkReporter } from "./work-reporter";
 
 export type ProcessProjectWorkInput = {
@@ -33,6 +38,16 @@ export type ProcessProjectWorkInput = {
    * ("Path B") are registered later, from the runtime launch result.
    */
   secretValues?: readonly string[] | undefined;
+  /**
+   * The user's resolved (or explicitly overridden) current local branch at
+   * `boboddy work` invocation (see `resolveSourceBranch`). Applied uniformly
+   * to every claim processed during this run, but only takes effect for the
+   * FIRST step of a pipeline attempt — later steps always chain off the
+   * predecessor's `workBranch` via the server-handed `baseWorkBranch`, which
+   * takes precedence over this value. `null`/`undefined` when not resolved
+   * (e.g. cwd isn't a git repo, or on a detached HEAD).
+   */
+  sourceBranch?: string | null | undefined;
 };
 
 /**
@@ -232,6 +247,15 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
      * configured base branch. Null for the first step.
      */
     baseWorkBranch?: string | null | undefined;
+    /**
+     * The CLI's resolved (or explicitly overridden) current local branch at
+     * `boboddy work` invocation. Checked out immediately after clone for the
+     * FIRST step of a pipeline attempt only (i.e. when {@link baseWorkBranch}
+     * above is absent) — takes precedence over the repo-local configured base
+     * branch, which in turn falls back to the cloned default branch. Ignored
+     * entirely when {@link baseWorkBranch} is present (a later step).
+     */
+    sourceBranch?: string | null | undefined;
     /** Step key used (sanitized) in the work branch name `boboddy/<key>-<id>`. */
     stepKey?: string | undefined;
     opencodeMcpJson?: StepExecutionWorkerContextContract["stepDefinition"]["opencodeMcpJson"];
@@ -246,14 +270,14 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
      * durable feed as it appears (separate from the presentation `reporter`).
      */
     onDevcontainerLogLine?:
-      | ((line: string, level: "info" | "warn" | "error") => void)
-      | undefined;
+      ((line: string, level: "info" | "warn" | "error") => void) | undefined;
     /**
      * Opt-in hook that bakes a fake AI provider into the launch-time inline
      * config, pointed at `baseUrl`, instead of PATCHing `/config` on an
      * already-running agent (proven to have zero live effect — see #109).
-     * Used only by the #109/#110 dry-run MCP canary feature. Production step
-     * execution never sets this field, so real runs are unaffected.
+     * Set by `run --dry-run` (#109/#110) and, since #120, by real step
+     * execution for steps that declare `healthChecks` — a step declaring none
+     * never sets this field, so it launches unaffected exactly as before.
      */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
   }): Promise<StepExecutionRuntimeEnvironment>;
@@ -374,8 +398,7 @@ export type ProcessProjectWorkDeps = {
    * `loadDefaultDeps`.
    */
   noWorkspaceRuntimeEnvironmentOrchestrator?:
-    | StepExecutionRuntimeEnvironmentOrchestrator
-    | undefined;
+    StepExecutionRuntimeEnvironmentOrchestrator | undefined;
   agentRunner: StepExecutionAgentRunner;
   artifactStore: ArtifactStore;
   sleep(milliseconds: number): Promise<void>;
@@ -386,4 +409,20 @@ export type ProcessProjectWorkDeps = {
    * {@link resolveProjectWorkReporter}).
    */
   reporter?: WorkReporter | undefined;
+  /**
+   * The health check runner (#119/#120). Overridable so unit tests can inject
+   * a fake without exercising the real forced-tool-call machinery — the same
+   * seam {@link agentRunner} already provides. Defaults to the real
+   * `runHealthChecks` when omitted. Only ever invoked for a step that
+   * declares a non-empty `healthChecks`.
+   */
+  runHealthChecks?:
+    | ((input: RunHealthChecksInput) => Promise<HealthCheckReport[]>)
+    | undefined;
+  /**
+   * Factory for the fake-AI harness a health-check-declaring step's forced
+   * tool calls run through. Overridable for the same reason as
+   * {@link runHealthChecks}. Defaults to `() => new FakeAiServer()`.
+   */
+  createFakeAiServer?: (() => FakeAiServer) | undefined;
 };

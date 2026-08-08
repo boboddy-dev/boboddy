@@ -18,7 +18,12 @@ export const reproduceInBrowser = defineStep({
   mcpServers: {
     browser: {
       type: "local",
-      command: ["playwright-mcp", "--headless"],
+      // "@playwright/mcp" is the real package; there is no single correct
+      // invocation (base image, headless flags, and version pin all vary
+      // by execution environment), so this is a placeholder, not something
+      // to copy verbatim. See §10 of the authoring reference for the
+      // matching health check and its caveats.
+      command: ["<launch @playwright/mcp here>"],
       enabled: true,
     },
   },

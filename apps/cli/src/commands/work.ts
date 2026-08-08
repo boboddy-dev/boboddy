@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import {
   readProjectConfig,
   resolveBoboddyBaseUrl,
+  resolveSourceBranch,
   runProjectWork,
 } from "@boboddy/worker";
 import {
@@ -39,6 +40,15 @@ export interface WorkArguments {
   pollIntervalMs: number | undefined;
   workerId: string | undefined;
   workItemId: string | undefined;
+  /**
+   * Override the branch checked out for the first step of this run (instead
+   * of resolving and verifying the current local branch). Needed when
+   * "current branch" isn't meaningful (CI) or isn't what's wanted (targeting
+   * a colleague's branch). Unlike the auto-resolved current branch, an
+   * override only needs to exist on `origin` — it need not be checked out
+   * locally or match local HEAD.
+   */
+  sourceBranch: string | undefined;
   /**
    * Rehearse the environment a real step execution would launch — devcontainer
    * + in-container OpenCode, with the targeted step's real MCP servers
@@ -102,7 +112,27 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     process.exit(1);
   }
 
+  // Resolve (and verify) the branch to check out for the first step of this
+  // run, before anything else — a dry run rehearses this exact same
+  // resolution/verification, not just the real path. Fails fast rather than
+  // silently falling back to the repo's default branch.
+  let sourceBranch: string | null;
+  try {
+    sourceBranch = await resolveSourceBranch({
+      cwd: process.cwd(),
+      override: arguments_.sourceBranch,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    reporter.error(message);
+    logger.error({ err: error }, "Failed to resolve the source branch");
+    process.exit(1);
+  }
+
   reporter.start(dryRun ? "Boboddy worker (dry run)" : "Boboddy worker");
+  if (sourceBranch) {
+    reporter.info(`Using source branch: ${sourceBranch}`);
+  }
 
   logger.info({
     projectId,
@@ -118,6 +148,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     dryRun,
     stepId: arguments_.stepId,
     globalOnly,
+    sourceBranch,
   }, "Starting worker command");
 
   const localEnvVars = await readLocalEnvVars();
@@ -138,6 +169,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
         keep: preserveRuntimeOnComplete,
         localEnvVars,
         reporter,
+        sourceBranch,
       });
 
       if (!ok) {
@@ -164,6 +196,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
       dest: createTransport(),
       localEnvVars,
       reporter,
+      sourceBranch,
     });
 
     if (once) {
@@ -243,6 +276,14 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       .option("workItemId", {
         alias: "work-item-id",
         describe: "Only process step executions for this work item ID",
+        type: "string",
+      })
+      .option("sourceBranch", {
+        alias: "source-branch",
+        describe:
+          "Override the branch checked out for the first step of this run " +
+          "(defaults to your current local branch, which must exist and be " +
+          "in sync with its origin remote)",
         type: "string",
       })
       .option("dryRun", {

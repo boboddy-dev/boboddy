@@ -158,7 +158,6 @@ type RawServiceEntry = {
   cwd?: unknown;
   dependsOn?: unknown;
   expose?: { targetPort?: unknown; protocol?: unknown };
-  healthcheck?: { protocol?: unknown; path?: unknown; expectedStatus?: unknown };
 };
 
 type RawBoboddyConfig = {
@@ -183,11 +182,6 @@ export type BoboddyServiceDefinition = {
   expose: {
     targetPort: number;
     protocol: string;
-  };
-  healthcheck: {
-    protocol: string;
-    path: string | null;
-    expectedStatus: number | null;
   };
 };
 
@@ -226,7 +220,6 @@ const parseServices = (
   if (!raw) return [];
   return Object.entries(raw).map(([name, entry]) => {
     const expose = entry.expose ?? {};
-    const healthcheck = entry.healthcheck ?? {};
     const dependsOn = Array.isArray(entry.dependsOn)
       ? entry.dependsOn.filter((d): d is string => typeof d === "string")
       : [];
@@ -239,11 +232,6 @@ const parseServices = (
       expose: {
         targetPort: asNumber(expose.targetPort) ?? 0,
         protocol: asString(expose.protocol) ?? "http",
-      },
-      healthcheck: {
-        protocol: asString(healthcheck.protocol) ?? "http",
-        path: asString(healthcheck.path) ?? null,
-        expectedStatus: asNumber(healthcheck.expectedStatus) ?? null,
       },
     };
   });
