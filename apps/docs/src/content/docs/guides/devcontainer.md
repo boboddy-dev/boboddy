@@ -7,11 +7,17 @@ description: Generate a minimal .devcontainer/devcontainer.json for your project
 
 This page provides a prompt you can paste into any AI coding assistant (Claude, Copilot, etc.) to generate a minimal, project-appropriate devcontainer config.
 
-> **You probably don't need this page.** If your project has no `.devcontainer/devcontainer.json`, the [pipeline designer](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) writes one for you during a design session, based on the repository it just read. `boboddy init` reports a missing devcontainer as a notice and carries on. This page is for writing one by hand, or for understanding what the agent produced.
+:::tip[You probably don't need this page]
+If your project has no `.devcontainer/devcontainer.json`, the [pipeline designer](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) writes one for you during a design session, based on the repository it just read. `boboddy init` reports a missing devcontainer as a notice and carries on. This page is for writing one by hand, or for understanding what the agent produced.
+:::
 
-> **Exception:** steps with `executionMode: "no_workspace"` run without a clone or a dev container, so a project that only uses those steps does not need a `devcontainer.json`. See [Execution mode](/boboddy/guides/steps/#execution-mode).
+:::note[Exception]
+Steps with `executionMode: "no_workspace"` run without a clone or a dev container, so a project that only uses those steps does not need a `devcontainer.json`. See [Execution mode](/boboddy/guides/steps/#execution-mode).
+:::
 
-> **No build happens in-session.** The agent authors the config but never builds the image — your first pipeline run is what verifies it. If that run fails early, suspect the container before the pipeline.
+:::caution[No build happens in-session]
+The agent authors the config but never builds the image — your first pipeline run is what verifies it. If that run fails early, suspect the container before the pipeline.
+:::
 
 ## AI prompt
 

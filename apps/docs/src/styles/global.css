@@ -1,0 +1,388 @@
+/*
+ * Starlight's required cascade-layer order for Tailwind v4 compatibility.
+ * See: https://starlight.astro.build/guides/css-and-tailwind/
+ */
+@layer base, starlight, theme, components, utilities;
+@import "@astrojs/starlight-tailwind";
+@import "@boboddy/design-tokens/css";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/*
+ * Tailwind theme: accent + gray ramps for `@astrojs/starlight-tailwind`.
+ *
+ * starlight-tailwind wires Starlight's dark-mode UI (see its `tailwind.css`)
+ * off `--color-accent-600` (links, current-item highlight) and off
+ * `--color-gray-200/300/400/600/700/800/900` (text and surface shades). We
+ * author both ramps here so Starlight's stock indigo-on-zinc palette is
+ * replaced with Boboddy's brand colors.
+ *
+ * Accent ramp: derived from the brand cyan `--color-accent` (#38bdf8, see
+ * @boboddy/design-tokens). `--color-accent-600` is pinned to the exact token
+ * value, since that's the step starlight-tailwind uses as `--sl-color-accent`
+ * in dark mode; the rest of the ramp is a perceptual lighten/darken around
+ * that anchor (same hue/saturation family, decreasing lightness).
+ *
+ * Gray ramp: derived from the 8 Primer dark surface steps already defined in
+ * @boboddy/design-tokens, darkest → lightest, mapped to 950 → 200. There are
+ * only 8 token anchors for 11 ramp steps, so `--color-gray-50/100` (lighter
+ * than the lightest token, for parity/light-mode fallback only — this site
+ * is dark-only) and `--color-gray-500` (between the `border` and
+ * `border-strong` tokens) are interpolated/extrapolated.
+ */
+@theme {
+  --color-accent-50: #f1fafe;
+  --color-accent-100: #ddf3fd;
+  --color-accent-200: #bce7fa;
+  --color-accent-300: #8cd7f8;
+  --color-accent-400: #64caf7;
+  --color-accent-500: #4bc2f7;
+  --color-accent-600: #38bdf8; /* == --color-accent in @boboddy/design-tokens */
+  --color-accent-700: #0dacf2;
+  --color-accent-800: #1087bc;
+  --color-accent-900: #146285;
+  --color-accent-950: #133f53;
+
+  --color-gray-50: #f7f9fb; /* extrapolated, lighter than any dark-mode token */
+  --color-gray-100: #f0f4f7; /* extrapolated, lighter than any dark-mode token */
+  --color-gray-200: #e6edf3; /* == --color-text */
+  --color-gray-300: #9198a1; /* == --color-text-muted */
+  --color-gray-400: #6e7681; /* == --color-border-strong / --color-text-dim */
+  --color-gray-500: #4f565f; /* interpolated, between --color-border and --color-border-strong */
+  --color-gray-600: #30363d; /* == --color-border */
+  --color-gray-700: #21262d; /* == --color-border-muted */
+  --color-gray-800: #161b22; /* == --color-bg-elev / --color-surface */
+  --color-gray-900: #0d1117; /* == --color-bg */
+  --color-gray-950: #010409; /* == --color-bg-header / --color-surface-inset */
+}
+
+/*
+ * Exact-match pins.
+ *
+ * The Tailwind ramps above give Starlight's derived hover/active states the
+ * right feel, but they're an approximation (starlight-tailwind maps ramp
+ * steps to `--sl-color-*` through a couple of layers of indirection). Pin
+ * the canvas colors that must match @boboddy/design-tokens exactly, as plain
+ * unlayered CSS so they win over any layered Starlight/Tailwind default.
+ */
+:root {
+  --sl-color-bg: #0d1117; /* == --color-bg */
+  --sl-color-bg-nav: #010409; /* == --color-bg-header */
+  --sl-color-bg-sidebar: #010409; /* == --color-surface-inset, matches nav */
+  --sl-color-bg-inline-code: #161b22; /* == --color-bg-elev */
+  --sl-color-hairline: #30363d; /* == --color-border */
+  --sl-color-hairline-shade: #30363d; /* == --color-border */
+  --sl-color-hairline-light: #30363d; /* == --color-border */
+  --sl-color-text: #e6edf3; /* == --color-text */
+  --sl-color-text-accent: #38bdf8; /* == --color-accent */
+
+  /*
+   * Reading type scale (body/headings/code). Overriding Starlight's CSS
+   * custom properties directly, rather than fighting selector specificity.
+   * See props.css: https://github.com/withastro/starlight/blob/main/packages/starlight/style/props.css
+   */
+  --sl-text-body: 1rem; /* 16px */
+  --sl-line-height: 1.75;
+  --sl-text-h1: 2rem; /* also overrides the >=50em breakpoint value */
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.25rem;
+  --sl-text-code: 0.8125rem; /* 13px */
+  --sl-text-code-sm: 0.8125rem;
+  --sl-content-width: 45rem; /* 720px measure; already Starlight's default */
+
+  /*
+   * Header height (Phase 3b). Starlight's own `--sl-nav-height` is 3.5rem
+   * (56px) below the 50em breakpoint but grows to 4rem (64px) above it
+   * (see props.css). Pin it to a constant 56px at every viewport width to
+   * match the app's fixed-height `AppBar`.
+   */
+  --sl-nav-height: 3.5rem;
+}
+
+/*
+ * Heading letter-spacing and code line-height aren't exposed as Starlight
+ * CSS custom properties, so they need direct (still unlayered) selector
+ * overrides. `font-weight: 600` on headings is already Starlight's default
+ * (see markdown.css / PageTitle.astro) — headings here are navigation, not
+ * proclamation, so we don't bump it to landing's 700/800.
+ */
+.sl-markdown-content h1,
+h1#_top {
+  letter-spacing: -0.02em;
+}
+.sl-markdown-content h2 {
+  letter-spacing: -0.01em;
+}
+.sl-markdown-content code,
+.sl-markdown-content pre {
+  line-height: 1.6;
+}
+
+/*
+ * Phase 3 — Chrome (header, sidebar, footer, TOC, pagination, search,
+ * mobile menu).
+ *
+ * All rules below are unlayered, like the rest of this file, so they win
+ * over Starlight's `starlight.core`/`starlight.components` layered defaults
+ * regardless of selector specificity (see the plan's "clean override"
+ * rationale in docs/docs-site-redesign-plan.md).
+ *
+ * `--primer-transition` mirrors `apps/next/components/theme-components.ts`'s
+ * `PRIMER_TRANSITION` (`80ms cubic-bezier(0.33, 1, 0.68, 1)`), the timing
+ * used for the app's selected-nav accent rail and hover states. Applied here
+ * to sidebar links, the current-page rail, TOC links, and pagination links.
+ */
+:root {
+  --primer-transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/*
+ * Sidebar group labels ("Getting Started", "Guides", "Reference") as mono
+ * uppercase "eyebrow" labels, matching landing's
+ * `text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-muted)]`
+ * pill-label treatment (see apps/landing/src/components/Features.astro etc).
+ */
+.sidebar .group-label .large {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+/*
+ * Sidebar links: replace Starlight's default hover color-only change and
+ * current-page background wash with the app's row-hover wash
+ * (`--color-bg-hover`) and 3px x 20px cyan accent rail
+ * (`MuiListItemButton`'s `::before` selected-nav marker, see
+ * apps/next/components/theme-components.ts).
+ */
+.sidebar a {
+  position: relative;
+  transition:
+    background-color var(--primer-transition),
+    color var(--primer-transition);
+}
+
+.sidebar a:hover,
+.sidebar a:focus {
+  background-color: var(--color-bg-hover);
+  color: var(--sl-color-white);
+}
+
+/* Undo Starlight's default filled background-wash treatment... */
+.sidebar a[aria-current="page"],
+.sidebar a[aria-current="page"]:hover,
+.sidebar a[aria-current="page"]:focus {
+  background-color: transparent;
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+}
+.sidebar a[aria-current="page"]:hover,
+.sidebar a[aria-current="page"]:focus {
+  background-color: var(--color-bg-hover);
+}
+
+/* ...and replace it with the accent rail. */
+.sidebar a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 3px;
+  background-color: var(--color-accent-fg);
+}
+
+/*
+ * Table of contents ("On this page") links: same hover wash + transition
+ * timing as the sidebar. The active-heading color
+ * (`a[aria-current='true']`) is already `--sl-color-text-accent`, pinned to
+ * the brand cyan in the pins block above.
+ */
+.right-sidebar-panel a {
+  transition:
+    background-color var(--primer-transition),
+    color var(--primer-transition);
+}
+.right-sidebar-panel a:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--sl-color-white);
+}
+
+/*
+ * Footer: edit-link + pagination hover transitions, matching the app's
+ * timing. Colors already flow from the Phase 2 gray/accent ramps via
+ * `@astrojs/starlight-tailwind` (`--sl-color-gray-*` -> `--color-gray-*`),
+ * so no color overrides are needed here beyond the outstanding jarring
+ * default: the mobile menu toggle button (below).
+ */
+:where(.sl-flex.meta a, .pagination-links a) {
+  transition:
+    color var(--primer-transition),
+    border-color var(--primer-transition),
+    background-color var(--primer-transition);
+}
+.pagination-links a:hover {
+  border-color: var(--color-border-strong);
+}
+
+/*
+ * Mobile menu toggle button: Starlight's default is a plain white circle
+ * with a black icon in dark mode, which reads as an unstyled leftover
+ * against the Primer-dark chrome. Restyle it as the app's neutral button
+ * (`#21262d`-family surface, hairline border) instead.
+ */
+starlight-menu-button button {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+starlight-menu-button[aria-expanded="true"] button {
+  background-color: var(--color-bg-hover);
+}
+
+/*
+ * Phase 4 — The signature (code blocks).
+ *
+ * Most Expressive Code frame-chrome styling lives in astro.config.mjs's
+ * `expressiveCode.styleOverrides` (the config-side mechanism EC provides
+ * for exactly this). The rules below cover the handful of details that
+ * have no dedicated style-setting key: the terminal frame's tri-color
+ * traffic-light dots, the copy button's inset bevel, inline-code framing,
+ * asides, and the Tabs active-indicator radius.
+ */
+
+/*
+ * Terminal-flavored frame dots (`.frame.is-terminal .header::before`).
+ *
+ * EC's stock mechanism renders these via `mask-image` + a single
+ * `background-color` (see @expressive-code/plugin-frames' generated CSS),
+ * which by design can only ever paint ONE color — there's no `styleOverrides`
+ * combination that produces landing's tri-color red/amber/green dots
+ * (verified by reading plugin-frames' source; `frames.terminalIcon` only
+ * ever feeds that same single-color mask).
+ *
+ * Bypassing the mask entirely and using `background-image` with a literal
+ * (data-URI) SVG instead is the one mechanism that honors the SVG's own
+ * per-circle `fill` colors, since `background-image` — unlike
+ * `mask-image` — renders the source image's actual pixels rather than
+ * using it as an alpha stencil. Circle layout (`viewBox="0 0 60 16"`,
+ * `cx="8,30,52" cy="8" r="8"`) matches EC's default dot spacing exactly;
+ * only the fill colors/opacity differ, at landing's red-400/amber-400/
+ * green-400 spec.
+ */
+.expressive-code .frame.is-terminal .header::before {
+  width: 2.1rem;
+  height: 0.56rem;
+  background-color: transparent;
+  opacity: 1;
+  -webkit-mask-image: none;
+  mask-image: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%23f87171' fill-opacity='0.6'/%3E%3Ccircle cx='30' cy='8' r='8' fill='%23fbbf24' fill-opacity='0.6'/%3E%3Ccircle cx='52' cy='8' r='8' fill='%234ade80' fill-opacity='0.6'/%3E%3C/svg%3E");
+}
+
+/*
+ * Copy-to-clipboard button bevel. No `frames.inlineButtonBoxShadow` style
+ * setting exists (see @expressive-code/plugin-frames' `FramesStyleSettings`
+ * type) so the inset highlight from the app's neutral-button recipe
+ * (apps/next/components/theme-components-controls.ts's `contained` variant)
+ * is added as plain CSS on top of the fill/border set via styleOverrides.
+ */
+.expressive-code .copy button {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/*
+ * Inline code (backtick spans in prose, NOT fenced blocks — those are
+ * Expressive Code's `.not-content`-marked territory and excluded by this
+ * selector, Starlight's own inline-code selector from markdown.css).
+ * Background is already pinned to `--color-surface` via
+ * `--sl-color-bg-inline-code` in the pins block above; add the hairline
+ * border + radius here.
+ */
+.sl-markdown-content code:not(:where(.not-content *)) {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+/*
+ * Asides (`:::note`, `:::tip`, `:::caution`, `:::danger`), restyled on the
+ * app's `MuiAlert` recipe: `*Subtle` background, `*Muted` border, `*Fg`
+ * accent/icon color, per severity. Starlight's own default styling
+ * (style/asides.css) sets these three properties via `--sl-color-asides-*`
+ * custom properties and `background-color` on the same `.starlight-aside--*`
+ * classes, which these unlayered rules override regardless of specificity.
+ * Severity mapping: note -> accent, tip -> success, caution -> attention,
+ * danger -> danger (Starlight has no separate "info" severity to map the
+ * `done`/purple token family onto).
+ */
+.starlight-aside--note {
+  --sl-color-asides-text-accent: var(--color-accent-fg);
+  --sl-color-asides-border: var(--color-accent-muted);
+  background-color: var(--color-accent-subtle);
+}
+.starlight-aside--tip {
+  --sl-color-asides-text-accent: var(--color-success-fg);
+  --sl-color-asides-border: var(--color-success-muted);
+  background-color: var(--color-success-subtle);
+}
+.starlight-aside--caution {
+  --sl-color-asides-text-accent: var(--color-attention-fg);
+  --sl-color-asides-border: var(--color-attention-muted);
+  background-color: var(--color-attention-subtle);
+}
+.starlight-aside--danger {
+  --sl-color-asides-text-accent: var(--color-danger-fg);
+  --sl-color-asides-border: var(--color-danger-muted);
+  background-color: var(--color-danger-subtle);
+}
+
+/*
+ * Tabs (`<Tabs>`/`<TabItem>`): Starlight's active-tab indicator is already
+ * `--sl-color-text-accent` (pinned to the brand cyan in the pins block
+ * above) via a `box-shadow: 0 2px 0 ...`, so it already renders as a 2px
+ * cyan line without any change here. Reference the design token directly
+ * (rather than relying on that indirection) and add the `borderRadius: 2`
+ * from the app's `MuiTabs` `indicator` styleOverride
+ * (apps/next/components/theme-components.ts), which `box-shadow` doesn't
+ * get "for free" the way a real `border` would.
+ */
+.tab [role="tab"][aria-selected="true"] {
+  --sl-tab-color-border: var(--color-accent-fg);
+  border-radius: 2px;
+}
+
+/*
+ * Phase 5b — Docs-home `<CardGrid>`/`<Card>` recipe.
+ *
+ * Starlight's stock `Card.astro` (@astrojs/starlight/user-components/
+ * Card.astro) sets `--sl-card-border`/`--sl-card-bg` per `nth-child`
+ * position, cycling purple/orange/green/red/blue borders — a generic
+ * Starlight-branding gimmick, not Boboddy's. These unlayered rules replace
+ * it with landing's flat card recipe (see apps/landing/src/components/
+ * Features.astro): `rounded-xl border border-[--color-border]
+ * bg-[--color-surface]/40 p-6 hover:border-[--color-border-strong]`.
+ * Overriding `--sl-card-border`/`--sl-card-bg` to constants (rather than
+ * just setting `border`/`background-color` directly) neutralizes the
+ * nth-child cycling at its source, since `.card .icon` also reads those
+ * two custom properties.
+ */
+.card {
+  --sl-card-border: var(--color-border);
+  --sl-card-bg: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background-color: color-mix(in srgb, var(--color-surface) 40%, transparent);
+  padding: 1.5rem;
+  transition: border-color var(--primer-transition);
+}
+.card:hover {
+  border-color: var(--color-border-strong);
+}

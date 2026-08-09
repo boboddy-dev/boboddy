@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-labelledby="boboddy-icon-title">
+  <title id="boboddy-icon-title">boboddy</title>
+  <defs>
+    <linearGradient id="boboddy-icon-grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#7c5cff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="url(#boboddy-icon-grad)"/>
+
+  <g transform="rotate(-12 256 256)">
+    <!-- Cap body (flared) -->
+    <path d="M144.9 385C144.9 414.7 175.93 438.6 214.2 438.6H297.8C336.07 438.6 367.1 414.7 367.1 385L403.4 166.6C404.58 159.5 397.39 153.187 388.09 153.187H123.91C114.61 153.187 107.42 159.5 108.6 166.6L144.9 385Z" fill="white"/>
+
+    <!-- Vertical ribs along the cap body (fan outward toward the top) -->
+    <g stroke="url(#boboddy-icon-grad)" stroke-width="10" stroke-linecap="round">
+      <line x1="158" y1="210" x2="182" y2="330"/>
+      <line x1="216.27" y1="210" x2="226" y2="330"/>
+      <line x1="295.73" y1="210" x2="286" y2="330"/>
+      <line x1="354" y1="210" x2="330" y2="330"/>
+    </g>
+
+    <!-- Rounded cap end (closed top of the cap, sitting at icon bottom) -->
+    <path d="M144.9 385C144.9 414.7 175.93 438.6 214.2 438.6H297.8C336.07 438.6 367.1 414.7 367.1 385V367.2H144.9V385Z" fill="white"/>
+
+    <!-- Marker body protruding from the cap opening -->
+    <path d="M178 165H334V104C334 87.431 320.569 74 304 74H208C191.431 74 178 87.431 178 104V165Z" fill="white"/>
+    <ellipse cx="256" cy="105" rx="78" ry="18" fill="white"/>
+
+    <!-- Gradient seam where marker meets cap -->
+    <path d="M120 154H392" stroke="url(#boboddy-icon-grad)" stroke-width="10" stroke-linecap="round"/>
+  </g>
+</svg>

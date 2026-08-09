@@ -1,0 +1,74 @@
+---
+/*
+  Overrides `@astrojs/starlight/components/SiteTitle.astro` to match
+  `apps/landing`'s `Nav.astro` lockup (26px squircle logo with an
+  accent-tinted glow, lowercase `boboddy` at 15px/600/-0.01em) plus a small
+  `docs` mono chip, per the docs redesign plan's Phase 3a.
+
+  `siteTitle` / `siteTitleHref` are read from `Astro.locals.starlightRoute`,
+  the same source the default component uses, so the link target and label
+  stay driven by Starlight's `title` config / i18n rather than a hardcoded
+  string. The rendered label is lowercased via CSS (not by hardcoding
+  "boboddy") so a future `title` config change is still reflected.
+*/
+import { logos } from "virtual:starlight/user-images";
+import config from "virtual:starlight/user-config";
+
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+---
+
+<a href={siteTitleHref} class="site-title sl-flex">
+  {
+    logos.dark && (
+      <img
+        class="site-title__logo"
+        alt={config.logo?.alt ?? ""}
+        src={logos.dark.src}
+        width={26}
+        height={26}
+      />
+    )
+  }
+  <span class:list={{ "sr-only": config.logo?.replacesTitle }} translate="no">
+    {siteTitle}
+  </span>
+  <span class="site-title__chip" aria-hidden="true">docs</span>
+</a>
+
+<style>
+  @layer starlight.core {
+    .site-title {
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--color-text, var(--sl-color-white));
+      text-decoration: none;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .site-title span:not(.site-title__chip) {
+      text-transform: lowercase;
+      overflow: hidden;
+    }
+    .site-title__logo {
+      display: block;
+      flex-shrink: 0;
+      border-radius: 18%;
+      box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--color-accent) 30%, transparent);
+    }
+    .site-title__chip {
+      flex-shrink: 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 0.0625rem 0.3125rem;
+    }
+  }
+</style>

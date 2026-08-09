@@ -1,0 +1,18 @@
+{/*
+  Boboddy docs is dark-only. Starlight's default ThemeProvider reads a
+  stored preference or the `prefers-color-scheme` media query and can
+  resolve to `data-theme="light"`. We replace it with a version that
+  always pins `data-theme="dark"`, so there is no light-mode flash and no
+  dependency on system/browser preference. `updatePickers` is kept as a
+  no-op so nothing throws if any Starlight internals still call it (the
+  `ThemeSelect` override renders no picker, so it never will in practice).
+
+  This must stay inlined (`is:inline`) and run in `<head>`, matching the
+  default implementation, so the theme is set before first paint.
+*/}
+<script is:inline>
+	window.StarlightThemeProvider = {
+		updatePickers() {},
+	};
+	document.documentElement.dataset.theme = "dark";
+</script>

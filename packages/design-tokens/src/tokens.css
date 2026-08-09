@@ -1,0 +1,102 @@
+:root {
+  /* Canvas / surfaces (Primer dark) */
+  --color-bg: #0d1117;
+  --color-bg-elev: #161b22;
+  --color-bg-header: #010409;
+  --color-bg-hover: rgba(177, 186, 196, 0.08);
+  --color-surface: #161b22;
+  --color-surface-inset: #010409;
+  --color-border: #30363d;
+  --color-border-strong: #6e7681;
+  --color-border-muted: #21262d;
+
+  /* Foreground */
+  --color-text: #e6edf3;
+  --color-text-muted: #9198a1;
+  --color-text-dim: #6e7681;
+
+  /* Brand accents — cyan-primary, purple-secondary */
+  --color-accent: #38bdf8; /* cyan: primary */
+  --color-accent-soft: #79c0ff; /* lighter cyan for hover/links */
+  --color-accent-2: #7c5cff; /* purple: secondary */
+  --color-accent-3: #34d399; /* legacy green token, kept for compatibility */
+
+  /* Primer semantic — accent (links, focus, active tab) */
+  --color-accent-fg: #38bdf8;
+  --color-accent-emphasis: #1f6feb;
+  --color-accent-subtle: rgba(56, 189, 248, 0.15);
+  --color-accent-muted: rgba(56, 189, 248, 0.4);
+
+  /* Primer semantic — success */
+  --color-success-fg: #3fb950;
+  --color-success-emphasis: #238636;
+  --color-success-subtle: rgba(63, 185, 80, 0.15);
+  --color-success-muted: rgba(63, 185, 80, 0.4);
+
+  /* Primer semantic — danger */
+  --color-danger-fg: #f85149;
+  --color-danger-emphasis: #da3633;
+  --color-danger-subtle: rgba(248, 81, 73, 0.15);
+  --color-danger-muted: rgba(248, 81, 73, 0.4);
+
+  /* Primer semantic — attention (warnings) */
+  --color-attention-fg: #d29922;
+  --color-attention-emphasis: #9e6a03;
+  --color-attention-subtle: rgba(187, 128, 9, 0.15);
+  --color-attention-muted: rgba(187, 128, 9, 0.4);
+
+  /* Primer semantic — done (purple, info-ish) */
+  --color-done-fg: #a371f7;
+  --color-done-emphasis: #8957e5;
+  --color-done-subtle: rgba(163, 113, 247, 0.15);
+  --color-done-muted: rgba(163, 113, 247, 0.4);
+
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-bg-elev: var(--color-bg-elev);
+  --color-bg-header: var(--color-bg-header);
+  --color-bg-hover: var(--color-bg-hover);
+  --color-surface: var(--color-surface);
+  --color-surface-inset: var(--color-surface-inset);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-muted: var(--color-border-muted);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-dim: var(--color-text-dim);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-2: var(--color-accent-2);
+  --color-accent-3: var(--color-accent-3);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-accent-emphasis: var(--color-accent-emphasis);
+  --color-accent-subtle: var(--color-accent-subtle);
+  --color-accent-muted: var(--color-accent-muted);
+  --color-success-fg: var(--color-success-fg);
+  --color-success-emphasis: var(--color-success-emphasis);
+  --color-success-subtle: var(--color-success-subtle);
+  --color-success-muted: var(--color-success-muted);
+  --color-danger-fg: var(--color-danger-fg);
+  --color-danger-emphasis: var(--color-danger-emphasis);
+  --color-danger-subtle: var(--color-danger-subtle);
+  --color-danger-muted: var(--color-danger-muted);
+  --color-attention-fg: var(--color-attention-fg);
+  --color-attention-emphasis: var(--color-attention-emphasis);
+  --color-attention-subtle: var(--color-attention-subtle);
+  --color-attention-muted: var(--color-attention-muted);
+  --color-done-fg: var(--color-done-fg);
+  --color-done-emphasis: var(--color-done-emphasis);
+  --color-done-subtle: var(--color-done-subtle);
+  --color-done-muted: var(--color-done-muted);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}

@@ -12503,6 +12503,7 @@ export type GetApiProjectsByProjectIdIntegrationsResponses = {
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
         lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -12642,6 +12643,7 @@ export type PostApiProjectsByProjectIdIntegrationsResponses = {
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
         lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -12916,6 +12918,355 @@ export type PostApiIntegrationsGithubWebhookData = {
     query?: never;
     url: '/api/integrations/github/webhook';
 };
+
+export type GetApiIntegrationsGithubReposData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/integrations/github/repos';
+};
+
+export type GetApiIntegrationsGithubReposErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiIntegrationsGithubReposError = GetApiIntegrationsGithubReposErrors[keyof GetApiIntegrationsGithubReposErrors];
+
+export type GetApiIntegrationsGithubReposResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        installationId: string;
+        accountLogin: string | unknown;
+        repos: Array<{
+            id: number;
+            fullName: string;
+        }>;
+    }>;
+};
+
+export type GetApiIntegrationsGithubReposResponse = GetApiIntegrationsGithubReposResponses[keyof GetApiIntegrationsGithubReposResponses];
+
+export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshData = {
+    body?: never;
+    path: {
+        installationId: string;
+    };
+    query?: never;
+    url: '/api/integrations/github/installations/{installationId}/refresh';
+};
+
+export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshError = PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors[keyof PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors];
+
+export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        installationId: string;
+        accountLogin: string | unknown;
+        repos: Array<{
+            id: number;
+            fullName: string;
+        }>;
+    };
+};
+
+export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponse = PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponses[keyof PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponses];
+
+export type PostApiProjectsFromGithubData = {
+    body: {
+        installationId: string;
+        repo: {
+            id: number;
+            fullName: string;
+        };
+        name?: string;
+        description?: string | unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/projects/from-github';
+};
+
+export type PostApiProjectsFromGithubErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsFromGithubError = PostApiProjectsFromGithubErrors[keyof PostApiProjectsFromGithubErrors];
+
+export type PostApiProjectsFromGithubResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        name: string;
+        slug: string;
+        description: string | unknown;
+        gitUrl: string;
+        createdByUserId: string;
+        orgId: string;
+        ownerUsername: string | unknown;
+        memberships: Array<{
+            userId: string;
+            permissions: Array<string>;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        defaultPipelineAssignment: {
+            linearPipelineDefinitionId: string;
+            rulesJson: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            };
+            defaultEventType: 'assign' | 'skip';
+            defaultEventParamsJson: {
+                [key: string]: unknown;
+            } | unknown;
+            allowedEventTypes: Array<'assign' | 'skip'>;
+        } | unknown;
+        createdAt: string;
+        updatedAt: string;
+        initialSyncFailed: boolean;
+    };
+};
+
+export type PostApiProjectsFromGithubResponse = PostApiProjectsFromGithubResponses[keyof PostApiProjectsFromGithubResponses];
 
 export type GetApiProjectInvitesByTokenData = {
     body?: never;

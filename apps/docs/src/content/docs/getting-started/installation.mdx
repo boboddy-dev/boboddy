@@ -3,6 +3,8 @@ title: Installation
 description: Install the Boboddy CLI and SDK
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 ## Requirements
 
 To run the [Quickstart](/boboddy/getting-started/quickstart/) Stage 1
@@ -28,10 +30,12 @@ repository), you additionally need:
   write it yourself: a design session authors one when it is missing. See
   [Setting up a Dev Container](/boboddy/guides/devcontainer/) to write one by hand.
 
-> Steps in **`no_workspace` mode** (like the ones in the starter pipeline) run
-> directly on the host and need neither Docker nor a dev container — that's what
-> makes the Quickstart's first stage container-free. See
-> [Execution mode](/boboddy/guides/steps/#execution-mode).
+:::note
+Steps in **`no_workspace` mode** (like the ones in the starter pipeline) run
+directly on the host and need neither Docker nor a dev container — that's what
+makes the Quickstart's first stage container-free. See
+[Execution mode](/boboddy/guides/steps/#execution-mode).
+:::
 
 ## Install the CLI
 
@@ -71,11 +75,18 @@ The wrapper at `bin/boboddy` detects your platform and delegates to the correct 
 
 Add the TypeScript SDK to your project:
 
-```bash
-npm install @boboddy/sdk
-# or
-bun add @boboddy/sdk
-```
+<Tabs>
+  <TabItem label="npm">
+    ```bash
+    npm install @boboddy/sdk
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @boboddy/sdk
+    ```
+  </TabItem>
+</Tabs>
 
 The SDK provides `defineStep`, the `pipeline()` builder, and the auto-generated API client for programmatic use.
 
