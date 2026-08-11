@@ -10,13 +10,21 @@ import type { BaseReporter } from "./reporter-types";
  * it offers to run it, and the user never has to learn that
  * `--work-item-id` exists.
  *
- * Two things gate the offer, and both are honest about it rather than failing
- * halfway:
+ * Three things gate the offer, and all of them are honest about it rather than
+ * failing halfway:
  *
  * - A devcontainer, because every step executes inside one. Missing, the run is
  *   impossible, so there is nothing to ask.
  * - A pipeline for the assignment to point at. Absent, the session never got as
  *   far as pushing, so there is nothing to run.
+ * - The pushed pipeline's first step passing a full dry run (#146) — container,
+ *   OpenCode, MCP servers, declared health checks. This is the single source of
+ *   truth for "is what was just pushed obviously broken", so it runs once,
+ *   blocking, right before the confirm: queueing a run the agent that built it
+ *   can no longer see fail would leave the user alone with the failure. Unlike
+ *   the other two gates, its failure is recoverable in this same repository on
+ *   the NEXT `pipelines design` session — see
+ *   {@link DesignRunOfferPorts.runFirstStepDryRun}.
  *
  * When the run does happen, every failure routes back into the design command —
  * the edit loop is the repair loop, and the agent can read the failure with the
@@ -29,6 +37,9 @@ import type { BaseReporter } from "./reporter-types";
  * without a terminal, a network, or a Docker daemon.
  */
 
+/** The one shape every first-step dry-run check produces, real or faked in tests. */
+export type DryRunGateResult = { ok: boolean; summary: string };
+
 export interface DesignRunOfferPorts {
   /** Does this repository have a `.devcontainer/devcontainer.json`? */
   hasDevcontainer(): Promise<boolean>;
@@ -38,6 +49,22 @@ export interface DesignRunOfferPorts {
    * which means nothing was pushed.
    */
   resolveAssignedPipeline(): Promise<string | undefined>;
+  /**
+   * Run the full dry run (container + OpenCode + MCP + declared health checks,
+   * #146) against `pipelineDefinitionId`'s FIRST step, resolved unambiguously
+   * from the pipeline id rather than guessed from a step id. Only the first
+   * step: validating every step in one launch is out of scope (silent MCP-key
+   * merge collisions, health-check abort semantics that would cross-contaminate
+   * one step's failure into another's, and mixed workspace/no_workspace modes
+   * with no single launch to merge into) — first-step validation is enough to
+   * catch an obviously-broken run without pretending to be more.
+   *
+   * There is no self-healing in this same session: the TUI (and the agent
+   * inside it) has already exited by the time this runs, so a failure here is
+   * recorded for the NEXT `pipelines design` session's orientation to pick up
+   * instead — see `design-run-offer-gate-marker.ts`.
+   */
+  runFirstStepDryRun(pipelineDefinitionId: string): Promise<DryRunGateResult>;
   /**
    * Ask whether to run it now. `false` on decline OR cancel: by this point the
    * session's work is already saved server-side, so there is nothing to fail.
@@ -93,6 +120,15 @@ export const NO_PIPELINE_MESSAGE =
   "No pipeline is assigned to this project yet, so there is nothing to run. " +
   "Re-run the design session and let the agent finish — it pushes the pipeline " +
   "and its assignment together.";
+
+/** Prefix for the first-step dry-run gate's failure warning; the cause follows. */
+export const FIRST_STEP_DRY_RUN_FAILED_MESSAGE =
+  "The pushed pipeline's first step failed a dry run, so this would be an " +
+  "obviously-broken run:";
+
+export const FIRST_STEP_DRY_RUN_FAILED_NEXT_STEPS =
+  "Run `boboddy pipelines design` again — the next session's orientation will " +
+  "surface this and help you fix it before you push again.";
 
 /** Precedes the copyable command on the paths that end without running. */
 export const RUN_LATER_PREFIX = "Run it later:";
@@ -157,6 +193,18 @@ export async function runDesignRunOffer(
     return { ran: false };
   }
 
+  const dryRun = await runFirstStepDryRunWithProgress(
+    reporter,
+    ports,
+    pipelineDefinitionId,
+  );
+  if (!dryRun.ok) {
+    reporter.warn(`${FIRST_STEP_DRY_RUN_FAILED_MESSAGE} ${dryRun.summary}`);
+    reporter.info(FIRST_STEP_DRY_RUN_FAILED_NEXT_STEPS);
+    reportRunLater(reporter, command);
+    return { ran: false };
+  }
+
   if (!(await ports.confirmRun(target.workItemTitle))) {
     reportRunLater(reporter, command);
     return { ran: false };
@@ -184,6 +232,34 @@ export async function runDesignRunOffer(
   }
 
   return { ran: true };
+}
+
+/**
+ * Run the first-step dry-run gate with visible progress — spinning up a
+ * devcontainer and an in-container OpenCode process is not instant, and a
+ * silent multi-second pause here would read as a hang.
+ */
+async function runFirstStepDryRunWithProgress(
+  reporter: BaseReporter,
+  ports: DesignRunOfferPorts,
+  pipelineDefinitionId: string,
+): Promise<DryRunGateResult> {
+  const task = reporter.startTask(
+    "Dry-running the pipeline's first step before offering to run it…",
+  );
+  let result: DryRunGateResult;
+  try {
+    result = await ports.runFirstStepDryRun(pipelineDefinitionId);
+  } catch (error) {
+    task.fail("Could not run the first-step dry run");
+    throw error;
+  }
+  if (result.ok) {
+    task.succeed("First step healthy");
+  } else {
+    task.fail("First step dry run failed");
+  }
+  return result;
 }
 
 /**

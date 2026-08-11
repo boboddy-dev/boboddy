@@ -12,6 +12,7 @@ function makeStep(overrides: Partial<StepDefContract> = {}): StepDefContract {
     prompt: "Open the app.",
     version: 1,
     status: "active",
+    executionMode: "workspace",
     inputSchemaJson: null,
     resultSchemaJson: null,
     opencodeMcpJson: null,
@@ -130,5 +131,21 @@ describe("generateStepsFileContent", () => {
 
     expect(nullContent).not.toContain("healthChecks:");
     expect(emptyContent).not.toContain("healthChecks:");
+  });
+
+  test("emits executionMode: \"no_workspace\" when set", () => {
+    const content = generateStepsFileContent([
+      makeStep({ executionMode: "no_workspace" }),
+    ]);
+
+    expect(content).toContain('executionMode: "no_workspace"');
+  });
+
+  test("omits executionMode when it is the default \"workspace\"", () => {
+    const content = generateStepsFileContent([
+      makeStep({ executionMode: "workspace" }),
+    ]);
+
+    expect(content).not.toContain("executionMode:");
   });
 });

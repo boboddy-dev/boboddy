@@ -1,5 +1,6 @@
 import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
 import { STARTER_PIPELINE_FILENAME } from "@boboddy/worker";
+import type { RunOfferGateFailure } from "./design-run-offer-gate-marker";
 import type { DesignWorkItem } from "./design-work-item";
 
 /**
@@ -25,6 +26,13 @@ export type DesignSeedPromptInput = {
   workItem: DesignWorkItem;
   /** Does `.boboddy/pipeline-builder` already contain authored definitions? */
   hasExistingDefinitions: boolean;
+  /**
+   * The prior session's post-push run-offer gate failure (#146), if the last
+   * `pipelines design` session ended with one recorded — see
+   * `design-run-offer-gate-marker.ts`. `undefined` when there is nothing to
+   * report, which is the common case.
+   */
+  priorRunOfferFailure?: RunOfferGateFailure | undefined;
 };
 
 /**
@@ -49,12 +57,33 @@ const NOT_AUTHORED_BY_THE_USER: readonly string[] = [
  *
  * Takes filenames rather than a directory so the rule is testable without one.
  */
-export function hasAuthoredDefinitions(
-  fileNames: readonly string[],
-): boolean {
+export function hasAuthoredDefinitions(fileNames: readonly string[]): boolean {
   return fileNames.some(
     (name) => name.endsWith(".ts") && !NOT_AUTHORED_BY_THE_USER.includes(name),
   );
+}
+
+/**
+ * The lines that surface a prior session's post-push run-offer gate failure
+ * (#146), if there is one — the closest thing phase-1 orientation has to a
+ * live agent to ask, since the session that hit the failure has already
+ * exited by the time it was recorded. Empty when there is nothing to report,
+ * so a normal session's prompt is unchanged.
+ */
+function describePriorRunOfferFailure(
+  failure: RunOfferGateFailure | undefined,
+): string[] {
+  if (!failure) return [];
+  return [
+    "## Before anything else",
+    "",
+    "The pipeline this project pushed last session failed a dry run of its " +
+      `first step, after that session had already exited: ${failure.summary}. ` +
+      "Investigate and fix this — it is why the run offer at the end of the " +
+      "last session could not queue a run — before moving on to this " +
+      "session's own work.",
+    "",
+  ];
 }
 
 const describeDescription = (description: string): string =>
@@ -91,6 +120,7 @@ export function buildDesignSeedPrompt(input: DesignSeedPromptInput): string {
     "",
     definitionsLine,
     "",
+    ...describePriorRunOfferFailure(input.priorRunOfferFailure),
     "Start the interview.",
   ].join("\n");
 }

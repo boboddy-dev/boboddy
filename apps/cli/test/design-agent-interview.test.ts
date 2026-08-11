@@ -309,3 +309,97 @@ describe("the assignment phase tells the truth about when it fires", () => {
     expectPhrase(assignment, "leave the file alone");
   });
 });
+
+describe("orientation discovers project tools before the interview asks about them", () => {
+  // Phase 1 is "read first, never ask for something you can discover" — a
+  // project's own `.opencode/opencode.json[c]` and `.opencode/tools/` are
+  // exactly that kind of discoverable fact, and every MCP server or tool
+  // declared there is already reachable for every workspace step without the
+  // designer redeclaring it.
+  const prompt = buildPipelineDesignerPrompt();
+  const orient = sectionBetween(prompt, PHASE.orient, PHASE.goal);
+
+  test("phase 1 reads the project's own opencode config and tools", () => {
+    expectPhrase(orient, "Read `.opencode/opencode.json` or");
+    expectPhrase(orient, "list `.opencode/tools/`");
+  });
+
+  test("what phase 1 finds there is not re-asked about in phase 3", () => {
+    expectPhrase(
+      orient,
+      "you do not ask the user whether it exists",
+    );
+    const reachability = sectionBetween(prompt, PHASE.reachability, PHASE.changeSize);
+    expectPhrase(
+      reachability,
+      "Already declared in `.opencode/opencode.json[c]` or `.opencode/tools/`? Say",
+    );
+  });
+
+  test("mcpServers in the authoring reference points back at the same discovery", () => {
+    expectPhrase(
+      prompt,
+      "per-step MCP servers **beyond what the project already configures**",
+    );
+  });
+});
+
+describe("reachability is elicited as the user's own step-by-step process", () => {
+  const reachability = sectionBetween(
+    buildPipelineDesignerPrompt(),
+    PHASE.reachability,
+    PHASE.changeSize,
+  );
+
+  test("asks for an ordered walkthrough naming a tool per step, not a checklist", () => {
+    expectPhrase(reachability, "Get it as their **step-by-step process**");
+    expectPhrase(reachability, "what tool would you use for it");
+  });
+
+  test("keeps the concrete-category fallback for items with nothing to walk through", () => {
+    expectPhrase(
+      reachability,
+      'the item has no real "how would I do this"',
+    );
+    // The original menu survives as a fallback, not the primary ask.
+    expectPhrase(reachability, "A read-only database, warehouse, or read replica?");
+  });
+});
+
+describe("secrets are named, never asked for or written as values", () => {
+  const prompt = buildPipelineDesignerPrompt();
+  const build = sectionBetween(prompt, PHASE.build, PHASE.assignment);
+  const close = sectionBetween(prompt, PHASE.close, "# How to behave");
+
+  test("phase 7 tells the agent to ask for the variable name, never the value", () => {
+    expectPhrase(
+      build,
+      "Secrets are a fact you never ask for directly",
+    );
+    expectPhrase(build, "never the value itself");
+  });
+
+  test("phase 7 routes new secrets into .boboddy/.env.example, never .env", () => {
+    expectPhrase(build, "Add `VAR=` to `.boboddy/.env.example`");
+    expectPhrase(build, "never write to `.boboddy/.env` itself");
+  });
+
+  test("phase 10 tells the user by name that .env needs real values", () => {
+    expectPhrase(
+      close,
+      "name every variable in",
+    );
+    expectPhrase(close, "fill in the real values themselves");
+  });
+
+  test("the authoring reference repeats the same rule for a step's mcpServers", () => {
+    expectPhrase(
+      prompt,
+      "Never write a secret **value** into a step file",
+    );
+    expectPhrase(
+      prompt,
+      "`.boboddy/.env` itself is never a file you create or edit",
+    );
+  });
+});

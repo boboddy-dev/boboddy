@@ -1,11 +1,4 @@
 export {
-  createLogger,
-  createLazyLogger,
-  noopLogger,
-  setDefaultLogDestination,
-  type Logger,
-} from "./lib/logger";
-export {
   CoreError,
   CoreValidationError,
   ResourceNotFoundError,
@@ -48,9 +41,12 @@ export { createCliAuthClient } from "./auth/session/infra/auth-client";
 export {
   deleteAuthProfile,
   getAuthFilePath,
+  getOrCreateAnonymousId,
+  isTelemetryDisabled,
   loadAuthFile,
   loadAuthProfile,
   saveAuthProfile,
+  setTelemetryDisabled,
 } from "./auth/session/infra/auth-storage";
 export type { AuthFile, AuthProfile } from "./auth/session/domain/session";
 export { fetchAuthenticatedSession } from "./auth/session/application/fetch-authenticated-session";
@@ -79,8 +75,16 @@ export {
   DEVCONTAINER_CONFIG_PATH,
   hasDevcontainer,
 } from "./project/project-setup/application/ensure-devcontainer";
-export { globalSetup } from "./project/project-setup/application/global-setup";
 export { localConfigSetup } from "./project/project-setup/application/local-config-setup";
+export type { LocalConfigSetupResult } from "./project/project-setup/application/local-config-setup";
+export { findMatchingProject } from "./project/project-setup/application/find-matching-project";
+export type { MatchedProject } from "./project/project-setup/application/find-matching-project";
+export { completeProjectHandoff } from "./project/project-setup/application/complete-project-handoff";
+export {
+  findGitRoot,
+  resolveGitRepository,
+} from "./project/project-setup/application/resolve-git-repository";
+export type { ResolvedGitRepository } from "./project/project-setup/application/resolve-git-repository";
 export { verifyRequirements } from "./project/project-setup/application/verify-requirements";
 export { RuntimeNetworkGarbageCollector } from "./runtime/runtime-gc/application/runtime-network-garbage-collector";
 export {
@@ -122,11 +126,14 @@ export {
   buildOpencodeTuiArgs,
   buildOpencodeTuiEnv,
   ensureHostOpencodePayload,
+  hasFailedExitCode,
+  launchOpencodeAuthLogin,
   launchOpencodeTui,
   resolveHostOpencodeBinary,
 } from "./runtime/host-opencode-tui/infra/host-opencode-tui-launcher";
 export type {
   EnsureHostOpencodePayloadOptions,
+  LaunchOpencodeAuthLoginInput,
   LaunchOpencodeTuiInput,
   LaunchOpencodeTuiResult,
 } from "./runtime/host-opencode-tui/infra/host-opencode-tui-launcher";
@@ -193,3 +200,8 @@ export type {
   WorkDryRunReport,
   WorkDryRunScope,
 } from "./work/step-execution/application/run-work-dry-run";
+export {
+  resolveFirstStepDefinitionId,
+  runPipelineFirstStepDryRun,
+} from "./work/step-execution/application/run-pipeline-first-step-dry-run";
+export type { PipelineFirstStepDryRunOptions } from "./work/step-execution/application/run-pipeline-first-step-dry-run";

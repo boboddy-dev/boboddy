@@ -162,7 +162,8 @@ const HEALTH_CHECK_RULES = `1. Add a catalogued server's health check to \`healt
 const HEALTH_CHECK_GUIDANCE = `- **No secrets in check arguments.** There is no interpolation mechanism, and
   the values are persisted in the database, returned by the API, and rendered
   in the UI. Put a secret in the MCP server's \`environment\` or \`headers\`
-  instead, referenced as \`{env:VAR}\`.
+  instead, referenced as \`{env:VAR}\`, and record the variable name in
+  \`.boboddy/.env.example\` per §1's "Secrets" note.
 - **Prefer tools whose output is trivial.** Health check output is logged in
   full.`;
 

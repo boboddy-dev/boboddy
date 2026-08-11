@@ -323,6 +323,25 @@ describe("edit permission allowlist", () => {
   });
 
   test.concurrent(
+    "the secrets-manifest it records env var names into is allowed",
+    () => {
+      // The one single-file (not directory) carve-out: the interview records
+      // secret *names*, never values, here — see AGENT_PROMPT.md phase 7.
+      expect(resolveEdit(".boboddy/.env.example")).toBe("allow");
+    },
+  );
+
+  test.concurrent(
+    "the real secrets file is never writable, structured-edit or otherwise",
+    () => {
+      // `.env.example` is allowlisted; `.env` deliberately is not. This is the
+      // enforcement that the agent can never write real secret values via the
+      // structured edit tool, independent of what the prompt tells it to do.
+      expect(resolveEdit(".boboddy/.env")).toBe("ask");
+    },
+  );
+
+  test.concurrent(
     "a devcontainer that needs a build context stays unattended",
     () => {
       // A config with `"build": { "dockerfile": … }` is worthless without the
@@ -352,6 +371,8 @@ describe("edit permission allowlist", () => {
       // The project record. The agent reads it; rewriting it would repoint the
       // repo at another project.
       ".boboddy/boboddy.jsonc",
+      // Real secrets. `.env.example` is allowlisted; this is not, deliberately.
+      ".boboddy/.env",
       // Deliberately not the canonical spelling, so not in the grant.
       "devcontainer.json",
     ]) {

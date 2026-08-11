@@ -5,7 +5,7 @@ import type {
   SubmoduleService,
 } from "../application/submodule-service";
 import { parseSubmoduleStatus, type SubmoduleInfo } from "../domain/submodules";
-import { noopLogger, type Logger } from "../../../lib/logger";
+import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 
 const execFileAsync = promisify(execFile);
 

@@ -103,6 +103,21 @@ export type EnsureDesignRuntimeInput = {
 };
 
 /**
+ * The one port every OpenCode-runtime-consuming preflight shares: provision
+ * the host-native runtime and hand back its launcher path. Both
+ * `pipelines design`'s preflight (`DesignPreflightPorts`) and `init`'s
+ * OpenCode-auth gate (`InitOpencodeAuthPorts`) extend this instead of
+ * re-declaring the same method, so the contract can't drift between them.
+ */
+export type EnsureOpencodeRuntimePort = {
+  /**
+   * Provision the host-native OpenCode runtime and return the absolute
+   * launcher path. Throws with an actionable message on failure.
+   */
+  ensureRuntime(): Promise<string>;
+};
+
+/**
  * Provision the runtime and return the absolute path of its `launch.sh`.
  * Throws an error already phrased for the user.
  */

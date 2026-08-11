@@ -16,7 +16,7 @@ import type {
   WorkReporter,
 } from "../contracts/process-project-work-types";
 import { resolveBoboddyBaseUrl } from "../../../auth/session/infra/auth-config";
-import { createLogger } from "../../../lib/logger";
+import { createLogger } from "@boboddy/observability/logging/host";
 import {
   type LocalRuntimeSessionStore,
   SqliteLocalRuntimeSessionStore,

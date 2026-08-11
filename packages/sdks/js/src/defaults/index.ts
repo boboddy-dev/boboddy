@@ -1,9 +1,12 @@
 export {
   deleteAuthProfile,
   getAuthFilePath,
+  getOrCreateAnonymousId,
+  isTelemetryDisabled,
   loadAuthFile,
   loadAuthProfile,
   saveAuthProfile,
+  setTelemetryDisabled,
 } from "./auth-file";
 export type { AuthFile, AuthProfile } from "./auth-file";
 export { resolveBoboddyBaseUrl } from "./base-url";

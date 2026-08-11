@@ -36,16 +36,28 @@ smallest useful thing and naming the rest as next steps.
 
 Read first. Never ask for something you can discover.
 
+- If the opening message has a "Before anything else" section, that is a
+  prior session's post-push run-offer gate (#146) that failed after that
+  session's TUI had already exited — there was no live agent left to tell at
+  the time. Investigate and fix it before anything else in this session; it
+  is why that session's run offer could not queue a run.
 - List this directory. Read every `.ts` file already here.
 - Read `../boboddy.jsonc` if present.
 - Look at the repository root: languages, package manifests, test setup,
   `.devcontainer/`, `docker-compose.yml`, CI config, `README`.
 - Read the work item in the opening message properly. What does it actually
   ask for, and what would working it involve in this repository?
+- Read `.opencode/opencode.json` or `.opencode/opencode.jsonc` at the
+  repository root, and list `.opencode/tools/`, if either exists. Every MCP
+  server and custom tool declared there already loads natively for every
+  `workspace` step — you do not redeclare it in a step's `mcpServers`, and you
+  do not ask the user whether it exists. Name what you found in one line; it
+  is evidence for phase 3, not something to raise there as a question.
 
 From that you should already know the stack, whether tests exist, whether a
-devcontainer exists, and what the starter scaffold contains. Do not ask about
-any of it. State briefly what you found and ask them to correct you if wrong.
+devcontainer exists, what the starter scaffold contains, and which tools are
+already wired up project-wide. Do not ask about any of it. State briefly what
+you found and ask them to correct you if wrong.
 
 If there is no devcontainer, note it and move on — writing one is phase 6, and
 what you learn in the interview shapes it. Do not stop the session over it.
@@ -54,6 +66,21 @@ If definitions beyond the untouched scaffold already exist, this is an edit
 session. Read them, summarize what each one does in a line, and note where they
 already overlap what this item needs — you owe the user a verdict on that in
 phase 4 before you touch a file.
+
+As soon as that reading is done, background a health check without waiting on
+it — this is advisory, not a gate, so keep interviewing regardless of what it
+finds:
+
+```sh
+"$BOBODDY_CLI" work --dry-run --global-only > /tmp/boboddy-dry-run.log 2>&1 &
+```
+
+Run it with a trailing `&` and move straight on to phase 2. Nothing
+step-specific exists yet — no pipeline has been pushed — so this only
+rehearses the container and OpenCode health a real run would also need,
+against whatever devcontainer already exists (or none, if phase 6 has not
+authored one yet). Check the job again before phase 10 — `wait` on it if it is
+still running — and report what it actually found there, not here.
 
 ## 2. Open with the goal
 
@@ -95,8 +122,32 @@ fields are actually filled in by whoever files it — you need real field names 
 phase 8, and the item in front of you is the evidence for which ones exist.
 
 **b. What the execution environment can reach.** This decides which pipelines are
-even possible. Start from what *they* would do to this item and work outwards
-until you have a concrete answer:
+even possible. Get it as their **step-by-step process**, not as a checklist you
+recite: "Walk me through it — if you sat down to make progress on this ticket
+yourself, what's the first thing you'd do, and what tool would you use for it?
+Then what's next?" Keep pulling one step at a time until they run out of steps
+or say the rest is just writing the fix. For every step they name, get the tool
+too — the app itself, a specific internal dashboard, a query console, a log
+viewer, a monitoring product — not just the action.
+
+Check each tool they name against what you found in phase 1 before asking
+anything else about it:
+
+- Already declared in `.opencode/opencode.json[c]` or `.opencode/tools/`? Say
+  so and move on — it is already reachable, and nothing more to ask.
+- Not declared anywhere? That is a new MCP server this pipeline needs. Get its
+  name and how the execution environment would reach it (a URL, a launch
+  command, a package). If reaching it needs a secret, do not ask for the
+  secret itself — see "Secrets" in phase 7, and flag it now so you remember to
+  handle it there.
+
+Their ordered steps are also a first draft of what a pipeline's steps should
+do — keep the list; you will lean on it again in phase 5 and phase 7.
+
+Start from what *they* would do to this item and work outwards until you have
+a concrete answer. If they get stuck partway, or the item has no real "how
+would I do this" — nothing runnable, nothing to open — fall back to asking
+about each of these directly, still through the item, not in the abstract:
 
 - The repository — always reachable. Can its tests be run in a devcontainer?
 - A running instance of the system: a staging or preview URL, an internal host,
@@ -207,9 +258,11 @@ the `apt-get` and `setup-*` lines in CI. Then:
 **Do not build it.** No `devcontainer build`, no `devcontainer up`, no
 `docker build`, no `docker compose up` — a build is minutes of silence in the
 middle of an interview, and the first pipeline run is what verifies the image for
-real. Show the user the config you wrote, say in one line what you based it on,
-and say plainly that it is unverified until that first run. If they already know
-which image they want, take their answer over yours.
+real. The dry run you backgrounded in phase 1 ran before this file existed, so
+it says nothing about this config either. Show the user the config you wrote,
+say in one line what you based it on, and say plainly that it is unverified
+until that first run. If they already know which image they want, take their
+answer over yours.
 
 ## 7. Build it
 
@@ -222,10 +275,31 @@ what to do when blocked, and demand structured evidence. Read each prompt back
 against the seeded item and ask whether an agent following it would produce the
 deliverable you agreed in phase 2. Section 8 of the reference is the checklist.
 
-Where a prompt needs a fact only the user has — credentials, a staging URL, the
-name of an internal tool, domain vocabulary — ask them for it rather than
-inventing a placeholder. If they do not know, write the prompt so the agent
-requests it via a `feedback_request` notification instead of guessing.
+Where a prompt needs a fact only the user has — a staging URL, the name of an
+internal tool, domain vocabulary — ask them for it rather than inventing a
+placeholder. If they do not know, write the prompt so the agent requests it
+via a `feedback_request` notification instead of guessing.
+
+**Secrets are a fact you never ask for directly.** An API key, token,
+password, or connection string is a secret; a staging URL or a tool name is
+not. When a new MCP server from phase 3b (or a health check in section 10 of
+the reference) needs one:
+
+1. Ask only for the **env var name** it should come from — propose one
+   yourself if they have not already got a convention (`STAGING_API_TOKEN`,
+   `WAREHOUSE_DB_URL`) — and how a human obtains the real value, never the
+   value itself.
+2. Reference it in that server's `environment` or `headers` as `{env:VAR}`
+   (see the reference's §1), not inline.
+3. Add `VAR=` to `.boboddy/.env.example` — a file **one directory up** from
+   here, sibling to this one, at `.boboddy/.env.example`. Create it if it does
+   not exist; append if it does; never write a value that looks real, and
+   never write to `.boboddy/.env` itself — that file holds real secrets, is
+   never something you create or edit, and is not a file the interview has any
+   business touching.
+
+Say what you added to `.env.example` and why in phase 10, by variable name —
+do not leave the user to discover it by opening the file.
 
 Use `status: "active"`. Gate on `block` rather than `continue` wherever you are
 unsure; a parked work item is recoverable, a bad cascade is not.
@@ -270,10 +344,20 @@ Summarize in a few lines:
   seeded item and runs the worker in this terminal — send them to that offer.
   It needs a `.devcontainer/devcontainer.json` and the assignment you just
   pushed; without either, they queue a run from the item's executions drawer in
-  the dashboard and then run `boboddy work`.
-- If you authored the devcontainer in phase 6, say so here: that first run is
-  also the first time its image gets built, so a failure there is as likely to be
-  the container as the pipeline. Name it as the thing to check first.
+  the dashboard and then run `boboddy work`. Before it asks, that offer itself
+  dry-runs the pushed pipeline's first step; if that fails, nothing is queued
+  and the next `pipelines design` session opens already knowing what broke —
+  there is no need to tell them to check back for that themselves.
+- Check back on the dry run you backgrounded in phase 1 and report what it
+  actually found — container health, OpenCode health, any MCP handshake —
+  rather than a generic disclaimer. If you authored the devcontainer in phase
+  6, say so here instead: that check ran before this file existed and says
+  nothing about it, so the first pipeline run is still what verifies the
+  image, and a failure there is as likely to be the container as the pipeline.
+- If phase 7 added anything to `.boboddy/.env.example`, name every variable in
+  it and say plainly that nothing using it will work until they copy it to
+  `.boboddy/.env` and fill in the real values themselves — that file is not
+  one you write, and no run will succeed without it.
 - What to add in a future session — an intake-quality gate, a second pipeline
   for a different class of work item, a router in front of both.
 
@@ -400,7 +484,11 @@ The read-only database is at ${env.READONLY_DB_URL}.
 - **`executionMode`** — `"workspace"` (default) clones the repo and runs inside the
   project devcontainer. `"no_workspace"` runs with no repo and no Docker; use it
   for classification, scoring, and any investigation that only needs MCP tools.
-- **`mcpServers`** — per-step MCP servers:
+- **`mcpServers`** — per-step MCP servers **beyond what the project already
+  configures**. Check `.opencode/opencode.json` / `.opencode/opencode.jsonc`
+  and `.opencode/tools/` at the repository root first (phase 1 of the
+  interview): anything declared there loads natively for every `workspace`
+  step already, so only declare a server here if it is not already present.
 
   ```ts fragment
   mcpServers: {
@@ -422,6 +510,35 @@ The read-only database is at ${env.READONLY_DB_URL}.
 
   A `local` command must be resolvable **inside the execution environment**
   (the devcontainer for `workspace` steps), not on the user's laptop.
+
+  If a server needs a secret, see "Secrets" below — never inline one into
+  `command`, and never invent a placeholder that looks like a real value.
+
+### Secrets
+
+Never write a secret **value** into a step file: it is pushed to the server,
+persisted in the database, and rendered in the UI. Reference it as
+`{env:VAR}` inside `mcpServers.<server>.environment` or `.headers` instead —
+OpenCode substitutes it at execution time from whatever env vars are present
+in the container, which is `.boboddy/.env` at the repository root, injected as
+`containerEnv`.
+
+Whenever you introduce a `{env:VAR}` reference that is new to this directory:
+
+1. Ask the user only for the **name** of the variable (or propose a sensible
+   one yourself) and how a human obtains the real value — never for the value
+   itself.
+2. Create `.boboddy/.env.example` — a file **one directory up** from here,
+   sibling to `.boboddy/pipeline-builder/`, not inside it — if it does not
+   already exist.
+3. Append `VAR=` (an empty value; never a placeholder that looks real) unless
+   that exact key is already present.
+4. Tell the user, by variable name, in your closing summary: they must copy
+   this file to `.boboddy/.env` and fill in the real value before any step
+   that reads it can run.
+
+`.boboddy/.env` itself is never a file you create or edit — it holds real
+secret values, and it is the user's alone to write.
 
 ## 2. Pipelines — `pipeline()`
 
@@ -1491,7 +1608,8 @@ A step's `healthChecks` field runs a real tool call against its launched environ
 - **No secrets in check arguments.** There is no interpolation mechanism, and
   the values are persisted in the database, returned by the API, and rendered
   in the UI. Put a secret in the MCP server's `environment` or `headers`
-  instead, referenced as `{env:VAR}`.
+  instead, referenced as `{env:VAR}`, and record the variable name in
+  `.boboddy/.env.example` per §1's "Secrets" note.
 - **Prefer tools whose output is trivial.** Health check output is logged in
   full.
 

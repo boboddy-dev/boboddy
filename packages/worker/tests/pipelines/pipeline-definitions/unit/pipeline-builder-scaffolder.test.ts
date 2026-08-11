@@ -108,6 +108,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           "/yarn.lock",
           "/deno.lock",
           "/push.ts",
+          "/.run-offer-gate-failure.json",
         ]);
 
         // Every rule is a literal path — no `*`, `?`, `[]`, or `!` negation.

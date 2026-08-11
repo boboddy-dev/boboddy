@@ -18,15 +18,11 @@ function run(
   args: readonly string[],
   options?: { cwd?: string; env?: NodeJS.ProcessEnv },
 ): SpawnResult {
-  const result = spawnSync(
-    process.execPath,
-    ["run", cliEntrypoint, ...args],
-    {
-      cwd: options?.cwd ?? projectRoot,
-      env: { ...process.env, ...options?.env },
-      encoding: "utf8",
-    },
-  );
+  const result = spawnSync(process.execPath, ["run", cliEntrypoint, ...args], {
+    cwd: options?.cwd ?? projectRoot,
+    env: { ...process.env, ...options?.env },
+    encoding: "utf8",
+  });
   return {
     stdout: typeof result.stdout === "string" ? result.stdout : "",
     stderr: typeof result.stderr === "string" ? result.stderr : "",
@@ -47,16 +43,21 @@ describe("boboddy init", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("--base-url");
     });
+
+    concurrentTest("init --help shows work-item-id option", () => {
+      const result = run(["init", "--help"]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("--work-item-id");
+    });
   });
 
   describe("pre-checks", () => {
     concurrentTest("errors when not authenticated", () => {
       const fakeHome = mkdtempSync(resolve(tmpdir(), "boboddy-init-"));
       try {
-        const result = run(
-          ["init", "--base-url", "https://example.com"],
-          { env: { HOME: fakeHome } },
-        );
+        const result = run(["init", "--base-url", "https://example.com"], {
+          env: { HOME: fakeHome },
+        });
         expect(result.exitCode).toBe(1);
         // The not-signed-in message now surfaces on stderr via reporter.error.
         expect(
@@ -67,6 +68,46 @@ describe("boboddy init", () => {
         ).toBe(true);
       } finally {
         rmSync(fakeHome, { recursive: true, force: true });
+      }
+    });
+
+    concurrentTest(
+      "resolves and prints the repo path and remote before the auth error",
+      () => {
+        // `projectRoot` (apps/cli) is itself a subdirectory of this repo's
+        // real git root — running from here is exactly the case #140 fixes.
+        const fakeHome = mkdtempSync(resolve(tmpdir(), "boboddy-init-"));
+        try {
+          const result = run(["init", "--base-url", "https://example.com"], {
+            env: { HOME: fakeHome },
+          });
+          expect(result.exitCode).toBe(1);
+          expect(hasReporterLine(result.stderr, "Repository: ")).toBe(true);
+          expect(hasReporterLine(result.stderr, "Remote: ")).toBe(true);
+        } finally {
+          rmSync(fakeHome, { recursive: true, force: true });
+        }
+      },
+    );
+
+    concurrentTest("fails clearly when run outside any git repository", () => {
+      const fakeHome = mkdtempSync(resolve(tmpdir(), "boboddy-init-"));
+      const outsideRepo = mkdtempSync(resolve(tmpdir(), "boboddy-not-a-repo-"));
+      try {
+        const result = run(["init", "--base-url", "https://example.com"], {
+          cwd: outsideRepo,
+          env: { HOME: fakeHome },
+        });
+        expect(result.exitCode).toBe(1);
+        expect(
+          hasReporterLine(
+            result.stderr,
+            "Not inside a git repository. Run 'boboddy init' from inside your project's git repository.",
+          ),
+        ).toBe(true);
+      } finally {
+        rmSync(fakeHome, { recursive: true, force: true });
+        rmSync(outsideRepo, { recursive: true, force: true });
       }
     });
   });

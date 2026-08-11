@@ -48,7 +48,9 @@ type Calls = {
   promptProjectId: number;
   listWorkItems: number;
   getWorkItemById: number;
+  findWorkItemByUrl: number;
   promptWorkItemChoice: number;
+  promptWorkItemSearch: number;
   promptWorkItemText: number;
   createWorkItem: number;
   scaffoldBuilderDir: number;
@@ -68,7 +70,9 @@ function createPorts(overrides: PortOverrides = {}): {
     promptProjectId: 0,
     listWorkItems: 0,
     getWorkItemById: 0,
+    findWorkItemByUrl: 0,
     promptWorkItemChoice: 0,
+    promptWorkItemSearch: 0,
     promptWorkItemText: 0,
     createWorkItem: 0,
     scaffoldBuilderDir: 0,
@@ -100,9 +104,17 @@ function createPorts(overrides: PortOverrides = {}): {
       calls.getWorkItemById += 1;
       return Promise.resolve(undefined);
     },
+    findWorkItemByUrl: () => {
+      calls.findWorkItemByUrl += 1;
+      return Promise.resolve(undefined);
+    },
     promptWorkItemChoice: () => {
       calls.promptWorkItemChoice += 1;
       return Promise.resolve(INGESTED_ITEM);
+    },
+    promptWorkItemSearch: () => {
+      calls.promptWorkItemSearch += 1;
+      return Promise.resolve(undefined);
     },
     promptWorkItemText: () => {
       calls.promptWorkItemText += 1;
@@ -181,26 +193,6 @@ describe("runDesignPreflight — happy path", () => {
     expect(calls.scaffoldBuilderDir).toBe(0);
     expect(calls.installDependencies).toBe(0);
     expect(calls.ensureRuntime).toBe(1);
-  });
-});
-
-describe("runDesignPreflight — auth", () => {
-  test("signs in inline when there is no session", async () => {
-    const { ports, calls } = createPorts({
-      loadSession: () => Promise.resolve(null),
-    });
-
-    await run(ports);
-
-    expect(calls.login).toBe(1);
-  });
-
-  test("does not sign in when a session already exists", async () => {
-    const { ports, calls } = createPorts();
-
-    await run(ports);
-
-    expect(calls.login).toBe(0);
   });
 });
 

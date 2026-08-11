@@ -16,6 +16,7 @@ export default defineConfig({
   // instead of a marketing-style landing page.
   redirects: {
     "/": `${base}/getting-started/installation/`,
+    "/reference/telemetry/": `${base}/reference/observability/`,
   },
   vite: {
     plugins: [tailwindcss()],
@@ -158,6 +159,7 @@ export default defineConfig({
               label: "Setting up a Dev Container",
               slug: "guides/devcontainer",
             },
+            { label: "Integrations", slug: "guides/integrations" },
           ],
         },
         {

@@ -151,4 +151,25 @@ describe("checkOpencodeProviderCredentials", () => {
     // invocation must not be suggested.
     expect(result.remediation).not.toMatch(/(^|\s)opencode auth login/u);
   });
+
+  test("checks without provisioning a launcher first — `boboddy init` only", async () => {
+    // `init` only needs the yes/no answer before deciding whether to launch
+    // `opencode auth login` inline, so `launcherPath` is optional.
+    const okResult = await checkOpencodeProviderCredentials({
+      homeDir,
+      env: (name) =>
+        name === "ANTHROPIC_API_KEY" ? "sk-ant-secret" : undefined,
+    });
+    expect(okResult).toEqual({ ok: true, providers: ["anthropic"] });
+
+    const missingResult = await checkOpencodeProviderCredentials({
+      homeDir,
+      env: emptyEnv,
+    });
+    expect(missingResult.ok).toBe(false);
+    if (missingResult.ok) {
+      throw new Error("expected a failed credential check");
+    }
+    expect(missingResult.remediation).toContain("opencode auth login");
+  });
 });

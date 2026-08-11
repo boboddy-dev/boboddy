@@ -5,7 +5,7 @@ import { createUuidV7, parseUuidV7 } from "../../../common/contracts/uuid-v7";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 import { ConfigurationError } from "../../../lib/errors";
-import { createLogger } from "../../../lib/logger";
+import { createLogger } from "@boboddy/observability/logging/host";
 import { resolveBoboddyBaseUrl } from "../../../auth/session/infra/auth-config";
 import { loadAuthenticatedSession } from "../../../auth/session/application/load-authenticated-session";
 import { DirectProviderAccessResolver } from "../infra/provider-access/direct-provider-access-resolver";

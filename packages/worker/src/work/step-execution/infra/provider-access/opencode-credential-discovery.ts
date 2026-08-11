@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { noopLogger, type Logger } from "../../../../lib/logger";
+import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 
 /**
  * OpenCode-specific credential discovery.

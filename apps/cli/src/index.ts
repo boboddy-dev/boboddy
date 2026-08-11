@@ -15,8 +15,10 @@ import { initCommand } from "./commands/init";
 import { reportBugCommand } from "./commands/report-bug";
 import { runtimeCommand } from "./commands/runtime";
 import { pipelinesCommand } from "./commands/pipelines";
+import { telemetryCommand } from "./commands/telemetry";
 import { workCommand } from "./commands/work";
 import { createCliLogger } from "./lib/logger";
+import { flushTelemetry } from "./lib/telemetry";
 import { version as CLI_VERSION } from "../package.json";
 const logger = createCliLogger("cli");
 
@@ -58,11 +60,14 @@ export function createCli(argv: readonly string[]) {
     .command(reportBugCommand)
     .command(runtimeCommand)
     .command(pipelinesCommand)
+    .command(telemetryCommand)
     .command(workCommand)
     .demandCommand(1, "A command is required.");
 }
 
-export async function run(argv: readonly string[] = hideBin(process.argv)): Promise<number> {
+export async function run(
+  argv: readonly string[] = hideBin(process.argv),
+): Promise<number> {
   try {
     await createCli(argv).parseAsync();
     return 0;
@@ -76,6 +81,10 @@ export async function run(argv: readonly string[] = hideBin(process.argv)): Prom
     }
 
     return 1;
+  } finally {
+    // Bounded: never lets telemetry delay process exit by more than its own
+    // timeout, whether the command above succeeded or threw.
+    await flushTelemetry();
   }
 }
 

@@ -14,7 +14,7 @@ import type {
   PushSubmoduleInput,
   SubmoduleHasChangesInput,
 } from "../application/git-commit-push-service";
-import { noopLogger, type Logger } from "../../../lib/logger";
+import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 import {
   chmodRecursiveWithDocker,
   isPermissionError,

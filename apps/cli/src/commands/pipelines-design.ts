@@ -2,11 +2,13 @@ import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import * as clack from "@clack/prompts";
+import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   assertInteractiveTerminal,
   buildOpencodeTuiConfig,
   checkOpencodeProviderCredentials,
   hasDevcontainer,
+  hasFailedExitCode,
   launchOpencodeTui,
   loadAuthenticatedSession,
   localConfigSetup,
@@ -32,12 +34,14 @@ import {
   promptRunNow,
   queueDesignRun,
   resolveAssignedPipeline,
+  runFirstStepDryRun,
 } from "../lib/design-run-adapters";
 import {
   runDesignRunOffer,
   type DesignRunOfferPorts,
   type DesignRunTarget,
 } from "../lib/design-run-offer";
+import { readAndConsumeRunOfferGateFailure } from "../lib/design-run-offer-gate-marker";
 import { ensureDesignRuntime } from "../lib/design-runtime";
 import {
   buildDesignSeedPrompt,
@@ -45,9 +49,11 @@ import {
 } from "../lib/design-seed-prompt";
 import {
   createDesignWorkItem,
+  findWorkItemByUrl,
   getDesignWorkItemById,
   listRecentWorkItems,
   promptWorkItemChoice,
+  promptWorkItemSearch,
   promptWorkItemText,
 } from "../lib/design-work-item-adapters";
 import { performDeviceLogin } from "../lib/device-login";
@@ -58,6 +64,11 @@ import {
   runBuilderInstall,
 } from "../lib/pipeline-builder-install";
 import { resolveCurrentBoboddyCliPath } from "../lib/resolve-cli-path";
+import {
+  captureMilestone,
+  flushTelemetry,
+  syncIdentityFromDisk,
+} from "../lib/telemetry";
 import { runWork } from "./work";
 import type { CommandContext } from "../lib/command-output";
 
@@ -116,16 +127,27 @@ async function promptProjectId(): Promise<string | undefined> {
 }
 
 /**
- * Identify (or create) the project for this repository and persist it to
+ * Identify the project for this repository and persist it to
  * `.boboddy/boboddy.jsonc` — the same code path `boboddy init` uses, so both
  * entry points agree on how a repo maps to a project.
+ *
+ * Unlike `init`, this does NOT send the user to a browser hand-off when no
+ * project matches yet (#141) — `pipelines design` is meant to drop straight
+ * into a TUI session, which doesn't compose with waiting on a browser tab and
+ * a keypress. `undefined` here just means "not found the easy way"; the
+ * caller's existing fallback ladder (see `design-preflight.ts`) degrades to
+ * prompting for a project id, same as the no-remote case always has.
  */
 async function resolveProjectFromRepo(
   baseUrl: string,
 ): Promise<string | undefined> {
   const { headers, client } = await verifyRequirements({ baseUrl });
-  const created = await localConfigSetup({ headers, client });
-  return created?.projectId ?? (await readProjectConfig())?.projectId;
+  const result = await localConfigSetup({ headers, client });
+  if (result.status === "matched") return result.projectId;
+  if (result.status === "already-configured") {
+    return (await readProjectConfig())?.projectId;
+  }
+  return undefined;
 }
 
 /** Wire the preflight's ports to their real implementations. */
@@ -149,7 +171,9 @@ function buildPorts(
     promptProjectId,
     listWorkItems: listRecentWorkItems,
     getWorkItemById: getDesignWorkItemById,
+    findWorkItemByUrl,
     promptWorkItemChoice,
+    promptWorkItemSearch,
     promptWorkItemText,
     createWorkItem: createDesignWorkItem,
     builderDirExists: () => existsSync(builderDir),
@@ -192,12 +216,20 @@ function listBuilderFiles(builderDir: string): readonly string[] {
 function buildRunOfferPorts(input: {
   baseUrl: string;
   target: DesignRunTarget;
+  builderDir: string;
 }): DesignRunOfferPorts {
-  const { baseUrl, target } = input;
+  const { baseUrl, target, builderDir } = input;
   return {
     hasDevcontainer: () => hasDevcontainer(process.cwd()),
     resolveAssignedPipeline: () =>
       resolveAssignedPipeline({ baseUrl, projectId: target.projectId }),
+    runFirstStepDryRun: (pipelineDefinitionId) =>
+      runFirstStepDryRun({
+        baseUrl,
+        projectId: target.projectId,
+        pipelineDefinitionId,
+        builderDir,
+      }),
     confirmRun: promptRunNow,
     queueRun: (pipelineDefinitionId) =>
       queueDesignRun({
@@ -231,6 +263,7 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
 
     const baseUrl = resolveBoboddyBaseUrl(args.baseUrl);
     const builderDir = join(process.cwd(), PIPELINE_BUILDER_DIR);
+    syncIdentityFromDisk(baseUrl);
 
     ctx.reporter.start("Boboddy pipeline designer");
 
@@ -253,11 +286,18 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
     // Read after the preflight, which is what creates the directory. The flag
     // discounts the files that same step just scaffolded — see
     // `hasAuthoredDefinitions`.
+    //
+    // Consumed here too: a PRIOR session's post-push run-offer gate (#146) may
+    // have failed after that session's own TUI had already exited, with no
+    // live agent left to tell. This is the first moment THIS session can pass
+    // that on — see `design-run-offer-gate-marker.ts`.
+    const priorRunOfferFailure = readAndConsumeRunOfferGateFailure(builderDir);
     const seedPrompt = buildDesignSeedPrompt({
       workItem: preflight.workItem,
       hasExistingDefinitions: hasAuthoredDefinitions(
         listBuilderFiles(builderDir),
       ),
+      priorRunOfferFailure,
     });
 
     const cliPath = resolveCurrentBoboddyCliPath();
@@ -276,6 +316,11 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
     // Close the clack block before the child takes over the terminal; a live
     // spinner and a full-screen TUI cannot share a tty.
     ctx.reporter.finish("Starting the designer…");
+
+    // Milestone 5 — fired right before handing the terminal to the TUI, not
+    // after: `launchOpencodeTui` blocks for the whole session, so "after"
+    // would only ever fire once the user has already exited.
+    captureMilestone(AnalyticsEvents.CliDesignerLaunched);
 
     const result = await launchOpencodeTui({
       launcherPath: preflight.launcherPath,
@@ -304,11 +349,14 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
       tuiExitedCleanly: result.exitCode === 0,
       target,
       reporter: ctx.reporter,
-      ports: buildRunOfferPorts({ baseUrl, target }),
+      ports: buildRunOfferPorts({ baseUrl, target, builderDir }),
     });
 
-    if (result.exitCode !== null && result.exitCode !== 0) {
-      // Deliberate exit-code passthrough, matching `pipelines push`.
+    if (hasFailedExitCode(result)) {
+      // Deliberate exit-code passthrough, matching `pipelines push`. Flushed
+      // explicitly first: `process.exit` bypasses the `finally` in
+      // `index.ts` that normally does this.
+      await flushTelemetry();
       process.exit(result.exitCode);
     }
   });
@@ -333,7 +381,8 @@ export const designCommand: CommandModule<object, DesignArguments> = {
         type: "string",
         describe:
           "Design around this specific work item ID instead of picking " +
-          "from the project's recent items (for one older than the picker shows)",
+          "from the project's recent items (for one older than the picker " +
+          "shows). Falls back to the picker if the id doesn't resolve",
       }),
   handler: (args: ArgumentsCamelCase<DesignArguments>) =>
     runPipelineDesign(args),

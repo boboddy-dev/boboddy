@@ -1,4 +1,7 @@
-import { keyToVarName } from "../../../steps/step-definitions/infra/step-file-generator";
+import {
+  keyToVarName,
+  schemaToZodExpr,
+} from "../../../steps/step-definitions/infra/step-file-generator";
 
 type InputBinding =
   | { source: "pipeline_input"; path: string | null }
@@ -123,14 +126,31 @@ function reconstructNestable(cond: SerializedCondition, computedByKey: ComputedB
   return `${mode}(${children})`;
 }
 
+// A rule's top-level conditions are emitted bare (no all(...)/any(...) wrapper)
+// only in the single-leaf-`all` special case; every other shape (including a
+// single-leaf `any`, or multiple conditions) is wrapped in a call to the
+// combinator named by `mode`, which must therefore be destructured from the
+// `.advance()` callback params wherever it's used.
+function ruleTopLevelMode(rule: AdvancementPolicyRule): {
+  mode: "all" | "any";
+  conditions: SerializedCondition[];
+  omitsWrapper: boolean;
+} {
+  const mode = rule.conditions.all ? "all" : "any";
+  const conditions = rule.conditions[mode] ?? [];
+  const firstCondition = conditions[0];
+  const omitsWrapper =
+    mode === "all" && conditions.length === 1 && firstCondition !== undefined && isLeafCondition(firstCondition);
+  return { mode, conditions, omitsWrapper };
+}
+
 // Returns a complete rule expression ending in .then(outcome)
 function reconstructRuleExpr(rule: AdvancementPolicyRule, computedByKey: ComputedByKey): string {
   const outcome = reconstructOutcomeExpr(rule.event.type, rule.event.params);
-  const mode = rule.conditions.all ? "all" : "any";
-  const conditions = rule.conditions[mode] ?? [];
+  const { mode, conditions, omitsWrapper } = ruleTopLevelMode(rule);
 
   const firstCondition = conditions[0];
-  if (mode === "all" && conditions.length === 1 && firstCondition !== undefined && isLeafCondition(firstCondition)) {
+  if (omitsWrapper && firstCondition !== undefined) {
     return `${reconstructNestable(firstCondition, computedByKey)}.then(${outcome})`;
   }
 
@@ -162,8 +182,12 @@ function collectCtxParts(policy: AdvancementPolicy, computedByKey: ComputedByKey
 
   for (const rule of policy.rulesJson.rules) {
     if (rule.event.type === "route") parts.add("route");
-    const mode = rule.conditions.all ? "all" : "any";
-    visitConditions(rule.conditions[mode] ?? []);
+    const { mode, conditions, omitsWrapper } = ruleTopLevelMode(rule);
+    // The top-level combinator is only omitted from the emitted expression in
+    // the single-leaf-`all` special case (see reconstructRuleExpr/ruleTopLevelMode);
+    // every other shape calls `all(...)`/`any(...)` and so needs it destructured.
+    if (!omitsWrapper) parts.add(mode);
+    visitConditions(conditions);
   }
 
   return [...parts].sort();
@@ -192,12 +216,18 @@ function reconstructAdvancementCallback(policy: AdvancementPolicy, computedByKey
 
 // ─── Input binding reconstruction ────────────────────────────────────────────
 
-function isAutoBinding(key: string, binding: InputBinding): boolean {
+function isAutoBinding(
+  key: string,
+  binding: InputBinding,
+  pipelineLevelKeys: ReadonlySet<string>,
+): boolean {
   if (binding.source !== "work_item") return false;
-  return (
-    (key === "workItemTitle" && binding.field === "title") ||
-    (key === "workItemDescription" && binding.field === "description")
-  );
+  if (key === "workItemTitle" && binding.field === "title") return true;
+  if (key === "workItemDescription" && binding.field === "description") return true;
+  // Bound at the pipeline level via additionalPipelineInput; the runtime merges
+  // this binding onto every step, so it's already covered by the pipeline-level
+  // declaration and must not be re-emitted (or re-broken) per step.
+  return pipelineLevelKeys.has(key);
 }
 
 function reconstructBindingExpr(
@@ -220,12 +250,76 @@ function reconstructBindingExpr(
   }
 }
 
+// ─── Pipeline-level input reconstruction (additionalPipelineInput) ───────────
+
+function collectSchemaPropertyKeys(schemaJson: Record<string, unknown> | null): string[] {
+  if (!schemaJson) return [];
+  const properties = schemaJson["properties"];
+  if (!properties || typeof properties !== "object") return [];
+  return Object.keys(properties);
+}
+
+function findWorkItemBindingForKey(
+  key: string,
+  steps: readonly PipelineStepContract[],
+): (InputBinding & { source: "work_item" }) | undefined {
+  for (const step of steps) {
+    const binding = step.inputBindingsJson?.[key];
+    if (binding && binding.source === "work_item") return binding;
+  }
+  return undefined;
+}
+
+function reconstructWorkItemAccessorExpr(field: string): string {
+  if (field === "title") return "workItem.title";
+  if (field === "description") return "workItem.description";
+  return `workItem.field(${JSON.stringify(field.replace(/^fields\./, ""))})`;
+}
+
+type PipelineLevelInput = { keys: ReadonlySet<string>; block: string; needsZodImport: boolean };
+
+// additionalPipelineInput is serialized by the SDK builder by merging its
+// bindings onto every step's inputBindingsJson (there's no separate
+// "pipeline-level" storage). To round-trip it, find schema fields whose
+// work_item binding is present, and reconstruct the pipeline-level block
+// instead of leaving a broken per-step TODO placeholder on every step.
+function reconstructPipelineLevelInput(pipeline: PipelineContract, sortedSteps: readonly PipelineStepContract[]): PipelineLevelInput | null {
+  const schemaKeys = collectSchemaPropertyKeys(pipeline.inputSchemaJson);
+  if (schemaKeys.length === 0) return null;
+
+  const resolvedKeys: string[] = [];
+  const bindingLines: string[] = [];
+  for (const key of schemaKeys) {
+    const binding = findWorkItemBindingForKey(key, sortedSteps);
+    if (!binding) continue;
+    resolvedKeys.push(key);
+    bindingLines.push(`      ${JSON.stringify(key)}: ${reconstructWorkItemAccessorExpr(binding.field)}`);
+  }
+  if (resolvedKeys.length === 0) return null;
+
+  const schemaExpr = schemaToZodExpr(pipeline.inputSchemaJson);
+  const block = [
+    "additionalPipelineInput: {",
+    `    schema: ${schemaExpr},`,
+    "    bindings: ({ workItem }) => ({",
+    bindingLines.join(",\n") + ",",
+    "    }),",
+    "  }",
+  ].join("\n");
+
+  return { keys: new Set(resolvedKeys), block, needsZodImport: true };
+}
+
 // ─── Step mapper reconstruction ───────────────────────────────────────────────
 
-function reconstructStepMapper(step: PipelineStepContract, stepVarMap: StepKeyMap): string {
+function reconstructStepMapper(
+  step: PipelineStepContract,
+  stepVarMap: StepKeyMap,
+  pipelineLevelKeys: ReadonlySet<string>,
+): string {
   const allBindings = Object.entries(step.inputBindingsJson ?? {});
   // Auto-injected by the runtime; no need to emit explicit bindings for them.
-  const bindings = allBindings.filter(([key, binding]) => !isAutoBinding(key, binding));
+  const bindings = allBindings.filter(([key, binding]) => !isAutoBinding(key, binding, pipelineLevelKeys));
 
   const usesInput = bindings.some(([, b]) => b.source === "pipeline_input");
   const usesWorkItem = bindings.some(([, b]) => b.source === "work_item");
@@ -271,8 +365,12 @@ export function generatePipelineFileContent(
   const stepVarNames = sortedSteps.map((s) => keyToVarName(s.key));
   const uniqueStepVarNames = [...new Set(stepVarNames)];
 
+  const pipelineLevelInput = reconstructPipelineLevelInput(pipeline, sortedSteps);
+  const pipelineLevelKeys = pipelineLevelInput?.keys ?? new Set<string>();
+
   const lines: string[] = [];
 
+  if (pipelineLevelInput?.needsZodImport) lines.push(`import { z } from "zod";`);
   lines.push(`import { pipeline } from "@boboddy/sdk/definitions/pipelines";`);
   if (uniqueStepVarNames.length > 0) {
     lines.push(`import { ${uniqueStepVarNames.join(", ")} } from "./steps";`);
@@ -286,12 +384,13 @@ export function generatePipelineFileContent(
   if (pipeline.description) metaFields.push(`  description: ${JSON.stringify(pipeline.description)}`);
   metaFields.push(`  version: ${String(pipeline.version)}`);
   metaFields.push(`  status: ${JSON.stringify(pipeline.status)} as const`);
+  if (pipelineLevelInput) metaFields.push(`  ${pipelineLevelInput.block}`);
 
   const chainParts: string[] = [`pipeline({\n${metaFields.join(",\n")},\n})`];
 
   for (const step of sortedSteps) {
     const varName = keyToVarName(step.key);
-    const mapper = reconstructStepMapper(step, stepVarMap);
+    const mapper = reconstructStepMapper(step, stepVarMap, pipelineLevelKeys);
 
     chainParts.push(`  .step(${varName}, ${mapper})`);
 

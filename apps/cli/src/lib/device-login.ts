@@ -1,3 +1,4 @@
+import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   CLI_AUTH_CLIENT_ID,
   persistAuthenticatedSession,
@@ -7,6 +8,7 @@ import {
 import { openBrowser } from "../auth/browser";
 import type { Logger } from "./logger";
 import type { BaseReporter } from "./reporter-types";
+import { captureMilestone, identifyAuthenticatedUser } from "./telemetry";
 
 /**
  * The OAuth device-authorization flow, factored out of `boboddy auth login` so
@@ -80,5 +82,17 @@ export async function performDeviceLogin(
   });
 
   task.succeed(`Signed in as ${session.user.email}`);
+
+  // The single choke point for milestone 3 ("Auth completed") — both `auth
+  // login` and `pipelines design`'s self-healing sign-in check funnel through
+  // here, so this fires exactly once per real device-flow completion
+  // regardless of which caller triggered it.
+  identifyAuthenticatedUser({
+    userId: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+  });
+  captureMilestone(AnalyticsEvents.CliAuthCompleted);
+
   return { email: session.user.email };
 }

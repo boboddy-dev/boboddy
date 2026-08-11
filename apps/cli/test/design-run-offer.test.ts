@@ -1,6 +1,7 @@
 import { describe, expect } from "bun:test";
 import {
   DEVCONTAINER_MISSING_MESSAGE,
+  FIRST_STEP_DRY_RUN_FAILED_MESSAGE,
   formatRunCommand,
   NO_PIPELINE_MESSAGE,
   NOTHING_QUEUED_MESSAGE,
@@ -42,6 +43,7 @@ const RUN_COMMAND = formatRunCommand(TARGET);
 type Calls = {
   hasDevcontainer: number;
   resolveAssignedPipeline: number;
+  runFirstStepDryRun: number;
   confirmRun: number;
   queueRun: number;
   runWorker: number;
@@ -59,6 +61,7 @@ function createPorts(overrides: Partial<DesignRunOfferPorts> = {}): {
   const calls: Calls = {
     hasDevcontainer: 0,
     resolveAssignedPipeline: 0,
+    runFirstStepDryRun: 0,
     confirmRun: 0,
     queueRun: 0,
     runWorker: 0,
@@ -73,6 +76,11 @@ function createPorts(overrides: Partial<DesignRunOfferPorts> = {}): {
     resolveAssignedPipeline: () => {
       calls.resolveAssignedPipeline += 1;
       return Promise.resolve(PIPELINE_ID);
+    },
+    runFirstStepDryRun: () => {
+      calls.runFirstStepDryRun += 1;
+      order.push("runFirstStepDryRun");
+      return Promise.resolve({ ok: true, summary: "healthy" });
     },
     confirmRun: () => {
       calls.confirmRun += 1;
@@ -130,9 +138,10 @@ describe("runDesignRunOffer", () => {
     });
 
     expect(result.ran).toBe(true);
-    // Queue first: a worker started before anything is queued has nothing to
-    // claim and polls into the void.
-    expect(order).toEqual(["queueRun", "runWorker"]);
+    // The dry-run gate runs before the confirm, and the queue only after it —
+    // a worker started before anything is queued has nothing to claim and
+    // polls into the void.
+    expect(order).toEqual(["runFirstStepDryRun", "queueRun", "runWorker"]);
     expect(calls.confirmRun).toBe(1);
   });
 
@@ -263,6 +272,7 @@ describe("runDesignRunOffer", () => {
     // Cheap local check first: no reason to ask the server which pipeline is
     // assigned when the run cannot happen either way.
     expect(calls.resolveAssignedPipeline).toBe(0);
+    expect(calls.runFirstStepDryRun).toBe(0);
     expect(messages(reported)).toContain(DEVCONTAINER_MISSING_MESSAGE);
     expect(messages(reported)).toContain(`${RUN_LATER_PREFIX} ${RUN_COMMAND}`);
   });
@@ -286,6 +296,68 @@ describe("runDesignRunOffer", () => {
     expect(calls.queueRun).toBe(0);
     expect(calls.runWorker).toBe(0);
     expect(messages(reported)).toContain(NO_PIPELINE_MESSAGE);
+  });
+
+  test("passes the assigned pipeline id to the first-step dry run", async () => {
+    const { reporter } = createRecorder();
+    let checked: string | undefined;
+    const { ports } = createPorts({
+      runFirstStepDryRun: (pipelineDefinitionId) => {
+        checked = pipelineDefinitionId;
+        return Promise.resolve({ ok: true, summary: "healthy" });
+      },
+    });
+
+    await runDesignRunOffer({
+      tuiExitedCleanly: true,
+      target: TARGET,
+      reporter,
+      ports,
+    });
+
+    expect(checked).toBe(PIPELINE_ID);
+  });
+
+  test("blocks the run and explains itself when the first-step dry run fails", async () => {
+    const { reporter, calls: reported } = createRecorder();
+    const { ports, calls } = createPorts({
+      runFirstStepDryRun: () =>
+        Promise.resolve({ ok: false, summary: "container exited" }),
+    });
+
+    const result = await runDesignRunOffer({
+      tuiExitedCleanly: true,
+      target: TARGET,
+      reporter,
+      ports,
+    });
+
+    expect(result.ran).toBe(false);
+    // Blocking: nothing is queued and the user is never even asked.
+    expect(calls.confirmRun).toBe(0);
+    expect(calls.queueRun).toBe(0);
+    expect(calls.runWorker).toBe(0);
+    expect(messages(reported)).toContain(
+      `${FIRST_STEP_DRY_RUN_FAILED_MESSAGE} container exited`,
+    );
+    expect(messages(reported)).toContain(`${RUN_LATER_PREFIX} ${RUN_COMMAND}`);
+  });
+
+  test("checks the first step only after a pipeline is known to be assigned", async () => {
+    const { reporter } = createRecorder();
+    const { ports, calls } = createPorts({
+      resolveAssignedPipeline: () => Promise.resolve(undefined),
+    });
+
+    await runDesignRunOffer({
+      tuiExitedCleanly: true,
+      target: TARGET,
+      reporter,
+      ports,
+    });
+
+    // No pipeline id to check against, so there is nothing to dry-run yet.
+    expect(calls.runFirstStepDryRun).toBe(0);
   });
 
   test("says nothing at all when the designer did not exit cleanly", async () => {

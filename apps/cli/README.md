@@ -109,6 +109,27 @@ By default the CLI targets `http://127.0.0.1:3000`. Override that with
 
 Authenticated CLI credentials are stored in `~/.boboddy.json`.
 
+## Observability
+
+The CLI reports a small set of onboarding milestones (init started,
+requirements verified, signed in, project linked, designer launched, dry run
+passed, pipeline pushed, run queued) directly to PostHog. Each event is keyed
+to a random anonymous id persisted in `~/.boboddy.json` until you sign in, at
+which point later events switch to your account id. `accessToken`, `email`,
+and `name` are never sent as event data.
+
+```sh
+boboddy telemetry status    # is it enabled?
+boboddy telemetry disable   # opt out, persists across invocations
+boboddy telemetry enable    # opt back in
+```
+
+`BOBODDY_TELEMETRY_DISABLED=1` opts out for a single invocation without
+touching `~/.boboddy.json`. `BOBODDY_TELEMETRY_DEBUG=1` prints every payload
+to stderr in addition to sending it. See the
+[Observability docs](https://boboddy-dev.github.io/boboddy/reference/observability/)
+for the full list of what's collected.
+
 ## npm-Style Installation
 
 When this workspace is published as a package, the `bin` field maps the `boboddy` command to `./bin/boboddy`.

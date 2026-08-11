@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as clack from "@clack/prompts";
+import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   listExistingPipelineBuilderFiles,
   loadAuthenticatedSession,
@@ -17,6 +18,11 @@ import { version as CLI_VERSION } from "../../package.json";
 import { designCommand } from "./pipelines-design";
 import { detectPipelineRuntime } from "../lib/detect-pipeline-runtime";
 import { withReporter } from "../lib/command-output";
+import {
+  captureMilestone,
+  flushTelemetry,
+  syncIdentityFromDisk,
+} from "../lib/telemetry";
 import {
   PUSH_SCRIPT_FILENAME,
   PUSH_SCRIPT_TEMPLATE,
@@ -87,6 +93,7 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
         `Not signed in to ${baseUrl}. Run \`boboddy auth login\` first.`,
       );
     }
+    syncIdentityFromDisk(baseUrl);
 
     const dir = join(process.cwd(), PIPELINE_BUILDER_DIR);
 
@@ -154,11 +161,15 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
     if (exitCode !== 0) {
       task.fail(`Push failed (exit ${String(exitCode)})`);
       // Passthrough the child's exact exit code (deliberate exit-code
-      // passthrough; not forced to 1).
+      // passthrough; not forced to 1). Flushed explicitly first:
+      // `process.exit` bypasses the `finally` in `index.ts` that normally
+      // does this.
+      await flushTelemetry();
       process.exit(exitCode);
     }
 
     task.succeed("Pushed pipeline definitions");
+    captureMilestone(AnalyticsEvents.CliPipelinePushed);
   });
 
 const pushCommand: CommandModule<object, PushArguments> = {

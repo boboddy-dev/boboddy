@@ -1,5 +1,11 @@
-import { FREE_TEXT_WORK_ITEM, parseWorkItemDraft } from "./design-work-item";
+import {
+  FREE_TEXT_WORK_ITEM,
+  NO_WORK_ITEM_MESSAGE,
+  SEARCH_WORK_ITEM,
+} from "./design-work-item";
+import { resolveFreeTextWorkItem } from "./design-work-item-resolution";
 import type { OpencodeProviderCredentialCheck } from "@boboddy/worker";
+import type { EnsureOpencodeRuntimePort } from "./design-runtime";
 import type {
   DesignWorkItem,
   WorkItemChoiceResult,
@@ -23,7 +29,7 @@ import type { BaseReporter } from "./reporter-types";
  * 100 MB download.
  */
 
-export interface DesignPreflightPorts {
+export interface DesignPreflightPorts extends EnsureOpencodeRuntimePort {
   /** Current authenticated session for `baseUrl`, or `null` when signed out. */
   loadSession(baseUrl: string): Promise<{ email: string } | null>;
   /** Run the interactive device-code login. Resolves once signed in. */
@@ -31,29 +37,32 @@ export interface DesignPreflightPorts {
   /** The projectId recorded in `.boboddy/boboddy.jsonc`, if any. */
   readConfiguredProjectId(): Promise<string | undefined>;
   /**
-   * Identify the project for THIS repository against the server — matching it
-   * by git remote, creating it when it does not exist yet — and persist the id
-   * to `.boboddy/boboddy.jsonc`. Throws when the repository cannot be
-   * identified (no `origin` remote, not a git root).
+   * Identify the project for THIS repository against the server by matching
+   * its git remote, and persist the id to `.boboddy/boboddy.jsonc`. Resolves
+   * to `undefined` — falling through to `promptProjectId` below — both when
+   * the repository cannot be identified at all (no `origin` remote, not a
+   * git root) and when it's identified but no project matches its remote yet
+   * (that hand-off lives in `boboddy init`, see #141; run it first).
    */
   resolveProjectFromRepo(baseUrl: string): Promise<string | undefined>;
   /** Ask the user for a projectId. `undefined` when they cancel or leave it blank. */
   promptProjectId(): Promise<string | undefined>;
   /**
    * The project's most recent work items, newest first, already capped to
-   * {@link WORK_ITEM_PICKER_LIMIT}. Throwing is tolerated — the step degrades
+   * {@link WORK_ITEM_PICKER_LIMIT} — or, when `query` is given, the top items
+   * matching that keyword instead. Throwing is tolerated — the step degrades
    * to free text rather than failing the session.
    */
   listWorkItems(input: {
     baseUrl: string;
     projectId: string;
+    query?: string;
   }): Promise<readonly DesignWorkItem[]>;
   /**
-   * Look up one specific item by id, for `--work-item-id`. `undefined` when it
-   * does not exist, or exists but belongs to a different project — either way,
-   * not a valid target for this session. Unlike {@link listWorkItems}, a throw
-   * here is NOT tolerated: an explicit id is the user overriding the picker on
-   * purpose, so a lookup failure is reported, not silently downgraded to one.
+   * Look up one specific item by id, for `--work-item-id` and for an id typed
+   * into the free-text rung. `undefined` when it does not exist, or exists but
+   * belongs to a different project — either way, not a valid target for this
+   * session.
    */
   getWorkItemById(input: {
     baseUrl: string;
@@ -61,15 +70,32 @@ export interface DesignPreflightPorts {
     workItemId: string;
   }): Promise<DesignWorkItem | undefined>;
   /**
-   * Show the picker over `items` plus the free-text rung. Resolves to the
-   * chosen item, {@link FREE_TEXT_WORK_ITEM}, or `undefined` on cancel.
+   * Resolve a pasted ticket URL typed into the free-text rung to an
+   * already-ingested item. `undefined` when nothing matches — the caller falls
+   * through to creating a new item from the same text.
+   */
+  findWorkItemByUrl(input: {
+    baseUrl: string;
+    projectId: string;
+    url: string;
+  }): Promise<DesignWorkItem | undefined>;
+  /**
+   * Show the picker over `items` plus the search and free-text rungs. Resolves
+   * to the chosen item, {@link SEARCH_WORK_ITEM}, {@link FREE_TEXT_WORK_ITEM},
+   * or `undefined` on cancel.
    */
   promptWorkItemChoice(
     items: readonly DesignWorkItem[],
   ): Promise<WorkItemChoiceResult>;
   /**
-   * Take a typed description of what the user wants handled. `undefined` when
-   * the user cancels.
+   * Take a search keyword for {@link listWorkItems}. Blank is a valid answer —
+   * it clears the search — so only a cancel resolves to `undefined`.
+   */
+  promptWorkItemSearch(): Promise<string | undefined>;
+  /**
+   * Take a typed description of what the user wants handled — or a pasted
+   * reference to an existing one; see `parseWorkItemReference` in
+   * `design-work-item.ts`. `undefined` when the user cancels.
    */
   promptWorkItemText(): Promise<string | undefined>;
   /** Create the described item server-side and return it with its real id. */
@@ -89,11 +115,6 @@ export interface DesignPreflightPorts {
   dependenciesInstalled(): boolean;
   /** Install them. Throws with an actionable message on failure. */
   installDependencies(): Promise<void>;
-  /**
-   * Provision the host-native OpenCode runtime and return the absolute
-   * launcher path. Throws with an actionable message on failure.
-   */
-  ensureRuntime(): Promise<string>;
   /** Check for a usable AI provider credential. */
   checkCredentials(
     launcherPath: string,
@@ -126,10 +147,9 @@ export const NO_PROJECT_ID_MESSAGE =
   "with an `origin` remote, or pass an id explicitly: " +
   "`boboddy pipelines design <projectId>`.";
 
-export const NO_WORK_ITEM_MESSAGE =
-  "No work item. A design session is built around one concrete thing you want " +
-  "Boboddy to handle — run `boboddy pipelines design` again and either pick an " +
-  "item or describe what you want handled.";
+// Re-exported for callers that only know this module, not `design-work-item.ts`
+// where it actually lives (next to the other work-item-resolution pieces).
+export { NO_WORK_ITEM_MESSAGE } from "./design-work-item";
 
 /** The message for an explicit `--work-item-id` that does not resolve. */
 export function workItemNotFoundMessage(
@@ -199,12 +219,13 @@ async function ensureSignedIn(
  * Step 2 — project. Mirrors `pipelines push`: the positional argument wins,
  * then `.boboddy/boboddy.jsonc`.
  *
- * Unlike push, a miss HEALS: the project is looked up (or created) on the
- * server from the repository's git remote and written to
- * `.boboddy/boboddy.jsonc`, exactly as `boboddy init` does. Asking a first-time
- * user to paste a UUID they have never seen is a dead end, not a preflight —
- * the prompt survives only for the case where the repo cannot be identified at
- * all (no `origin` remote), where there is genuinely nothing to derive.
+ * Unlike push, a miss HEALS: the project is looked up on the server from the
+ * repository's git remote and written to `.boboddy/boboddy.jsonc`, exactly as
+ * `boboddy init` does. Asking a first-time user to paste a UUID they have
+ * never seen is a dead end, not a preflight — the prompt survives for the
+ * case where the repo cannot be identified at all (no `origin` remote), and
+ * for the case where no project exists for it yet (run `boboddy init` first,
+ * which sends the user through the browser hand-off — see #141).
  */
 async function ensureProjectId(input: {
   baseUrl: string;
@@ -268,18 +289,27 @@ async function resolveProjectFromRepo(
  * Step 3 — the work item.
  *
  * A design session is an interview about one concrete thing, so the item is a
- * precondition rather than an option. `--work-item-id` is the one flag for it,
- * and it wins outright — reaching for an item older than the picker's recent
- * window is the exact case it exists for, so it skips the picker entirely
- * rather than pre-selecting a rung in it. It does NOT heal like the rest of
- * the preflight: an id that does not resolve is a hard stop, not a silent
- * fall-through to the picker, because that would run the session against a
- * different item than the one the user named.
+ * precondition rather than an option. Every path here is self-healing, the
+ * same as the rest of the preflight:
  *
- * Absent that flag, it heals the same way the rest of the preflight does: if
- * the project has ingested items the user picks one, and if it has none — or
- * the listing fails, or nothing in the list is what they care about — they
- * describe what they want handled and it becomes a real item server-side.
+ * - `--work-item-id` wins outright when it resolves — reaching for an item
+ *   older than the picker's recent window is the exact case it exists for, so
+ *   it skips the picker entirely rather than pre-selecting a rung in it. A
+ *   miss is reported, then falls through to the picker below exactly as if
+ *   the flag had never been passed: a typo'd id is not a reason to abandon a
+ *   session the user could still finish by picking or describing.
+ * - The picker's search rung ({@link choosePickableWorkItem}) re-queries the
+ *   server with a keyword and loops back into the picker with the results,
+ *   so a project with more ingested items than the recent-items window still
+ *   has a path to any of them.
+ * - The picker's free-text rung ({@link resolveFreeTextWorkItem}) takes either
+ *   a reference to an already-ingested item — an id or a ticket URL, see
+ *   `parseWorkItemReference` in `design-work-item.ts` — or a description of a
+ *   new one. A reference that does not resolve is treated as a description
+ *   instead, rather than failing the session.
+ * - If the project has no ingested items at all — or the initial listing
+ *   fails — the picker is skipped entirely and the user goes straight to the
+ *   free-text rung: a one-rung picker is a keystroke that asks nothing.
  *
  * A cancel is the hard stop. There is no item-less session to fall back to.
  */
@@ -290,25 +320,37 @@ async function ensureWorkItem(input: {
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
 }): Promise<DesignWorkItem> {
-  const { reporter, ports } = input;
+  const { baseUrl, projectId, reporter, ports } = input;
 
   const requestedId = input.workItemIdArgument?.trim() ?? "";
   if (requestedId.length > 0) {
-    return resolveRequestedWorkItem({
-      baseUrl: input.baseUrl,
-      projectId: input.projectId,
+    const requested = await resolveRequestedWorkItem({
+      baseUrl,
+      projectId,
       workItemId: requestedId,
       reporter,
       ports,
     });
+    if (requested !== undefined) {
+      return requested;
+    }
   }
 
-  const items = await loadPickableItems(input);
+  const items = await loadPickableItems({
+    baseUrl,
+    projectId,
+    reporter,
+    ports,
+  });
 
-  // An empty list means a one-rung picker, which is a keystroke that asks
-  // nothing. Skip straight to describing an item.
   if (items.length > 0) {
-    const choice = await ports.promptWorkItemChoice(items);
+    const choice = await choosePickableWorkItem({
+      baseUrl,
+      projectId,
+      items,
+      reporter,
+      ports,
+    });
     if (choice === undefined) {
       throw new Error(NO_WORK_ITEM_MESSAGE);
     }
@@ -318,33 +360,16 @@ async function ensureWorkItem(input: {
     }
   }
 
-  const text = await ports.promptWorkItemText();
-  const draft = text === undefined ? undefined : parseWorkItemDraft(text);
-  if (draft === undefined) {
-    throw new Error(NO_WORK_ITEM_MESSAGE);
-  }
-
-  const task = reporter.startTask("Creating the work item…");
-  try {
-    const created = await ports.createWorkItem({
-      baseUrl: input.baseUrl,
-      projectId: input.projectId,
-      draft,
-    });
-    task.succeed(`Created “${created.title}”`);
-    return created;
-  } catch (error) {
-    task.fail("Could not create the work item");
-    throw error;
-  }
+  return resolveFreeTextWorkItem({ baseUrl, projectId, reporter, ports });
 }
 
 /**
  * Resolve `--work-item-id` directly, bypassing the picker entirely. This is
  * the escape hatch for an item older than the picker's recent window — or
- * simply one the user already has the id for — so unlike every other step
- * here, a miss is NOT healed by falling back to the next option; it is
- * reported so the user knows the id they passed did not resolve.
+ * simply one the user already has the id for. Unlike a lookup FAILURE (the
+ * API or network is unavailable, which still throws), a MISS — the id simply
+ * does not resolve — is reported, then healed by the caller falling through
+ * to the picker, the same as every other precondition here.
  */
 async function resolveRequestedWorkItem(input: {
   baseUrl: string;
@@ -352,7 +377,7 @@ async function resolveRequestedWorkItem(input: {
   workItemId: string;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
-}): Promise<DesignWorkItem> {
+}): Promise<DesignWorkItem | undefined> {
   const { reporter, ports } = input;
 
   const task = reporter.startTask(`Loading work item ${input.workItemId}…`);
@@ -370,7 +395,8 @@ async function resolveRequestedWorkItem(input: {
 
   if (item === undefined) {
     task.fail("Work item not found");
-    throw new Error(workItemNotFoundMessage(input.workItemId, input.projectId));
+    reporter.warn(workItemNotFoundMessage(input.workItemId, input.projectId));
+    return undefined;
   }
 
   task.succeed(`Designing for “${item.title}”`);
@@ -378,30 +404,81 @@ async function resolveRequestedWorkItem(input: {
 }
 
 /**
- * Fetch the pickable items, degrading to an empty list on failure. A tracker
- * outage or a permission gap is not a reason to abandon the session — the user
- * can still describe what they want to work on.
+ * Show the picker, looping back into it whenever the user takes the search
+ * rung. A cancelled search (Ctrl+C on the keyword prompt, not the picker
+ * itself) is treated the same as cancelling the whole picker — there is no
+ * "back to the previous list" distinct from that.
+ */
+async function choosePickableWorkItem(input: {
+  baseUrl: string;
+  projectId: string;
+  items: readonly DesignWorkItem[];
+  reporter: BaseReporter;
+  ports: DesignPreflightPorts;
+}): Promise<DesignWorkItem | typeof FREE_TEXT_WORK_ITEM | undefined> {
+  const { baseUrl, projectId, reporter, ports } = input;
+  let items = input.items;
+
+  for (;;) {
+    const choice = await ports.promptWorkItemChoice(items);
+    if (choice !== SEARCH_WORK_ITEM) {
+      return choice;
+    }
+
+    const query = await ports.promptWorkItemSearch();
+    if (query === undefined) {
+      return undefined;
+    }
+    items = await loadPickableItems({
+      baseUrl,
+      projectId,
+      query,
+      reporter,
+      ports,
+    });
+  }
+}
+
+/**
+ * Fetch the pickable items — the project's most recent, or (with `query`) the
+ * top matches for a keyword — degrading to an empty list on failure. A
+ * tracker outage or a permission gap is not a reason to abandon the session —
+ * the user can still search again, describe what they want, or (unfiltered)
+ * see an empty list and skip straight to the free-text rung.
  */
 async function loadPickableItems(input: {
   baseUrl: string;
   projectId: string;
+  query?: string;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
 }): Promise<readonly DesignWorkItem[]> {
-  const task = input.reporter.startTask("Loading this project's work items…");
+  const query = input.query?.trim();
+  const isSearch = query !== undefined && query.length > 0;
+
+  const task = input.reporter.startTask(
+    isSearch
+      ? `Searching this project's work items for “${query}”…`
+      : "Loading this project's work items…",
+  );
   try {
     const items = await input.ports.listWorkItems({
       baseUrl: input.baseUrl,
       projectId: input.projectId,
+      query: input.query,
     });
     if (items.length === 0) {
-      task.succeed("No work items yet");
+      task.succeed(isSearch ? "No matches" : "No work items yet");
     } else {
       task.succeed(`${String(items.length)} work item(s)`);
     }
     return items;
   } catch (error) {
-    task.fail("Could not load this project's work items");
+    task.fail(
+      isSearch
+        ? "Could not search this project's work items"
+        : "Could not load this project's work items",
+    );
     input.reporter.warn(error instanceof Error ? error.message : String(error));
     return [];
   }

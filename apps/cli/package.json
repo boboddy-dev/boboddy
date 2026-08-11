@@ -32,6 +32,7 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@boboddy/observability": "workspace:*",
     "@boboddy/opencode-plugin": "workspace:*",
     "@boboddy/sdk": "workspace:*",
     "@boboddy/worker": "workspace:*",

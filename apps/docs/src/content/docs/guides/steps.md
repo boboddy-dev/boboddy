@@ -191,6 +191,30 @@ mcpServers: {
 },
 ```
 
+### Secrets
+
+Never put a secret value directly in a step definition — it's pushed to the
+server and rendered in the UI. Reference it as `{env:VAR}` in `environment` or
+`headers` instead, as shown above. `{env:VAR}` resolves at execution time from
+your project's `.boboddy/.env`, a plain dotenv file at your repository root
+that you create and manage yourself; Boboddy never writes it and never uploads
+it. Commit `.boboddy/.env.example` (variable names only, no values) so
+teammates know what to set, and make sure `.boboddy/.env` itself stays out of
+version control.
+
+If a `pipeline-designer` session (see the [Quickstart](/boboddy/getting-started/quickstart/))
+adds an MCP server that needs a secret, it writes the variable name to
+`.boboddy/.env.example` for you and tells you which ones to fill in — it never
+asks for or writes the real value.
+
+### Tools already available to every step
+
+If your project already has a `.opencode/opencode.json` (or `.jsonc`) or
+`.opencode/tools/` at the repository root, whatever it declares loads for
+every `workspace` step automatically — you don't need to repeat it in
+`mcpServers`. Reserve a step's own `mcpServers` for servers that step needs
+and the project doesn't already provide.
+
 ## Plugins
 
 Attach Opencode plugins to a step with `plugins`. When the step runs, Boboddy merges these into the generated Opencode config for that execution. Use plain package names, or the `[packageName, options]` tuple form when a plugin needs configuration.

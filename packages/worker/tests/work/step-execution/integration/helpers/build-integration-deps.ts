@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createLogger } from "../../../../../src/lib/logger";
+import { createLogger } from "@boboddy/observability/logging/host";
 import type { ArtifactStore } from "../../../../../src/artifacts/artifact-store/domain/artifact-store";
 import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../../../../../src/work/step-execution/infra/local-project-runtime-environment";
 import { DefaultOpencodeStepRunner } from "../../../../../src/work/step-execution/infra/opencode-step-runner";

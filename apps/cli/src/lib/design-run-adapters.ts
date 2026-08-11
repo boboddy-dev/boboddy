@@ -1,6 +1,20 @@
 import * as clack from "@clack/prompts";
 import { z } from "zod";
+import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
+import {
+  resolveSourceBranch,
+  runPipelineFirstStepDryRun,
+} from "@boboddy/worker";
 import { connectApi, describeApiError } from "./cli-api-client";
+import type { DryRunGateResult } from "./design-run-offer";
+import {
+  clearRunOfferGateFailure,
+  writeRunOfferGateFailure,
+} from "./design-run-offer-gate-marker";
+import { summarizeDryRunFailure } from "./dry-run-report";
+import { readLocalEnvVars } from "./local-env-vars";
+import { createTransport } from "./logger";
+import { captureMilestone } from "./telemetry";
 
 /**
  * The real implementations of the run offer's ports: one `clack` confirm and two
@@ -87,6 +101,61 @@ export async function queueDesignRun(input: {
   if (error !== undefined) {
     throw new Error(`Could not queue the run: ${describeApiError(error)}`);
   }
+
+  // Milestone 8, "First run queued / worker run started" — scoped to the
+  // queue side only. Whether a worker actually claims and starts THIS run
+  // is not observable from here: the `boboddy work` process that eventually
+  // claims it is very often a different process (often a different
+  // machine) than the one that queued it, with no webhook or callback
+  // connecting the two. Queueing is the CLI-observable half of the
+  // milestone and the one this fires.
+  captureMilestone(AnalyticsEvents.CliRunQueued);
+}
+
+/**
+ * The real implementation of {@link DesignRunOfferPorts.runFirstStepDryRun}
+ * (#146): resolve `pipelineDefinitionId` to its first step and run the full
+ * environment rehearsal against it, then persist (or clear) the marker the
+ * NEXT `pipelines design` session's orientation reads — see
+ * `design-run-offer-gate-marker.ts`. There is no live session left to tell
+ * right now; this is the only channel across the gap.
+ */
+export async function runFirstStepDryRun(input: {
+  baseUrl: string;
+  projectId: string;
+  pipelineDefinitionId: string;
+  builderDir: string;
+}): Promise<DryRunGateResult> {
+  const [localEnvVars, sourceBranch] = await Promise.all([
+    readLocalEnvVars(),
+    resolveSourceBranch({ cwd: process.cwd(), override: undefined }),
+  ]);
+
+  const report = await runPipelineFirstStepDryRun({
+    projectId: input.projectId,
+    baseUrl: input.baseUrl,
+    pipelineDefinitionId: input.pipelineDefinitionId,
+    dest: createTransport(),
+    localEnvVars,
+    sourceBranch,
+  });
+
+  if (report.ok) {
+    // An old marker from an earlier, since-fixed failure no longer describes
+    // reality — this run is the new source of truth.
+    clearRunOfferGateFailure(input.builderDir);
+    captureMilestone(AnalyticsEvents.CliDryRunPassed, {
+      via: "pipelines-design",
+    });
+    return { ok: true, summary: "healthy" };
+  }
+
+  const summary = summarizeDryRunFailure(report);
+  writeRunOfferGateFailure(input.builderDir, {
+    pipelineDefinitionId: input.pipelineDefinitionId,
+    summary,
+  });
+  return { ok: false, summary };
 }
 
 /**

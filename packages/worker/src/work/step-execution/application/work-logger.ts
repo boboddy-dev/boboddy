@@ -1,4 +1,4 @@
-import { createLazyLogger } from "../../../lib/logger";
+import { createLazyLogger } from "@boboddy/observability/logging/host";
 
 type WorkLogDetails = Record<string, unknown>;
 

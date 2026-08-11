@@ -1,6 +1,6 @@
 import os from "node:os";
 import path from "node:path";
-import type { Logger } from "../../../lib/logger";
+import type { Logger } from "@boboddy/observability/logging/host";
 import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-cli-clone-service";
 import { GitCliCommitPushService } from "../../../runtime/runtime-service/infra/git-cli-commit-push-service";
 import { GitCliSubmoduleService } from "../../../runtime/runtime-service/infra/git-cli-submodule-service";

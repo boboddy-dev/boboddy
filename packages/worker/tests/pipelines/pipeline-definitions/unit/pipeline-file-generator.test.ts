@@ -1,45 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { generatePipelineFileContent, type PipelineContract, type PipelineStepContract } from "../../../../src/pipelines/pipeline-definitions/infra/pipeline-file-generator";
-
-const NO_ADVANCEMENT = {
-  rulesJson: { rules: [] },
-  defaultEventType: "continue",
-  defaultEventParamsJson: null,
-  allowedEventTypes: ["continue"],
-};
-
-function makeStep(overrides: Partial<PipelineStepContract> = {}): PipelineStepContract {
-  return {
-    stepDefinitionId: "def-id",
-    stepDefinitionVersion: 1,
-    key: "review-code",
-    name: "Review Code",
-    description: null,
-    position: 0,
-    inputBindingsJson: null,
-    timeoutSeconds: null,
-    advancementPolicyDefinition: NO_ADVANCEMENT,
-    computedSignalDefinitions: [],
-    ...overrides,
-  };
-}
-
-function makePipeline(steps: PipelineStepContract[], overrides: Partial<PipelineContract> = {}): PipelineContract {
-  return {
-    key: "my-pipeline",
-    name: "My Pipeline",
-    description: null,
-    version: 1,
-    status: "active",
-    inputSchemaJson: null,
-    stepDefinitions: steps,
-    ...overrides,
-  };
-}
-
-function gen(pipeline: PipelineContract): string {
-  return generatePipelineFileContent(pipeline, new Map());
-}
+import { gen, makePipeline, makeStep } from "./pipeline-file-generator-test-helpers";
 
 // ─── work_item binding ────────────────────────────────────────────────────────
 

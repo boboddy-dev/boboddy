@@ -23,7 +23,7 @@ import {
 import { LAUNCH_WRAPPER_FILENAME } from "../../../runtime/runtime-service/domain/opencode-runtime-payload";
 import { HostOpencodeBootstrap } from "../../../runtime/runtime-service/infra/host-opencode-bootstrap";
 import { noopReporter, type WorkReporter } from "../contracts/work-reporter";
-import { noopLogger, type Logger } from "../../../lib/logger";
+import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 import type { ProviderAccessResolver } from "../contracts/agent-runtime/provider-access-resolver";
 import type { RuntimeConfigMaterializer } from "../contracts/agent-runtime/runtime-config-materializer";
 import { DirectProviderAccessResolver } from "./provider-access/direct-provider-access-resolver";

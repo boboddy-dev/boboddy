@@ -20,7 +20,7 @@ import path from "node:path";
 
 /**
  * Candidate filenames for the host global opencode config, in resolution order.
- * Mirrors the check in `global-setup.ts` and `opencode-credential-discovery.ts`.
+ * Mirrors the check in `opencode-credential-discovery.ts`.
  */
 const HOST_GLOBAL_CONFIG_CANDIDATES = [
   "opencode.jsonc",

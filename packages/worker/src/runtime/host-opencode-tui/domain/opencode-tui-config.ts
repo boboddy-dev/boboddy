@@ -122,7 +122,7 @@ export const PIPELINE_DESIGNER_BASH_PERMISSIONS: OpencodePermissionRules = {
  * scopes nothing, and `external_directory` never fires for a path inside the
  * repository.
  *
- * Two carve-outs, both directories rather than single files:
+ * Three carve-outs — two directories, and one single file:
  *
  * - The pipeline builder directory. Authoring definitions is the whole job, and
  *   `*` spans `/` so nested files are covered.
@@ -130,14 +130,21 @@ export const PIPELINE_DESIGNER_BASH_PERMISSIONS: OpencodePermissionRules = {
  *   agent authors one in-session; a config using `build.dockerfile` is useless
  *   without the Dockerfile beside it, so the grant is the directory whose only
  *   purpose is that config — not the repository root.
+ * - `.boboddy/.env.example`, one exact file, not a directory grant. The
+ *   interview records the *name* of any secret a new tool needs there —
+ *   never a real value — so the user knows what to fill in when they create
+ *   `.boboddy/.env` themselves. `.boboddy/.env` (the real secrets) is
+ *   deliberately absent from this allowlist: it is not a file the agent may
+ *   ever write, structured-edit or otherwise, and this is the enforcement of
+ *   that, independent of what the prompt says.
  *
  * INVARIANT: no `allow` pattern may begin with `*`. Because `*` spans `/`, a
  * leading wildcard silently re-grants the entire repository — the over-grant this
  * allowlist exists to remove.
  *
- * Both prefixes are load-bearing elsewhere: `PIPELINE_BUILDER_DIR` in the
- * scaffolder, and `DEVCONTAINER_CONFIG_PATH` in `ensure-devcontainer`. They are
- * spelled out here rather than imported, to keep a domain module free of a
+ * Both directory prefixes are load-bearing elsewhere: `PIPELINE_BUILDER_DIR` in
+ * the scaffolder, and `DEVCONTAINER_CONFIG_PATH` in `ensure-devcontainer`. They
+ * are spelled out here rather than imported, to keep a domain module free of a
  * cross-context dependency on an infra and an application module. The unit tests
  * import both constants and assert this allowlist still *resolves* their paths to
  * `allow`, so renaming either one fails here rather than silently costing the
@@ -147,6 +154,7 @@ export const PIPELINE_DESIGNER_EDIT_PERMISSIONS: OpencodePermissionRules = {
   "*": "ask",
   ".boboddy/pipeline-builder/*": "allow",
   ".devcontainer/*": "allow",
+  ".boboddy/.env.example": "allow",
 };
 
 /**

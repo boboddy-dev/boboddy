@@ -47,8 +47,13 @@ export type CheckOpencodeProviderCredentialsInput = {
    * Absolute path of the provisioned OpenCode launcher (`launch.sh`). Used to
    * build the remediation command — the user may not have `opencode` on PATH at
    * all, so we always point at the binary Boboddy provisioned.
+   *
+   * Optional: a caller that only needs the yes/no answer (not the remediation
+   * text) can omit it rather than provision the runtime just to ask the
+   * question — `boboddy init` does exactly that before deciding whether to run
+   * `opencode auth login` inline.
    */
-  launcherPath: string;
+  launcherPath?: string | undefined;
   /** Host home dir override (tests). Defaults to `HOME`/`os.homedir()`. */
   homeDir?: string | undefined;
   /** Env source override (tests). Defaults to `process.env`. */
@@ -85,10 +90,14 @@ export async function checkOpencodeProviderCredentials(
 
 /**
  * Build the "how to fix it" message. Quotes the launcher path so paths with
- * spaces stay copy-pasteable.
+ * spaces stay copy-pasteable. Falls back to a bare `opencode auth login` when
+ * no launcher path was provisioned yet.
  */
-export function buildRemediation(launcherPath: string): string {
-  const command = `"${launcherPath}" auth login`;
+export function buildRemediation(launcherPath?: string): string {
+  const command =
+    launcherPath === undefined
+      ? "opencode auth login"
+      : `"${launcherPath}" auth login`;
   return [
     "No AI provider credentials were found.",
     "",

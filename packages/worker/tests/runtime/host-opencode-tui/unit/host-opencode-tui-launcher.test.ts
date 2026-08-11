@@ -13,6 +13,8 @@ import {
   buildOpencodeTuiArgs,
   buildOpencodeTuiEnv,
   ensureHostOpencodePayload,
+  hasFailedExitCode,
+  launchOpencodeAuthLogin,
   launchOpencodeTui,
   resolveHostOpencodeBinary,
 } from "../../../../src/runtime/host-opencode-tui/infra/host-opencode-tui-launcher";
@@ -286,6 +288,83 @@ describe("launchOpencodeTui", () => {
 
     children[0]?.emit("exit", 0, null);
     await pending;
+  });
+});
+
+describe("launchOpencodeAuthLogin", () => {
+  test("spawns `auth login` attached to the terminal", async () => {
+    const { spawnFn, calls, children } = makeSpawnFake();
+
+    const pending = launchOpencodeAuthLogin({
+      launcherPath: "/cache/launch.sh",
+      cwd: "/project",
+      spawnFn,
+    });
+
+    const call = calls[0];
+    expect(call).toBeDefined();
+    expect(call?.command).toBe("/cache/launch.sh");
+    expect(call?.args).toEqual(["auth", "login"]);
+    expect(call?.stdio).toBe("inherit");
+    expect(call?.cwd).toBe("/project");
+
+    children[0]?.emit("exit", 0, null);
+    expect(await pending).toEqual({ exitCode: 0, signal: null });
+  });
+
+  test("defaults cwd to process.cwd() when not given", async () => {
+    const { spawnFn, calls, children } = makeSpawnFake();
+
+    const pending = launchOpencodeAuthLogin({
+      launcherPath: "/cache/launch.sh",
+      spawnFn,
+    });
+
+    expect(calls[0]?.cwd).toBe(process.cwd());
+    children[0]?.emit("exit", 0, null);
+    await pending;
+  });
+
+  test("resolves with a non-zero exit code rather than throwing", async () => {
+    const { spawnFn, children } = makeSpawnFake();
+    const pending = launchOpencodeAuthLogin({
+      launcherPath: "/cache/launch.sh",
+      spawnFn,
+    });
+
+    children[0]?.emit("exit", 1, null);
+    expect(await pending).toEqual({ exitCode: 1, signal: null });
+  });
+
+  test("does not leak signal listeners after the child exits", async () => {
+    const before = process.listenerCount("SIGINT");
+    const { spawnFn, children } = makeSpawnFake();
+    const pending = launchOpencodeAuthLogin({
+      launcherPath: "/cache/launch.sh",
+      spawnFn,
+    });
+
+    expect(process.listenerCount("SIGINT")).toBe(before + 1);
+    children[0]?.emit("exit", 0, null);
+    await pending;
+
+    expect(process.listenerCount("SIGINT")).toBe(before);
+  });
+});
+
+describe("hasFailedExitCode", () => {
+  test.concurrent("is false for a clean exit", () => {
+    expect(hasFailedExitCode({ exitCode: 0, signal: null })).toBe(false);
+  });
+
+  test.concurrent("is false for a signal-terminated child", () => {
+    expect(hasFailedExitCode({ exitCode: null, signal: "SIGTERM" })).toBe(
+      false,
+    );
+  });
+
+  test.concurrent("is true for a non-zero exit code", () => {
+    expect(hasFailedExitCode({ exitCode: 3, signal: null })).toBe(true);
   });
 });
 

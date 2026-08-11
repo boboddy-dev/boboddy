@@ -1,64 +1,70 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type { createBoboddyClient } from "@boboddy/sdk";
-import { ConfigurationError } from "../../../lib/errors";
-import { createLazyLogger } from "../../../lib/logger";
+import { createLazyLogger } from "@boboddy/observability/logging/host";
 import { deriveProjectName } from "../../project-config/infra/fs-project-config-repo";
 import { readProjectConfig } from "../../project-config/application/read-project-config";
 import { writeProjectConfig } from "../../project-config/application/write-project-config";
-
-const execFileAsync = promisify(execFile);
+import { findMatchingProject } from "./find-matching-project";
+import { resolveGitRepository } from "./resolve-git-repository";
 
 const logger = createLazyLogger({
   name: "@boboddy/worker",
   scope: "local-config-setup",
 });
 
-async function getGitOriginUrl(): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync("git", ["remote", "get-url", "origin"]);
-    return stdout.trim();
-  } catch {
-    throw new ConfigurationError(
-      "Could not read git remote origin. Make sure this repo has a remote named 'origin'.",
-    );
-  }
-}
+/**
+ * The three ways `localConfigSetup` can leave things (#141):
+ *
+ * - `already-configured` — `.boboddy/boboddy.jsonc` already has a
+ *   `projectId`; nothing else ran.
+ * - `matched` — an existing project's `gitUrl` matched this repo's remote;
+ *   it's been persisted to `.boboddy/boboddy.jsonc`.
+ * - `handoff-required` — no project matches this remote. This used to
+ *   silently `POST /projects` to create one; it no longer does. The caller
+ *   (`boboddy init`) is responsible for sending the user to `/projects/new`
+ *   in a browser — pre-filled with `gitUrl`/`suggestedName` — and, once they
+ *   confirm they're done, calling `completeProjectHandoff` to re-check and
+ *   persist it.
+ */
+export type LocalConfigSetupResult =
+  | { status: "already-configured" }
+  | { status: "matched"; projectId: string }
+  | { status: "handoff-required"; gitUrl: string; suggestedName: string };
 
 export async function localConfigSetup(input: {
   client: ReturnType<typeof createBoboddyClient>;
   headers: { Authorization: string };
-}): Promise<{ projectId: string } | null> {
-  const existingConfig = await readProjectConfig();
+  /** Defaults to `process.cwd()`; overridable so this is unit-testable without touching the real cwd. */
+  rootDir?: string;
+}): Promise<LocalConfigSetupResult> {
+  const existingConfig = await readProjectConfig(input.rootDir);
   if (existingConfig?.projectId) {
     logger.info("Local setup already complete, skipping.");
-    return null;
+    return { status: "already-configured" };
   }
 
-  const gitUrl = await getGitOriginUrl();
+  // Same walk-up-then-remote resolution `init` reports up front — matching by
+  // remote URL keeps project identity keyed by remote, not by path.
+  const { remoteUrl: gitUrl } = await resolveGitRepository(input.rootDir);
 
-  const listResponse = await input.client.projects.listProjects({ headers: input.headers });
-  const projects: Array<{ id: string; gitUrl: string }> = listResponse.data ?? [];
-  const existing = projects.find((p) => p.gitUrl === gitUrl);
+  const existing = await findMatchingProject({
+    client: input.client,
+    headers: input.headers,
+    gitUrl,
+  });
 
-  let projectId: string;
   if (existing) {
-    projectId = existing.id;
-    logger.info({ projectId }, "Found existing project for this repository.");
-  } else {
-    const name = deriveProjectName(gitUrl);
-    const createResponse = await input.client.projects.createProject({
-      body: { name, gitUrl, description: null },
-      headers: input.headers,
-    });
-    if (!createResponse.data) {
-      throw new ConfigurationError("Failed to create project. Please try again.");
-    }
-    projectId = createResponse.data.id;
-    logger.info({ projectId, name }, "Created new project.");
+    await writeProjectConfig(existing.id, input.rootDir);
+    logger.info(
+      { projectId: existing.id },
+      "Found existing project for this repository.",
+    );
+    return { status: "matched", projectId: existing.id };
   }
 
-  await writeProjectConfig(projectId);
-  logger.info({ projectId }, "Local init complete.");
-  return { projectId };
+  const suggestedName = deriveProjectName(gitUrl);
+  logger.info(
+    { gitUrl, suggestedName },
+    "No project found for this repository; a browser hand-off is required.",
+  );
+  return { status: "handoff-required", gitUrl, suggestedName };
 }

@@ -109,6 +109,36 @@ describe("buildDesignSeedPrompt", () => {
 
     expect(buildDesignSeedPrompt(input)).toBe(buildDesignSeedPrompt(input));
   });
+
+  test("says nothing about a prior run-offer failure when there is none", () => {
+    const prompt = buildDesignSeedPrompt({
+      workItem: ITEM,
+      hasExistingDefinitions: false,
+    });
+
+    expect(prompt).not.toContain("Before anything else");
+  });
+
+  test("surfaces a prior post-push run-offer gate failure (#146)", () => {
+    // The session that hit this failure has already exited — the seed prompt
+    // is the only channel left to tell the NEXT session's orientation.
+    const prompt = buildDesignSeedPrompt({
+      workItem: ITEM,
+      hasExistingDefinitions: true,
+      priorRunOfferFailure: {
+        pipelineDefinitionId: "019ed1c9-2222-7170-a08a-1ff912085f7b",
+        summary: "container exited",
+        failedAt: "2026-01-01T00:00:00.000Z",
+      },
+    });
+
+    expect(prompt).toContain("Before anything else");
+    expect(prompt).toContain("container exited");
+    // Comes before the interview starts — it is the first thing to address.
+    expect(prompt.indexOf("Before anything else")).toBeLessThan(
+      prompt.indexOf("Start the interview"),
+    );
+  });
 });
 
 describe("hasAuthoredDefinitions", () => {

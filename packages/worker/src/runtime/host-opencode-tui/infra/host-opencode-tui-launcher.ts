@@ -200,6 +200,46 @@ export async function launchOpencodeTui(
   }
 }
 
+export type LaunchOpencodeAuthLoginInput = {
+  /** Absolute path from {@link resolveHostOpencodeBinary}. */
+  launcherPath: string;
+  /** Directory the command runs from. Defaults to `process.cwd()`. */
+  cwd?: string | undefined;
+  /** Extra env applied on top of `process.env`. */
+  env?: NodeJS.ProcessEnv | undefined;
+  /** Injected spawn (tests). Defaults to `node:child_process.spawn`. */
+  spawnFn?: SpawnFn | undefined;
+};
+
+/**
+ * Spawn `opencode auth login` attached to the current terminal and resolve
+ * once the user finishes (or quits) it.
+ *
+ * The interactive counterpart to {@link checkOpencodeProviderCredentials}
+ * finding nothing: rather than printing an instructional "run this command"
+ * message, `boboddy init` runs it for the user, in place. Shares the same
+ * attached-terminal signal handling as {@link launchOpencodeTui} — the login
+ * prompt owns the tty for the duration of the run.
+ */
+export async function launchOpencodeAuthLogin(
+  input: LaunchOpencodeAuthLoginInput,
+): Promise<LaunchOpencodeTuiResult> {
+  const spawnFn = input.spawnFn ?? spawn;
+  const child = spawnFn(input.launcherPath, ["auth", "login"], {
+    cwd: input.cwd ?? process.cwd(),
+    env: { ...process.env, ...input.env },
+    // Attached: `auth login` needs the real tty to prompt and read input.
+    stdio: "inherit",
+  });
+
+  const detachSignals = attachSignalBridge(child);
+  try {
+    return await waitForExit(child);
+  } finally {
+    detachSignals();
+  }
+}
+
 /**
  * Keep the parent alive while the child owns the terminal, forwarding the
  * signals the tty does not deliver on its own. Returns a teardown function.
@@ -228,6 +268,18 @@ function attachSignalBridge(child: ChildProcess): () => void {
       process.off(signal, handler);
     }
   };
+}
+
+/**
+ * Did the child report a genuine failure — a non-zero exit code — as opposed
+ * to a clean exit or a signal-terminated one (`exitCode === null`)? Shared so
+ * every caller of {@link launchOpencodeTui} / {@link launchOpencodeAuthLogin}
+ * checks the same three-way result the same way.
+ */
+export function hasFailedExitCode(
+  result: LaunchOpencodeTuiResult,
+): result is LaunchOpencodeTuiResult & { exitCode: number } {
+  return result.exitCode !== null && result.exitCode !== 0;
 }
 
 function waitForExit(child: ChildProcess): Promise<LaunchOpencodeTuiResult> {

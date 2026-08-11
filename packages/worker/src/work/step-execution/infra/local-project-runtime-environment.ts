@@ -27,7 +27,7 @@ import { resolveConfiguredBaseWorkBranch } from "../application/process-claimed-
 import { OpencodeRuntimePayloadProvisioner } from "../../../runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 import { DevcontainerOpencodeBootstrap } from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
 import { logWork } from "../application/work-logger";
-import { noopLogger, type Logger } from "../../../lib/logger";
+import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 import { noopReporter, type WorkReporter } from "../contracts/work-reporter";
 import type { ProviderAccessResolver } from "../contracts/agent-runtime/provider-access-resolver";
 import type { RuntimeConfigMaterializer } from "../contracts/agent-runtime/runtime-config-materializer";

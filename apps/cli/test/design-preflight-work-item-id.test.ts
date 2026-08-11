@@ -7,6 +7,7 @@ import {
 } from "../src/lib/design-preflight";
 import type { DesignWorkItem } from "../src/lib/design-work-item";
 import { noopBaseReporter } from "../src/lib/reporter-types";
+import { createReporterRecorder } from "./utils";
 
 /**
  * `--work-item-id`'s one job: reach an item older than the picker's recent
@@ -56,10 +57,12 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
       calls.getWorkItemById += 1;
       return Promise.resolve(undefined);
     },
+    findWorkItemByUrl: () => Promise.resolve(undefined),
     promptWorkItemChoice: () => {
       calls.promptWorkItemChoice += 1;
       return Promise.resolve(RECENT_ITEM);
     },
+    promptWorkItemSearch: () => Promise.resolve(undefined),
     promptWorkItemText: () => Promise.resolve(undefined),
     createWorkItem: () => Promise.reject(new Error("not expected")),
     builderDirExists: () => true,
@@ -144,17 +147,40 @@ describe("runDesignPreflight — --work-item-id", () => {
     expect(calls.promptWorkItemChoice).toBe(1);
   });
 
-  test("a miss is a hard stop, not a silent fall-through to the picker", async () => {
+  test("a miss heals by falling through to the picker, not a hard stop", async () => {
     const { ports, calls } = createPorts({
-      getWorkItemById: () => Promise.resolve(undefined),
+      getWorkItemById: () => {
+        calls.getWorkItemById += 1;
+        return Promise.resolve(undefined);
+      },
     });
 
-    const error = await expectRejection(run(ports, "missing-id"));
+    const result = await run(ports, "missing-id");
 
-    expect(error.message).toBe(
+    // The picker still runs and wins the session, same as if `--work-item-id`
+    // had never been passed.
+    expect(result.workItem).toEqual(RECENT_ITEM);
+    expect(calls.getWorkItemById).toBe(1);
+    expect(calls.promptWorkItemChoice).toBe(1);
+  });
+
+  test("a miss warns with the not-found message before falling through", async () => {
+    const { ports } = createPorts({
+      getWorkItemById: () => Promise.resolve(undefined),
+    });
+    const { reporter, calls: reported } = createReporterRecorder();
+
+    await runDesignPreflight({
+      baseUrl: BASE_URL,
+      projectIdArgument: "project-from-arg",
+      workItemIdArgument: "missing-id",
+      reporter,
+      ports,
+    });
+
+    expect(reported.map((call) => call.message)).toContain(
       workItemNotFoundMessage("missing-id", "project-from-arg"),
     );
-    expect(calls.promptWorkItemChoice).toBe(0);
   });
 
   test("a lookup failure surfaces its own error rather than falling back", async () => {

@@ -3,16 +3,32 @@ title: CLI Reference
 description: Complete reference for all boboddy CLI commands and flags
 ---
 
+## Platform binaries
+
+The `@boboddy/cli` npm package ships pre-compiled binaries for:
+
+| Platform              | Binary                    |
+| --------------------- | ------------------------- |
+| macOS (Apple Silicon) | `boboddy-darwin-arm64`    |
+| macOS (Intel)         | `boboddy-darwin-x64`      |
+| Linux x64             | `boboddy-linux-x64`       |
+| Linux ARM64           | `boboddy-linux-arm64`     |
+| Windows x64           | `boboddy-windows-x64.exe` |
+
+The wrapper at `bin/boboddy` detects your platform and delegates to the correct binary automatically — you should never need to reference these directly except when debugging a broken install.
+
+---
+
 ## Global flags
 
 These flags apply to every command:
 
-| Flag | Description |
-|------|-------------|
-| `--env-file <path>` | Load environment variables from an alternate `.env` file |
-| `--base-url <url>` | Override the API server URL (default: `https://app.boboddy.dev`, also set via `BOBODDY_BASE_URL`) |
-| `--help` | Show help for the current command |
-| `--version` | Print the CLI version |
+| Flag                | Description                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `--env-file <path>` | Load environment variables from an alternate `.env` file                                          |
+| `--base-url <url>`  | Override the API server URL (default: `https://app.boboddy.dev`, also set via `BOBODDY_BASE_URL`) |
+| `--help`            | Show help for the current command                                                                 |
+| `--version`         | Print the CLI version                                                                             |
 
 ---
 
@@ -58,15 +74,45 @@ boboddy auth whoami
 
 Interactive project setup. Runs in sequence:
 
-1. Authenticates (device flow if not logged in)
-2. Creates or selects a project
-3. Writes `.boboddy/boboddy.jsonc` with the `projectId` (you can also add an optional `branchPrefix` — see [Work branches](/boboddy/guides/workers/#work-branches))
-4. Checks for a `.devcontainer/devcontainer.json` and reports what it finds. A missing one is a **notice, not an error** — `init` does not write one, but it does not stop either: the design session authors it (see [`pipelines design`](#boboddy-pipelines-design-projectid))
-5. Offers to launch [`boboddy pipelines design`](#boboddy-pipelines-design-projectid) straight away
+1. Resolves the git repository by walking up from the current directory to
+   find the real repo root — the same way `git rev-parse --show-toplevel`
+   would — so `init` works from any subdirectory of a repo, including from
+   inside a git submodule. Prints the resolved repo path and the resolved
+   `origin` remote URL before doing anything else.
+2. Authenticates (device flow if not logged in)
+3. Checks for OpenCode auth — an `auth.json` entry or a recognized provider
+   env var (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+   `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`,
+   `XAI_API_KEY`, `DEEPSEEK_API_KEY`), the same detection
+   [`pipelines design`](#boboddy-pipelines-design-projectid)'s preflight uses.
+   If neither is found, it runs `opencode auth login` inline and waits for you
+   to finish before continuing, instead of stopping with an instructional
+   error
+4. Selects a project matched by the resolved remote URL from step 1. If none
+   matches, `init` opens your browser to `/projects/new` — pre-filled with
+   the detected repository — instead of creating one for you. Finish the
+   GitHub-linking choice there, then come back and **press Enter** to let
+   `init` continue.
+5. Writes `.boboddy/boboddy.jsonc` with the `projectId` (you can also add an optional `branchPrefix` — see [Work branches](/boboddy/guides/workers/#work-branches))
+6. Checks for a `.devcontainer/devcontainer.json` and reports what it finds. A missing one is a **notice, not an error** — `init` does not write one, but it does not stop either: the design session authors it (see [`pipelines design`](#boboddy-pipelines-design-projectid))
+7. Offers to launch [`boboddy pipelines design`](#boboddy-pipelines-design-projectid) straight away — carrying `--work-item-id` through when you passed one, instead of always leaving it to the designer's own picker
 
 ```bash
 boboddy init
+boboddy init --work-item-id <id>
 ```
+
+| Flag                  | Description                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `--base-url <url>`    | Override the API server URL                                                                         |
+| `--work-item-id <id>` | Carry this work item ID into the designer handoff in step 7, instead of letting it pick from the project's recent items |
+
+:::note
+Step 4's browser hand-off is manual for now: `init` opens the page and waits
+for a keypress — it does not poll for the project to appear, and there is no
+deep link back into the CLI. If you press Enter before finishing on the web
+page, re-run `boboddy init`.
+:::
 
 `init` does not create any pipeline. All authoring happens in `boboddy pipelines design`. Re-running `init` on an already-configured project is safe: it re-checks the dev container and offers the handoff again.
 
@@ -87,26 +133,30 @@ boboddy pipelines design
 boboddy pipelines design <projectId>
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--base-url <url>` | Override the API server URL |
-| `--work-item-id <id>` | Design around this specific work item ID instead of picking from the project's recent items. Wins outright and skips the picker entirely — use it for an item older than the picker's recent window, or any time you already have the id. An id that does not resolve (wrong id, or belongs to a different project) is a hard stop, not a silent fall-through to the picker |
+| Flag                  | Description                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--base-url <url>`    | Override the API server URL                                                                                                                                                                                                                                                                                                                                           |
+| `--work-item-id <id>` | Design around this specific work item ID instead of picking from the project's recent items. Wins outright and skips the picker entirely — use it for an item older than the picker's recent window, or any time you already have the id. An id that does not resolve (wrong id, or belongs to a different project) falls through to the picker, the same as if you had not passed the flag |
 
 **Preflight.** Every precondition is self-healing except the last one:
 
-| Check | If missing |
-|-------|------------|
-| Boboddy session | Runs the device-flow login inline |
-| Project ID | Uses the positional argument, else `.boboddy/boboddy.jsonc`, else matches this repo's `origin` remote to a project on the server (creating it when absent) and writes `.boboddy/boboddy.jsonc`. Only prompts when the repo has no `origin` remote |
-| A work item to design around | With `--work-item-id`, loads that item directly and skips the picker. Otherwise shows a picker of the project's most recent ingested items, whose last option is always *paste or describe a different one*. That option takes a ticket URL or a plain description and creates the item server-side (platform `boboddy`). Every session designs around a real work item |
-| `.boboddy/pipeline-builder/` | Scaffolds it (requires a `.git` or `.boboddy` directory in the current directory) |
-| Dependencies | Installs them with the package manager matching the directory's lockfile, else `bun` or `npm` from your `PATH` |
-| AI runtime | Downloads the pinned OpenCode runtime once (~100 MB, with progress) |
-| AI provider credentials | **Hard stop.** Prints the `auth login` command for the provisioned runtime and exits |
+| Check                        | If missing                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Boboddy session              | Runs the device-flow login inline                                                                                                                                                                                                                                                                                                                                       |
+| Project ID                   | Uses the positional argument, else `.boboddy/boboddy.jsonc`, else matches this repo's `origin` remote to a project on the server (creating it when absent) and writes `.boboddy/boboddy.jsonc`. Only prompts when the repo has no `origin` remote                                                                                                                       |
+| A work item to design around | With `--work-item-id`, loads that item directly and skips the picker (falling through to the picker if it doesn't resolve). Otherwise shows a picker of the project's most recent ingested items, plus two rungs: _search for a different item_, which re-queries the project by keyword and shows the matches instead of only the recent window, and _paste a link/id, or describe a new one_. The latter resolves a pasted work item id or ticket URL against what's already ingested when it can, and only creates a new item (platform `boboddy`) when it doesn't — so pasting a link to an existing ticket finds it instead of duplicating it. Every session designs around a real work item |
+| `.boboddy/pipeline-builder/` | Scaffolds it (requires a `.git` or `.boboddy` directory in the current directory)                                                                                                                                                                                                                                                                                       |
+| Dependencies                 | Installs them with the package manager matching the directory's lockfile, else `bun` or `npm` from your `PATH`                                                                                                                                                                                                                                                          |
+| AI runtime                   | Downloads the pinned OpenCode runtime once (~100 MB, with progress)                                                                                                                                                                                                                                                                                                     |
+| AI provider credentials      | **Hard stop.** Prints the `auth login` command for the provisioned runtime and exits                                                                                                                                                                                                                                                                                    |
 
 You do **not** need OpenCode installed — Boboddy downloads and pins its own runtime. You do need your own provider credentials (an OpenCode `auth login`, or an env var such as `ANTHROPIC_API_KEY`). The injected config deep-merges over your global `~/.config/opencode/opencode.json[c]` and deliberately omits `model`, so your configured model and provider are used.
 
 **The session.** The command launches the OpenCode TUI in `.boboddy/pipeline-builder/` with an injected `pipeline-designer` agent, seeded with the work item you chose. The agent reads what's already there and orients itself in the repository, then opens on the goal: what should come out the other end when a ticket like this one arrives? Every question after that is asked through that item — what it would take to work it, what the execution environment can reach, what must never be touched — before it proposes 2–3 ranked pipeline archetypes filtered by what's actually reachable. It builds the one you pick plus `default-pipeline-assignment.ts`, typechecks, and runs `boboddy pipelines push`.
+
+**Early advisory dry-run.** Right after orienting itself in the repository, the agent backgrounds `work --dry-run --global-only` (container + OpenCode health only — nothing step-specific exists this early, since no pipeline has been pushed yet) and keeps interviewing without waiting on it. It reports what that check found near the end of the session. This is purely advisory: an unresolved failure never stops the session from reaching push.
+
+**Post-push blocking dry-run.** Before the run offer (below) asks whether to run the pushed pipeline, it resolves the pipeline id to its ordered step list — via `work --dry-run --pipeline-id <id>`, unambiguous by construction, unlike a step id — and runs the full dry run (container + OpenCode + MCP servers + declared health checks) against the pipeline's **first** step only. It never validates every step in one launch; first-step validation is enough to catch an obviously-broken run. A failure here blocks: nothing is queued, and the offer falls back to the same "run it later" messaging as its other gates. There is no live agent left in this session to fix it — the TUI has already exited — so the failure is recorded and surfaces automatically at the start of your **next** `boboddy pipelines design` session for that project, before the interview begins.
 
 **Edit sessions.** When definitions already exist, the agent must state a change-size verdict and get your confirmation before it edits a file: **tweak** an existing pipeline, add a **route** in `default-pipeline-assignment.ts`, or create a **new pipeline**. It prefers them in that order and escalates only when the cheaper change can't express the difference, so a second pipeline that duplicates most of an existing one's steps comes back as a tweak or a route instead. One confirmed change per session is the norm, not a limit.
 
@@ -114,17 +164,18 @@ You do **not** need OpenCode installed — Boboddy downloads and pins its own ru
 
 **Permissions.** A design session is supervised — you are watching the TUI — so shell commands run unattended. The agent needs your project's own toolchain (its test runner, its typecheck script, its linter), and no allowlist can enumerate that in advance. One command is the exception: `boboddy pipelines push` always prompts, however it is invoked, because that confirmation is the moment anything reaches the server.
 
-Writing is scoped, and that is what contains the session. Reading and searching are unattended repo-wide so the agent can orient itself, but it may only *write* to `.boboddy/pipeline-builder/` and `.devcontainer/`. Every other path — `package.json`, your source, CI config — asks first. Network access and subagents ask too.
+Writing is scoped, and that is what contains the session. Reading and searching are unattended repo-wide so the agent can orient itself, but it may only _write_ to `.boboddy/pipeline-builder/` and `.devcontainer/`. Every other path — `package.json`, your source, CI config — asks first. Network access and subagents ask too.
 
-**The run offer.** When the session exits cleanly, `design` closes its own loop: it asks *Run your new pipeline on “&lt;work item title&gt;” now?*, and on yes it queues a run of the assigned pipeline against that work item and runs the worker in the same terminal. There is no flag to learn.
+**The run offer.** When the session exits cleanly, `design` closes its own loop: it asks _Run your new pipeline on “&lt;work item title&gt;” now?_, and on yes it queues a run of the assigned pipeline against that work item and runs the worker in the same terminal. There is no flag to learn.
 
-| Situation | What happens |
-|-----------|--------------|
-| Devcontainer present, pipeline assigned | The confirm appears; accepting queues the run and runs the worker here |
-| You decline | Prints `boboddy work <projectId> --work-item-id <id>` for later, and notes that nothing is queued yet — start a run from the work item in the dashboard and that command picks it up |
-| No `.devcontainer/devcontainer.json` | No offer — steps execute inside your devcontainer, so it prints the devcontainer guidance plus that same command |
-| No pipeline assigned to the project | No offer — the session never got as far as pushing one |
-| The session did not exit cleanly | No offer. A non-zero designer exit code still passes through |
+| Situation                               | What happens                                                                                                                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Devcontainer present, pipeline assigned, first step healthy | The confirm appears; accepting queues the run and runs the worker here                                                                                                   |
+| You decline                             | Prints `boboddy work <projectId> --work-item-id <id>` for later, and notes that nothing is queued yet — start a run from the work item in the dashboard and that command picks it up |
+| No `.devcontainer/devcontainer.json`    | No offer — steps execute inside your devcontainer, so it prints the devcontainer guidance plus that same command                                                                     |
+| No pipeline assigned to the project     | No offer — the session never got as far as pushing one                                                                                                                               |
+| The pipeline's first step fails its dry run | No offer. Blocking, not advisory: prints why plus the same "run it later" command, and the failure surfaces automatically at the start of your next `design` session          |
+| The session did not exit cleanly        | No offer. A non-zero designer exit code still passes through                                                                                                                         |
 
 Before the worker starts, the offer states where a failure goes: back to `boboddy pipelines design`, to tell the agent what happened. That covers the failures the worker absorbs into its polling loop — a failing step, or a devcontainer that won't build — which do not stop the worker and so cannot be reported after the fact. The edit loop is the repair loop.
 
@@ -145,7 +196,7 @@ cd .boboddy/pipeline-builder && npm install   # or bun/pnpm/yarn install
 
 The scaffolded `package.json` includes a `typecheck` script (`tsc -p tsconfig.json`), so `npm run typecheck` in that directory validates your definitions before you push.
 
-The scaffolded `.gitignore` ignores only `node_modules/`, lockfiles, and `push.ts`. **Your pipeline and step definitions are source code — commit and review them.** Lockfiles are deliberately *not* committed: `boboddy pipelines push` picks its runtime from whichever lockfile it finds in that directory, so committing one would force every teammate onto the same package manager.
+The scaffolded `.gitignore` ignores only `node_modules/`, lockfiles, and `push.ts`. **Your pipeline and step definitions are source code — commit and review them.** Lockfiles are deliberately _not_ committed: `boboddy pipelines push` picks its runtime from whichever lockfile it finds in that directory, so committing one would force every teammate onto the same package manager.
 
 ### `boboddy pipelines pull [projectId]`
 
@@ -156,20 +207,20 @@ boboddy pipelines pull
 boboddy pipelines pull <projectId>
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag               | Description                 |
+| ------------------ | --------------------------- |
 | `--base-url <url>` | Override the API server URL |
 
 **What gets written:**
 
-| File | Description |
-|------|-------------|
-| `package.json` | Declares `@boboddy/sdk` and `zod` dependencies (only on first pull) |
-| `tsconfig.json` | TypeScript config scoped to the pipeline-builder package (only on first pull) |
-| `.gitignore` | Ignores `node_modules/`, lockfiles, and `push.ts` (only on first pull) |
-| `steps.ts` | One `defineStep()` export per step definition (latest version of each key) |
-| `<pipeline-key>.ts` | One pipeline export per pipeline (uses the fluent `pipeline()` builder) |
-| `default-pipeline-assignment.ts` | Project routing policy (written if configured on the server; removed if not) |
+| File                             | Description                                                                   |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `package.json`                   | Declares `@boboddy/sdk` and `zod` dependencies (only on first pull)           |
+| `tsconfig.json`                  | TypeScript config scoped to the pipeline-builder package (only on first pull) |
+| `.gitignore`                     | Ignores `node_modules/`, lockfiles, and `push.ts` (only on first pull)        |
+| `steps.ts`                       | One `defineStep()` export per step definition (latest version of each key)    |
+| `<pipeline-key>.ts`              | One pipeline export per pipeline (uses the fluent `pipeline()` builder)       |
+| `default-pipeline-assignment.ts` | Project routing policy (written if configured on the server; removed if not)  |
 
 After pulling, run `npm install` or `bun install` inside `.boboddy/pipeline-builder/` to install dependencies.
 
@@ -182,8 +233,8 @@ boboddy pipelines push
 boboddy pipelines push <projectId>
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag               | Description                 |
+| ------------------ | --------------------------- |
 | `--base-url <url>` | Override the API server URL |
 
 ---
@@ -197,17 +248,21 @@ boboddy work
 boboddy work <projectId>
 ```
 
-| Flag | Alias | Default | Description |
-|------|-------|---------|-------------|
-| `--once` | — | `false` | Poll once and wait for any claimed jobs to finish |
-| `--concurrency <n>` | `-c` | `1` | Max concurrently active jobs (env: `BOBODDY_WORK_CONCURRENCY`) |
-| `--batch-size <n>` | `-b` | value of `--concurrency` | Max step executions claimed per poll |
-| `--lease-duration-seconds <n>` | `-l` | `30` | Seconds the claim lease lasts (env: `BOBODDY_WORK_LEASE_DURATION_SECONDS`) |
-| `--poll-interval-ms <n>` | `-p` | `5000` | Milliseconds between poll cycles (env: `BOBODDY_WORK_POLL_INTERVAL_MS`) |
-| `--worker-id <id>` | `-w` | auto | Worker identifier used while claiming steps |
-| `--work-item-id <id>` | — | — | Only process step executions for this work item ID |
-| `--source-branch <branch>` | — | your current local branch | Override the branch checked out for the first step of this run. Defaults to your current local branch, which must exist and be in exact sync with `origin` (push it first if it isn't) |
-| `--preserve-runtime-on-complete` | `-k` | `false` | Keep runtime containers and workspace after step completion |
+| Flag                             | Alias | Default                   | Description                                                                                                                                                                            |
+| -------------------------------- | ----- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--once`                         | —     | `false`                   | Poll once and wait for any claimed jobs to finish                                                                                                                                      |
+| `--concurrency <n>`              | `-c`  | `1`                       | Max concurrently active jobs (env: `BOBODDY_WORK_CONCURRENCY`)                                                                                                                         |
+| `--batch-size <n>`               | `-b`  | value of `--concurrency`  | Max step executions claimed per poll                                                                                                                                                   |
+| `--lease-duration-seconds <n>`   | `-l`  | `30`                      | Seconds the claim lease lasts (env: `BOBODDY_WORK_LEASE_DURATION_SECONDS`)                                                                                                             |
+| `--poll-interval-ms <n>`         | `-p`  | `5000`                    | Milliseconds between poll cycles (env: `BOBODDY_WORK_POLL_INTERVAL_MS`)                                                                                                                |
+| `--worker-id <id>`               | `-w`  | auto                      | Worker identifier used while claiming steps                                                                                                                                            |
+| `--work-item-id <id>`            | —     | —                         | Only process step executions for this work item ID                                                                                                                                     |
+| `--source-branch <branch>`       | —     | your current local branch | Override the branch checked out for the first step of this run. Defaults to your current local branch, which must exist and be in exact sync with `origin` (push it first if it isn't) |
+| `--preserve-runtime-on-complete` | `-k`  | `false`                   | Keep runtime containers and workspace after step completion                                                                                                                            |
+| `--dry-run`                      | —     | `false`                   | Rehearse the environment a real step would launch (devcontainer + OpenCode + MCP servers) and report its health instead of running work                                               |
+| `--step-id <id>`                 | —     | —                         | Dry run only: fetch this step definition's real MCP servers to test                                                                                                                    |
+| `--global-only`                  | —     | `false`                   | Dry run only: skip step-specific MCP injection and test whatever is already configured                                                                                                |
+| `--pipeline-id <id>`             | —     | —                         | Dry run only: resolve this **pipeline** definition ID to its first step (by position) and test that — unambiguous by construction, unlike `--step-id`. Wins over `--step-id`/`--global-only` |
 
 ---
 
@@ -224,8 +279,8 @@ boboddy runtime cleanup-networks
 boboddy runtime cleanup-networks --verbose
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag        | Description                                 |
+| ----------- | ------------------------------------------- |
 | `--verbose` | Print names of networks as they are removed |
 
 ---
@@ -250,17 +305,26 @@ boboddy report-bug
 boboddy report-bug --title "..." --description "..." --no-browser
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--title <text>` | — | Short summary of the bug |
-| `--description <text>` | — | Detailed description |
-| `--browser` / `--no-browser` | `true` | Open the prefilled issue in a browser; `--no-browser` prints the URL only |
+| Flag                         | Default | Description                                                               |
+| ---------------------------- | ------- | ------------------------------------------------------------------------- |
+| `--title <text>`             | —       | Short summary of the bug                                                  |
+| `--description <text>`       | —       | Detailed description                                                      |
+| `--browser` / `--no-browser` | `true`  | Open the prefilled issue in a browser; `--no-browser` prints the URL only |
+
+---
+
+## `boboddy telemetry`
+
+Manage the CLI's onboarding-funnel observability reporting. See
+[Observability](/boboddy/reference/observability/) for what's collected and why, the
+`status`/`disable`/`enable` subcommands, and the opt-out environment
+variables.
 
 ---
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | General error (check stderr / log output) |
+| Code | Meaning                                   |
+| ---- | ----------------------------------------- |
+| `0`  | Success                                   |
+| `1`  | General error (check stderr / log output) |

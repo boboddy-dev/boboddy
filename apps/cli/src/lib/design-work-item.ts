@@ -35,14 +35,40 @@ export const DESIGN_WORK_ITEM_PLATFORM = "boboddy";
  *
  * Always offered, whether or not the project has ingested items, because the
  * thing the user actually wants to work on is frequently not in the tracker yet.
+ * What the text becomes — a lookup against an existing item, or a brand-new
+ * one — is decided in `design-preflight.ts`; see {@link parseWorkItemReference}.
  */
 export const FREE_TEXT_WORK_ITEM = "free-text";
 
-/** What the picker resolved to: an item, the free-text rung, or a cancel. */
+/**
+ * The picker's search rung: "search for a different item".
+ *
+ * The recent-items window ({@link WORK_ITEM_PICKER_LIMIT}) is not viable for a
+ * project with many synced items, so this rung re-queries the server with a
+ * keyword instead of only ever showing the newest page.
+ */
+export const SEARCH_WORK_ITEM = "search";
+
+/**
+ * What the picker resolved to: an item, one of its two rungs, or a cancel.
+ * {@link SEARCH_WORK_ITEM} is handled entirely by the caller looping back into
+ * the picker with new items — it never escapes `design-preflight.ts`.
+ */
 export type WorkItemChoiceResult =
   | DesignWorkItem
   | typeof FREE_TEXT_WORK_ITEM
+  | typeof SEARCH_WORK_ITEM
   | undefined;
+
+/**
+ * The hard stop when no work item was resolved — a cancelled picker, a
+ * cancelled free-text prompt, or blank free text. There is no item-less
+ * session to fall back to.
+ */
+export const NO_WORK_ITEM_MESSAGE =
+  "No work item. A design session is built around one concrete thing you want " +
+  "Boboddy to handle — run `boboddy pipelines design` again and either pick an " +
+  "item or describe what you want handled.";
 
 /** `work_items.title` is unbounded in the schema, but a picker rung is not. */
 const MAX_TITLE_LENGTH = 200;
@@ -93,6 +119,45 @@ export function parseWorkItemDraft(text: string): WorkItemDraft | undefined {
     title: truncate(firstLine, MAX_TITLE_LENGTH),
     description: remainder.length > 0 ? remainder : firstLine,
   };
+}
+
+/** A generic UUID (any version) — work item ids are always UUID v7, but this
+ *  only needs to distinguish "looks like an id" from "looks like prose". */
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** What the free-text rung's input parsed as: a reference to resolve, or nothing. */
+export type WorkItemReference =
+  { kind: "id"; value: string } | { kind: "url"; value: string };
+
+/**
+ * Does this free-text input look like a reference to an EXISTING item — an id
+ * or a ticket URL — rather than a description of a new one?
+ *
+ * Deliberately narrow: a single-line, whole-string match only. Multi-line
+ * input, or a URL embedded partway through a sentence, is prose describing new
+ * work, not a pasted reference, so it is left to {@link parseWorkItemDraft}.
+ */
+export function parseWorkItemReference(
+  text: string,
+): WorkItemReference | undefined {
+  const trimmed = text.trim();
+  if (trimmed.length === 0 || trimmed.includes("\n")) {
+    return undefined;
+  }
+
+  if (UUID_PATTERN.test(trimmed)) {
+    return { kind: "id", value: trimmed };
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (!URL.canParse(trimmed)) {
+      return undefined;
+    }
+    return { kind: "url", value: trimmed };
+  }
+
+  return undefined;
 }
 
 /**

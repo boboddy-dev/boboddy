@@ -4,6 +4,7 @@ import {
   buildCreateWorkItemBody,
   formatWorkItemChoiceLabel,
   FREE_TEXT_WORK_ITEM,
+  SEARCH_WORK_ITEM,
   WORK_ITEM_PICKER_LIMIT,
 } from "./design-work-item";
 import type {
@@ -24,21 +25,28 @@ import type {
  */
 
 /**
- * The project's most recent work items.
- *
- * `pageSize` does the capping server-side: the listing's default order is
- * newest-activity-first, so page 1 is exactly the window the picker wants and
- * there is nothing to sort or slice here.
+ * The project's most recent work items, or — when `query` is given — the
+ * items matching that keyword. Either way `pageSize` does the capping
+ * server-side: unfiltered, the listing's default order is
+ * newest-activity-first, so page 1 is exactly the recency window the picker
+ * wants; filtered, it is the top page of matches. Nothing to sort or slice
+ * here either way.
  */
 export async function listRecentWorkItems(input: {
   baseUrl: string;
   projectId: string;
+  query?: string;
 }): Promise<readonly DesignWorkItem[]> {
   const { client, headers } = await connectApi(input.baseUrl);
 
+  const q = input.query?.trim();
   const { data, error } = await client.projects.listProjectWorkItems({
     path: { projectId: input.projectId },
-    query: { page: 1, pageSize: WORK_ITEM_PICKER_LIMIT },
+    query: {
+      page: 1,
+      pageSize: WORK_ITEM_PICKER_LIMIT,
+      ...(q !== undefined && q.length > 0 ? { q } : {}),
+    },
     headers,
   });
 
@@ -52,6 +60,46 @@ export async function listRecentWorkItems(input: {
     description: item.description,
     platform: item.platform,
   }));
+}
+
+/**
+ * Resolve a pasted ticket URL to an already-ingested item, for the free-text
+ * rung's resolve-vs-create decision (see `design-preflight.ts`).
+ *
+ * There is no dedicated "find by URL" endpoint — `url` isn't guaranteed
+ * unique, and a project rarely has enough near-duplicate URLs for that to
+ * matter — so this reuses the same text-search endpoint the picker's search
+ * rung does, then confirms the match client-side: `q` matches `url`
+ * substring-wise, but only an exact match is a resolution, not a coincidence.
+ */
+export async function findWorkItemByUrl(input: {
+  baseUrl: string;
+  projectId: string;
+  url: string;
+}): Promise<DesignWorkItem | undefined> {
+  const { client, headers } = await connectApi(input.baseUrl);
+
+  const { data, error } = await client.projects.listProjectWorkItems({
+    path: { projectId: input.projectId },
+    query: { page: 1, pageSize: WORK_ITEM_PICKER_LIMIT, q: input.url },
+    headers,
+  });
+
+  if (error !== undefined) {
+    throw new Error(`Could not search work items: ${describeApiError(error)}`);
+  }
+
+  const match = data.items.find((item) => item.url === input.url);
+  if (match === undefined) {
+    return undefined;
+  }
+
+  return {
+    id: match.id,
+    title: match.title,
+    description: match.description,
+    platform: match.platform,
+  };
 }
 
 /**
@@ -125,14 +173,12 @@ export async function createDesignWorkItem(input: {
 }
 
 /**
- * The picker. The free-text rung is always last so it reads as the escape
- * hatch, and `maxItems` is sized to the whole list so it is visible without
- * scrolling.
+ * The picker. The search and free-text rungs are always last, in that order,
+ * so they read as escape hatches rather than one more item in the list, and
+ * `maxItems` is sized to the whole list so it is visible without scrolling.
  *
- * Its label carries a `+` prefix and a hint (shown when focused) so it does
- * not read as just one more rung in the list — it is the one option that
- * exists no matter what the project has ingested, and easy to miss otherwise
- * sitting at the bottom of up to 15 identically-styled choices.
+ * Both carry a hint (shown when focused) so they do not blend into up to 15
+ * identically-styled item rungs above them.
  */
 export async function promptWorkItemChoice(
   items: readonly DesignWorkItem[],
@@ -141,16 +187,21 @@ export async function promptWorkItemChoice(
 
   const answer = await clack.select({
     message: "What should this pipeline handle? (Ctrl+C to cancel)",
-    maxItems: WORK_ITEM_PICKER_LIMIT + 1,
+    maxItems: WORK_ITEM_PICKER_LIMIT + 2,
     options: [
       ...items.map((item) => ({
         value: item.id,
         label: formatWorkItemChoiceLabel(item),
       })),
       {
+        value: SEARCH_WORK_ITEM,
+        label: "Search for a different item…",
+        hint: "not listed above, but ingested",
+      },
+      {
         value: FREE_TEXT_WORK_ITEM,
-        label: "+ Paste or describe a different one…",
-        hint: "not listed above",
+        label: "+ Paste a link/id, or describe a new one…",
+        hint: "not ingested yet",
       },
     ],
   });
@@ -158,8 +209,8 @@ export async function promptWorkItemChoice(
   if (clack.isCancel(answer)) {
     return undefined;
   }
-  if (answer === FREE_TEXT_WORK_ITEM) {
-    return FREE_TEXT_WORK_ITEM;
+  if (answer === FREE_TEXT_WORK_ITEM || answer === SEARCH_WORK_ITEM) {
+    return answer;
   }
 
   const picked = byId.get(answer);
@@ -172,15 +223,30 @@ export async function promptWorkItemChoice(
 }
 
 /**
+ * The search rung's prompt: a keyword to re-query the server with. Blank is
+ * valid on purpose — submitting an empty line clears the search and shows the
+ * recent-items window again, the same "no filter" meaning `q=""` has at the
+ * API — so unlike {@link promptWorkItemText} there is nothing to validate.
+ */
+export async function promptWorkItemSearch(): Promise<string | undefined> {
+  const answer = await clack.text({
+    message: "Search this project's work items (Ctrl+C to cancel):",
+  });
+
+  if (clack.isCancel(answer)) {
+    return undefined;
+  }
+  return answer;
+}
+
+/**
  * The free-text rung. Validates rather than accepting an empty line, so a stray
  * Enter re-asks instead of aborting the run — the same shape as the project-id
  * prompt.
  *
- * Deliberately does not invite pasting a link to an existing ticket: the
- * result always becomes a brand-new `boboddy`-platform item (see
- * {@link createDesignWorkItem}), never a lookup against anything already
- * ingested, so framing it as "paste a URL" would imply a resolution this
- * flow does not do.
+ * What the answer becomes — a lookup against an existing item, or a brand-new
+ * one — is decided in `design-preflight.ts`, via `design-work-item.ts`'s
+ * `parseWorkItemReference`.
  */
 export async function promptWorkItemText(): Promise<string | undefined> {
   const answer = await clack.text({

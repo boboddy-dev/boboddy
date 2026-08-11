@@ -37,7 +37,7 @@ import { HostOpencodeBootstrap } from "../../../../src/runtime/runtime-service/i
 import { SessionRuntimeConfigMaterializer } from "../../../../src/work/step-execution/infra/provider-access/session-runtime-config-materializer";
 import { SafeProviderAccessResolver } from "../../../../src/work/step-execution/infra/provider-access/safe-provider-access-resolver";
 import { DirectProviderAccessResolver } from "../../../../src/work/step-execution/infra/provider-access/direct-provider-access-resolver";
-import { noopLogger, createLogger } from "../../../../src/lib/logger";
+import { noopLogger, createLogger } from "@boboddy/observability/logging/host";
 import type { StepExecutionRuntimeEnvironment } from "../../../../src/work/step-execution/contracts/process-project-work-types";
 
 const integrationEnabled = process.env["BOBODDY_INTEGRATION"] === "true";

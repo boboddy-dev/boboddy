@@ -1,7 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
-import dotenv from "dotenv";
+import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   readProjectConfig,
   resolveBoboddyBaseUrl,
@@ -17,17 +15,12 @@ import {
 import { createReporter } from "../lib/reporter";
 import { createRecordingReporter } from "../lib/reporter-record";
 import { runWorkDryRunCommand } from "../lib/dry-run-command";
-
-async function readLocalEnvVars(): Promise<Record<string, string>> {
-  const envFilePath = path.join(process.cwd(), ".boboddy", ".env");
-  try {
-    const content = await readFile(envFilePath, "utf8");
-    return dotenv.parse(content);
-  } catch {
-    // File is optional — absence is not an error.
-    return {};
-  }
-}
+import { readLocalEnvVars } from "../lib/local-env-vars";
+import {
+  captureMilestone,
+  flushTelemetry,
+  syncIdentityFromDisk,
+} from "../lib/telemetry";
 
 export interface WorkArguments {
   projectId: string | undefined;
@@ -64,6 +57,15 @@ export interface WorkArguments {
    * has no step definitions yet.
    */
   globalOnly: boolean;
+  /**
+   * Dry run only: resolve this **pipeline** id to its ordered step list and
+   * test its first step — unlike `stepId`, unambiguous by construction,
+   * since a pipeline id can never be mistaken for one of its own steps' ids.
+   * Wins outright over `stepId`/`globalOnly` when passed. This is what
+   * `pipelines design`'s post-push run offer uses (#146) to validate what it
+   * just pushed before queueing a run against it.
+   */
+  pipelineId: string | undefined;
 }
 
 /**
@@ -98,9 +100,12 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
   // The two flag defaults yargs would have supplied, applied here so a
   // programmatic caller only has to name what it actually chose.
   const once = arguments_.once ?? false;
-  const preserveRuntimeOnComplete = arguments_.preserveRuntimeOnComplete ?? false;
+  const preserveRuntimeOnComplete =
+    arguments_.preserveRuntimeOnComplete ?? false;
   const dryRun = arguments_.dryRun ?? false;
   const globalOnly = arguments_.globalOnly ?? false;
+
+  syncIdentityFromDisk(baseUrl);
 
   if (!projectId) {
     reporter.error(
@@ -109,6 +114,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     logger.error(
       "No project ID provided. Pass one as an argument or run `boboddy init` first.",
     );
+    await flushTelemetry();
     process.exit(1);
   }
 
@@ -126,6 +132,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     reporter.error(message);
     logger.error({ err: error }, "Failed to resolve the source branch");
+    await flushTelemetry();
     process.exit(1);
   }
 
@@ -134,26 +141,33 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     reporter.info(`Using source branch: ${sourceBranch}`);
   }
 
-  logger.info({
-    projectId,
-    baseUrl,
-    batchSize: arguments_.batchSize,
-    concurrency: arguments_.concurrency,
-    leaseDurationSeconds: arguments_.leaseDurationSeconds,
-    once,
-    preserveRuntimeOnComplete,
-    pollIntervalMs: arguments_.pollIntervalMs,
-    workerId: arguments_.workerId,
-    workItemId: arguments_.workItemId,
-    dryRun,
-    stepId: arguments_.stepId,
-    globalOnly,
-    sourceBranch,
-  }, "Starting worker command");
+  logger.info(
+    {
+      projectId,
+      baseUrl,
+      batchSize: arguments_.batchSize,
+      concurrency: arguments_.concurrency,
+      leaseDurationSeconds: arguments_.leaseDurationSeconds,
+      once,
+      preserveRuntimeOnComplete,
+      pollIntervalMs: arguments_.pollIntervalMs,
+      workerId: arguments_.workerId,
+      workItemId: arguments_.workItemId,
+      dryRun,
+      stepId: arguments_.stepId,
+      globalOnly,
+      pipelineId: arguments_.pipelineId,
+      sourceBranch,
+    },
+    "Starting worker command",
+  );
 
   const localEnvVars = await readLocalEnvVars();
   logger.info(
-    { varCount: Object.keys(localEnvVars).length, varNames: Object.keys(localEnvVars) },
+    {
+      varCount: Object.keys(localEnvVars).length,
+      varNames: Object.keys(localEnvVars),
+    },
     "Loaded .boboddy/.env",
   );
 
@@ -164,6 +178,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
         baseUrl,
         stepId: arguments_.stepId,
         globalOnly,
+        pipelineId: arguments_.pipelineId,
         // Reuses the same flag as the real path: "preserve the runtime
         // instead of tearing it down" means the same thing for a dry run.
         keep: preserveRuntimeOnComplete,
@@ -179,6 +194,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
       }
 
       reporter.finish("Dry run healthy");
+      captureMilestone(AnalyticsEvents.CliDryRunPassed, { via: "work" });
       return;
     }
 
@@ -211,11 +227,15 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
 
     reporter.finish("Done");
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
     reporter.error(message);
-    reporter.finish(dryRun ? "Dry run found problems" : "Worker stopped with errors");
-    logger.error({ err: error }, dryRun ? "Work dry run failed" : "Worker command failed");
+    reporter.finish(
+      dryRun ? "Dry run found problems" : "Worker stopped with errors",
+    );
+    logger.error(
+      { err: error },
+      dryRun ? "Work dry run failed" : "Worker command failed",
+    );
     throw error;
   }
 }
@@ -307,6 +327,13 @@ export const workCommand: CommandModule<object, WorkArguments> = {
           "is already configured",
         type: "boolean",
         default: false,
+      })
+      .option("pipelineId", {
+        alias: "pipeline-id",
+        describe:
+          "Dry run only: resolve this pipeline definition ID to its first " +
+          "step and test that (wins over --step-id/--global-only)",
+        type: "string",
       }),
   handler: (arguments_: ArgumentsCamelCase<WorkArguments>) =>
     runWork(arguments_),

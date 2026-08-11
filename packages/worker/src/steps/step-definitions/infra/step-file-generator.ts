@@ -7,6 +7,7 @@ export type StepDefContract = {
   prompt: string | null;
   version: number;
   status: string;
+  executionMode: "workspace" | "no_workspace";
   inputSchemaJson: Record<string, unknown> | null;
   resultSchemaJson: Record<string, unknown> | null;
   opencodeMcpJson: Record<string, unknown> | null;
@@ -86,7 +87,7 @@ export function promptToSource(prompt: string): string {
   return `({ ${destructuredScopes.join(", ")} }) => \`${template}\``;
 }
 
-function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
+export function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
   if (!schemaJson) return "z.unknown()";
   try {
     return parseSchema(schemaJson);
@@ -128,6 +129,9 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
     if (step.description)
       fields.push(`  description: ${JSON.stringify(step.description)}`);
     fields.push(`  agentPrompt: ${promptToSource(step.prompt ?? "")}`);
+    if (step.executionMode === "no_workspace") {
+      fields.push(`  executionMode: "no_workspace"`);
+    }
     fields.push(`  input: ${inputExpr}`);
     fields.push(`  result: ${resultExpr}`);
     if (signalLines.length > 0) {

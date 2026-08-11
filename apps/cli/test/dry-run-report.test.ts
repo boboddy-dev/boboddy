@@ -4,7 +4,10 @@ import type {
   McpHandshakeReport,
   WorkDryRunReport,
 } from "@boboddy/worker";
-import { renderDryRunReport } from "../src/lib/dry-run-report";
+import {
+  renderDryRunReport,
+  summarizeDryRunFailure,
+} from "../src/lib/dry-run-report";
 import type { BaseReporter } from "../src/lib/reporter-types";
 
 function createSpyReporter(calls: string[]): BaseReporter {
@@ -160,5 +163,95 @@ describe("renderDryRunReport", () => {
   test("reports 'Health checks: none declared' when the step declares none", () => {
     const lines = render({});
     expect(lines).toContain("info:Health checks: none declared");
+  });
+});
+
+describe("summarizeDryRunFailure", () => {
+  test("names a launch error above everything else", () => {
+    const report: WorkDryRunReport = {
+      ...reportWith({}),
+      launchError: "devcontainer build failed: exit 1",
+    };
+
+    expect(summarizeDryRunFailure(report)).toBe(
+      "environment failed to launch: devcontainer build failed: exit 1",
+    );
+  });
+
+  test("names an unhealthy container", () => {
+    const report: WorkDryRunReport = {
+      ...reportWith({}),
+      containerHealth: { status: "exited", healthy: false },
+    };
+
+    expect(summarizeDryRunFailure(report)).toBe("container exited");
+  });
+
+  test("names unhealthy OpenCode with its detail", () => {
+    const report: WorkDryRunReport = {
+      ...reportWith({}),
+      opencodeHealth: { healthy: false, detail: "connection refused" },
+    };
+
+    expect(summarizeDryRunFailure(report)).toBe(
+      "OpenCode unhealthy (connection refused)",
+    );
+  });
+
+  test("names every unhealthy MCP server", () => {
+    const report = reportWith({
+      mcpServers: [
+        connected("postgres"),
+        connected("playwright", { status: "failed", healthy: false }),
+      ],
+    });
+
+    expect(summarizeDryRunFailure(report)).toBe(
+      "MCP server(s) unhealthy: playwright",
+    );
+  });
+
+  test("names every health check that did not pass", () => {
+    const report = reportWith({
+      healthChecks: [
+        healthCheckReport({
+          name: "browser_navigate",
+          outcome: { kind: "passed" },
+        }),
+        healthCheckReport({
+          name: "not_a_real_tool",
+          outcome: {
+            kind: "failed",
+            reason: "not-registered",
+            detail: "not registered",
+          },
+        }),
+      ],
+    });
+
+    expect(summarizeDryRunFailure(report)).toBe(
+      "health check(s) did not pass: not_a_real_tool",
+    );
+  });
+
+  test("combines multiple problems", () => {
+    const report: WorkDryRunReport = {
+      ...reportWith({
+        mcpServers: [
+          connected("postgres", { status: "failed", healthy: false }),
+        ],
+      }),
+      containerHealth: { status: "exited", healthy: false },
+    };
+
+    expect(summarizeDryRunFailure(report)).toBe(
+      "container exited; MCP server(s) unhealthy: postgres",
+    );
+  });
+
+  test("falls back to a generic line when nothing specific is unhealthy", () => {
+    expect(summarizeDryRunFailure(reportWith({}))).toBe(
+      "dry run reported unhealthy with no further detail",
+    );
   });
 });

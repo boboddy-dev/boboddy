@@ -105,7 +105,11 @@ The read-only database is at ${env.READONLY_DB_URL}.
 - **`executionMode`** — `"workspace"` (default) clones the repo and runs inside the
   project devcontainer. `"no_workspace"` runs with no repo and no Docker; use it
   for classification, scoring, and any investigation that only needs MCP tools.
-- **`mcpServers`** — per-step MCP servers:
+- **`mcpServers`** — per-step MCP servers **beyond what the project already
+  configures**. Check `.opencode/opencode.json` / `.opencode/opencode.jsonc`
+  and `.opencode/tools/` at the repository root first (phase 1 of the
+  interview): anything declared there loads natively for every `workspace`
+  step already, so only declare a server here if it is not already present.
 
   ```ts fragment
   mcpServers: {
@@ -127,6 +131,35 @@ The read-only database is at ${env.READONLY_DB_URL}.
 
   A `local` command must be resolvable **inside the execution environment**
   (the devcontainer for `workspace` steps), not on the user's laptop.
+
+  If a server needs a secret, see "Secrets" below — never inline one into
+  `command`, and never invent a placeholder that looks like a real value.
+
+### Secrets
+
+Never write a secret **value** into a step file: it is pushed to the server,
+persisted in the database, and rendered in the UI. Reference it as
+`{env:VAR}` inside `mcpServers.<server>.environment` or `.headers` instead —
+OpenCode substitutes it at execution time from whatever env vars are present
+in the container, which is `.boboddy/.env` at the repository root, injected as
+`containerEnv`.
+
+Whenever you introduce a `{env:VAR}` reference that is new to this directory:
+
+1. Ask the user only for the **name** of the variable (or propose a sensible
+   one yourself) and how a human obtains the real value — never for the value
+   itself.
+2. Create `.boboddy/.env.example` — a file **one directory up** from here,
+   sibling to `.boboddy/pipeline-builder/`, not inside it — if it does not
+   already exist.
+3. Append `VAR=` (an empty value; never a placeholder that looks real) unless
+   that exact key is already present.
+4. Tell the user, by variable name, in your closing summary: they must copy
+   this file to `.boboddy/.env` and fill in the real value before any step
+   that reads it can run.
+
+`.boboddy/.env` itself is never a file you create or edit — it holds real
+secret values, and it is the user's alone to write.
 
 ## 2. Pipelines — `pipeline()`
 

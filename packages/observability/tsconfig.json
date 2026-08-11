@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun-types"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@boboddy/observability/analytics/browser": ["./src/analytics/browser.ts"],
+      "@boboddy/observability/analytics/server": ["./src/analytics/server.ts"],
+      "@boboddy/observability/analytics/events": ["./src/analytics/events.ts"],
+      "@boboddy/observability/analytics/test-mocks/*": [
+        "./src/analytics/test-mocks/*.ts"
+      ],
+      "@boboddy/observability/logging": ["./src/logging/index.ts"],
+      "@boboddy/observability/logging/host": ["./src/logging/host.ts"],
+      "tests/*": ["./tests/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

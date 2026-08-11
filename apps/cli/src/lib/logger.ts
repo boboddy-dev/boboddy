@@ -1,4 +1,4 @@
-import { createWriteStream } from "node:fs";
+import { createWriteStream, mkdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,7 +8,7 @@ import {
   createLogger,
   setDefaultLogDestination,
   type Logger,
-} from "@boboddy/worker";
+} from "@boboddy/observability/logging/host";
 
 export type { Logger };
 
@@ -68,6 +68,12 @@ export function createTransport(): DestinationStream | undefined {
   transportResolved = true;
 
   const logFilePath = resolveLogFilePath();
+  // `cliLogger` below builds its transport at module-eval time, before any
+  // caller has had a chance to `await ensureLogDir()`. Create the directory
+  // synchronously here so the write stream never opens against a missing
+  // parent dir (which would otherwise surface as an unhandled `error` event
+  // on the stream, since nothing observes async open failures below).
+  mkdirSync(LOG_DIR, { recursive: true });
   // Open the file synchronously so the stream is ready before any log calls.
   // `flags: "a"` appends rather than truncates in case of rapid restarts.
   const fileStream = createWriteStream(logFilePath, { flags: "a" });

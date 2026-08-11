@@ -1,8 +1,8 @@
-import pino, { type DestinationStream, type Logger } from "pino";
+import type { DestinationStream } from "pino";
 
-export type { Logger };
+import { createLogger as createBaseLogger, noopLogger, type Logger } from "./index";
 
-export const noopLogger: Logger = pino({ level: "silent" });
+export { noopLogger, type Logger };
 
 /**
  * Process-wide default pino destination for loggers created without an explicit
@@ -34,10 +34,7 @@ export function createLogger(
   options: { name: string; level?: string },
   dest?: DestinationStream,
 ): Logger {
-  return pino(
-    { name: options.name, level: options.level ?? "info" },
-    dest ?? defaultLogDestination,
-  );
+  return createBaseLogger(options, dest ?? defaultLogDestination);
 }
 
 /**

@@ -3,7 +3,7 @@ import type {
   ProviderAccessResolver,
   ResolveProviderAccessInput,
 } from "../../contracts/agent-runtime/provider-access-resolver";
-import { noopLogger, type Logger } from "../../../../lib/logger";
+import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 import type { DiscoverOpencodeCredentialInput } from "./opencode-credential-discovery";
 import { discoverOpencodeCredential } from "./opencode-credential-discovery";
 

@@ -1,6 +1,6 @@
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { createLazyLogger } from "../../../lib/logger";
+import { createLazyLogger } from "@boboddy/observability/logging/host";
 
 /**
  * The config path Boboddy asks for when one has to be created — the canonical

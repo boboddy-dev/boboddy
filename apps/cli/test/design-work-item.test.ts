@@ -5,6 +5,7 @@ import {
   DESIGN_WORK_ITEM_PLATFORM,
   formatWorkItemChoiceLabel,
   parseWorkItemDraft,
+  parseWorkItemReference,
   WORK_ITEM_PICKER_LIMIT,
 } from "../src/lib/design-work-item";
 import { concurrentTest as test } from "./utils";
@@ -70,6 +71,70 @@ describe("parseWorkItemDraft", () => {
   test("returns undefined for blank input", () => {
     expect(parseWorkItemDraft("   \n\t\n ")).toBeUndefined();
     expect(parseWorkItemDraft("")).toBeUndefined();
+  });
+});
+
+describe("parseWorkItemReference", () => {
+  test("recognizes a bare UUID as an id reference", () => {
+    expect(
+      parseWorkItemReference("0197f000-0000-7000-8000-000000000001"),
+    ).toEqual({ kind: "id", value: "0197f000-0000-7000-8000-000000000001" });
+  });
+
+  test("trims surrounding whitespace around an id", () => {
+    expect(
+      parseWorkItemReference("  0197f000-0000-7000-8000-000000000001  "),
+    ).toEqual({ kind: "id", value: "0197f000-0000-7000-8000-000000000001" });
+  });
+
+  test("is case-insensitive for an id", () => {
+    expect(
+      parseWorkItemReference("0197F000-0000-7000-8000-000000000001"),
+    ).toEqual({ kind: "id", value: "0197F000-0000-7000-8000-000000000001" });
+  });
+
+  test("recognizes an http(s) URL as a url reference", () => {
+    expect(
+      parseWorkItemReference("https://github.com/example/repo/issues/42"),
+    ).toEqual({
+      kind: "url",
+      value: "https://github.com/example/repo/issues/42",
+    });
+    expect(
+      parseWorkItemReference("http://jira.example.com/browse/ABC-1"),
+    ).toEqual({ kind: "url", value: "http://jira.example.com/browse/ABC-1" });
+  });
+
+  test("rejects a description that merely mentions a ticket", () => {
+    expect(
+      parseWorkItemReference("Fix the checkout bug, see ticket #42"),
+    ).toBeUndefined();
+  });
+
+  test("rejects prose that embeds a URL rather than being only a URL", () => {
+    expect(
+      parseWorkItemReference(
+        "See https://github.com/example/repo/issues/42 for context",
+      ),
+    ).toBeUndefined();
+  });
+
+  test("rejects multi-line input even if the first line is a reference", () => {
+    // Multi-line input is prose describing new work, not a pasted reference.
+    expect(
+      parseWorkItemReference(
+        "0197f000-0000-7000-8000-000000000001\nAlso check the retries.",
+      ),
+    ).toBeUndefined();
+  });
+
+  test("rejects blank input", () => {
+    expect(parseWorkItemReference("   ")).toBeUndefined();
+    expect(parseWorkItemReference("")).toBeUndefined();
+  });
+
+  test("rejects a non-UUID id-shaped string", () => {
+    expect(parseWorkItemReference("not-a-real-uuid")).toBeUndefined();
   });
 });
 

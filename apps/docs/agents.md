@@ -12,7 +12,8 @@ Update the documentation whenever you make changes in these areas:
 | Changed CLI command name, flag, or default | `src/content/docs/reference/cli.md` |
 | New `defineStep` / `pipeline()` builder option | `src/content/docs/reference/sdk.mdx` + relevant guide |
 | New SDK export or helper | `src/content/docs/reference/sdk.mdx` |
-| New auth flow or credential storage behavior | `src/content/docs/getting-started/installation.mdx` |
+| New auth flow or credential storage behavior | `src/content/docs/getting-started/installation.md` |
+| New telemetry event, opt-out mechanism, or `boboddy telemetry` flag | `src/content/docs/reference/observability.md` |
 | Changes to project init flow | `src/content/docs/getting-started/quickstart.mdx` |
 | New step concepts (signals, computed signals, MCP) | `src/content/docs/guides/steps.md` |
 | New `pipeline()` builder concepts (bindings, `.step()`/`.build()` options) | `src/content/docs/guides/pipelines.md` |
@@ -20,6 +21,7 @@ Update the documentation whenever you make changes in these areas:
 | New default-pipeline-assignment concepts | `src/content/docs/guides/pipeline-assignment.md` |
 | New worker flags or execution behavior | `src/content/docs/guides/workers.md` |
 | New dev container guidance | `src/content/docs/guides/devcontainer.md` |
+| New GitHub/Jira integration or sync behavior | `src/content/docs/guides/integrations.md` |
 | New top-level concept not fitting an existing page | Create a new page and add it to the sidebar in `astro.config.mjs` |
 
 ## How to update docs
@@ -39,18 +41,20 @@ apps/docs/
 │   ├── content.config.ts                   ← Astro content collection config (rarely edited)
 │   └── content/docs/
 │       ├── getting-started/
-│       │   ├── installation.mdx            ← install CLI, requirements, env vars
-│       │   └── quickstart.mdx              ← step-by-step first project setup
+│       │   ├── installation.md             ← install the CLI, requirements
+│       │   └── quickstart.mdx              ← init → design → push → run, one linear walkthrough
 │       ├── guides/
 │       │   ├── steps.md                    ← defineStep() deep dive
 │       │   ├── pipelines.md                ← pipeline() builder deep dive
 │       │   ├── pipeline-advancement.md     ← advancement policies and computed signals
 │       │   ├── pipeline-assignment.md      ← default-pipeline-assignment.ts routing
 │       │   ├── workers.md                  ← boboddy work and worker options
-│       │   └── devcontainer.md             ← writing a .devcontainer/devcontainer.json by hand
+│       │   ├── devcontainer.md             ← writing a .devcontainer/devcontainer.json by hand
+│       │   └── integrations.md             ← connecting GitHub/Jira, sync cadence, field mapping
 │       └── reference/
 │           ├── cli.md                      ← complete CLI command reference
-│           └── sdk.mdx                     ← TypeScript SDK types and helpers
+│           ├── sdk.mdx                     ← TypeScript SDK types and helpers
+│           └── observability.md            ← what's collected, why, and the `boboddy telemetry` command
 ```
 
 ## Adding a new page
