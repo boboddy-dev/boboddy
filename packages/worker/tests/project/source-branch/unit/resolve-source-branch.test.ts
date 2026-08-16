@@ -50,7 +50,9 @@ describe("resolveSourceBranch", () => {
       ancestryEdges: [],
     });
 
-    expect(await resolveSourceBranch({ cwd: CWD }, gitPort)).toBeNull();
+    expect(await resolveSourceBranch({ cwd: CWD }, gitPort)).toEqual({
+      branch: null,
+    });
   });
 
   test("returns null on detached HEAD (no current branch)", async () => {
@@ -62,7 +64,9 @@ describe("resolveSourceBranch", () => {
       ancestryEdges: [],
     });
 
-    expect(await resolveSourceBranch({ cwd: CWD }, gitPort)).toBeNull();
+    expect(await resolveSourceBranch({ cwd: CWD }, gitPort)).toEqual({
+      branch: null,
+    });
   });
 
   test("resolves the current branch when it is in exact sync with origin", async () => {
@@ -74,9 +78,10 @@ describe("resolveSourceBranch", () => {
       ancestryEdges: [],
     });
 
-    expect(await resolveSourceBranch({ cwd: CWD }, gitPort)).toBe(
-      "feature-x",
-    );
+    expect(await resolveSourceBranch({ cwd: CWD }, gitPort)).toEqual({
+      branch: "feature-x",
+      warning: undefined,
+    });
   });
 
   test("fails when the current branch does not exist on origin", () => {
@@ -96,7 +101,7 @@ describe("resolveSourceBranch", () => {
     );
   });
 
-  test("fails when the current branch has unpushed commits (local ahead of remote)", () => {
+  test("warns (without throwing) when the current branch has unpushed commits (local ahead of remote)", async () => {
     const gitPort = buildFakeGitPort({
       isRepo: true,
       currentBranch: "feature-x",
@@ -106,9 +111,9 @@ describe("resolveSourceBranch", () => {
       ancestryEdges: [["sha-remote", "sha-local"]],
     });
 
-    expect(resolveSourceBranch({ cwd: CWD }, gitPort)).rejects.toThrow(
-      /haven't been pushed/,
-    );
+    const result = await resolveSourceBranch({ cwd: CWD }, gitPort);
+    expect(result.branch).toBe("feature-x");
+    expect(result.warning).toMatch(/haven't been pushed/);
   });
 
   test("fails when the current branch is behind origin", () => {
@@ -155,7 +160,7 @@ describe("resolveSourceBranch", () => {
         { cwd: CWD, override: "colleagues-branch" },
         gitPort,
       ),
-    ).toBe("colleagues-branch");
+    ).toEqual({ branch: "colleagues-branch" });
   });
 
   test("an explicit override that doesn't exist on origin fails fast", () => {
@@ -183,6 +188,6 @@ describe("resolveSourceBranch", () => {
 
     expect(
       await resolveSourceBranch({ cwd: CWD, override: "   " }, gitPort),
-    ).toBe("feature-x");
+    ).toEqual({ branch: "feature-x", warning: undefined });
   });
 });

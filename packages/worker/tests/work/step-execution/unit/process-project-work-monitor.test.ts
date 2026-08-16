@@ -15,6 +15,7 @@ import type {
   StartedClaimedExecution,
   StepExecutionRunTracker,
 } from "../../../../src/work/step-execution/contracts/process-project-work-types";
+import { buildTestZip } from "../../../support/build-test-zip";
 
 function createStartedExecution(workspacePath: string): StartedClaimedExecution {
   return {
@@ -301,8 +302,7 @@ describe("monitorStartedClaimedExecution", () => {
             await mkdir(stepArtifactsDir, { recursive: true });
             await writeFile(
               path.join(stepArtifactsDir, "trace.zip"),
-              "trace-bytes",
-              "utf8",
+              buildTestZip(["trace.trace", "trace.network"]),
             );
             await writeFile(
               buildFindingsSubmissionPath(workspacePath),

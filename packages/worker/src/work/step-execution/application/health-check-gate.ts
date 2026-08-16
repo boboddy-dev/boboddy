@@ -56,13 +56,15 @@ export async function startHealthCheckHarnessIfDeclared(input: {
 
 /**
  * Runs a step's declared health checks against the launched environment and
- * throws {@link HealthCheckFailedError} if any `required` check failed. The
- * harness is stopped in a `finally` so it happens exactly once, immediately
- * after the checks complete, regardless of outcome — before the caller's
- * `fakeAiServer` reference needs to be considered "live" again. The forced
- * call's announcement and the tool's output land in the durable log feed for
- * free: the caller attaches the in-container OpenCode log tail before this
- * gate ever runs.
+ * throws {@link HealthCheckFailedError} if any `required` check failed. Before
+ * the first check forces a tool call, its call into `runHealthChecks()` also
+ * waits for MCP servers to finish connecting — see the warm-up comment in
+ * `run-health-checks.ts`. The harness is stopped in a `finally` so it happens
+ * exactly once, immediately after the checks complete, regardless of outcome
+ * — before the caller's `fakeAiServer` reference needs to be considered
+ * "live" again. The forced call's announcement and the tool's output land in
+ * the durable log feed for free: the caller attaches the in-container
+ * OpenCode log tail before this gate ever runs.
  */
 export async function runDeclaredHealthChecksOrThrow(input: {
   fakeAiServer: FakeAiServer;

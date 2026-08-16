@@ -71,6 +71,7 @@ import {
 } from "../lib/telemetry";
 import { runWork } from "./work";
 import type { CommandContext } from "../lib/command-output";
+import type { BaseReporter } from "../lib/reporter-types";
 
 /**
  * `boboddy pipelines design` — the guided path from "I have a repo" to "I have
@@ -217,8 +218,9 @@ function buildRunOfferPorts(input: {
   baseUrl: string;
   target: DesignRunTarget;
   builderDir: string;
+  reporter: BaseReporter;
 }): DesignRunOfferPorts {
-  const { baseUrl, target, builderDir } = input;
+  const { baseUrl, target, builderDir, reporter } = input;
   return {
     hasDevcontainer: () => hasDevcontainer(process.cwd()),
     resolveAssignedPipeline: () =>
@@ -229,6 +231,7 @@ function buildRunOfferPorts(input: {
         projectId: target.projectId,
         pipelineDefinitionId,
         builderDir,
+        reporter,
       }),
     confirmRun: promptRunNow,
     queueRun: (pipelineDefinitionId) =>
@@ -349,7 +352,12 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
       tuiExitedCleanly: result.exitCode === 0,
       target,
       reporter: ctx.reporter,
-      ports: buildRunOfferPorts({ baseUrl, target, builderDir }),
+      ports: buildRunOfferPorts({
+        baseUrl,
+        target,
+        builderDir,
+        reporter: ctx.reporter,
+      }),
     });
 
     if (hasFailedExitCode(result)) {

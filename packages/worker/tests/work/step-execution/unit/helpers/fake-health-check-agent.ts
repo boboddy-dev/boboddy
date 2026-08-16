@@ -13,6 +13,13 @@ export type ToolState =
 
 export type FakeAgentScript = {
   configGet?: () => unknown;
+  /**
+   * `GET /mcp` — the warm-up poll `runHealthChecks` now runs before any
+   * declared check. Defaults to an empty status map ("no MCP servers
+   * configured"), which lets `pollMcpStatus`'s stability check settle after
+   * its second read.
+   */
+  mcpStatus?: () => Record<string, unknown>;
   /** Enumeration endpoints the health check runner (#119) queries. */
   toolIds?: () => string[];
   toolList?: () => { id: string; description: string; parameters: unknown }[];
@@ -55,8 +62,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 /**
  * A minimal router over `globalThis.fetch` covering everything
  * `runHealthChecks` (#119, declared checks) touches: `GET /config` (to
- * resolve MCP server configs), the tool-enumeration endpoints
- * (`/experimental/tool/ids`, `/experimental/tool`), and the session lifecycle
+ * resolve MCP server configs), `GET /mcp` (the pre-checks warm-up poll),
+ * the tool-enumeration endpoints (`/experimental/tool/ids`,
+ * `/experimental/tool`), and the session lifecycle
  * `forceAndVerifyMcpHealthCheck` drives underneath it.
  */
 export function installFakeAgent(script: FakeAgentScript): {
@@ -78,6 +86,9 @@ export function installFakeAgent(script: FakeAgentScript): {
 
     if (method === "GET" && url.pathname === "/config") {
       return jsonResponse(script.configGet?.() ?? {});
+    }
+    if (method === "GET" && url.pathname === "/mcp") {
+      return jsonResponse(script.mcpStatus?.() ?? {});
     }
     if (method === "GET" && url.pathname === "/experimental/tool/ids") {
       return jsonResponse(script.toolIds?.() ?? []);

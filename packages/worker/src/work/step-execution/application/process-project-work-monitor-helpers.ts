@@ -28,7 +28,9 @@ function truncatePreview(rawContent: string): string {
  * so unit tests can inject a fake and exercise the container branch without a
  * real Docker daemon.
  */
-async function defaultRunDockerExec(args: string[]): Promise<{ stdout: string }> {
+async function defaultRunDockerExec(
+  args: string[],
+): Promise<{ stdout: string }> {
   const { stdout } = await execFileAsync("docker", args);
   return { stdout };
 }
@@ -180,7 +182,9 @@ export async function describeFile(filePath: string): Promise<{
 
 export async function captureOpencodeLogPreview(
   input: { logDirectory: string; containerId: string | null },
-  runDockerExec: (args: string[]) => Promise<{ stdout: string }> = defaultRunDockerExec,
+  runDockerExec: (
+    args: string[],
+  ) => Promise<{ stdout: string }> = defaultRunDockerExec,
 ): Promise<
   Array<{
     file: string;
@@ -344,7 +348,7 @@ export async function collectStepArtifacts(
       sourcePath,
     });
 
-    const kind = detectArtifactKind(relativeStorePath);
+    const kind = await detectArtifactKind(relativeStorePath, sourcePath);
 
     try {
       const result = await deps.artifactStore.saveArtifact({

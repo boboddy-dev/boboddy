@@ -12,14 +12,17 @@ import { GitCliSourceBranchPort } from "../infra/git-cli-source-branch-port";
  *      need not be checked out locally (targeting CI or a colleague's branch
  *      is an explicit use case).
  *   2. The user's current local branch (`git rev-parse --abbrev-ref HEAD`) —
- *      verified to be pushed and in exact sync with `origin/<branch>` (not
- *      merely an ancestor/descendant), so the worker never operates against
- *      state the user doesn't believe is on the remote.
+ *      checked against `origin/<branch>` so the worker doesn't silently
+ *      operate against state the user doesn't believe is on the remote.
+ *      Local-ahead-of-origin (unpushed commits) is reported as a warning
+ *      rather than blocking, since `origin/<branch>` is still a usable
+ *      branch to run against; behind/diverged have no reasonable branch to
+ *      fall back to and remain hard failures.
  *
- * Returns `null` (no error) when there is nothing to resolve: `cwd` is not a
- * git repository, or HEAD is detached (no current branch). Both are treated
- * as "opt out silently" rather than failures, since `boboddy work` has always
- * been usable from either context.
+ * Returns `{ branch: null }` (no error) when there is nothing to resolve:
+ * `cwd` is not a git repository, or HEAD is detached (no current branch).
+ * Both are treated as "opt out silently" rather than failures, since
+ * `boboddy work` has always been usable from either context.
  */
 export class SourceBranchVerificationError extends Error {
   constructor(message: string) {
@@ -62,6 +65,20 @@ export type ResolveSourceBranchInput = {
   override?: string | undefined;
 };
 
+export type ResolveSourceBranchResult = {
+  /** The branch to check out, or `null` when there's nothing to resolve. */
+  branch: string | null;
+  /**
+   * Set when the current branch has local commits that haven't been pushed
+   * to `origin/<branch>`. Non-fatal: the worker clones from `origin`, so it
+   * will run against a state that doesn't include these commits. Callers
+   * should surface this to the user (e.g. `reporter.warn`) but let the run
+   * proceed rather than failing fast, unlike the other verification
+   * failures below.
+   */
+  warning?: string;
+};
+
 function buildNotOnOriginMessage(branch: string, isOverride: boolean): string {
   if (isOverride) {
     return (
@@ -96,11 +113,18 @@ async function fetchRemoteBranchShaOrThrow(
   return remoteSha;
 }
 
+/**
+ * Returns a non-fatal warning message when the current branch has unpushed
+ * commits, `undefined` when it's in exact sync with origin. Still throws
+ * {@link SourceBranchVerificationError} for the other two out-of-sync cases
+ * (behind, diverged) — those leave the worker no reasonable branch to clone,
+ * where "ahead" at least has one: `origin/<branch>` as it stands.
+ */
 async function verifyCurrentBranchInSyncWithOrigin(
   gitPort: SourceBranchGitPort,
   cwd: string,
   branch: string,
-): Promise<void> {
+): Promise<string | undefined> {
   const remoteSha = await fetchRemoteBranchShaOrThrow(
     gitPort,
     cwd,
@@ -110,7 +134,7 @@ async function verifyCurrentBranchInSyncWithOrigin(
 
   const localSha = await gitPort.getSha(cwd, "HEAD");
   if (localSha === remoteSha) {
-    return;
+    return undefined;
   }
 
   const remoteIsAncestorOfLocal = await gitPort.isAncestor(
@@ -119,9 +143,10 @@ async function verifyCurrentBranchInSyncWithOrigin(
     localSha,
   );
   if (remoteIsAncestorOfLocal) {
-    throw new SourceBranchVerificationError(
+    return (
       `Current branch "${branch}" has commits that haven't been pushed to ` +
-        `origin/${branch}. Push it first: git push origin ${branch}`,
+      `origin/${branch}. The run will use origin/${branch} as-is, which does ` +
+      `not include these commits. Push it first: git push origin ${branch}`
     );
   }
 
@@ -146,8 +171,11 @@ async function verifyCurrentBranchInSyncWithOrigin(
 /**
  * Resolve (and verify) the branch `boboddy work` should check out for the
  * first step of a pipeline attempt. Throws {@link SourceBranchVerificationError}
- * with a user-facing message when the resolved branch isn't safely usable;
- * callers should fail fast on that error rather than falling back silently.
+ * with a user-facing message when the resolved branch isn't safely usable at
+ * all (doesn't exist on origin, behind, or diverged); callers should fail
+ * fast on that error rather than falling back silently. Unpushed local
+ * commits are reported via {@link ResolveSourceBranchResult.warning} instead
+ * of thrown — see there for why.
  *
  * `gitPort` defaults to the real git CLI implementation; tests inject a fake
  * to exercise the precedence/error logic without shelling out to git.
@@ -155,24 +183,28 @@ async function verifyCurrentBranchInSyncWithOrigin(
 export async function resolveSourceBranch(
   input: ResolveSourceBranchInput,
   gitPort: SourceBranchGitPort = new GitCliSourceBranchPort(),
-): Promise<string | null> {
+): Promise<ResolveSourceBranchResult> {
   const override = input.override?.trim();
   if (override) {
     await fetchRemoteBranchShaOrThrow(gitPort, input.cwd, override, true);
-    return override;
+    return { branch: override };
   }
 
   const isRepo = await gitPort.isGitRepository(input.cwd);
   if (!isRepo) {
-    return null;
+    return { branch: null };
   }
 
   const branch = await gitPort.getCurrentBranch(input.cwd);
   if (!branch) {
     // Detached HEAD (or otherwise unresolvable) — nothing to resolve.
-    return null;
+    return { branch: null };
   }
 
-  await verifyCurrentBranchInSyncWithOrigin(gitPort, input.cwd, branch);
-  return branch;
+  const warning = await verifyCurrentBranchInSyncWithOrigin(
+    gitPort,
+    input.cwd,
+    branch,
+  );
+  return { branch, warning };
 }

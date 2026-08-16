@@ -166,6 +166,107 @@ describe("startProcessClaimedExecution", () => {
       }),
     );
   });
+
+  test("attaches the conversation stream via onSessionCreated, before the prompt resolves", async () => {
+    // Regression test for the missing-initial-prompt bug: attaching the
+    // conversation stream after `agentRunner.promptAsync` resolves is too
+    // late, because OpenCode broadcasts the initial user message's text part
+    // exactly once, synchronously while handling the prompt request. The fix
+    // wires `attachConversationStream` through the `onSessionCreated` hook so
+    // it runs before the prompt is submitted, not after.
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "boboddy-claimed-step-conversation-"),
+    );
+    const launch = vi.fn(() =>
+      Promise.resolve({
+        workspacePath,
+        workspaceFolder: "/workspaces/repo",
+        opencodeLogDirectory: path.join(workspacePath, ".logs"),
+        resolvedBranch: "main",
+        workBranch: null,
+        createdFromBranch: null,
+        devcontainerConfigPath: ".devcontainer/devcontainer.json",
+        runtimeContainerId: "runtime-container-id",
+        agentBaseUrl: "http://localhost:4096",
+        aiImage: "boboddy/ai-worker:local",
+        networkName: "test-network",
+        secretValues: [],
+        cleanup: () => Promise.resolve(),
+      }),
+    );
+
+    const callOrder: string[] = [];
+    const attachConversationStream = vi.fn((input: { sessionId: string }) => {
+      callOrder.push(`attachConversationStream:${input.sessionId}`);
+    });
+    const logStream = {
+      registerSecretValues: vi.fn(),
+      attachOpencodeTail: vi.fn(),
+      attachConversationStream,
+      shipDevcontainerLogLine: vi.fn(),
+    };
+
+    const deps = {
+      workerClient: createWorkerClient(),
+      createRunTracker,
+      runtimeEnvironmentOrchestrator: { launch },
+      agentRunner: {
+        promptAsync: vi.fn(
+          async (input: {
+            onSessionCreated?: (result: {
+              sessionId: string;
+            }) => void | Promise<void>;
+          }) => {
+            callOrder.push("promptAsync:start");
+            await input.onSessionCreated?.({ sessionId: "agent-session-id" });
+            callOrder.push("promptAsync:resolve");
+            return { sessionId: "agent-session-id" };
+          },
+        ),
+        getSessionStatus: vi.fn(),
+        sendRetryPrompt: vi.fn(),
+      },
+      artifactStore: {
+        saveArtifact: vi.fn(),
+      },
+      sleep: vi.fn(() => Promise.resolve(undefined)),
+      logger: {
+        debug: vi.fn(),
+        log: vi.fn(),
+        error: vi.fn(),
+      },
+    } satisfies ProcessProjectWorkDeps;
+
+    await startProcessClaimedExecution(
+      {
+        projectId,
+        requestedByUserId,
+        claim: {
+          stepExecution: { id: stepExecutionId },
+          claimToken: "claim-token",
+        },
+        leaseDurationSeconds: 30,
+      },
+      deps,
+      deps.workerClient,
+      createRunTracker(),
+      logStream,
+    );
+
+    expect(attachConversationStream).toHaveBeenCalledWith({
+      agentBaseUrl: "http://localhost:4096",
+      workspaceFolder: "/workspaces/repo",
+      sessionId: "agent-session-id",
+    });
+    // The critical assertion: the stream is attached WHILE promptAsync is
+    // still in flight (via onSessionCreated), strictly before it resolves —
+    // not afterward, which is what reintroduced the race this test guards.
+    expect(callOrder).toEqual([
+      "promptAsync:start",
+      "attachConversationStream:agent-session-id",
+      "promptAsync:resolve",
+    ]);
+  });
 });
 
 /**

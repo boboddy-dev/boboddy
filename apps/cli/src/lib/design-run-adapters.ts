@@ -14,6 +14,7 @@ import {
 import { summarizeDryRunFailure } from "./dry-run-report";
 import { readLocalEnvVars } from "./local-env-vars";
 import { createTransport } from "./logger";
+import type { BaseReporter } from "./reporter-types";
 import { captureMilestone } from "./telemetry";
 
 /**
@@ -125,11 +126,16 @@ export async function runFirstStepDryRun(input: {
   projectId: string;
   pipelineDefinitionId: string;
   builderDir: string;
+  reporter: BaseReporter;
 }): Promise<DryRunGateResult> {
-  const [localEnvVars, sourceBranch] = await Promise.all([
+  const [localEnvVars, sourceBranchResult] = await Promise.all([
     readLocalEnvVars(),
     resolveSourceBranch({ cwd: process.cwd(), override: undefined }),
   ]);
+
+  if (sourceBranchResult.warning) {
+    input.reporter.warn(sourceBranchResult.warning);
+  }
 
   const report = await runPipelineFirstStepDryRun({
     projectId: input.projectId,
@@ -137,7 +143,7 @@ export async function runFirstStepDryRun(input: {
     pipelineDefinitionId: input.pipelineDefinitionId,
     dest: createTransport(),
     localEnvVars,
-    sourceBranch,
+    sourceBranch: sourceBranchResult.branch,
   });
 
   if (report.ok) {

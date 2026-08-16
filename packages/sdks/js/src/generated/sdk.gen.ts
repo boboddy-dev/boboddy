@@ -81,21 +81,6 @@ export class Api extends HeyApiClient {
 }
 
 export class Projects extends HeyApiClient {
-    public listProjects<ThrowOnError extends boolean = false>(options?: Options<GetApiProjectsData, ThrowOnError>) {
-        return (options?.client ?? this.client).get<GetApiProjectsResponses, GetApiProjectsErrors, ThrowOnError>({ url: '/api/projects', ...options });
-    }
-    
-    public createProject<ThrowOnError extends boolean = false>(options: Options<PostApiProjectsData, ThrowOnError>) {
-        return (options.client ?? this.client).post<PostApiProjectsResponses, PostApiProjectsErrors, ThrowOnError>({
-            url: '/api/projects',
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-    }
-    
     public resolveProjectBySlug<ThrowOnError extends boolean = false>(options: Options<GetApiProjectsResolveData, ThrowOnError>) {
         return (options.client ?? this.client).get<GetApiProjectsResolveResponses, GetApiProjectsResolveErrors, ThrowOnError>({ url: '/api/projects/resolve', ...options });
     }
@@ -110,6 +95,21 @@ export class Projects extends HeyApiClient {
     
     public getProject<ThrowOnError extends boolean = false>(options: Options<GetApiProjectsByProjectIdData, ThrowOnError>) {
         return (options.client ?? this.client).get<GetApiProjectsByProjectIdResponses, GetApiProjectsByProjectIdErrors, ThrowOnError>({ url: '/api/projects/{projectId}', ...options });
+    }
+    
+    public listProjects<ThrowOnError extends boolean = false>(options?: Options<GetApiProjectsData, ThrowOnError>) {
+        return (options?.client ?? this.client).get<GetApiProjectsResponses, GetApiProjectsErrors, ThrowOnError>({ url: '/api/projects', ...options });
+    }
+    
+    public createProject<ThrowOnError extends boolean = false>(options: Options<PostApiProjectsData, ThrowOnError>) {
+        return (options.client ?? this.client).post<PostApiProjectsResponses, PostApiProjectsErrors, ThrowOnError>({
+            url: '/api/projects',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
     
     public updateProjectDefaultPipelineAssignment<ThrowOnError extends boolean = false>(options: Options<PutApiProjectsByProjectIdDefaultPipelineAssignmentData, ThrowOnError>) {
@@ -176,36 +176,6 @@ export class StepDefinitions extends HeyApiClient {
 }
 
 export class StepExecutions extends HeyApiClient {
-    public createArtifactUploadUrl<ThrowOnError extends boolean = false>(options: Options<PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData, ThrowOnError>) {
-        return (options.client ?? this.client).post<PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses, PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors, ThrowOnError>({
-            url: '/api/step-executions/{stepExecutionId}/artifact-upload-url',
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-    }
-    
-    public listStepExecutionArtifacts<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdArtifactsData, ThrowOnError>) {
-        return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdArtifactsResponses, GetApiStepExecutionsByStepExecutionIdArtifactsErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}/artifacts', ...options });
-    }
-    
-    public recordStepExecutionArtifact<ThrowOnError extends boolean = false>(options: Options<PostApiStepExecutionsByStepExecutionIdArtifactsData, ThrowOnError>) {
-        return (options.client ?? this.client).post<PostApiStepExecutionsByStepExecutionIdArtifactsResponses, PostApiStepExecutionsByStepExecutionIdArtifactsErrors, ThrowOnError>({
-            url: '/api/step-executions/{stepExecutionId}/artifacts',
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-    }
-    
-    public getArtifactDownloadUrl<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlData, ThrowOnError>) {
-        return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses, GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}/artifacts/{artifactId}/download-url', ...options });
-    }
-    
     public claimStepExecutions<ThrowOnError extends boolean = false>(options: Options<PostApiStepExecutionsClaimsData, ThrowOnError>) {
         return (options.client ?? this.client).post<PostApiStepExecutionsClaimsResponses, PostApiStepExecutionsClaimsErrors, ThrowOnError>({
             url: '/api/step-executions/claims',
@@ -284,10 +254,6 @@ export class StepExecutions extends HeyApiClient {
         return (options.client ?? this.client).post<PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractResponses, PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractErrors, ThrowOnError>({ url: '/api/step-execution-results/{stepExecutionResultId}/signals/extract', ...options });
     }
     
-    public getStepExecution<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdData, ThrowOnError>) {
-        return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdResponses, GetApiStepExecutionsByStepExecutionIdErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}', ...options });
-    }
-    
     public readStepExecutionLogs<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdLogsData, ThrowOnError>) {
         return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdLogsResponses, GetApiStepExecutionsByStepExecutionIdLogsErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}/logs', ...options });
     }
@@ -303,8 +269,42 @@ export class StepExecutions extends HeyApiClient {
         });
     }
     
+    public getStepExecution<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdData, ThrowOnError>) {
+        return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdResponses, GetApiStepExecutionsByStepExecutionIdErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}', ...options });
+    }
+    
     public getStepExecutionLogArchive<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdLogsArchiveData, ThrowOnError>) {
         return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses, GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}/logs/archive', ...options });
+    }
+    
+    public createArtifactUploadUrl<ThrowOnError extends boolean = false>(options: Options<PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData, ThrowOnError>) {
+        return (options.client ?? this.client).post<PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses, PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors, ThrowOnError>({
+            url: '/api/step-executions/{stepExecutionId}/artifact-upload-url',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public listStepExecutionArtifacts<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdArtifactsData, ThrowOnError>) {
+        return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdArtifactsResponses, GetApiStepExecutionsByStepExecutionIdArtifactsErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}/artifacts', ...options });
+    }
+    
+    public recordStepExecutionArtifact<ThrowOnError extends boolean = false>(options: Options<PostApiStepExecutionsByStepExecutionIdArtifactsData, ThrowOnError>) {
+        return (options.client ?? this.client).post<PostApiStepExecutionsByStepExecutionIdArtifactsResponses, PostApiStepExecutionsByStepExecutionIdArtifactsErrors, ThrowOnError>({
+            url: '/api/step-executions/{stepExecutionId}/artifacts',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    public getArtifactDownloadUrl<ThrowOnError extends boolean = false>(options: Options<GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlData, ThrowOnError>) {
+        return (options.client ?? this.client).get<GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses, GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors, ThrowOnError>({ url: '/api/step-executions/{stepExecutionId}/artifacts/{artifactId}/download-url', ...options });
     }
 }
 
@@ -329,14 +329,6 @@ export class PipelineDefinitions extends HeyApiClient {
                 ...options.headers
             }
         });
-    }
-    
-    public getPipelineDefinition<ThrowOnError extends boolean = false>(options: Options<GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdData, ThrowOnError>) {
-        return (options.client ?? this.client).get<GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses, GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdErrors, ThrowOnError>({ url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}', ...options });
-    }
-    
-    public listPipelineDefinitions<ThrowOnError extends boolean = false>(options: Options<GetApiProjectsByProjectIdLinearPipelineDefinitionsData, ThrowOnError>) {
-        return (options.client ?? this.client).get<GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses, GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors, ThrowOnError>({ url: '/api/projects/{projectId}/linear-pipeline-definitions', ...options });
     }
     
     public archivePipelineDefinition<ThrowOnError extends boolean = false>(options: Options<PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveData, ThrowOnError>) {
@@ -382,6 +374,14 @@ export class PipelineDefinitions extends HeyApiClient {
                 ...options.headers
             }
         });
+    }
+    
+    public getPipelineDefinition<ThrowOnError extends boolean = false>(options: Options<GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdData, ThrowOnError>) {
+        return (options.client ?? this.client).get<GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses, GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdErrors, ThrowOnError>({ url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}', ...options });
+    }
+    
+    public listPipelineDefinitions<ThrowOnError extends boolean = false>(options: Options<GetApiProjectsByProjectIdLinearPipelineDefinitionsData, ThrowOnError>) {
+        return (options.client ?? this.client).get<GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses, GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors, ThrowOnError>({ url: '/api/projects/{projectId}/linear-pipeline-definitions', ...options });
     }
 }
 
@@ -468,6 +468,14 @@ export class PipelineExecutions extends HeyApiClient {
 }
 
 export class WorkItems extends HeyApiClient {
+    public deleteWorkItem<ThrowOnError extends boolean = false>(options: Options<DeleteApiWorkItemsByWorkItemIdData, ThrowOnError>) {
+        return (options.client ?? this.client).delete<DeleteApiWorkItemsByWorkItemIdResponses, DeleteApiWorkItemsByWorkItemIdErrors, ThrowOnError>({ url: '/api/work-items/{workItemId}', ...options });
+    }
+    
+    public getWorkItem<ThrowOnError extends boolean = false>(options: Options<GetApiWorkItemsByWorkItemIdData, ThrowOnError>) {
+        return (options.client ?? this.client).get<GetApiWorkItemsByWorkItemIdResponses, GetApiWorkItemsByWorkItemIdErrors, ThrowOnError>({ url: '/api/work-items/{workItemId}', ...options });
+    }
+    
     public createWorkItem<ThrowOnError extends boolean = false>(options: Options<PostApiWorkItemsData, ThrowOnError>) {
         return (options.client ?? this.client).post<PostApiWorkItemsResponses, PostApiWorkItemsErrors, ThrowOnError>({
             url: '/api/work-items',
@@ -521,14 +529,6 @@ export class WorkItems extends HeyApiClient {
                 ...options.headers
             }
         });
-    }
-    
-    public deleteWorkItem<ThrowOnError extends boolean = false>(options: Options<DeleteApiWorkItemsByWorkItemIdData, ThrowOnError>) {
-        return (options.client ?? this.client).delete<DeleteApiWorkItemsByWorkItemIdResponses, DeleteApiWorkItemsByWorkItemIdErrors, ThrowOnError>({ url: '/api/work-items/{workItemId}', ...options });
-    }
-    
-    public getWorkItem<ThrowOnError extends boolean = false>(options: Options<GetApiWorkItemsByWorkItemIdData, ThrowOnError>) {
-        return (options.client ?? this.client).get<GetApiWorkItemsByWorkItemIdResponses, GetApiWorkItemsByWorkItemIdErrors, ThrowOnError>({ url: '/api/work-items/{workItemId}', ...options });
     }
 }
 

@@ -9,6 +9,8 @@ export type PromptAsyncOpencodeStepInput = {
   sessionTitle: string;
   promptText: string;
   agent: string;
+  /** See {@link StepExecutionAgentRunner}'s `promptAsync.onSessionCreated`. */
+  onSessionCreated?: (input: { sessionId: string }) => void | Promise<void>;
 };
 
 export type PromptAsyncOpencodeStepResult = {
@@ -149,6 +151,12 @@ export class DefaultOpencodeStepRunner implements OpencodeStepRunner {
       sessionId,
       sessionTitle: input.sessionTitle,
     });
+
+    // Give the caller a chance to attach its conversation-event subscription
+    // before the prompt goes out below — OpenCode broadcasts the initial user
+    // message's part exactly once, synchronously while handling that request,
+    // so a subscriber that isn't already listening will never see it.
+    await input.onSessionCreated?.({ sessionId });
 
     await client.session.promptAsync({
       path: { id: sessionId },

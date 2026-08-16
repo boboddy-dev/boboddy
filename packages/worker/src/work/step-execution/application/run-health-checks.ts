@@ -33,7 +33,8 @@ import {
   FAKE_PROVIDER_ID,
 } from "../infra/fake-ai/fake-provider-config";
 import { forceAndVerifyMcpHealthCheck } from "./force-and-verify-mcp-health-check";
-import { logWorkError } from "./work-logger";
+import { pollMcpStatus } from "./poll-mcp-status";
+import { logWork, logWorkError } from "./work-logger";
 
 /**
  * Resolve a declared health check to the flat tool id OpenCode calls it by:
@@ -342,6 +343,21 @@ export async function runHealthChecks(
   if (healthChecks.length === 0) {
     return [];
   }
+
+  // Warm-up: give slow-starting MCP servers (e.g. an `npx`-installed one, or
+  // a cold-starting browser like Playwright/Chromium) a chance to finish
+  // connecting before the first declared check forces a tool call. Without
+  // this, a real (non-dry-run) run could spuriously time out a health check
+  // against a server that just hadn't finished starting yet — the dry-run
+  // path already does this same poll before its checks run (in
+  // `run-work-dry-run.ts`), so this brings real execution to parity with it.
+  // Runs regardless of whether any declared check is `mcp`-qualified,
+  // matching the dry-run's existing unconditional behavior. Purely a warm-up
+  // side effect for v1 — its report isn't used to gate anything here.
+  const report = await pollMcpStatus(agentBaseUrl, workspaceFolder);
+  logWork("health-check", "MCP servers ready before health checks", {
+    report,
+  });
 
   const client = createClient(agentBaseUrl, workspaceFolder);
   const enumeration = new ToolEnumeration(

@@ -11,6 +11,7 @@ export const WORK_BRANCH_EXCLUDE_PATHS = [
   ".opencode/plugins/boboddy.js",
   ".boboddy/current-execution",
   ".boboddy/step-findings-submission.json",
+  ".boboddy/step-artifacts",
   ".devcontainer/devcontainer.json",
 ] as const;
 

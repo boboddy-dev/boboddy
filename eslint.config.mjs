@@ -32,8 +32,6 @@ export default defineConfig(
       // Astro apps: only have minimal TS shims, no meaningful code to lint
       "apps/docs/**",
       "apps/landing/**",
-      // Throwaway demo app served during captures; not shipped code.
-      "packages/demo-video/demo-shop-template/**",
     ],
   },
   js.configs.recommended,

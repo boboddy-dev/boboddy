@@ -295,6 +295,17 @@ export type StepExecutionAgentRunner = {
     sessionTitle: string;
     promptText: string;
     agent: string;
+    /**
+     * Invoked as soon as the OpenCode session exists, but before the prompt
+     * text is submitted to it. The caller uses this to attach its
+     * conversation-event SSE subscription (`attachConversationStream`) ahead
+     * of the prompt submission — OpenCode broadcasts the initial user
+     * message's `message.part.updated` event exactly once, synchronously as
+     * part of handling the prompt request, so a subscriber that attaches
+     * only after `promptAsync` resolves permanently misses it. Awaited before
+     * the prompt is sent, so the subscription is guaranteed live first.
+     */
+    onSessionCreated?: (input: { sessionId: string }) => void | Promise<void>;
   }): Promise<{
     sessionId: string;
   }>;

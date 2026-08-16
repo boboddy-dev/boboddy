@@ -321,18 +321,25 @@ export async function runWorkDryRun(
     const providerCredentials = safeProviderAccessResolver.lastError
       ? { ok: false, detail: safeProviderAccessResolver.lastError.message }
       : { ok: true, detail: "resolved" };
+    // This dry run's own poll, purely to populate the report's `mcpServers`
+    // field below with handshake status per server. Separate from the
+    // warm-up poll `runHealthChecks()` now does internally (shared with real
+    // step execution, see `run-health-checks.ts`) — that one exists to give
+    // slow-starting servers time to connect before the first declared check
+    // forces a tool call, not to build this report.
     const mcpServers = await pollMcpStatus(
       environment.agentBaseUrl,
       environment.workspaceFolder,
     );
     // Same runner the real-execution gate uses (`runHealthChecks`, #119) —
-    // its declaration-order, abort-required-then-skip-the-rest semantics are
-    // unchanged here. Dry run's "different policy" (#121) is at the level
-    // above this call, not inside it: a failing check here never throws or
-    // cuts the dry run short the way `runDeclaredHealthChecksOrThrow` does
-    // for a real execution. Every check still gets a reported outcome —
-    // `passed`, `failed`, or `skipped` — so the full table below always
-    // reflects what actually ran.
+    // its declaration-order, abort-required-then-skip-the-rest semantics,
+    // and its internal MCP warm-up (shared with real execution, not
+    // dry-run-specific) are unchanged here. Dry run's "different policy"
+    // (#121) is at the level above this call, not inside it: a failing
+    // check here never throws or cuts the dry run short the way
+    // `runDeclaredHealthChecksOrThrow` does for a real execution. Every
+    // check still gets a reported outcome — `passed`, `failed`, or
+    // `skipped` — so the full table below always reflects what actually ran.
     const healthChecks = await runHealthChecks({
       agentBaseUrl: environment.agentBaseUrl,
       workspaceFolder: environment.workspaceFolder,

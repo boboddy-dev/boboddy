@@ -124,10 +124,15 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
   // silently falling back to the repo's default branch.
   let sourceBranch: string | null;
   try {
-    sourceBranch = await resolveSourceBranch({
+    const result = await resolveSourceBranch({
       cwd: process.cwd(),
       override: arguments_.sourceBranch,
     });
+    sourceBranch = result.branch;
+    if (result.warning) {
+      reporter.warn(result.warning);
+      logger.warn({ branch: sourceBranch }, result.warning);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     reporter.error(message);

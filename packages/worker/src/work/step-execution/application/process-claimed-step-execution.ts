@@ -287,19 +287,22 @@ export async function startProcessClaimedExecution(
       sessionTitle: workerContext.agentPrompt.sessionTitle,
       promptText: resolvedPromptText,
       agent: "build",
+      // Attach the conversation-event subscription the moment the session
+      // exists, but before the prompt itself is submitted. OpenCode
+      // broadcasts the initial user message's `message.part.updated` event
+      // exactly once, synchronously as part of handling the prompt request —
+      // attaching afterward (as this used to) loses that event to the race.
+      onSessionCreated: ({ sessionId }) => {
+        logStream?.attachConversationStream({
+          agentBaseUrl: environment.agentBaseUrl,
+          workspaceFolder: environment.workspaceFolder,
+          sessionId,
+        });
+      },
     });
     logger.log("step", "Agent session started", {
       stepExecutionId: input.claim.stepExecution.id,
       agentSessionId: agentRunResult.sessionId,
-    });
-
-    // Now that the agent session exists, mirror the structured conversation
-    // (model text, reasoning, tool calls) into the `conversation` stream of the
-    // same feed via the in-container OpenCode event subscription.
-    logStream?.attachConversationStream({
-      agentBaseUrl: environment.agentBaseUrl,
-      workspaceFolder: environment.workspaceFolder,
-      sessionId: agentRunResult.sessionId,
     });
 
     await attachTrackedAgentSession(

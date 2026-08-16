@@ -379,3 +379,62 @@ describe("runHealthChecks", () => {
     }
   });
 });
+
+describe("runHealthChecks — MCP warm-up", () => {
+  // Regression test for the bug the warm-up poll (in `runHealthChecks`,
+  // right after its `healthChecks.length === 0` early return) fixes: a
+  // real, non-dry-run step execution could spuriously fail a health check
+  // against a slow-starting MCP server (e.g. Playwright/Chromium cold-start)
+  // because the forced call's own timeout clock started the instant the
+  // server was declared "ready" rather than after the MCP server had
+  // actually finished connecting. Without the warm-up poll, `GET /mcp` is
+  // never queried at all before the forced call — this test would have
+  // failed on that basis alone (0 calls, not >1) before the fix landed.
+  test("polls MCP status to stability before forcing the declared check's tool call", async () => {
+    const fakeAiServer = await startedFakeAiServer();
+    try {
+      let mcpStatusCalls = 0;
+      const { calls } = installFakeAgent({
+        // Simulates a still-connecting server: the first read differs from
+        // every read after it, so `pollMcpStatus`'s stability check (two
+        // consecutive identical reads) can't settle on the very first poll —
+        // it only stabilizes once the "connected" report repeats.
+        mcpStatus: () => {
+          mcpStatusCalls += 1;
+          return mcpStatusCalls === 1
+            ? { playwright: { status: "connecting" } }
+            : { playwright: { status: "connected" } };
+        },
+        toolStates: {
+          playwright_browser_navigate: { status: "completed" },
+        },
+      });
+
+      const result = await runHealthChecks({
+        agentBaseUrl: "http://127.0.0.1:4096",
+        workspaceFolder: "/workspaces/repo",
+        healthChecks: [
+          healthCheck({
+            mcp: "playwright",
+            tool: "browser_navigate",
+            args: { url: "about:blank" },
+            severity: "required",
+          }),
+        ],
+        fakeAiServer,
+      });
+
+      expect(result[0]?.outcome).toEqual({ kind: "passed" });
+      // Proves the warm-up loop actually ran to stability (not a single
+      // read) before the check was forced — without the warm-up call this
+      // count would be 0, since nothing else in `runHealthChecks` ever
+      // queries `GET /mcp`.
+      expect(mcpStatusCalls).toBeGreaterThan(1);
+      expect(calls.filter((call) => call.pathname === "/mcp")).toHaveLength(
+        mcpStatusCalls,
+      );
+    } finally {
+      await fakeAiServer.stop();
+    }
+  });
+});
