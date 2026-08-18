@@ -4178,6 +4178,7 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData = {
         claimToken: string;
         relativeStorePath: string;
         contentType?: string;
+        sizeBytes?: number;
     };
     path: {
         stepExecutionId: string;
@@ -4191,6 +4192,22 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors = {
      * Response for status 401
      */
     401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 402
+     */
+    402: {
         type: string;
         title: string;
         status: number;
@@ -4403,9 +4420,9 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsResponses = {
         id: string;
         stepExecutionId: string;
         relativeStorePath: string;
-        storeRef: string;
-        objectKey: string;
-        sizeBytes: number;
+        storeRef: string | unknown;
+        objectKey: string | unknown;
+        sizeBytes: number | unknown;
         contentType: string | unknown;
         kind: 'generic' | 'playwright-trace';
         createdAt: string;
@@ -4539,9 +4556,9 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactsResponses = {
         id: string;
         stepExecutionId: string;
         relativeStorePath: string;
-        storeRef: string;
-        objectKey: string;
-        sizeBytes: number;
+        storeRef: string | unknown;
+        objectKey: string | unknown;
+        sizeBytes: number | unknown;
         contentType: string | unknown;
         kind: 'generic' | 'playwright-trace';
         createdAt: string;
@@ -4613,6 +4630,22 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUr
      * Response for status 404
      */
     404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 410
+     */
+    410: {
         type: string;
         title: string;
         status: number;

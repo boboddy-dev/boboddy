@@ -122,6 +122,7 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
       claimToken: string;
       relativeStorePath: string;
       contentType?: string | undefined;
+      sizeBytes?: number | undefined;
     }) =>
       await planeClient.createArtifactUploadUrl(
         input.stepExecutionId,
@@ -131,6 +132,9 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
           ...(input.contentType === undefined
             ? {}
             : { contentType: input.contentType }),
+          ...(input.sizeBytes === undefined
+            ? {}
+            : { sizeBytes: input.sizeBytes }),
         },
         { headers },
       ),

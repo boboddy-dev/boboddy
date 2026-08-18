@@ -142,6 +142,14 @@ export type StepExecutionWorkerClient = {
     claimToken: string;
     relativeStorePath: string;
     contentType?: string | undefined;
+    /**
+     * The artifact's byte size, known here because the store reads the full
+     * file into memory before requesting the upload URL (see
+     * `RemoteArtifactStore.saveArtifact`). Passed through so the API's
+     * pre-flight usage guard can check real storage headroom instead of only
+     * the write-count cap.
+     */
+    sizeBytes?: number | undefined;
   }): Promise<{
     uploadUrl: string;
     storeRef: string;

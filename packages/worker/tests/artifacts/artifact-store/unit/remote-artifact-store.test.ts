@@ -73,13 +73,18 @@ describe("RemoteArtifactStore", () => {
       kind: "generic",
     });
 
-    // createArtifactUploadUrl called with the derived args + detected content type.
+    // createArtifactUploadUrl called with the derived args + detected content
+    // type + the real byte size (read before the URL is requested), so the
+    // API's upload-cap pre-flight can check storage headroom, not just the
+    // write-count cap.
+    const expectedSizeBytes = '{"ok":true}'.length;
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0]).toMatchObject({
       stepExecutionId: "step-1",
       claimToken: "claim-1",
       relativeStorePath: "reports/report.json",
       contentType: "application/json",
+      sizeBytes: expectedSizeBytes,
     });
 
     // PUT to the minted URL with the file bytes and matching content type.

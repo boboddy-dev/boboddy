@@ -80,6 +80,7 @@ export class RemoteArtifactStore implements ArtifactStore {
         claimToken,
         relativeStorePath: input.relativeStorePath,
         contentType,
+        sizeBytes,
       });
 
     const response = await fetch(uploadUrl, {
