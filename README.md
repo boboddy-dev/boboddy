@@ -2,12 +2,24 @@
 
 ### Business Oriented Bug Optimization & Diagnostic Deployment sYstem
 
-A distributed workflow platform for running AI-powered pipelines at scale.
+Run AI agents on your codebase as multi-step, type-safe pipelines — on your own machines, with your own AI provider.
 
-You define **steps** (typed units of work) and wire them into **pipelines** that automatically advance based on extracted signals — numeric or boolean metrics pulled from each step's output. Workers running on any machine claim step executions, run them inside Docker containers with an AI agent, and report results back. Signal-driven advancement policies decide whether to continue to the next stage.
+You define **steps** (typed units of work) and chain them into **pipelines**. Each step runs inside a Docker container with an AI agent, and emits **signals** — simple metrics that decide whether the pipeline moves on, retries, or stops. No glue code, no custom orchestration to maintain.
 
-Because workers run on your own machines and you bring your own AI provider, your code and data never leave your infrastructure. No third-party execution environment, no shared compute — full control over security and cost.
+## Why boboddy
 
-The result: multi-step AI workflows that are type-safe, scalable, and require no custom orchestration infrastructure.
+- **Your infrastructure, your rules.** Workers run on machines you control, using an AI provider you choose. Your code and data never touch a third-party execution environment.
+- **Built for scale, not scripts.** Pipelines are type-safe and composable, so multi-step AI workflows stay reliable as they grow.
+- **Signal-driven, not brittle.** Advancement is decided by extracted metrics from each step's output, not fragile string-matching or manual review.
+- **See everything.** A web dashboard shows pipeline runs, step outputs, and history in one place.
+
+## Use cases
+
+- Automatically reproduce and diagnose bugs pulled in from GitHub or Jira issues.
+- Run multi-stage AI review/refactor pipelines across a codebase.
+- Process a backlog of work items with a consistent, auditable pipeline.
+- Any repeatable, multi-step task you'd want an AI agent to own end-to-end, without giving up control of where it runs.
+
+---
 
 **[boboddy.dev](https://boboddy.dev)** — [Docs](https://boboddy-dev.github.io/boboddy/)
