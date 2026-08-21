@@ -41,7 +41,7 @@ import { captureMilestone } from "./telemetry";
  * field name.
  */
 export const assignedPipelineSchema = z.object({
-  linearPipelineDefinitionId: z.string().min(1),
+  pipelineDefinitionId: z.string().min(1),
 });
 
 /**
@@ -67,9 +67,7 @@ export async function resolveAssignedPipeline(input: {
   const assignment = assignedPipelineSchema.safeParse(
     data.defaultPipelineAssignment,
   );
-  return assignment.success
-    ? assignment.data.linearPipelineDefinitionId
-    : undefined;
+  return assignment.success ? assignment.data.pipelineDefinitionId : undefined;
 }
 
 /**
@@ -94,7 +92,7 @@ export async function queueDesignRun(input: {
     body: {
       projectId: input.projectId,
       workItemId: input.workItemId,
-      linearPipelineDefinitionId: input.pipelineDefinitionId,
+      pipelineDefinitionId: input.pipelineDefinitionId,
     },
     headers,
   });

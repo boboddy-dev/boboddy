@@ -1,6 +1,7 @@
 import { createClient } from "../../generated/client";
 import { PipelineDefinitions } from "../../generated/sdk.gen";
-import type { PutApiLinearPipelineDefinitionsData } from "../../generated/types.gen";
+import type { PutApiPipelineDefinitionsData } from "../../generated/types.gen";
+import { tryOrderChainNodeDefinitions } from "./chain-graph";
 import type { PipelineDefinitionSpec } from "./define-pipeline";
 
 type RequestOptions = {
@@ -8,7 +9,7 @@ type RequestOptions = {
 };
 
 export type UpsertPipelineDefinitionInput =
-  PutApiLinearPipelineDefinitionsData["body"];
+  PutApiPipelineDefinitionsData["body"];
 
 export type StepDefinitionRef = {
   id: string;
@@ -27,10 +28,7 @@ const buildPipelineDefinitionsClient = (
   pipelineDefinitions: PipelineDefinitions,
 ) => {
   return {
-    listByProjectId: async (
-      projectId: string,
-      options?: RequestOptions,
-    ) => {
+    listByProjectId: async (projectId: string, options?: RequestOptions) => {
       const result = await pipelineDefinitions.listPipelineDefinitions({
         path: { projectId },
         headers: options?.headers,
@@ -61,26 +59,62 @@ const buildPipelineDefinitionsClient = (
         }
       }
 
-      const stepDefinitions = spec.steps.map((step) => {
-        const stepDef = stepDefMap.get(step.stepKey);
+      const nonStepNode = spec.nodeDefinitions.find(
+        (node) => node.kind !== "step",
+      );
+      if (nonStepNode) {
+        // `.fanOutStep()` (issue #167) compiles to `fanOut`/`cohortGate` node
+        // definitions, but the wire contract
+        // this client pushes through (`upsertPipelineDefinitionInputSchema`)
+        // is still chain-only/step-only — extending it is explicitly out of
+        // scope for #167. Fail loudly here rather than silently mis-pushing
+        // a broken/partial pipeline definition.
+        throw new Error(
+          `Pipeline "${spec.key}" contains a "${nonStepNode.kind}" node ("${nonStepNode.nodeKey}"), ` +
+            `but fan-out pipelines cannot be pushed via the current wire contract yet. ` +
+            `Only "step"-only (chain) pipelines can be pushed with \`upsertFromSpec\` today.`,
+        );
+      }
+
+      const ordered = tryOrderChainNodeDefinitions(
+        spec.nodeDefinitions,
+        spec.dependencyEdges,
+      );
+      if (ordered === null) {
+        throw new Error(
+          `Pipeline "${spec.key}" has a malformed step graph: its node and ` +
+            `dependency-edge definitions do not form a single connected, ` +
+            `acyclic chain. This should not happen from the \`pipeline()\` ` +
+            `builder — check for hand-edited or generated pipeline specs.`,
+        );
+      }
+
+      const stepDefinitions = ordered.map((node, index) => {
+        const stepKey = node.stepKey;
+        if (!stepKey) {
+          throw new Error(
+            `Node "${node.nodeKey}" in pipeline "${spec.key}" has no stepKey.`,
+          );
+        }
+        const stepDef = stepDefMap.get(stepKey);
         if (!stepDef) {
           throw new Error(
-            `Step "${step.stepKey}" referenced in pipeline "${spec.key}" was not found on the server. ` +
+            `Step "${stepKey}" referenced in pipeline "${spec.key}" was not found on the server. ` +
               `Run \`boboddy steps push\` first to push your step definitions.`,
           );
         }
         return {
           stepDefinitionId: stepDef.id,
           stepDefinitionVersion: stepDef.version,
-          key: step.stepKey,
-          name: step.stepName,
-          description: step.stepDescription,
-          position: step.position,
-          inputBindingsJson: step.inputBindingsJson,
-          timeoutSeconds: step.timeoutSeconds,
+          key: node.nodeKey,
+          name: node.stepName ?? "",
+          description: node.stepDescription ?? null,
+          position: index + 1,
+          inputBindingsJson: node.inputBindingsJson ?? {},
+          timeoutSeconds: node.timeoutSeconds ?? null,
           retryPolicyJson: null,
-          advancementPolicyDefinition: step.advancementPolicyDefinition,
-          computedSignalDefinitions: step.computedSignalDefinitions,
+          advancementPolicyDefinition: node.advancementPolicyDefinition,
+          computedSignalDefinitions: node.computedSignalDefinitions ?? [],
         };
       });
 

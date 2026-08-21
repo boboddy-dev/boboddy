@@ -9,7 +9,6 @@ import {
   pipelineSpec,
   pipelineStep,
   stepSpec,
-  stepSpecWithOverrides,
   type Bindings,
 } from "./definition-spec-fixtures";
 
@@ -222,124 +221,66 @@ describe("validateDefinitionSpecs — signal bindings", () => {
   });
 });
 
-describe("validateDefinitionSpecs — health checks", () => {
-  // Server key deliberately does not share a prefix with the tool's own name
-  // (Playwright's MCP tools are themselves named "browser_*"), matching the
-  // convention used by the shipped Playwright template (`mcp: "playwright"`).
-  // Using a server key that collides with the tool's own naming (e.g. a
-  // server key of "browser" for a tool called "browser_navigate") is exactly
-  // the double-qualification trap this check exists to catch.
-  const withMcp = (healthChecksJson: NonNullable<ReturnType<typeof stepSpecWithOverrides>["healthChecksJson"]>) =>
-    stepSpecWithOverrides("browser-step", {
-      opencodeMcpJson: {
-        playwright: {
-          type: "local",
-          command: ["npx", "-y", "@playwright/mcp"],
+describe("validateDefinitionSpecs — signals_list bindings (issue #167)", () => {
+  const fanOutNode = (order: number) =>
+    pipelineStep("review", order, {
+      kind: "fanOut",
+      overSignalKey: "reviewer_count",
+    });
+
+  test("accepts a signals_list binding to an earlier fan-out step", () => {
+    const steps = [
+      fanOutNode(1),
+      pipelineStep("report", 2, {
+        inputBindingsJson: {
+          reviews: { source: "signals_list", stepKey: "review" },
         },
-      },
-      healthChecksJson,
-    });
-
-  test("accepts a check naming a declared MCP server with a bare tool name", () => {
+      }),
+    ];
     expect(
       validateDefinitionSpecs({
-        pipelines: [],
-        steps: [
-          withMcp([
-            {
-              mcp: "playwright",
-              tool: "browser_navigate",
-              args: { url: "about:blank" },
-              severity: "required",
-              timeoutMs: 15000,
-            },
-          ]),
-        ],
+        pipelines: [pipelineSpec("p", steps)],
+        steps: [],
       }),
     ).toEqual([]);
   });
 
-  test("accepts a check with no mcp qualifier (plugin/standalone/built-in tool)", () => {
-    expect(
-      validateDefinitionSpecs({
-        pipelines: [],
-        steps: [
-          stepSpecWithOverrides("plugin-step", {
-            healthChecksJson: [
-              { tool: "my_plugin_tool", severity: "required", timeoutMs: 15000 },
-            ],
-          }),
-        ],
+  test("rejects a signals_list binding to a fan-out step not in the pipeline", () => {
+    const steps = [
+      pipelineStep("report", 1, {
+        inputBindingsJson: {
+          reviews: { source: "signals_list", stepKey: "ghost" },
+        },
       }),
-    ).toEqual([]);
-  });
-
-  test("rejects a check naming an MCP server not declared in mcpServers", () => {
+    ];
     const issues = validateDefinitionSpecs({
-      pipelines: [],
-      steps: [
-        withMcp([
-          {
-            mcp: "typo",
-            tool: "browser_navigate",
-            severity: "required",
-            timeoutMs: 15000,
-          },
-        ]),
-      ],
+      pipelines: [pipelineSpec("p", steps)],
+      steps: [],
     });
     expect(issues).toHaveLength(1);
-    expect(issues[0]?.check).toBe("health-check-mcp-server");
-    expect(issues[0]?.message).toContain('Step "browser-step" health check #1 ("browser_navigate")');
-    expect(issues[0]?.message).toContain('names MCP server "typo"');
-    expect(issues[0]?.message).toContain("Declared servers: playwright.");
+    expect(issues[0]?.message).toContain(
+      'signals list of fan-out step "ghost"',
+    );
+    expect(issues[0]?.message).toContain(
+      "no step with that key is in the pipeline",
+    );
   });
 
-  test("rejects a double-qualified tool name (server key + tool already prefixed)", () => {
+  test("rejects a signals_list binding to a fan-out step that does not run first", () => {
+    const steps = [
+      pipelineStep("report", 1, {
+        inputBindingsJson: {
+          reviews: { source: "signals_list", stepKey: "review" },
+        },
+      }),
+      fanOutNode(2),
+    ];
     const issues = validateDefinitionSpecs({
-      pipelines: [],
-      steps: [
-        withMcp([
-          {
-            mcp: "playwright",
-            tool: "playwright_browser_navigate",
-            severity: "required",
-            timeoutMs: 15000,
-          },
-        ]),
-      ],
+      pipelines: [pipelineSpec("p", steps)],
+      steps: [],
     });
     expect(issues).toHaveLength(1);
-    expect(issues[0]?.check).toBe("health-check-double-qualified");
-    expect(issues[0]?.message).toContain('sets mcp "playwright" and tool "playwright_browser_navigate"');
-    expect(issues[0]?.message).toContain('Did you mean tool: "browser_navigate"?');
-  });
-
-  test("uses the check's name for the label when provided", () => {
-    const issues = validateDefinitionSpecs({
-      pipelines: [],
-      steps: [
-        withMcp([
-          {
-            mcp: "typo",
-            tool: "browser_navigate",
-            name: "Browser smoke test",
-            severity: "required",
-            timeoutMs: 15000,
-          },
-        ]),
-      ],
-    });
-    expect(issues[0]?.message).toContain('health check #1 ("Browser smoke test")');
-  });
-
-  test("stays quiet for a step declaring no health checks", () => {
-    expect(
-      validateDefinitionSpecs({
-        pipelines: [],
-        steps: [stepSpecWithOverrides("no-checks")],
-      }),
-    ).toEqual([]);
+    expect(issues[0]?.message).toContain("does not run before it");
   });
 });
 

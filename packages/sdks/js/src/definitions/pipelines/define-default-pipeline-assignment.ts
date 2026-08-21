@@ -98,7 +98,12 @@ function makeLeaf(
   return {
     _condition: condition,
     then(outcome) {
-      return { _tag: "assignment_rule", conditions: [condition], mode: "all", outcome };
+      return {
+        _tag: "assignment_rule",
+        conditions: [condition],
+        mode: "all",
+        outcome,
+      };
     },
   };
 }
@@ -229,7 +234,7 @@ function makeAssign(pipeline: PipelineDefinitionSpec): AssignOutcome {
   if (
     typeof pipeline !== "object" ||
     typeof (pipeline as Record<string, unknown>)["key"] !== "string" ||
-    !Array.isArray((pipeline as Record<string, unknown>)["steps"])
+    !Array.isArray((pipeline as Record<string, unknown>)["nodeDefinitions"])
   ) {
     throw new Error(
       "assign() requires a pipeline spec produced by pipeline().build(). " +
@@ -243,7 +248,10 @@ function extractCondition(ref: AssignmentNestable): AssignmentCondition {
   return ref._condition;
 }
 
-function makeGroup(mode: "all" | "any", refs: AssignmentNestable[]): AssignmentGroup {
+function makeGroup(
+  mode: "all" | "any",
+  refs: AssignmentNestable[],
+): AssignmentGroup {
   const conditions = refs.map(extractCondition);
   const condition: GroupCondition = { _tag: "group", mode, conditions };
   return {
@@ -299,7 +307,9 @@ function buildCtx(): DefaultPipelineAssignmentCtx {
  * }));
  */
 export function defaultPipelineAssignment(
-  callback: (ctx: DefaultPipelineAssignmentCtx) => DefaultPipelineAssignmentInput,
+  callback: (
+    ctx: DefaultPipelineAssignmentCtx,
+  ) => DefaultPipelineAssignmentInput,
 ): DefaultPipelineAssignmentSpec {
   const input = callback(buildCtx());
   return {
@@ -323,7 +333,8 @@ type SerializedConditionGroup = {
   any?: SerializedConditionNode[];
 };
 
-type SerializedConditionNode = SerializedLeafCondition | SerializedConditionGroup;
+type SerializedConditionNode =
+  SerializedLeafCondition | SerializedConditionGroup;
 
 type SerializedAssignmentRule = {
   conditions: SerializedConditionGroup;
@@ -333,17 +344,19 @@ type SerializedAssignmentRule = {
 export type SerializedDefaultPipelineAssignment = {
   /**
    * Pipeline key for the primary assign pipeline; resolved to a
-   * `linearPipelineDefinitionId` by the push layer. Null when `default`
+   * `pipelineDefinitionId` by the push layer. Null when `default`
    * is `skip()` and no rule assigns a pipeline (push will reject this).
    */
-  linearPipelineDefinitionKey: string;
+  pipelineDefinitionKey: string;
   rulesJson: { rules: SerializedAssignmentRule[] };
   defaultEventType: "assign" | "skip";
   defaultEventParamsJson: Record<string, unknown> | null;
   allowedEventTypes: Array<"assign" | "skip">;
 };
 
-function serializeConditionNode(condition: AssignmentCondition): SerializedConditionNode {
+function serializeConditionNode(
+  condition: AssignmentCondition,
+): SerializedConditionNode {
   if (condition._tag === "leaf") {
     return {
       fact: condition.fact,
@@ -366,7 +379,9 @@ function serializeOutcome(outcome: DefaultPipelineAssignmentOutcome): {
   return { type: "assign", params: { pipelineKey: outcome.pipeline.key } };
 }
 
-function serializeAssignmentRule(rule: AssignmentRule): SerializedAssignmentRule {
+function serializeAssignmentRule(
+  rule: AssignmentRule,
+): SerializedAssignmentRule {
   const { type, params } = serializeOutcome(rule.outcome);
   return {
     conditions: { [rule.mode]: rule.conditions.map(serializeConditionNode) },
@@ -377,7 +392,7 @@ function serializeAssignmentRule(rule: AssignmentRule): SerializedAssignmentRule
 /**
  * Serialize a `DefaultPipelineAssignmentSpec` to the wire format.
  *
- * `linearPipelineDefinitionKey` is the key of the primary assign pipeline —
+ * `pipelineDefinitionKey` is the key of the primary assign pipeline —
  * taken from `default` if it's `assign(...)`, otherwise from the first rule
  * that assigns a pipeline. The push layer rejects specs with no assign outcome.
  */
@@ -405,7 +420,9 @@ export function serializeDefaultPipelineAssignment(
     );
   }
 
-  const { type: defaultType, params: defaultParams } = serializeOutcome(spec.default);
+  const { type: defaultType, params: defaultParams } = serializeOutcome(
+    spec.default,
+  );
   const outcomeSet = new Set<"assign" | "skip">([defaultType]);
 
   const serializedRules = spec.rules.map((rule) => {
@@ -414,7 +431,7 @@ export function serializeDefaultPipelineAssignment(
   });
 
   return {
-    linearPipelineDefinitionKey: primaryKey,
+    pipelineDefinitionKey: primaryKey,
     rulesJson: { rules: serializedRules },
     defaultEventType: defaultType,
     defaultEventParamsJson: defaultParams,
@@ -430,5 +447,7 @@ export function isDefaultPipelineAssignmentSpec(
   value: unknown,
 ): value is DefaultPipelineAssignmentSpec {
   if (typeof value !== "object" || value === null) return false;
-  return (value as Record<string, unknown>)["_tag"] === "default_pipeline_assignment";
+  return (
+    (value as Record<string, unknown>)["_tag"] === "default_pipeline_assignment"
+  );
 }

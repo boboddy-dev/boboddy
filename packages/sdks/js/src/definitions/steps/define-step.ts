@@ -26,7 +26,11 @@ function resolveZodSchemaAtPath(
     if (!current) return undefined;
     // Unwrap wrapper types (optional, nullable, default, catch, etc.)
     current = unwrapZodWrappers(current);
-    const def = (current as unknown as { def?: { type?: string; shape?: Record<string, ZodType> } }).def;
+    const def = (
+      current as unknown as {
+        def?: { type?: string; shape?: Record<string, ZodType> };
+      }
+    ).def;
     if (!def || def.type !== "object" || !def.shape) return undefined;
     current = def.shape[segment];
   }
@@ -37,24 +41,34 @@ function resolveZodSchemaAtPath(
  * Unwraps Zod wrapper types (optional, nullable, default, catch) to reach the
  * inner type, then maps the resulting Zod type name to a SignalTypeStr.
  */
-function zodTypeToSignalType(schema: ZodType | undefined): SignalTypeStr | undefined {
+function zodTypeToSignalType(
+  schema: ZodType | undefined,
+): SignalTypeStr | undefined {
   if (!schema) return undefined;
   const unwrapped = unwrapZodWrappers(schema);
   const def = (unwrapped as unknown as { def?: { type?: string } }).def;
   const typeName = def?.type;
   switch (typeName) {
-    case "string": return "string";
-    case "number": return "number";
-    case "boolean": return "boolean";
-    case "array": return "array";
-    case "object": return "object";
-    default: return undefined;
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "array":
+      return "array";
+    case "object":
+      return "object";
+    default:
+      return undefined;
   }
 }
 
 /** Recursively unwraps optional / nullable / default / catch wrappers. */
 function unwrapZodWrappers(schema: ZodType): ZodType {
-  const def = (schema as unknown as { def?: { type?: string; innerType?: ZodType } }).def;
+  const def = (
+    schema as unknown as { def?: { type?: string; innerType?: ZodType } }
+  ).def;
   if (!def) return schema;
   if (
     def.type === "optional" ||
@@ -128,6 +142,14 @@ type HealthCheck = {
 type HealthChecks = HealthCheck[];
 
 type SignalTypeStr = "string" | "number" | "boolean" | "object" | "array";
+
+// Forces TS to eagerly resolve a computed object type (mapped type,
+// conditional, or generic alias application) into its final resolved shape
+// wherever it's substituted in, rather than displaying the unresolved alias
+// name + type args in hovers and error messages. Also collapses no-op
+// intersection members (e.g. `T & Record<never, never>`) since it recomputes
+// the combined key set rather than preserving the intersection structurally.
+type Prettify<T> = { [K in keyof T]: T[K] } & {};
 
 // Produces dot-notation paths for an object type up to 4 levels deep.
 // Falls back to `string` for any, unknown, arrays, or primitives.
@@ -206,8 +228,7 @@ export type DefineStepInput<
   description?: string | null;
   version?: number;
   agentPrompt:
-    | string
-    | ((context: PromptTemplateContext<TInput["_output"]>) => string);
+    string | ((context: PromptTemplateContext<TInput["_output"]>) => string);
   additionalInput?: TInput;
   result?: TResult;
   signals?: SignalSpecInput<TResult["_output"]>[];
@@ -269,7 +290,13 @@ export type SignalTypeStrToTs<T extends SignalTypeStr> = T extends "string"
 
 // Builds a map from signal key → TypeScript value type.
 // Uses the explicit `type` field when present, otherwise resolves via TypeAtPath.
-export type SignalTypeMapOf<TSignals extends readonly unknown[], TResult> = {
+// Wrapped in `Prettify` so hovers show the resolved `{ signalKey: valueType }`
+// shape directly instead of the unreduced `SignalTypeMapOf<readonly [...], ...>`
+// alias application.
+export type SignalTypeMapOf<
+  TSignals extends readonly unknown[],
+  TResult,
+> = Prettify<{
   [S in TSignals[number] as ExtractSignalKey<S>]: S extends {
     type: infer T extends SignalTypeStr;
   }
@@ -277,7 +304,17 @@ export type SignalTypeMapOf<TSignals extends readonly unknown[], TResult> = {
     : S extends { sourcePath: infer P extends string }
       ? TypeAtPath<TResult, P>
       : unknown;
-};
+}>;
+
+// A step's effective result type: its own `result` schema's output merged
+// with whatever its features contribute. `Prettify` collapses the
+// `& Record<never, never>` that `FeatureResultExtensions` contributes when
+// `features` is omitted (the common case), so hovers show the plain result
+// shape instead of a redundant empty-intersection member.
+type EffectiveResult<
+  TResult,
+  TFeatures extends ReadonlyArray<AnyStepFeature>,
+> = Prettify<TResult & FeatureResultExtensions<TFeatures>>;
 
 // false when TInput is `unknown` (no additionalInput), true for concrete types, boolean for `any`.
 type HasAdditionalInput<T> = 0 extends 1 & T
@@ -317,7 +354,6 @@ type ExtractSignalKey<T> = T extends { key: infer K extends string }
 export type SignalKeysOf<TSignals extends readonly unknown[]> =
   TSignals extends readonly (infer S)[] ? ExtractSignalKey<S> : string;
 
-
 export function defineStep<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
@@ -337,7 +373,7 @@ export function defineStep<
   },
 ): TypedStepDefinitionSpec<
   TInput["_output"],
-  TResult["_output"] & FeatureResultExtensions<TFeatures>,
+  EffectiveResult<TResult["_output"], TFeatures>,
   SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,
   SignalTypeMapOf<TSignals, TResult["_output"]>
 > {
@@ -387,7 +423,15 @@ export function defineStep<
       ? toJSONSchema(effectiveResult as unknown as $ZodType)
       : null,
     signalExtractorDefinitions: [
-      ...((config.signals ?? []) as Array<{ key?: string; sourcePath: string; type?: SignalTypeStr; required?: boolean; availableWhenResultStatusIn?: string[] | null }>).map((s) => ({
+      ...(
+        (config.signals ?? []) as Array<{
+          key?: string;
+          sourcePath: string;
+          type?: SignalTypeStr;
+          required?: boolean;
+          availableWhenResultStatusIn?: string[] | null;
+        }>
+      ).map((s) => ({
         key: s.key ?? s.sourcePath,
         sourcePath: s.sourcePath,
         type:
@@ -413,7 +457,7 @@ export function defineStep<
   };
   return spec as TypedStepDefinitionSpec<
     TInput["_output"],
-    TResult["_output"] & FeatureResultExtensions<TFeatures>,
+    EffectiveResult<TResult["_output"], TFeatures>,
     SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,
     SignalTypeMapOf<TSignals, TResult["_output"]>
   >;

@@ -62,7 +62,7 @@ async function fetchFirstStepDefinitionId(
   pipelineDefinitionId: string,
 ): Promise<string> {
   const result = await client.pipelineDefinitions.getPipelineDefinition({
-    path: { linearPipelineDefinitionId: pipelineDefinitionId },
+    path: { pipelineDefinitionId },
     headers,
   });
   const data = result.data as

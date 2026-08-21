@@ -336,13 +336,13 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           join(dir, STARTER_PIPELINE_FILENAME),
           "utf-8",
         );
-        expect(content).toContain(".advance(");
+        expect(content).toContain("advance: (");
         expect(content).toContain('signal("confidence")');
         expect(content).toContain(".gte(7)");
         expect(content).toContain('.then("continue")');
         expect(content).toContain('default: "block"');
-        // every step must have an .advance() call; real calls take a callback
-        const advanceCount = (content.match(/\.advance\(\(/g) ?? []).length;
+        // every step must have an `advance` option; real options take a callback
+        const advanceCount = (content.match(/advance: \(/g) ?? []).length;
         expect(advanceCount).toBe(2);
       } finally {
         rmSync(dir, { recursive: true, force: true });

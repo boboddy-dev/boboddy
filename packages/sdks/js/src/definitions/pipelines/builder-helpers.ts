@@ -5,7 +5,9 @@ import {
 } from "../steps/define-step";
 import {
   type AnyBinding,
+  type FanOutItemBinding,
   type LiteralBinding,
+  type SignalsListBinding,
   type StepOutputBinding,
   type StepSignalBinding,
   type WorkItemBinding,
@@ -20,12 +22,65 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyTypedStep = TypedStepDefinitionSpec<any, any, any, any>;
 
-export type StepConfig = {
-  timeout?: number | null;
-};
-
 type ElementOf<T extends ReadonlyArray<unknown>> =
   T extends ReadonlyArray<infer U> ? U : never;
+
+// ─── Step-tuple generic helpers ────────────────────────────────────────────────
+//
+// `LastSignalKeys` is used by `fan-out-builder.ts`'s `over` config key
+// (constrained to the most recent ordinary step's signals) — factored out
+// here rather than defined there to sit alongside the other step-tuple
+// helpers below, which both `builder.ts` and `fan-out-builder.ts` need.
+
+export type LastStep<T extends ReadonlyArray<AnyTypedStep>> =
+  T extends readonly [...AnyTypedStep[], infer L]
+    ? L extends AnyTypedStep
+      ? L
+      : never
+    : never;
+
+export type LastSignalKeys<T extends ReadonlyArray<AnyTypedStep>> =
+  LastStep<T> extends AnyTypedStep ? LastStep<T>["__signalKeys"] : never;
+
+/**
+ * The per-branch `item` type a fan-out's `over` key resolves to (issue
+ * #167): `never` unless `K` names a signal on the most recent ordinary step
+ * (`LastStep<TSteps>`) whose resolved TS type is itself an array — in which
+ * case this is that array's element type. A number-typed signal (count-only
+ * mode) resolves to `never`, which is how `FanOutInputCtx` below decides
+ * whether `item` exists on the ctx type at all.
+ */
+export type FanOutItemType<
+  TSteps extends ReadonlyArray<AnyTypedStep>,
+  K extends string,
+> = K extends keyof LastStep<TSteps>["__signalTypeMap"]
+  ? LastStep<TSteps>["__signalTypeMap"][K] extends ReadonlyArray<infer Item>
+    ? Item
+    : never
+  : never;
+
+/**
+ * A fan-out's own `input` mapper ctx: everything `StepInputCtx` already
+ * offers, plus `item` when `FanOutItemType` resolves to something other
+ * than `never`. `item`'s exposed type is intersected with `FanOutItemBinding`
+ * (the same "phantom binding" trick `WithWorkItemFields`/`InputAccessor`
+ * use elsewhere in this file) so it reads as the real per-item TS type
+ * (e.g. `string`) to callers while still structurally satisfying `AnyBinding`
+ * when assigned straight into a `FanOutInputMapping` field — at runtime it
+ * is always the single `{ source: "fan_out_item" }` binding object,
+ * regardless of `Item`'s shape.
+ */
+export type FanOutInputCtx<
+  TInput extends ZodType,
+  TSteps extends ReadonlyArray<AnyTypedStep>,
+  TFanOuts extends ReadonlyArray<AnyTypedStep>,
+  K extends string,
+> = StepInputCtx<TInput, TSteps, TFanOuts> &
+  (FanOutItemType<TSteps, K> extends never
+    ? unknown
+    : { item: FanOutItemBinding & FanOutItemType<TSteps, K> });
+
+export type IsAny<T> = 0 extends 1 & T ? true : false;
 
 export type WorkItemAccessor = {
   readonly title: WorkItemBinding;
@@ -47,11 +102,11 @@ export type WithWorkItemFields<T> = {
   workItemComments: PinnedWorkItemComment[];
 } & T;
 
-type RequiredInputKeys<T extends object> = {
+export type RequiredInputKeys<T extends object> = {
   [K in keyof T & string]-?: undefined extends T[K] ? never : K;
 }[keyof T & string];
 
-type OptionalInputKeys<T extends object> = {
+export type OptionalInputKeys<T extends object> = {
   [K in keyof T & string]-?: undefined extends T[K] ? K : never;
 }[keyof T & string];
 
@@ -60,6 +115,7 @@ type Prettify<T> = { [K in keyof T]: T[K] } & {};
 export type StepInputCtx<
   TInput extends ZodType,
   TSteps extends ReadonlyArray<AnyTypedStep>,
+  TFanOuts extends ReadonlyArray<AnyTypedStep> = [],
 > = {
   input: InputAccessor<Prettify<WithWorkItemFields<TInput["_output"]>>>;
   signal: <S extends ElementOf<TSteps>>(
@@ -69,12 +125,18 @@ export type StepInputCtx<
   output: (step: ElementOf<TSteps>) => StepOutputBinding;
   // eslint-disable-next-line local/no-unknown-parameter-type
   literal: (value: unknown) => LiteralBinding;
+  /**
+   * Reaches a fan-out's whole cohort — every terminal branch's own signals
+   * + output, resolved server-side — from a later, non-adjacent step's
+   * input mapper (issue #167). `fanOutStep` is constrained to a fan-out
+   * step already seen earlier in this pipeline (`.fanOutStep(fanOutStep, ...)`),
+   * the same way `signal`/`output` are constrained to `TSteps`.
+   */
+  signalsList: (fanOutStep: ElementOf<TFanOuts>) => SignalsListBinding;
 };
 
 type ReservedPipelineInputKeys =
-  | "workItemTitle"
-  | "workItemDescription"
-  | "workItemComments";
+  "workItemTitle" | "workItemDescription" | "workItemComments";
 
 // Resolves to T when the schema shape has none of the reserved keys, never otherwise.
 // Uses `.shape` (the raw key map on ZodObject) rather than `_output` to avoid a
@@ -131,7 +193,11 @@ const WORK_ITEM_FIELD_BINDINGS: Record<string, WorkItemBinding> = {
 
 export function makeStepInputCtx<TInput extends ZodType>(
   inputSchema: TInput,
-): StepInputCtx<TInput, ReadonlyArray<AnyTypedStep>> {
+): StepInputCtx<
+  TInput,
+  ReadonlyArray<AnyTypedStep>,
+  ReadonlyArray<AnyTypedStep>
+> {
   const baseAccessor = createInputAccessor(inputSchema);
   const input = new Proxy(baseAccessor, {
     get(target, prop) {
@@ -155,6 +221,9 @@ export function makeStepInputCtx<TInput extends ZodType>(
       return { source: "step_output", step };
     },
     literal,
+    signalsList(fanOutStep: AnyTypedStep): SignalsListBinding {
+      return { source: "signals_list", fanOutStep };
+    },
   };
 }
 

@@ -212,9 +212,7 @@ export function makeAdvanceCtx<
   >,
 >(): AdvanceCtx<TSignalKeys, TSignalTypeMap> {
   type WideTuple = readonly [string, string, ...string[]];
-  const wrapComputed = (
-    token: InlineComputedSignal,
-  ): SignalRef<TSignalKeys> =>
+  const wrapComputed = (token: InlineComputedSignal): SignalRef<TSignalKeys> =>
     createSignalRef<TSignalKeys>(
       token as InlineComputedSignal<string, TSignalKeys>,
     );

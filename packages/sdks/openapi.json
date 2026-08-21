@@ -147,7 +147,7 @@
                         {
                           "type": "object",
                           "properties": {
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "rulesJson": {
@@ -242,7 +242,7 @@
                             }
                           },
                           "required": [
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "rulesJson",
                             "defaultEventType",
                             "defaultEventParamsJson",
@@ -1658,7 +1658,7 @@
                         {
                           "type": "object",
                           "properties": {
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "rulesJson": {
@@ -1753,7 +1753,7 @@
                             }
                           },
                           "required": [
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "rulesJson",
                             "defaultEventType",
                             "defaultEventParamsJson",
@@ -2308,7 +2308,7 @@
                         {
                           "type": "object",
                           "properties": {
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "rulesJson": {
@@ -2403,7 +2403,7 @@
                             }
                           },
                           "required": [
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "rulesJson",
                             "defaultEventType",
                             "defaultEventParamsJson",
@@ -2857,7 +2857,7 @@
                           {
                             "type": "object",
                             "properties": {
-                              "linearPipelineDefinitionId": {
+                              "pipelineDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -2952,7 +2952,7 @@
                               }
                             },
                             "required": [
-                              "linearPipelineDefinitionId",
+                              "pipelineDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -3158,7 +3158,7 @@
                       {
                         "type": "object",
                         "properties": {
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "rulesJson": {
@@ -3253,7 +3253,7 @@
                           }
                         },
                         "required": [
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "rulesJson",
                           "defaultEventType",
                           "defaultEventParamsJson",
@@ -3283,7 +3283,7 @@
                       {
                         "type": "object",
                         "properties": {
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "rulesJson": {
@@ -3378,7 +3378,7 @@
                           }
                         },
                         "required": [
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "rulesJson",
                           "defaultEventType",
                           "defaultEventParamsJson",
@@ -3408,7 +3408,7 @@
                       {
                         "type": "object",
                         "properties": {
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "rulesJson": {
@@ -3503,7 +3503,7 @@
                           }
                         },
                         "required": [
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "rulesJson",
                           "defaultEventType",
                           "defaultEventParamsJson",
@@ -3614,7 +3614,7 @@
                         {
                           "type": "object",
                           "properties": {
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "rulesJson": {
@@ -3709,7 +3709,7 @@
                             }
                           },
                           "required": [
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "rulesJson",
                             "defaultEventType",
                             "defaultEventParamsJson",
@@ -4181,7 +4181,7 @@
                         {
                           "type": "object",
                           "properties": {
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "rulesJson": {
@@ -4276,7 +4276,7 @@
                             }
                           },
                           "required": [
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "rulesJson",
                             "defaultEventType",
                             "defaultEventParamsJson",
@@ -21170,7 +21170,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions": {
+    "/api/pipeline-definitions": {
       "post": {
         "operationId": "createPipelineDefinition",
         "tags": [
@@ -22523,7 +22523,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -22714,7 +22714,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -22818,7 +22818,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -22921,7 +22921,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -24749,7 +24749,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -24940,7 +24940,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -25044,7 +25044,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -25147,7 +25147,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -25441,7 +25441,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/archive": {
+    "/api/pipeline-definitions/{pipelineDefinitionId}/archive": {
       "put": {
         "operationId": "archivePipelineDefinition",
         "tags": [
@@ -25449,7 +25449,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -25527,7 +25527,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -25718,7 +25718,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -25822,7 +25822,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -25925,7 +25925,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -26280,7 +26280,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/unarchive": {
+    "/api/pipeline-definitions/{pipelineDefinitionId}/unarchive": {
       "put": {
         "operationId": "unarchivePipelineDefinition",
         "tags": [
@@ -26288,7 +26288,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -26366,7 +26366,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -26557,7 +26557,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -26661,7 +26661,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -26764,7 +26764,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -27119,7 +27119,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps": {
+    "/api/pipeline-definitions/{pipelineDefinitionId}/steps": {
       "post": {
         "operationId": "addPipelineStep",
         "tags": [
@@ -27127,7 +27127,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -28371,7 +28371,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -28562,7 +28562,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -28666,7 +28666,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -28769,7 +28769,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -29124,7 +29124,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps/{linearPipelineStepDefinitionId}": {
+    "/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}": {
       "put": {
         "operationId": "updatePipelineStep",
         "tags": [
@@ -29132,7 +29132,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -29140,7 +29140,7 @@
             }
           },
           {
-            "name": "linearPipelineStepDefinitionId",
+            "name": "pipelineStepDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -30384,7 +30384,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -30575,7 +30575,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -30679,7 +30679,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -30782,7 +30782,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -31143,7 +31143,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -31151,7 +31151,7 @@
             }
           },
           {
-            "name": "linearPipelineStepDefinitionId",
+            "name": "pipelineStepDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -31229,7 +31229,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -31420,7 +31420,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -31524,7 +31524,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -31627,7 +31627,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -31982,7 +31982,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps/{linearPipelineStepDefinitionId}/advancement-policy": {
+    "/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}/advancement-policy": {
       "put": {
         "operationId": "setPipelineStepAdvancementPolicy",
         "tags": [
@@ -31990,7 +31990,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -31998,7 +31998,7 @@
             }
           },
           {
-            "name": "linearPipelineStepDefinitionId",
+            "name": "pipelineStepDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -32390,7 +32390,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -32581,7 +32581,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -32685,7 +32685,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -32788,7 +32788,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -33143,7 +33143,7 @@
         }
       }
     },
-    "/api/linear-pipeline-definitions/{linearPipelineDefinitionId}": {
+    "/api/pipeline-definitions/{pipelineDefinitionId}": {
       "get": {
         "operationId": "getPipelineDefinition",
         "tags": [
@@ -33151,7 +33151,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -33229,7 +33229,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
                           "stepDefinitionId": {
@@ -33420,7 +33420,7 @@
                               "id": {
                                 "type": "string"
                               },
-                              "linearPipelineStepDefinitionId": {
+                              "pipelineStepDefinitionId": {
                                 "type": "string"
                               },
                               "rulesJson": {
@@ -33524,7 +33524,7 @@
                             },
                             "required": [
                               "id",
-                              "linearPipelineStepDefinitionId",
+                              "pipelineStepDefinitionId",
                               "rulesJson",
                               "defaultEventType",
                               "defaultEventParamsJson",
@@ -33627,7 +33627,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineDefinitionId",
+                          "pipelineDefinitionId",
                           "stepDefinitionId",
                           "stepDefinitionVersion",
                           "key",
@@ -34043,7 +34043,7 @@
         }
       }
     },
-    "/api/projects/{projectId}/linear-pipeline-definitions": {
+    "/api/projects/{projectId}/pipeline-definitions": {
       "get": {
         "operationId": "listPipelineDefinitions",
         "tags": [
@@ -34131,7 +34131,7 @@
                             "id": {
                               "type": "string"
                             },
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "stepDefinitionId": {
@@ -34322,7 +34322,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "rulesJson": {
@@ -34426,7 +34426,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineStepDefinitionId",
                                 "rulesJson",
                                 "defaultEventType",
                                 "defaultEventParamsJson",
@@ -34529,7 +34529,7 @@
                           },
                           "required": [
                             "id",
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "stepDefinitionId",
                             "stepDefinitionVersion",
                             "key",
@@ -34824,7 +34824,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions": {
+    "/api/pipeline-executions": {
       "post": {
         "operationId": "createPipelineExecution",
         "tags": [
@@ -34844,7 +34844,7 @@
                   "workItemId": {
                     "type": "string"
                   },
-                  "linearPipelineDefinitionId": {
+                  "pipelineDefinitionId": {
                     "type": "string"
                   },
                   "inputJson": {
@@ -34859,7 +34859,7 @@
                 "required": [
                   "projectId",
                   "workItemId",
-                  "linearPipelineDefinitionId"
+                  "pipelineDefinitionId"
                 ],
                 "additionalProperties": false
               }
@@ -34875,7 +34875,7 @@
                   "workItemId": {
                     "type": "string"
                   },
-                  "linearPipelineDefinitionId": {
+                  "pipelineDefinitionId": {
                     "type": "string"
                   },
                   "inputJson": {
@@ -34890,7 +34890,7 @@
                 "required": [
                   "projectId",
                   "workItemId",
-                  "linearPipelineDefinitionId"
+                  "pipelineDefinitionId"
                 ],
                 "additionalProperties": false
               }
@@ -34906,7 +34906,7 @@
                   "workItemId": {
                     "type": "string"
                   },
-                  "linearPipelineDefinitionId": {
+                  "pipelineDefinitionId": {
                     "type": "string"
                   },
                   "inputJson": {
@@ -34921,7 +34921,7 @@
                 "required": [
                   "projectId",
                   "workItemId",
-                  "linearPipelineDefinitionId"
+                  "pipelineDefinitionId"
                 ],
                 "additionalProperties": false
               }
@@ -34950,10 +34950,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -34989,7 +34989,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -35062,10 +35062,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -35191,10 +35191,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -35217,8 +35217,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -35266,12 +35287,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -35299,8 +35321,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -35330,7 +35352,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -35379,7 +35401,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -35400,7 +35422,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -35431,8 +35453,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -35981,10 +36003,10 @@
                             "type": "string",
                             "minLength": 1
                           },
-                          "linearPipelineDefinitionId": {
+                          "pipelineDefinitionId": {
                             "type": "string"
                           },
-                          "linearPipelineDefinitionVersionId": {
+                          "pipelineDefinitionVersionId": {
                             "type": "string"
                           },
                           "status": {
@@ -36098,8 +36120,8 @@
                           "projectId",
                           "workItemId",
                           "workItemTitle",
-                          "linearPipelineDefinitionId",
-                          "linearPipelineDefinitionVersionId",
+                          "pipelineDefinitionId",
+                          "pipelineDefinitionVersionId",
                           "status",
                           "attemptCount",
                           "latestAttempt",
@@ -36392,7 +36414,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/start": {
+    "/api/pipeline-executions/{pipelineExecutionId}/start": {
       "put": {
         "operationId": "startPipelineExecution",
         "tags": [
@@ -36400,7 +36422,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -36430,10 +36452,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -36469,7 +36491,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -36542,10 +36564,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -36671,10 +36693,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -36697,8 +36719,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -36746,12 +36789,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -36779,8 +36823,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -36810,7 +36854,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -36859,7 +36903,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -36880,7 +36924,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -36911,8 +36955,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -37233,7 +37277,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/first": {
+    "/api/pipeline-executions/{pipelineExecutionId}/step-runs/first": {
       "post": {
         "operationId": "queueFirstPipelineStepRun",
         "tags": [
@@ -37241,7 +37285,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -37271,10 +37315,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -37310,7 +37354,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -37383,10 +37427,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -37512,10 +37556,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -37538,8 +37582,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -37587,12 +37652,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -37620,8 +37686,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -37651,7 +37717,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -37700,7 +37766,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -37721,7 +37787,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -37752,8 +37818,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -38074,7 +38140,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/{linearPipelineStepRunId}/running": {
+    "/api/pipeline-executions/{pipelineExecutionId}/step-runs/{pipelineStepRunId}/running": {
       "put": {
         "operationId": "markPipelineStepRunRunning",
         "tags": [
@@ -38082,7 +38148,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -38090,7 +38156,7 @@
             }
           },
           {
-            "name": "linearPipelineStepRunId",
+            "name": "pipelineStepRunId",
             "in": "path",
             "required": true,
             "schema": {
@@ -38120,10 +38186,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -38159,7 +38225,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -38232,10 +38298,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -38361,10 +38427,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -38387,8 +38453,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -38436,12 +38523,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -38469,8 +38557,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -38500,7 +38588,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -38549,7 +38637,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -38570,7 +38658,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -38601,8 +38689,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -38923,7 +39011,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/{linearPipelineStepRunId}/results": {
+    "/api/pipeline-executions/{pipelineExecutionId}/step-runs/{pipelineStepRunId}/results": {
       "post": {
         "operationId": "applyPipelineStepResult",
         "tags": [
@@ -38931,7 +39019,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -38939,7 +39027,7 @@
             }
           },
           {
-            "name": "linearPipelineStepRunId",
+            "name": "pipelineStepRunId",
             "in": "path",
             "required": true,
             "schema": {
@@ -39130,10 +39218,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -39169,7 +39257,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -39242,10 +39330,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -39371,10 +39459,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -39397,8 +39485,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -39446,12 +39555,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -39479,8 +39589,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -39510,7 +39620,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -39559,7 +39669,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -39580,7 +39690,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -39611,8 +39721,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -39933,7 +40043,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/{linearPipelineStepRunId}/accept": {
+    "/api/pipeline-executions/{pipelineExecutionId}/step-runs/{pipelineStepRunId}/accept": {
       "post": {
         "operationId": "acceptPipelineStepRun",
         "tags": [
@@ -39941,7 +40051,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -39949,7 +40059,7 @@
             }
           },
           {
-            "name": "linearPipelineStepRunId",
+            "name": "pipelineStepRunId",
             "in": "path",
             "required": true,
             "schema": {
@@ -40080,10 +40190,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -40119,7 +40229,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -40192,10 +40302,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -40321,10 +40431,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -40347,8 +40457,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -40396,12 +40527,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -40429,8 +40561,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -40460,7 +40592,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -40509,7 +40641,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -40530,7 +40662,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -40561,8 +40693,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -40883,7 +41015,943 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/rerun": {
+    "/api/pipeline-executions/{pipelineExecutionId}/cohorts/{originNodeDefinitionId}/accept": {
+      "post": {
+        "operationId": "acceptPipelineCohort",
+        "tags": [
+          "PipelineExecutions"
+        ],
+        "parameters": [
+          {
+            "name": "pipelineExecutionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "originNodeDefinitionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "acceptedByUserId": {
+                    "type": "string"
+                  },
+                  "acceptanceReason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "acceptedByUserId",
+                  "acceptanceReason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "acceptedByUserId": {
+                    "type": "string"
+                  },
+                  "acceptanceReason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "acceptedByUserId",
+                  "acceptanceReason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "acceptedByUserId": {
+                    "type": "string"
+                  },
+                  "acceptanceReason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "acceptedByUserId",
+                  "acceptanceReason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "projectId": {
+                      "type": "string"
+                    },
+                    "workItemId": {
+                      "type": "string"
+                    },
+                    "workItemTitle": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pipelineDefinitionId": {
+                      "type": "string"
+                    },
+                    "pipelineDefinitionVersionId": {
+                      "type": "string"
+                    },
+                    "definitionStepCount": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "inputJson": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "succeeded",
+                        "failed",
+                        "cancelled",
+                        "blocked",
+                        "routed"
+                      ]
+                    },
+                    "attempts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "pipelineExecutionId": {
+                            "type": "string"
+                          },
+                          "attemptNumber": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "currentStepKey": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "startedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "completedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "routedToPipelineExecutionId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "running",
+                              "succeeded",
+                              "failed",
+                              "cancelled",
+                              "blocked",
+                              "routed"
+                            ]
+                          },
+                          "stepRuns": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "pipelineExecutionAttemptId": {
+                                  "type": "string"
+                                },
+                                "pipelineStepDefinitionId": {
+                                  "type": "string"
+                                },
+                                "stepDefinitionId": {
+                                  "type": "string"
+                                },
+                                "stepDefinitionVersion": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "stepKey": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pending",
+                                    "queued",
+                                    "running",
+                                    "satisfied",
+                                    "unsatisfied",
+                                    "blocked",
+                                    "skipped",
+                                    "cancelled",
+                                    "abandoned",
+                                    "timeout"
+                                  ]
+                                },
+                                "satisfactionStatus": {
+                                  "type": "string",
+                                  "enum": [
+                                    "not_evaluated",
+                                    "satisfied_by_policy",
+                                    "satisfied_by_user",
+                                    "unsatisfied_by_policy"
+                                  ]
+                                },
+                                "stepExecutionId": {
+                                  "type": "string"
+                                },
+                                "stepExecutionResultId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "inheritedFromStepRunId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "acceptedByUserId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "acceptedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "acceptanceReason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "workBranch": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "outputJson": {
+                                  "anyOf": [
+                                    {},
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "evaluation": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "pipelineExecutionAttemptId": {
+                                          "type": "string"
+                                        },
+                                        "pipelineStepRunId": {
+                                          "type": "string"
+                                        },
+                                        "stepExecutionId": {
+                                          "type": "string"
+                                        },
+                                        "stepExecutionResultId": {
+                                          "type": "string"
+                                        },
+                                        "stepExecutionResultStatus": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string",
+                                              "enum": [
+                                                "succeeded",
+                                                "failed"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "factsSnapshotJson": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {}
+                                        },
+                                        "ruleResultsJson": {},
+                                        "finalStatus": {
+                                          "type": "string",
+                                          "enum": [
+                                            "pass",
+                                            "fail"
+                                          ]
+                                        },
+                                        "finalAction": {
+                                          "type": "string",
+                                          "enum": [
+                                            "continue",
+                                            "block",
+                                            "complete",
+                                            "route"
+                                          ]
+                                        },
+                                        "finalPayloadJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "createdAt": {
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
+                                        "stepExecutionId",
+                                        "stepExecutionResultId",
+                                        "stepExecutionResultStatus",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
+                                        "factsSnapshotJson",
+                                        "ruleResultsJson",
+                                        "finalStatus",
+                                        "finalAction",
+                                        "finalPayloadJson",
+                                        "createdAt"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
+                                "stepDefinitionId",
+                                "stepDefinitionVersion",
+                                "stepKey",
+                                "position",
+                                "status",
+                                "satisfactionStatus",
+                                "stepExecutionId",
+                                "stepExecutionResultId",
+                                "inheritedFromStepRunId",
+                                "acceptedByUserId",
+                                "acceptedAt",
+                                "acceptanceReason",
+                                "workBranch",
+                                "outputJson",
+                                "evaluation",
+                                "createdAt",
+                                "updatedAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "events": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "pipelineExecutionAttemptId": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pipeline_queued",
+                                    "pipeline_started",
+                                    "step_run_created",
+                                    "step_attempt_queued",
+                                    "step_attempt_started",
+                                    "step_attempt_succeeded",
+                                    "step_attempt_failed",
+                                    "step_evaluated",
+                                    "step_satisfied_by_policy",
+                                    "step_satisfied_by_user",
+                                    "step_unsatisfied_by_policy",
+                                    "step_retriggered",
+                                    "step_blocked",
+                                    "step_routed",
+                                    "pipeline_succeeded",
+                                    "pipeline_failed",
+                                    "pipeline_blocked",
+                                    "pipeline_routed",
+                                    "pipeline_cancelled"
+                                  ]
+                                },
+                                "payloadJson": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "pipelineExecutionAttemptId",
+                                "type",
+                                "payloadJson",
+                                "createdAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "pipelineExecutionId",
+                          "attemptNumber",
+                          "currentStepKey",
+                          "startedAt",
+                          "completedAt",
+                          "routedToPipelineExecutionId",
+                          "status",
+                          "stepRuns",
+                          "events",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "projectId",
+                    "workItemId",
+                    "workItemTitle",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
+                    "definitionStepCount",
+                    "inputJson",
+                    "status",
+                    "attempts",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Response for status 401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Response for status 403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Response for status 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Response for status 422",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Response for status 500",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipeline-executions/{pipelineExecutionId}/rerun": {
       "post": {
         "operationId": "rerunPipelineExecution",
         "tags": [
@@ -40891,7 +41959,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -40986,10 +42054,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -41025,7 +42093,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -41098,10 +42166,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -41227,10 +42295,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -41253,8 +42321,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -41302,12 +42391,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -41335,8 +42425,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -41366,7 +42456,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -41415,7 +42505,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -41436,7 +42526,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -41467,8 +42557,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -41789,7 +42879,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}/cancel": {
+    "/api/pipeline-executions/{pipelineExecutionId}/cancel": {
       "put": {
         "operationId": "cancelPipelineExecution",
         "tags": [
@@ -41797,7 +42887,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -41827,10 +42917,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -41866,7 +42956,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -41939,10 +43029,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -42068,10 +43158,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -42094,8 +43184,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -42143,12 +43254,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -42176,8 +43288,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -42207,7 +43319,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -42256,7 +43368,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -42277,7 +43389,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -42308,8 +43420,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -42630,7 +43742,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/{linearPipelineExecutionId}": {
+    "/api/pipeline-executions/{pipelineExecutionId}": {
       "get": {
         "operationId": "getPipelineExecution",
         "tags": [
@@ -42638,7 +43750,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineExecutionId",
+            "name": "pipelineExecutionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -42668,10 +43780,10 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "linearPipelineDefinitionId": {
+                    "pipelineDefinitionId": {
                       "type": "string"
                     },
-                    "linearPipelineDefinitionVersionId": {
+                    "pipelineDefinitionVersionId": {
                       "type": "string"
                     },
                     "definitionStepCount": {
@@ -42707,7 +43819,7 @@
                           "id": {
                             "type": "string"
                           },
-                          "linearPipelineExecutionId": {
+                          "pipelineExecutionId": {
                             "type": "string"
                           },
                           "attemptNumber": {
@@ -42780,10 +43892,10 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
-                                "linearPipelineStepDefinitionId": {
+                                "pipelineStepDefinitionId": {
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
@@ -42909,10 +44021,10 @@
                                         "id": {
                                           "type": "string"
                                         },
-                                        "linearPipelineExecutionAttemptId": {
+                                        "pipelineExecutionAttemptId": {
                                           "type": "string"
                                         },
-                                        "linearPipelineStepRunId": {
+                                        "pipelineStepRunId": {
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
@@ -42935,8 +44047,29 @@
                                             }
                                           ]
                                         },
-                                        "linearPipelineStepAdvancementPolicyDefinitionId": {
-                                          "type": "string"
+                                        "pipelineStepAdvancementPolicyDefinitionId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "policySnapshotJson": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         },
                                         "factsSnapshotJson": {
                                           "type": "object",
@@ -42984,12 +44117,13 @@
                                       },
                                       "required": [
                                         "id",
-                                        "linearPipelineExecutionAttemptId",
-                                        "linearPipelineStepRunId",
+                                        "pipelineExecutionAttemptId",
+                                        "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
                                         "stepExecutionResultStatus",
-                                        "linearPipelineStepAdvancementPolicyDefinitionId",
+                                        "pipelineStepAdvancementPolicyDefinitionId",
+                                        "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
                                         "finalStatus",
@@ -43017,8 +44151,8 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
-                                "linearPipelineStepDefinitionId",
+                                "pipelineExecutionAttemptId",
+                                "pipelineStepDefinitionId",
                                 "stepDefinitionId",
                                 "stepDefinitionVersion",
                                 "stepKey",
@@ -43048,7 +44182,7 @@
                                 "id": {
                                   "type": "string"
                                 },
-                                "linearPipelineExecutionAttemptId": {
+                                "pipelineExecutionAttemptId": {
                                   "type": "string"
                                 },
                                 "type": {
@@ -43097,7 +44231,7 @@
                               },
                               "required": [
                                 "id",
-                                "linearPipelineExecutionAttemptId",
+                                "pipelineExecutionAttemptId",
                                 "type",
                                 "payloadJson",
                                 "createdAt"
@@ -43118,7 +44252,7 @@
                         },
                         "required": [
                           "id",
-                          "linearPipelineExecutionId",
+                          "pipelineExecutionId",
                           "attemptNumber",
                           "currentStepKey",
                           "startedAt",
@@ -43149,8 +44283,8 @@
                     "projectId",
                     "workItemId",
                     "workItemTitle",
-                    "linearPipelineDefinitionId",
-                    "linearPipelineDefinitionVersionId",
+                    "pipelineDefinitionId",
+                    "pipelineDefinitionVersionId",
                     "definitionStepCount",
                     "inputJson",
                     "status",
@@ -43471,7 +44605,895 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/counts/by-pipeline": {
+    "/api/pipeline-executions/{pipelineExecutionId}/routed-chain": {
+      "get": {
+        "operationId": "getPipelineExecutionRoutedChain",
+        "tags": [
+          "PipelineExecutions"
+        ],
+        "parameters": [
+          {
+            "name": "pipelineExecutionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "executions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "projectId": {
+                            "type": "string"
+                          },
+                          "workItemId": {
+                            "type": "string"
+                          },
+                          "workItemTitle": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "pipelineDefinitionId": {
+                            "type": "string"
+                          },
+                          "pipelineDefinitionVersionId": {
+                            "type": "string"
+                          },
+                          "definitionStepCount": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "inputJson": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "running",
+                              "succeeded",
+                              "failed",
+                              "cancelled",
+                              "blocked",
+                              "routed"
+                            ]
+                          },
+                          "attempts": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "pipelineExecutionId": {
+                                  "type": "string"
+                                },
+                                "attemptNumber": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "currentStepKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "startedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "completedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "routedToPipelineExecutionId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "queued",
+                                    "running",
+                                    "succeeded",
+                                    "failed",
+                                    "cancelled",
+                                    "blocked",
+                                    "routed"
+                                  ]
+                                },
+                                "stepRuns": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "pipelineExecutionAttemptId": {
+                                        "type": "string"
+                                      },
+                                      "pipelineStepDefinitionId": {
+                                        "type": "string"
+                                      },
+                                      "stepDefinitionId": {
+                                        "type": "string"
+                                      },
+                                      "stepDefinitionVersion": {
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "stepKey": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "position": {
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "status": {
+                                        "type": "string",
+                                        "enum": [
+                                          "pending",
+                                          "queued",
+                                          "running",
+                                          "satisfied",
+                                          "unsatisfied",
+                                          "blocked",
+                                          "skipped",
+                                          "cancelled",
+                                          "abandoned",
+                                          "timeout"
+                                        ]
+                                      },
+                                      "satisfactionStatus": {
+                                        "type": "string",
+                                        "enum": [
+                                          "not_evaluated",
+                                          "satisfied_by_policy",
+                                          "satisfied_by_user",
+                                          "unsatisfied_by_policy"
+                                        ]
+                                      },
+                                      "stepExecutionId": {
+                                        "type": "string"
+                                      },
+                                      "stepExecutionResultId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "inheritedFromStepRunId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "acceptedByUserId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "acceptedAt": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "acceptanceReason": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "workBranch": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "outputJson": {
+                                        "anyOf": [
+                                          {},
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "evaluation": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "pipelineExecutionAttemptId": {
+                                                "type": "string"
+                                              },
+                                              "pipelineStepRunId": {
+                                                "type": "string"
+                                              },
+                                              "stepExecutionId": {
+                                                "type": "string"
+                                              },
+                                              "stepExecutionResultId": {
+                                                "type": "string"
+                                              },
+                                              "stepExecutionResultStatus": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "succeeded",
+                                                      "failed"
+                                                    ]
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "pipelineStepAdvancementPolicyDefinitionId": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "policySnapshotJson": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "propertyNames": {
+                                                      "type": "string"
+                                                    },
+                                                    "additionalProperties": {}
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "factsSnapshotJson": {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string"
+                                                },
+                                                "additionalProperties": {}
+                                              },
+                                              "ruleResultsJson": {},
+                                              "finalStatus": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "pass",
+                                                  "fail"
+                                                ]
+                                              },
+                                              "finalAction": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "continue",
+                                                  "block",
+                                                  "complete",
+                                                  "route"
+                                                ]
+                                              },
+                                              "finalPayloadJson": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "propertyNames": {
+                                                      "type": "string"
+                                                    },
+                                                    "additionalProperties": {}
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "createdAt": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "pipelineExecutionAttemptId",
+                                              "pipelineStepRunId",
+                                              "stepExecutionId",
+                                              "stepExecutionResultId",
+                                              "stepExecutionResultStatus",
+                                              "pipelineStepAdvancementPolicyDefinitionId",
+                                              "policySnapshotJson",
+                                              "factsSnapshotJson",
+                                              "ruleResultsJson",
+                                              "finalStatus",
+                                              "finalAction",
+                                              "finalPayloadJson",
+                                              "createdAt"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "createdAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                      },
+                                      "updatedAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "pipelineExecutionAttemptId",
+                                      "pipelineStepDefinitionId",
+                                      "stepDefinitionId",
+                                      "stepDefinitionVersion",
+                                      "stepKey",
+                                      "position",
+                                      "status",
+                                      "satisfactionStatus",
+                                      "stepExecutionId",
+                                      "stepExecutionResultId",
+                                      "inheritedFromStepRunId",
+                                      "acceptedByUserId",
+                                      "acceptedAt",
+                                      "acceptanceReason",
+                                      "workBranch",
+                                      "outputJson",
+                                      "evaluation",
+                                      "createdAt",
+                                      "updatedAt"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "events": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "pipelineExecutionAttemptId": {
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "pipeline_queued",
+                                          "pipeline_started",
+                                          "step_run_created",
+                                          "step_attempt_queued",
+                                          "step_attempt_started",
+                                          "step_attempt_succeeded",
+                                          "step_attempt_failed",
+                                          "step_evaluated",
+                                          "step_satisfied_by_policy",
+                                          "step_satisfied_by_user",
+                                          "step_unsatisfied_by_policy",
+                                          "step_retriggered",
+                                          "step_blocked",
+                                          "step_routed",
+                                          "pipeline_succeeded",
+                                          "pipeline_failed",
+                                          "pipeline_blocked",
+                                          "pipeline_routed",
+                                          "pipeline_cancelled"
+                                        ]
+                                      },
+                                      "payloadJson": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {}
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "createdAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "pipelineExecutionAttemptId",
+                                      "type",
+                                      "payloadJson",
+                                      "createdAt"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "pipelineExecutionId",
+                                "attemptNumber",
+                                "currentStepKey",
+                                "startedAt",
+                                "completedAt",
+                                "routedToPipelineExecutionId",
+                                "status",
+                                "stepRuns",
+                                "events",
+                                "createdAt",
+                                "updatedAt"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "workItemId",
+                          "workItemTitle",
+                          "pipelineDefinitionId",
+                          "pipelineDefinitionVersionId",
+                          "definitionStepCount",
+                          "inputJson",
+                          "status",
+                          "attempts",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "rollupStatus": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "succeeded",
+                        "failed",
+                        "cancelled",
+                        "blocked",
+                        "routed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "executions",
+                    "rollupStatus"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Response for status 401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Response for status 403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Response for status 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Response for status 422",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Response for status 500",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pipeline-executions/counts/by-pipeline": {
       "get": {
         "operationId": "countPipelineExecutionsByPipeline",
         "tags": [
@@ -43498,7 +45520,7 @@
                   "items": {
                     "type": "object",
                     "properties": {
-                      "linearPipelineDefinitionId": {
+                      "pipelineDefinitionId": {
                         "type": "string"
                       },
                       "count": {
@@ -43508,7 +45530,7 @@
                       }
                     },
                     "required": [
-                      "linearPipelineDefinitionId",
+                      "pipelineDefinitionId",
                       "count"
                     ],
                     "additionalProperties": false
@@ -43764,7 +45786,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/step-rollups/by-definition/{linearPipelineDefinitionId}": {
+    "/api/pipeline-executions/step-rollups/by-definition/{pipelineDefinitionId}": {
       "get": {
         "operationId": "listPipelineDefinitionStepRollups",
         "tags": [
@@ -43772,7 +45794,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -43791,7 +45813,7 @@
                   "items": {
                     "type": "object",
                     "properties": {
-                      "linearPipelineStepDefinitionId": {
+                      "pipelineStepDefinitionId": {
                         "type": "string"
                       },
                       "totalRunCount": {
@@ -43804,10 +45826,10 @@
                           {
                             "type": "object",
                             "properties": {
-                              "linearPipelineStepRunId": {
+                              "pipelineStepRunId": {
                                 "type": "string"
                               },
-                              "linearPipelineExecutionId": {
+                              "pipelineExecutionId": {
                                 "type": "string"
                               },
                               "status": {
@@ -43862,8 +45884,8 @@
                               }
                             },
                             "required": [
-                              "linearPipelineStepRunId",
-                              "linearPipelineExecutionId",
+                              "pipelineStepRunId",
+                              "pipelineExecutionId",
                               "status",
                               "stepExecutionResultStatus",
                               "evaluationFinalAction",
@@ -43878,7 +45900,7 @@
                       }
                     },
                     "required": [
-                      "linearPipelineStepDefinitionId",
+                      "pipelineStepDefinitionId",
                       "totalRunCount",
                       "latestRun"
                     ],
@@ -44196,7 +46218,7 @@
         }
       }
     },
-    "/api/linear-pipeline-executions/step-runs/by-definition/{linearPipelineDefinitionId}": {
+    "/api/pipeline-executions/step-runs/by-definition/{pipelineDefinitionId}": {
       "get": {
         "operationId": "listPipelineDefinitionStepRuns",
         "tags": [
@@ -44204,7 +46226,7 @@
         ],
         "parameters": [
           {
-            "name": "linearPipelineDefinitionId",
+            "name": "pipelineDefinitionId",
             "in": "path",
             "required": true,
             "schema": {
@@ -44212,7 +46234,7 @@
             }
           },
           {
-            "name": "linearPipelineStepDefinitionId",
+            "name": "pipelineStepDefinitionId",
             "in": "query",
             "required": true,
             "schema": {
@@ -44231,10 +46253,10 @@
                   "items": {
                     "type": "object",
                     "properties": {
-                      "linearPipelineStepRunId": {
+                      "pipelineStepRunId": {
                         "type": "string"
                       },
-                      "linearPipelineExecutionId": {
+                      "pipelineExecutionId": {
                         "type": "string"
                       },
                       "status": {
@@ -44289,8 +46311,8 @@
                       }
                     },
                     "required": [
-                      "linearPipelineStepRunId",
-                      "linearPipelineExecutionId",
+                      "pipelineStepRunId",
+                      "pipelineExecutionId",
                       "status",
                       "stepExecutionResultStatus",
                       "evaluationFinalAction",
@@ -60803,7 +62825,7 @@
                         {
                           "type": "object",
                           "properties": {
-                            "linearPipelineDefinitionId": {
+                            "pipelineDefinitionId": {
                               "type": "string"
                             },
                             "rulesJson": {
@@ -60898,7 +62920,7 @@
                             }
                           },
                           "required": [
-                            "linearPipelineDefinitionId",
+                            "pipelineDefinitionId",
                             "rulesJson",
                             "defaultEventType",
                             "defaultEventParamsJson",

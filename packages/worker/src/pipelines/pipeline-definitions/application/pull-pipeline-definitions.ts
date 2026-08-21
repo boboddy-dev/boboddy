@@ -1,10 +1,25 @@
-import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createStepDefinitionsClient } from "@boboddy/sdk/definitions/steps";
-import { createPipelineDefinitionsClient , DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
+import {
+  createPipelineDefinitionsClient,
+  DEFAULT_PIPELINE_ASSIGNMENT_FILENAME,
+} from "@boboddy/sdk/definitions/pipelines";
 import { createBoboddyClient } from "@boboddy/sdk/client";
-import { generateStepsFileContent, type StepDefContract } from "../../../steps/step-definitions/infra/step-file-generator";
-import { generatePipelineFileContent, type PipelineContract } from "../infra/pipeline-file-generator";
+import {
+  generateStepsFileContent,
+  type StepDefContract,
+} from "../../../steps/step-definitions/infra/step-file-generator";
+import {
+  generatePipelineFileContent,
+  type PipelineContract,
+} from "../infra/pipeline-file-generator";
 import {
   generateDefaultPipelineAssignmentFileContent,
   UnsupportedRuleError,
@@ -74,24 +89,36 @@ export async function pullPipelineDefinitions(
   const pipelineDefsClient = createPipelineDefinitionsClient(baseUrl);
   const boboddyClient = createBoboddyClient(baseUrl);
 
-  const [rawSteps, pipelines, projectResult] = await Promise.all([
+  const [rawSteps, pipelines, projectResult] = (await Promise.all([
     stepDefsClient.listByProjectId(projectId, { headers }),
     pipelineDefsClient.listByProjectId(projectId, { headers }),
     boboddyClient.projects.getProject({ path: { projectId }, headers }),
-  ]) as unknown as [StepDefContract[], PipelineContract[], { data?: { defaultPipelineAssignment?: unknown }; error?: unknown }];
+  ])) as unknown as [
+    StepDefContract[],
+    PipelineContract[],
+    { data?: { defaultPipelineAssignment?: unknown }; error?: unknown },
+  ];
 
   const stepDefs = rawSteps;
 
   if (stepDefs.length === 0 && pipelines.length === 0) {
-    logger.info({}, "No pipeline or step definitions found for this project. Nothing to pull.");
-    return { stepFiles: 0, pipelineFiles: 0, defaultPipelineAssignmentFile: false };
+    logger.info(
+      {},
+      "No pipeline or step definitions found for this project. Nothing to pull.",
+    );
+    return {
+      stepFiles: 0,
+      pipelineFiles: 0,
+      defaultPipelineAssignmentFile: false,
+    };
   }
 
   // Deduplicate steps: keep latest version per key
   const latestSteps = new Map<string, StepDefContract>();
   for (const step of stepDefs) {
     const existing = latestSteps.get(step.key);
-    if (!existing || step.version > existing.version) latestSteps.set(step.key, step);
+    if (!existing || step.version > existing.version)
+      latestSteps.set(step.key, step);
   }
   const dedupedSteps = [...latestSteps.values()];
 
@@ -101,7 +128,7 @@ export async function pullPipelineDefinitions(
     stepIdToKey.set((step as unknown as { id: string }).id, step.key);
   }
 
-  // Map linearPipelineDefinitionId → pipeline key for assignment reconstruction
+  // Map pipelineDefinitionId → pipeline key for assignment reconstruction
   const pipelineIdToKey = new Map<string, string>();
   for (const pipeline of pipelines) {
     const pipelineWithId = pipeline as unknown as { id: string; key: string };
@@ -119,7 +146,10 @@ export async function pullPipelineDefinitions(
   if (dedupedSteps.length > 0) {
     const content = generateStepsFileContent(dedupedSteps);
     writeFileSync(join(dir, "steps.ts"), content, "utf-8");
-    logger.info({ file: "steps.ts" }, `✓ steps.ts (${String(dedupedSteps.length)} step${dedupedSteps.length !== 1 ? "s" : ""})`);
+    logger.info(
+      { file: "steps.ts" },
+      `✓ steps.ts (${String(dedupedSteps.length)} step${dedupedSteps.length !== 1 ? "s" : ""})`,
+    );
     stepFiles = 1;
   }
 
@@ -136,7 +166,9 @@ export async function pullPipelineDefinitions(
   let defaultPipelineAssignmentFile = false;
   const assignmentFilePath = join(dir, DEFAULT_PIPELINE_ASSIGNMENT_FILENAME);
 
-  const project = (projectResult as { data?: { defaultPipelineAssignment?: unknown } }).data;
+  const project = (
+    projectResult as { data?: { defaultPipelineAssignment?: unknown } }
+  ).data;
   const rawAssignment = project?.defaultPipelineAssignment;
 
   const assignment = isDefaultPipelineAssignmentContract(rawAssignment)
@@ -187,15 +219,19 @@ function isDefaultPipelineAssignmentContract(
   if (typeof value !== "object" || value === null) return false;
   const obj = value as Record<string, unknown>;
   return (
-    typeof obj["linearPipelineDefinitionId"] === "string" &&
+    typeof obj["pipelineDefinitionId"] === "string" &&
     typeof obj["rulesJson"] === "object" &&
     obj["rulesJson"] !== null &&
-    (obj["defaultEventType"] === "assign" || obj["defaultEventType"] === "skip") &&
+    (obj["defaultEventType"] === "assign" ||
+      obj["defaultEventType"] === "skip") &&
     Array.isArray(obj["allowedEventTypes"])
   );
 }
 
-export function getExistingOutputFiles(dir: string, pipelineKeys: string[]): string[] {
+export function getExistingOutputFiles(
+  dir: string,
+  pipelineKeys: string[],
+): string[] {
   return resolveOutputFiles(dir, pipelineKeys);
 }
 

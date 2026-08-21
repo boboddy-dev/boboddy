@@ -170,9 +170,9 @@ browser to create a project. ~10 minutes.
 
    The worker claims the pending step execution, runs the step's agent, and
    reports its signals back. Watch the pipeline view in the dashboard: each
-   `.advance()` rule reads those signals and decides whether the pipeline
-   continues, blocks for a human, or completes. That advance-on-signal moment
-   is the core of Boboddy.
+   step's `advance` policy reads those signals and decides whether the
+   pipeline continues, blocks for a human, or completes. That advance-on-signal
+   moment is the core of Boboddy.
 
    Say no instead, and `design` prints the command to run it later — start a
    run from the work item's executions drawer in the dashboard, or from a

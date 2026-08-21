@@ -222,8 +222,10 @@ const myPipeline = pipeline({
     bindings: ({ workItem }) => ({ text: workItem.field("Text") }),
   },
 })
-  .step(myStep, ({ input }) => ({ text: input.text }))
-  .advance(() => ({ default: "continue" }))
+  .step(myStep, {
+    input: ({ input }) => ({ text: input.text }),
+    advance: () => ({ default: "continue" }),
+  })
   .build();
 ```
 
@@ -241,35 +243,104 @@ const myPipeline = pipeline({
 
 `additionalPipelineInput.schema` is a Zod object schema for extra pipeline input fields. `additionalPipelineInput.bindings` receives `{ workItem, literal }` and returns their bindings.
 
-`additionalStepInput` applies default bindings to every step in the pipeline. Its `bindings` function receives `{ workItemField, literal }` and compiles into regular step input bindings. Explicit `.step(..., mapper)` bindings override pipeline-level defaults.
+`additionalStepInput` applies default bindings to every step in the pipeline. Its `bindings` function receives `{ workItemField, literal }` and compiles into regular step input bindings. Explicit `options.input` bindings on a `.step()` call override pipeline-level defaults.
 
 ### Builder methods
 
-| Method                           | Description                                                                                                                                                                                                                                                                                    |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.step(step, mapper, configFn?)` | Append a step. `mapper` receives `{ input, signal, output, literal }` and returns a record of input bindings keyed by the step's input fields. Optional `configFn` receives `{ timeout }` — set `cfg.timeout` (seconds) to cap execution time.                                                 |
-| `.advance(callback)`             | Attach an advancement policy to the most recently added step. `callback` receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`. **Required** before adding another step or calling `.build()`. |
-| `.build()`                       | Finalize and return a `PipelineDefinitionSpec`.                                                                                                                                                                                                                                                |
+| Method                      | Description                                                                                                                                                                                                                                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.step(step, options)`      | Append a step. `options.input` receives `{ input, signal, output, literal, signalsList }` and returns a record of input bindings keyed by the step's input fields (optional if the step declares no additional input). `options.advance` is **required** — receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`, deciding how the pipeline continues past this step. `options.timeout` (optional, seconds) caps execution time. |
+| `.fanOutStep(step, config)` | Runs `step` as N parallel branches instead of one, in place of `.step(...)`. `config` resolves both the per-branch and whole-cohort advancement policies inline (`advance`, `advanceAll`) alongside `over`, `input`, and `timeout` — see [Fan-out](#fan-out) for `FanOutStepConfig`'s full field list. |
+| `.build()`                  | Finalize and return a `PipelineDefinitionSpec`.                                                                                                                                                                                                                                                |
 
 ### Step input bindings
 
-Inside the `.step()` mapper:
+Inside `.step()`'s `input` option:
 
 - **`input.workItemTitle`** / **`input.workItemDescription`** — always available; bind to the work item title or description.
 - **`input.<path>`** — custom fields from `additionalPipelineInput.schema`. `input.code` binds to path `"code"`; `input.ticket.title` binds to `"ticket.title"`. The accessor is a proxy — do not spread or coerce it to a primitive.
 - **`signal(step, signalKey)`** — bind to a prior step's signal. `signalKey` is typed against `step.__signalKeys`.
 - **`output(step)`** — bind to a prior step's whole output object.
 - **`literal(value)`** — a hardcoded constant.
+- **`signalsList(fanOutStep)`** — bind to a fan-out's whole cohort (every terminal branch's signals, aggregated server-side). `fanOutStep` is constrained to a step already passed as the first argument to an earlier `.fanOutStep(...)` call. See [Fan-out](#fan-out).
 
 ### Fluent advancement rules
 
-Inside the `.advance()` callback:
+Inside `.step()`'s `advance` option:
 
 - **`signal(key)`** — returns a typed `SignalRef` for the current step's signal. Chain a comparator (`.eq`, `.gt`, `.gte`, `.lt`, `.lte`, `.ne`, `.in`, `.notIn`, `.contains`, `.doesNotContain`) followed by `.then(outcome)`.
 - **`stepSignals.<key>`** — property-map shorthand equivalent to `signal(key)`. Both produce identical output.
 - **Computed factories** — `avg`, `weightedAvg`, `sum`, `min`, `max`, `count`, `booleanAny`, `booleanAll`. Each takes 2+ `signal(key)` or `stepSignals.key` references and returns a `SignalRef`. Identical calls across rules are deduplicated at build time.
 - **`all(...refs)` / `any(...refs)`** — group `SignalRef`s and other groups; terminate with `.then(outcome)`.
 - **`route(pipelineKey, inputJson?)`** — produces a route outcome value for `.then(...)`.
+
+---
+
+## Fan-out
+
+`.fanOutStep(step, config)` runs `step` as a variable number of parallel branches, resolved at runtime from a signal's value. It always compiles to a paired `fanOut` + `cohortGate` node; `config` resolves both the per-branch (`advance`) and whole-cohort (`advanceAll`) advancement policies inline, the same way `.step()`'s `advance` option resolves inline rather than via a chained call. See the [Fan-out guide](/boboddy/guides/pipelines/#fan-out-parallel-branches) for a full example.
+
+```typescript
+.fanOutStep(reviewStep, {
+  over: "reviewer_count",
+  input: ({ literal }) => ({ mode: literal("thorough") }),
+  timeout: 900,
+  advance: ({ signal }) => ({
+    default: "continue",
+    rules: [signal("passed").eq(false).then("block")],
+  }),
+  advanceAll: ({ branchOutcomes }) => ({
+    default: "block",
+    rules: [branchOutcomes.every("continue").then("continue")],
+  }),
+})
+```
+
+`over`'s resolved signal shape decides the branch mode: a number-typed signal resolves a fixed branch count (no `item` on `input`'s ctx); an array-typed signal resolves branch count from the array's length and adds a typed `item` — the array's element type — to every branch's `input` mapper.
+
+```typescript
+.fanOutStep(assigneeReviewStep, {
+  over: "assigneeIds", // a string[] signal on the preceding step
+  input: ({ item, input }) => ({
+    assigneeId: item,
+    ticketTitle: input.workItemTitle,
+  }),
+  advance: () => ({ default: "continue" }),
+  advanceAll: () => ({ default: "continue" }),
+})
+```
+
+### `FanOutStepConfig`
+
+| Field        | Type                | Required | Description                                                                                             |
+| ------------ | ------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| `over`       | `string`            | Yes      | Signal on the most recently declared step whose value determines branch count (and, if array-typed, each branch's `item`) at runtime |
+| `advance`    | `(ctx) => result`   | Yes      | Every branch's own continue/block decision — see [`advance` context](#advance-context) below              |
+| `advanceAll` | `(ctx) => result`   | Yes      | The whole cohort's continue/block decision — see [`advanceAll` context](#advanceall-context) below         |
+| `input`      | `(ctx) => bindings` | No       | Input bindings for the fan-out step; same context helpers as `.step(...)`'s mapper, plus `item` when `over` resolves to an array-typed signal |
+| `timeout`    | `number \| null`    | No       | Per-branch timeout in seconds                                                                              |
+
+### `advance` context
+
+Evaluated per-branch against that branch's own signals:
+
+- **`signal(key)`** / **`stepSignals.<key>`** — the branch's own signal, typed against `fanOutStep.__signalKeys`. Same comparators as a regular step's `SignalRef` (`.eq`, `.gt`, `.gte`, `.lt`, `.lte`, `.ne`, `.in`, `.notIn`, `.contains`, `.doesNotContain`).
+- **`all(...refs)` / `any(...refs)`** — group refs; terminate with `.then(outcome)`.
+- **`.then(outcome)`** — `outcome` is restricted to `"continue" | "block"` (no `route`/`complete`).
+- No computed-signal factories (`avg`, `sum`, etc.) — core has no mechanism yet to resolve a computed signal for a fan-out branch's policy.
+
+### `advanceAll` context
+
+Evaluated once per cohort, after every branch has settled:
+
+- **`branchOutcomes.total()`** — the cohort's total branch count (fact `branchCount`). Returns a `CohortSignalRef<number>`.
+- **`branchOutcomes.count(outcome)`** — a single outcome's count across the cohort (fact `${outcome}Count`). Returns a `CohortSignalRef<number>`.
+- **`branchOutcomes.every(outcome)`** / **`.some(outcome)`** — `true` iff every/any branch resolved to `outcome`. Already a `CohortRuleLeaf` — go straight to `.then(outcome)`.
+- **`stepSignalsList.pluck(signalKey)`** — seeds an aggregation across every branch's `signalKey` value. Chain `.filter(operator, value)` / `.sortBy(direction?)` / `.unique()` to reshape, then exactly one reducer: `.count()`, `.sum()`, `.avg()`, `.min()`, `.max()`, `.booleanAll()`, `.booleanAny()`, `.join(separator?)`, `.first()`, or `.last()`. Returns a `CohortSignalRef`.
+- **`all(...refs)` / `any(...refs)`** — group refs; terminate with `.then(outcome)`.
+- `outcome` in `.then(outcome)` is restricted to `"continue" | "block"`.
+
+`BranchOutcome` (the `outcome` param to `branchOutcomes.count`/`.every`/`.some`) is `"continue" | "block" | "error" | "abandoned"` — the two additional values cover branches that failed or never ran.
 
 ---
 

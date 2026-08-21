@@ -392,17 +392,20 @@ export function generatePipelineFileContent(
     const varName = keyToVarName(step.key);
     const mapper = reconstructStepMapper(step, stepVarMap, pipelineLevelKeys);
 
-    chainParts.push(`  .step(${varName}, ${mapper})`);
-
-    if (step.timeoutSeconds !== null) {
-      chainParts.push(`  .timeout(${String(step.timeoutSeconds)})`);
-    }
-
     const computedByKey: ComputedByKey = new Map(
       step.computedSignalDefinitions.map((d) => [d.key, d]),
     );
     const advanceCallback = reconstructAdvancementCallback(step.advancementPolicyDefinition, computedByKey);
-    chainParts.push(`  .advance(${advanceCallback})`);
+
+    const optionLines: string[] = [
+      `    input: ${mapper}`,
+      `    advance: ${advanceCallback}`,
+    ];
+    if (step.timeoutSeconds !== null) {
+      optionLines.push(`    timeout: ${String(step.timeoutSeconds)}`);
+    }
+
+    chainParts.push(`  .step(${varName}, {\n${optionLines.join(",\n")},\n  })`);
   }
 
   chainParts.push(`  .build()`);

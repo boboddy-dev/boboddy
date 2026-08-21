@@ -15,12 +15,12 @@ import { concurrentTest as test } from "./utils";
 describe("assignedPipelineSchema", () => {
   test("reads the assigned pipeline definition id", () => {
     const parsed = assignedPipelineSchema.safeParse({
-      linearPipelineDefinitionId: "019ed1c9-2222-7170-a08a-1ff912085f7b",
+      pipelineDefinitionId: "019ed1c9-2222-7170-a08a-1ff912085f7b",
       defaultEventType: "assign",
     });
 
     expect(parsed.success).toBe(true);
-    expect(parsed.data?.linearPipelineDefinitionId).toBe(
+    expect(parsed.data?.pipelineDefinitionId).toBe(
       "019ed1c9-2222-7170-a08a-1ff912085f7b",
     );
   });
@@ -36,8 +36,7 @@ describe("assignedPipelineSchema", () => {
       assignedPipelineSchema.safeParse({ defaultEventType: "assign" }).success,
     ).toBe(false);
     expect(
-      assignedPipelineSchema.safeParse({ linearPipelineDefinitionId: "" })
-        .success,
+      assignedPipelineSchema.safeParse({ pipelineDefinitionId: "" }).success,
     ).toBe(false);
   });
 });

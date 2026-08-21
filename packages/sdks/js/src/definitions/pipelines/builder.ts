@@ -10,6 +10,7 @@ import {
   type AnyBinding,
   type DefinePipelineInput,
   type PipelineDefinitionSpec,
+  type PipelineNodeConfig,
   type PipelineStepConfig,
 } from "./define-pipeline";
 import {
@@ -20,45 +21,25 @@ import {
   resolveAdditionalStepInputBindings,
   WORK_ITEM_ACCESSOR,
   type AnyTypedStep,
+  type IsAny,
+  type LastSignalKeys,
+  type OptionalInputKeys,
   type PipelineMeta,
-  type StepConfig,
+  type RequiredInputKeys,
   type StepInputCtx,
 } from "./builder-helpers";
+import { beginFanOut, type FanOutStepConfig } from "./fan-out-builder";
 
 export type {
   AnyTypedStep,
   PipelineMeta,
-  StepConfig,
   StepInputCtx,
   WorkItemAccessor,
 } from "./builder-helpers";
-
-type LastStep<T extends ReadonlyArray<AnyTypedStep>> = T extends readonly [
-  ...AnyTypedStep[],
-  infer L,
-]
-  ? L extends AnyTypedStep
-    ? L
-    : never
-  : never;
-
-type LastSignalKeys<T extends ReadonlyArray<AnyTypedStep>> =
-  LastStep<T> extends AnyTypedStep ? LastStep<T>["__signalKeys"] : never;
-
-type LastSignalTypeMap<T extends ReadonlyArray<AnyTypedStep>> =
-  LastStep<T> extends AnyTypedStep
-    ? LastStep<T>["__signalTypeMap"]
-    : Record<string, unknown>;
-
-type IsAny<T> = 0 extends 1 & T ? true : false;
-
-type RequiredInputKeys<T extends object> = {
-  [K in keyof T & string]-?: undefined extends T[K] ? never : K;
-}[keyof T & string];
-
-type OptionalInputKeys<T extends object> = {
-  [K in keyof T & string]-?: undefined extends T[K] ? K : never;
-}[keyof T & string];
+export {
+  type FanOutStepConfig,
+  type FanOutInputMapping,
+} from "./fan-out-builder";
 
 type StepInputMapping<S extends AnyTypedStep> =
   IsAny<S["__inputType"]> extends true
@@ -70,66 +51,118 @@ type StepInputMapping<S extends AnyTypedStep> =
       : Partial<Record<string, AnyBinding>>;
 
 /**
- * Returned by `.step()`. Requires `.advance()` before the pipeline can
- * continue. Also accepts `.timeout()` before `.advance()`.
+ * `.step()`'s single options argument. Deliberately a single generic type
+ * (not a set of overload signatures split on `S["__hasAdditionalInput"]`):
+ * with overloads, a mistake inside `options.input`'s return value fails
+ * every overload, and TS reports "no overload matches" against the whole
+ * call rather than pointing at the specific missing/wrong property inside
+ * `input`'s return type. A single signature lets TS check `options`
+ * structurally in one pass and localize the error correctly.
  */
-export class PipelineStepAdvancementBuilder<
+type StepOptions<
   TInput extends ZodType,
   TSteps extends ReadonlyArray<AnyTypedStep>,
-> {
-  declare readonly __steps: TSteps;
+  TFanOuts extends ReadonlyArray<AnyTypedStep>,
+  S extends AnyTypedStep,
+> = (S extends { __hasAdditionalInput: false }
+  ? {
+      input?: (
+        ctx: StepInputCtx<TInput, TSteps, TFanOuts>,
+      ) => Partial<Record<string, AnyBinding>>;
+    }
+  : {
+      input: (
+        ctx: StepInputCtx<TInput, TSteps, TFanOuts>,
+      ) => StepInputMapping<S>;
+    }) & {
+  advance: (
+    ctx: AdvanceCtx<S["__signalKeys"], S["__signalTypeMap"]>,
+  ) => AdvanceResult<S["__signalKeys"]>;
+  timeout?: number | null;
+};
 
-  constructor(
-    protected readonly inputSchema: TInput,
-    protected readonly meta: Omit<
-      PipelineMeta<TInput>,
-      "additionalPipelineInput" | "additionalStepInput"
-    >,
-    protected readonly steps: PipelineStepConfig[],
-    protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
-    protected readonly pipelineStepInputBindings: Record<
-      string,
-      AnyBinding
-    > = {},
-  ) {}
+/**
+ * Pushes a step node onto `nodes` and resolves its advancement policy in one
+ * call — shared by `PipelineBuilder.step()` (the entry point, `TSteps = []`)
+ * and `PipelineStepBuilder.step()` (every step after the first), which are
+ * otherwise identical apart from what history they carry.
+ */
+function pushStep<
+  TInput extends ZodType,
+  TSteps extends ReadonlyArray<AnyTypedStep>,
+  TFanOuts extends ReadonlyArray<AnyTypedStep>,
+  S extends AnyTypedStep,
+>(
+  inputSchema: TInput,
+  meta: Omit<
+    PipelineMeta<TInput>,
+    "additionalPipelineInput" | "additionalStepInput"
+  >,
+  nodes: PipelineNodeConfig[],
+  pipelineInputBindings: Record<string, AnyBinding>,
+  pipelineStepInputBindings: Record<string, AnyBinding>,
+  step: S,
+  rawOptions: StepOptions<TInput, TSteps, TFanOuts, S>,
+): PipelineStepBuilder<TInput, [...TSteps, S], TFanOuts> {
+  // `StepOptions` is a conditional type over the (here, still-generic) `S`,
+  // so it can't be indexed directly inside a generic function body — cast
+  // once to the shape actually needed at runtime, which is the same for
+  // both branches of the conditional.
+  const options = rawOptions as {
+    input?: (
+      ctx: StepInputCtx<TInput, TSteps, TFanOuts>,
+    ) => Record<string, AnyBinding | undefined>;
+    advance: (
+      ctx: AdvanceCtx<S["__signalKeys"], S["__signalTypeMap"]>,
+    ) => AdvanceResult<S["__signalKeys"]>;
+    timeout?: number | null;
+  };
+  const ctx = makeStepInputCtx(inputSchema) as unknown as StepInputCtx<
+    TInput,
+    TSteps,
+    TFanOuts
+  >;
+  const rawInput = options.input ? options.input(ctx) : {};
+  const input = mergeStepBindings(
+    pipelineStepInputBindings,
+    normalizeInputMapping(rawInput),
+  );
+  const stepConfig: PipelineStepConfig = { step, input };
+  if (options.timeout !== undefined) stepConfig.timeout = options.timeout;
 
-  advance(
-    callback: (
-      ctx: AdvanceCtx<LastSignalKeys<TSteps>, LastSignalTypeMap<TSteps>>,
-    ) => AdvanceResult<LastSignalKeys<TSteps>>,
-  ): PipelineStepBuilder<TInput, TSteps> {
-    // steps is guaranteed non-empty: this object is only created after .step()
-    const last = this.steps.at(-1);
-    if (!last) throw new Error("Internal error: no steps available");
-    const ctx = makeAdvanceCtx<
-      LastSignalKeys<TSteps>,
-      LastSignalTypeMap<TSteps>
-    >();
-    const result = callback(ctx);
-    const policy: AdvancementPolicy<LastSignalKeys<TSteps>> = {
-      defaultOutcome: result.default,
-      ...(result.rules !== undefined ? { rules: result.rules } : {}),
-    };
-    last.advancement = policy as AdvancementPolicy;
-    return new PipelineStepBuilder(
-      this.inputSchema,
-      this.meta,
-      this.steps,
-      this.pipelineInputBindings,
-      this.pipelineStepInputBindings,
-    );
-  }
+  const advanceCtx = makeAdvanceCtx<S["__signalKeys"], S["__signalTypeMap"]>();
+  const result = options.advance(advanceCtx);
+  const policy: AdvancementPolicy<S["__signalKeys"]> = {
+    defaultOutcome: result.default,
+    ...(result.rules !== undefined ? { rules: result.rules } : {}),
+  };
+  stepConfig.advancement = policy as AdvancementPolicy;
+
+  nodes.push(stepConfig);
+  return new PipelineStepBuilder(
+    inputSchema,
+    meta,
+    nodes,
+    pipelineInputBindings,
+    pipelineStepInputBindings,
+  );
 }
 
 /**
- * Returned by `.advance()`. Provides `.step()` to chain additional steps,
- * `.timeout()` to set timeout after advancing, and `.build()` to finalize.
+ * Returned by `.step()`/`pipeline()`. Provides `.step()` to chain the next
+ * step, `.fanOutStep()` to begin a fan-out+cohort-gate pair (issue #167),
+ * and `.build()` to finalize. `.step()` requires an `advance` callback in
+ * its options — deciding how the pipeline continues past this step — as
+ * part of the same call that declares the step's input, rather than as a
+ * separate chained method on an intermediate builder class.
  */
 export class PipelineStepBuilder<
   TInput extends ZodType,
   TSteps extends ReadonlyArray<AnyTypedStep>,
+  TFanOuts extends ReadonlyArray<AnyTypedStep> = [],
 > {
   declare readonly __steps: TSteps;
+  declare readonly __fanOuts: TFanOuts;
 
   constructor(
     protected readonly inputSchema: TInput,
@@ -137,7 +170,7 @@ export class PipelineStepBuilder<
       PipelineMeta<TInput>,
       "additionalPipelineInput" | "additionalStepInput"
     >,
-    protected readonly steps: PipelineStepConfig[],
+    protected readonly nodes: PipelineNodeConfig[],
     protected readonly pipelineInputBindings: Record<string, AnyBinding> = {},
     protected readonly pipelineStepInputBindings: Record<
       string,
@@ -145,47 +178,45 @@ export class PipelineStepBuilder<
     > = {},
   ) {}
 
-  step<S extends AnyTypedStep & { __hasAdditionalInput: false }>(
-    step: S,
-    mapper?: (
-      ctx: StepInputCtx<TInput, TSteps>,
-    ) => Partial<Record<string, AnyBinding>>,
-    configFn?: (config: StepConfig) => void,
-  ): PipelineStepAdvancementBuilder<TInput, [...TSteps, S]>;
   step<S extends AnyTypedStep>(
     step: S,
-    mapper: (ctx: StepInputCtx<TInput, TSteps>) => StepInputMapping<S>,
-    configFn?: (config: StepConfig) => void,
-  ): PipelineStepAdvancementBuilder<TInput, [...TSteps, S]>;
-  step<S extends AnyTypedStep>(
-    step: S,
-    mapper?: (
-      ctx: StepInputCtx<TInput, TSteps>,
-    ) => Record<string, AnyBinding | undefined>,
-    configFn?: (config: StepConfig) => void,
-  ): PipelineStepAdvancementBuilder<TInput, [...TSteps, S]> {
-    const ctx = makeStepInputCtx(this.inputSchema) as unknown as StepInputCtx<
-      TInput,
-      TSteps
-    >;
-    const rawInput = mapper ? mapper(ctx) : {};
-    const input = mergeStepBindings(
-      this.pipelineStepInputBindings,
-      normalizeInputMapping(rawInput),
-    );
-    const stepConfig: PipelineStepConfig = { step, input };
-    if (configFn) {
-      const cfg: StepConfig = {};
-      configFn(cfg);
-      if (cfg.timeout !== undefined) stepConfig.timeout = cfg.timeout;
-    }
-    this.steps.push(stepConfig);
-    return new PipelineStepAdvancementBuilder(
+    options: StepOptions<TInput, TSteps, TFanOuts, S>,
+  ): PipelineStepBuilder<TInput, [...TSteps, S], TFanOuts> {
+    return pushStep(
       this.inputSchema,
       this.meta,
-      this.steps,
+      this.nodes,
       this.pipelineInputBindings,
       this.pipelineStepInputBindings,
+      step,
+      options,
+    );
+  }
+
+  /**
+   * Begins a fan-out+cohort-gate pair (issue #167): `step` is the template
+   * every branch executes, with its branch count (and, when `over` names
+   * an array-typed signal, each branch's own typed `item`) resolved at
+   * runtime from `config.over` (a signal on the step immediately
+   * preceding this fan-out). `config` requires both `advance` (each
+   * branch's own continue/block decision) and `advanceAll` (the
+   * whole-cohort decision — a pure gate, not a step; nothing besides the
+   * fan-out+gate pair itself is appended to the pipeline's node sequence)
+   * up front, mirroring how `.step()` requires `advance` in its own
+   * options rather than as a separate chained call.
+   */
+  fanOutStep<S extends AnyTypedStep, K extends LastSignalKeys<TSteps>>(
+    step: S,
+    config: FanOutStepConfig<TInput, TSteps, TFanOuts, S, K>,
+  ): PipelineStepBuilder<TInput, TSteps, [...TFanOuts, S]> {
+    return beginFanOut(
+      this.inputSchema,
+      this.meta,
+      this.nodes,
+      this.pipelineInputBindings,
+      this.pipelineStepInputBindings,
+      step,
+      config,
     );
   }
 
@@ -197,7 +228,7 @@ export class PipelineStepBuilder<
       version: this.meta.version,
       status: this.meta.status,
       input: this.inputSchema,
-      steps: this.steps,
+      nodes: this.nodes,
       pipelineInputBindings: this.pipelineInputBindings,
     };
     return buildPipelineSpec(config);
@@ -206,8 +237,8 @@ export class PipelineStepBuilder<
 
 /**
  * Entry-point builder returned by `pipeline()`. Only exposes `.step()` —
- * call that to receive a `PipelineStepAdvancementBuilder` which requires
- * `.advance()` before the pipeline can proceed.
+ * call that to receive a `PipelineStepBuilder`, which chains further
+ * `.step()`/`.fanOutStep()` calls or finalizes with `.build()`.
  */
 export class PipelineBuilder<TInput extends ZodType> {
   private readonly inputSchema: TInput;
@@ -215,7 +246,7 @@ export class PipelineBuilder<TInput extends ZodType> {
     PipelineMeta<TInput>,
     "additionalPipelineInput" | "additionalStepInput"
   >;
-  private readonly steps: PipelineStepConfig[] = [];
+  private readonly nodes: PipelineNodeConfig[] = [];
   private readonly pipelineInputBindings: Record<string, AnyBinding>;
   private readonly pipelineStepInputBindings: Record<string, AnyBinding>;
 
@@ -251,44 +282,18 @@ export class PipelineBuilder<TInput extends ZodType> {
     );
   }
 
-  step<S extends AnyTypedStep & { __hasAdditionalInput: false }>(
-    step: S,
-    mapper?: (
-      ctx: StepInputCtx<TInput, []>,
-    ) => Partial<Record<string, AnyBinding>>,
-    configFn?: (config: StepConfig) => void,
-  ): PipelineStepAdvancementBuilder<TInput, [S]>;
   step<S extends AnyTypedStep>(
     step: S,
-    mapper: (ctx: StepInputCtx<TInput, []>) => StepInputMapping<S>,
-    configFn?: (config: StepConfig) => void,
-  ): PipelineStepAdvancementBuilder<TInput, [S]>;
-  step<S extends AnyTypedStep>(
-    step: S,
-    mapper?: (
-      ctx: StepInputCtx<TInput, []>,
-    ) => Record<string, AnyBinding | undefined>,
-    configFn?: (config: StepConfig) => void,
-  ): PipelineStepAdvancementBuilder<TInput, [S]> {
-    const ctx = makeStepInputCtx(this.inputSchema) as StepInputCtx<TInput, []>;
-    const rawInput = mapper ? mapper(ctx) : {};
-    const input = mergeStepBindings(
-      this.pipelineStepInputBindings,
-      normalizeInputMapping(rawInput),
-    );
-    const stepConfig: PipelineStepConfig = { step, input };
-    if (configFn) {
-      const cfg: StepConfig = {};
-      configFn(cfg);
-      if (cfg.timeout !== undefined) stepConfig.timeout = cfg.timeout;
-    }
-    this.steps.push(stepConfig);
-    return new PipelineStepAdvancementBuilder(
+    options: StepOptions<TInput, [], [], S>,
+  ): PipelineStepBuilder<TInput, [S]> {
+    return pushStep(
       this.inputSchema,
       this.meta,
-      this.steps,
+      this.nodes,
       this.pipelineInputBindings,
       this.pipelineStepInputBindings,
+      step,
+      options,
     );
   }
 }

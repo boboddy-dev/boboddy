@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import {
-  pipeline,
-} from "../src/definitions/pipelines/builder";
+import { pipeline } from "../src/definitions/pipelines/builder";
 import { defineStep } from "../src/definitions/steps/define-step";
 
 const noInputStep = defineStep({
@@ -58,41 +56,47 @@ const enrichedStep = defineStep({
 
 describe("pipeline() builder — parity coverage (Phase 5) — step ordering and input bindings", () => {
   describe("step ordering and metadata", () => {
-    test.concurrent("assigns positions 1-indexed in declaration order", () => {
-      const spec = pipeline({ key: "p", name: "P" })
-        .step(reproduceStep, ({ input }) => ({
-          title: input.workItemTitle,
-          description: input.workItemDescription,
-        }))
-        .advance(() => ({ default: "continue" }))
-        .step(verifyStep, ({ signal, output }) => ({
-          reproUrl: signal(reproduceStep, "repro_url"),
-          checkSuccess: signal(reproduceStep, "success"),
-          fullPrior: output(reproduceStep),
-        }))
-        .advance(() => ({ default: "continue" }))
-        .build();
+    test.concurrent(
+      "declaration order produces one dependency edge per consecutive pair",
+      () => {
+        const spec = pipeline({ key: "p", name: "P" })
+          .step(reproduceStep, {
+            input: ({ input }) => ({
+              title: input.workItemTitle,
+              description: input.workItemDescription,
+            }),
+            advance: () => ({ default: "continue" }),
+          })
+          .step(verifyStep, {
+            input: ({ signal, output }) => ({
+              reproUrl: signal(reproduceStep, "repro_url"),
+              checkSuccess: signal(reproduceStep, "success"),
+              fullPrior: output(reproduceStep),
+            }),
+            advance: () => ({ default: "continue" }),
+          })
+          .build();
 
-      const step0 = spec.steps[0];
-      if (!step0) throw new Error("expected step0");
-      const step1 = spec.steps[1];
-      if (!step1) throw new Error("expected step1");
-      expect(step0.position).toBe(1);
-      expect(step1.position).toBe(2);
-    });
+        expect(spec.dependencyEdges).toEqual([
+          { fromNodeKey: "reproduce", toNodeKey: "verify" },
+        ]);
+      },
+    );
 
     test.concurrent(
       "carries step key, name, and description into the output",
       () => {
         const spec = pipeline({ key: "p", name: "P" })
-          .step(reproduceStep, ({ input }) => ({
-            title: input.workItemTitle,
-            description: input.workItemDescription,
-          }))
-          .advance(() => ({ default: "continue" }))
+          .step(reproduceStep, {
+            input: ({ input }) => ({
+              title: input.workItemTitle,
+              description: input.workItemDescription,
+            }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.stepKey).toBe("reproduce");
         expect(step0.stepName).toBe("Reproduce Issue");
@@ -106,11 +110,10 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
       "workItemTitle and workItemDescription are auto-injected into every step",
       () => {
         const spec = pipeline({ key: "p", name: "P" })
-          .step(noInputStep)
-          .advance(() => ({ default: "continue" }))
+          .step(noInputStep, { advance: () => ({ default: "continue" }) })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           workItemTitle: { source: "work_item", field: "title" },
@@ -123,14 +126,16 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
       "input.workItemTitle and input.workItemDescription bind to work_item source",
       () => {
         const spec = pipeline({ key: "p", name: "P" })
-          .step(reproduceStep, ({ input }) => ({
-            title: input.workItemTitle,
-            description: input.workItemDescription,
-          }))
-          .advance(() => ({ default: "continue" }))
+          .step(reproduceStep, {
+            input: ({ input }) => ({
+              title: input.workItemTitle,
+              description: input.workItemDescription,
+            }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           title: { source: "work_item", field: "title" },
@@ -156,11 +161,13 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
             }),
           },
         })
-          .step(noInputStep, () => ({}))
-          .advance(() => ({ default: "continue" }))
+          .step(noInputStep, {
+            input: () => ({}),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           workItemTitle: { source: "work_item", field: "title" },
@@ -175,11 +182,13 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
       "mapper bindings for additionalInput fields are included in step input",
       () => {
         const spec = pipeline({ key: "p", name: "P" })
-          .step(enrichedStep, ({ literal }) => ({ priority: literal("high") }))
-          .advance(() => ({ default: "continue" }))
+          .step(enrichedStep, {
+            input: ({ literal }) => ({ priority: literal("high") }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           priority: { source: "literal", value: "high" },
@@ -200,11 +209,13 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
             }),
           },
         })
-          .step(enrichedStep, () => ({}))
-          .advance(() => ({ default: "continue" }))
+          .step(enrichedStep, {
+            input: () => ({}),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           priority: { source: "work_item", field: "fields.Priority" },
@@ -223,13 +234,15 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
             bindings: ({ literal }) => ({ owner: literal("pipeline-owner") }),
           },
         })
-          .step(enrichedStep, ({ literal }) => ({
-            owner: literal("explicit-owner"),
-          }))
-          .advance(() => ({ default: "continue" }))
+          .step(enrichedStep, {
+            input: ({ literal }) => ({
+              owner: literal("explicit-owner"),
+            }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           owner: { source: "literal", value: "explicit-owner" },
@@ -248,14 +261,16 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
             bindings: ({ literal }) => ({ title: literal("from-pipeline") }),
           },
         })
-          .step(reproduceStep, ({ input }) => ({
-            title: input.workItemTitle,
-            description: input.workItemDescription,
-          }))
-          .advance(() => ({ default: "continue" }))
+          .step(reproduceStep, {
+            input: ({ input }) => ({
+              title: input.workItemTitle,
+              description: input.workItemDescription,
+            }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           title: { source: "work_item", field: "title" },
@@ -276,14 +291,16 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
             }),
           },
         })
-          .step(reproduceStep, ({ input, literal }) => ({
-            title: input.workItemTitle,
-            description: literal("hardcoded description"),
-          }))
-          .advance(() => ({ default: "continue" }))
+          .step(reproduceStep, {
+            input: ({ input, literal }) => ({
+              title: input.workItemTitle,
+              description: literal("hardcoded description"),
+            }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           model: { source: "literal", value: "gpt-4o" },
@@ -363,14 +380,16 @@ describe("pipeline() builder — parity coverage (Phase 5) — step ordering and
             bindings: ({ workItem }) => ({ ticket: workItem.field("ticket") }),
           },
         })
-          .step(nestedStep, ({ input }) => ({
-            title: input.ticket.title,
-            description: input.ticket.description,
-          }))
-          .advance(() => ({ default: "continue" }))
+          .step(nestedStep, {
+            input: ({ input }) => ({
+              title: input.ticket.title,
+              description: input.ticket.description,
+            }),
+            advance: () => ({ default: "continue" }),
+          })
           .build();
 
-        const step0 = spec.steps[0];
+        const step0 = spec.nodeDefinitions[0];
         if (!step0) throw new Error("expected step0");
         expect(step0.inputBindingsJson).toMatchObject({
           title: { source: "pipeline_input", path: "ticket.title" },

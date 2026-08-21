@@ -49,7 +49,7 @@ function isPipelineDefinitionSpec(
     typeof obj["key"] === "string" &&
     typeof obj["name"] === "string" &&
     typeof obj["version"] === "number" &&
-    Array.isArray(obj["steps"])
+    Array.isArray(obj["nodeDefinitions"])
   );
 }
 

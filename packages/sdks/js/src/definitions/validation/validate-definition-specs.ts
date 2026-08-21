@@ -11,6 +11,7 @@
 // silently dead at execution time, which is strictly worse than failing the
 // push, and every message is written to be actionable on its own.
 
+import { tryOrderChainNodeDefinitions } from "../pipelines/chain-graph";
 import type { PipelineDefinitionSpec } from "../pipelines/define-pipeline";
 import type { StepDefinitionSpec } from "../steps/define-step";
 import { resolveSourcePath, type JsonSchemaNode } from "./json-schema-paths";
@@ -39,8 +40,9 @@ export type DefinitionValidationIssue = {
   readonly message: string;
 };
 
-type SerializedBinding =
-  PipelineDefinitionSpec["steps"][number]["inputBindingsJson"][string];
+type SerializedBinding = NonNullable<
+  PipelineDefinitionSpec["nodeDefinitions"][number]["inputBindingsJson"]
+>[string];
 
 /** Formats a path list for an error message, capped so it stays readable. */
 function listPaths(paths: readonly string[], limit = 24): string {
@@ -146,8 +148,11 @@ function checkHealthChecks(
 // ─── Check 3: route outcomes name a pipeline that exists ─────────────────────
 
 function routeTargets(
-  policy: PipelineDefinitionSpec["steps"][number]["advancementPolicyDefinition"],
+  policy: PipelineDefinitionSpec["nodeDefinitions"][number]["advancementPolicyDefinition"],
 ): string[] {
+  // `fanOut`/`cohortGate` nodes (issue #167) carry no
+  // `advancementPolicyDefinition` at all — nothing to check.
+  if (!policy) return [];
   const keys: string[] = [];
   if (
     policy.defaultEventType === "route" &&
@@ -177,13 +182,13 @@ function checkRouteTargets(
   ]);
 
   for (const pipeline of pipelines) {
-    for (const step of pipeline.steps) {
-      for (const target of routeTargets(step.advancementPolicyDefinition)) {
+    for (const node of pipeline.nodeDefinitions) {
+      for (const target of routeTargets(node.advancementPolicyDefinition)) {
         if (known.has(target)) continue;
         issues.push({
           check: "route-target",
           message:
-            `Pipeline "${pipeline.key}" step "${step.stepKey}" routes to pipeline ` +
+            `Pipeline "${pipeline.key}" step "${node.stepKey ?? node.nodeKey}" routes to pipeline ` +
             `"${target}", but no pipeline with that key was found on the server or ` +
             `in the current push batch. Push the target pipeline first.`,
         });
@@ -197,40 +202,58 @@ function checkRouteTargets(
 // ─── Check 4: signal bindings point at earlier steps that declare them ───────
 
 /**
- * Execution order of a pipeline's steps, as array indexes.
+ * Execution order of a pipeline's nodes, as array indexes.
  *
- * The server sorts by `position` and requires positions to be unique positive
- * integers, so `position` is the authority whenever it is usable. Hand-written
- * specs sometimes carry placeholder positions (0, duplicates), in which case
- * array order is the only signal available and is what `buildPipelineSpec`
- * produces anyway.
+ * The graph's `dependencyEdges` are the authority whenever they form a usable
+ * chain. Hand-written specs sometimes carry a malformed graph (this
+ * validator's whole reason to exist is specs that bypass the type-safe
+ * builders — see the file's top comment), in which case array order is the
+ * only signal available and is what `buildPipelineSpec` produces anyway.
  */
 function executionRanks(
-  steps: PipelineDefinitionSpec["steps"],
+  nodeDefinitions: PipelineDefinitionSpec["nodeDefinitions"],
+  dependencyEdges: PipelineDefinitionSpec["dependencyEdges"],
 ): Map<number, number> {
-  const positions = steps.map((step) => step.position);
-  const usable =
-    positions.every((value) => Number.isInteger(value) && value > 0) &&
-    new Set(positions).size === positions.length;
+  const indexes = nodeDefinitions.map((_, index) => index);
+  const orderedNodes = tryOrderChainNodeDefinitions(
+    nodeDefinitions,
+    dependencyEdges,
+  );
 
-  const indexes = steps.map((_, index) => index);
-  const ordered = usable
-    ? [...indexes].sort(
-        (left, right) => (positions[left] ?? 0) - (positions[right] ?? 0),
-      )
-    : indexes;
+  if (orderedNodes === null) {
+    return new Map(indexes.map((index, rank) => [index, rank]));
+  }
+
+  const indexByNodeKey = new Map(
+    nodeDefinitions.map((node, index) => [node.nodeKey, index]),
+  );
+  const ordered = orderedNodes.map(
+    (node) => indexByNodeKey.get(node.nodeKey) ?? 0,
+  );
 
   return new Map(ordered.map((index, rank) => [index, rank]));
 }
 
-function bindingSource(
-  binding: SerializedBinding,
-): { readonly stepKey: string; readonly signalKey: string | null } | null {
+function bindingSource(binding: SerializedBinding): {
+  readonly stepKey: string;
+  readonly signalKey: string | null;
+  /**
+   * `"signals_list"` (issue #167 — `ctx.signalsList(fanOutStep)`) still
+   * requires its named fan-out to exist and run before the consumer (a
+   * cohort's branches must be terminal before their signals are readable),
+   * but has no single `signalKey` to check against
+   * `declaredSignalKeys` — it reaches the whole cohort, not one signal.
+   */
+  readonly kind: "signal" | "output" | "signals_list";
+} | null {
   if (binding.source === "step_signal") {
-    return { stepKey: binding.stepKey, signalKey: binding.signalKey };
+    return { stepKey: binding.stepKey, signalKey: binding.signalKey, kind: "signal" };
   }
   if (binding.source === "step_output") {
-    return { stepKey: binding.stepKey, signalKey: null };
+    return { stepKey: binding.stepKey, signalKey: null, kind: "output" };
+  }
+  if (binding.source === "signals_list") {
+    return { stepKey: binding.stepKey, signalKey: null, kind: "signals_list" };
   }
   return null;
 }
@@ -238,7 +261,7 @@ function bindingSource(
 function declaredSignalKeys(
   stepKey: string,
   stepsByKey: Map<string, readonly StepDefinitionSpec[]>,
-  pipelineSteps: PipelineDefinitionSpec["steps"],
+  pipelineNodeDefinitions: PipelineDefinitionSpec["nodeDefinitions"],
 ): readonly string[] | null {
   const specs = stepsByKey.get(stepKey);
   // Not in this batch — the server may already know it. Nothing provable.
@@ -248,11 +271,11 @@ function declaredSignalKeys(
   for (const spec of specs) {
     for (const signal of spec.signalExtractorDefinitions) keys.add(signal.key);
   }
-  // Computed signals are declared on the pipeline step, not the step
+  // Computed signals are declared on the pipeline node, not the step
   // definition, and are legal binding targets.
-  for (const step of pipelineSteps) {
-    if (step.stepKey !== stepKey) continue;
-    for (const computed of step.computedSignalDefinitions)
+  for (const node of pipelineNodeDefinitions) {
+    if (node.stepKey !== stepKey) continue;
+    for (const computed of node.computedSignalDefinitions ?? [])
       keys.add(computed.key);
   }
   return [...keys];
@@ -265,25 +288,33 @@ function checkSignalBindings(
   const issues: DefinitionValidationIssue[] = [];
 
   for (const pipeline of pipelines) {
-    const ranks = executionRanks(pipeline.steps);
-    const order = [...pipeline.steps.keys()]
+    const ranks = executionRanks(
+      pipeline.nodeDefinitions,
+      pipeline.dependencyEdges,
+    );
+    const order = [...pipeline.nodeDefinitions.keys()]
       .sort((left, right) => (ranks.get(left) ?? 0) - (ranks.get(right) ?? 0))
-      .map((index) => pipeline.steps[index]?.stepKey ?? "");
+      .map((index) => pipeline.nodeDefinitions[index]?.stepKey ?? "");
     const orderHint = `Steps in "${pipeline.key}", in order: ${order.join(" → ")}.`;
 
-    pipeline.steps.forEach((step, index) => {
+    pipeline.nodeDefinitions.forEach((node, index) => {
       const consumerRank = ranks.get(index) ?? index;
-      const where = `Pipeline "${pipeline.key}" step "${step.stepKey}"`;
+      const where = `Pipeline "${pipeline.key}" step "${node.stepKey ?? node.nodeKey}"`;
 
-      for (const [field, binding] of Object.entries(step.inputBindingsJson)) {
+      for (const [field, binding] of Object.entries(
+        node.inputBindingsJson ?? {},
+      )) {
         const source = bindingSource(binding);
         if (!source) continue;
 
-        const what = source.signalKey
-          ? `binds input "${field}" to signal "${source.signalKey}" of step "${source.stepKey}"`
-          : `binds input "${field}" to the output of step "${source.stepKey}"`;
+        const what =
+          source.kind === "signal"
+            ? `binds input "${field}" to signal "${source.signalKey ?? ""}" of step "${source.stepKey}"`
+            : source.kind === "signals_list"
+              ? `binds input "${field}" to the signals list of fan-out step "${source.stepKey}"`
+              : `binds input "${field}" to the output of step "${source.stepKey}"`;
 
-        const producerRanks = pipeline.steps
+        const producerRanks = pipeline.nodeDefinitions
           .map((candidate, candidateIndex) =>
             candidate.stepKey === source.stepKey
               ? (ranks.get(candidateIndex) ?? candidateIndex)
@@ -313,7 +344,7 @@ function checkSignalBindings(
         const available = declaredSignalKeys(
           source.stepKey,
           stepsByKey,
-          pipeline.steps,
+          pipeline.nodeDefinitions,
         );
         if (available === null || available.includes(source.signalKey))
           continue;

@@ -10,7 +10,9 @@ type CapturedRequest = {
   body: unknown;
 };
 
-async function readRequest(input: string | URL | Request): Promise<CapturedRequest> {
+async function readRequest(
+  input: string | URL | Request,
+): Promise<CapturedRequest> {
   const req = input as Request;
   const text = await req.clone().text();
   return {
@@ -50,10 +52,13 @@ function makeMockFetch(captured: CapturedRequest[]): typeof globalThis.fetch {
       const body = req.body as { key: string; version: number };
       const id = `step-${String(nextId++)}`;
       upsertedSteps.push({ id, key: body.key, version: body.version });
-      return new Response(JSON.stringify({ id, key: body.key, version: body.version }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ id, key: body.key, version: body.version }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
     return new Response(JSON.stringify({ id: "x" }), {
       status: 200,
@@ -69,12 +74,13 @@ export default {
   description: null,
   version: 1,
   status: "active",
-  steps: [
+  nodeDefinitions: [
     {
+      nodeKey: "step-a",
+      kind: "step",
       stepKey: "step-a",
       stepName: "Step A",
       stepDescription: null,
-      position: 0,
       inputBindingsJson: {},
       timeoutSeconds: null,
       advancementPolicyDefinition: {
@@ -86,6 +92,7 @@ export default {
       computedSignalDefinitions: [],
     },
   ],
+  dependencyEdges: [],
   _stepDefinitions: [{
     key: "step-a",
     name: "Step A",
@@ -110,7 +117,10 @@ describe("pushFromDirectory", () => {
 
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), "boboddy-pfd-test-"));
-    writeFileSync(join(dir, "investigation.js"), PIPELINE_SPEC_JS("investigation"));
+    writeFileSync(
+      join(dir, "investigation.js"),
+      PIPELINE_SPEC_JS("investigation"),
+    );
 
     globalThis.fetch = makeMockFetch(captured);
   });
@@ -143,9 +153,7 @@ describe("pushFromDirectory", () => {
     });
 
     const pipelineUpsert = captured.find(
-      (r) =>
-        r.method === "PUT" &&
-        r.url.endsWith("/api/linear-pipeline-definitions"),
+      (r) => r.method === "PUT" && r.url.endsWith("/api/pipeline-definitions"),
     );
     expect(pipelineUpsert).toBeDefined();
     if (!pipelineUpsert) throw new Error("expected pipelineUpsert");
@@ -161,8 +169,14 @@ describe("pushFromDirectory", () => {
     const previous2 = globalThis.fetch;
     globalThis.fetch = makeMockFetch([]);
     try {
-      writeFileSync(join(dir2, "push.ts"), `throw new Error("should not be loaded");`);
-      writeFileSync(join(dir2, "investigation.js"), PIPELINE_SPEC_JS("investigation-2"));
+      writeFileSync(
+        join(dir2, "push.ts"),
+        `throw new Error("should not be loaded");`,
+      );
+      writeFileSync(
+        join(dir2, "investigation.js"),
+        PIPELINE_SPEC_JS("investigation-2"),
+      );
       const result = await pushFromDirectory(dir2, {
         baseUrl: BASE_URL,
         projectId: "proj-2",
@@ -193,12 +207,13 @@ describe("pushFromDirectory route validation", () => {
         description: null,
         version: 1,
         status: "active",
-        steps: [
+        nodeDefinitions: [
           {
+            nodeKey: "step-a",
+            kind: "step",
             stepKey: "step-a",
             stepName: "Step A",
             stepDescription: null,
-            position: 0,
             inputBindingsJson: {},
             timeoutSeconds: null,
             advancementPolicyDefinition: {
@@ -210,6 +225,7 @@ describe("pushFromDirectory route validation", () => {
             computedSignalDefinitions: [],
           },
         ],
+        dependencyEdges: [],
         _stepDefinitions: [{
           key: "step-a",
           name: "Step A",
@@ -229,10 +245,12 @@ describe("pushFromDirectory route validation", () => {
     writeFileSync(join(dir, "router.js"), PIPELINE);
 
     globalThis.fetch = (() => {
-      return Promise.resolve(new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }));
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     }) as unknown as typeof globalThis.fetch;
   });
 

@@ -2,12 +2,18 @@ import { keyToVarName } from "../../../steps/step-definitions/infra/step-file-ge
 
 // ─── Types matching the server-side wire format ───────────────────────────────
 
-type SerializedLeafCondition = { fact: string; path?: string; operator: string; value: unknown };
+type SerializedLeafCondition = {
+  fact: string;
+  path?: string;
+  operator: string;
+  value: unknown;
+};
 type SerializedConditionGroup = {
   all?: SerializedConditionNode[];
   any?: SerializedConditionNode[];
 };
-type SerializedConditionNode = SerializedLeafCondition | SerializedConditionGroup;
+type SerializedConditionNode =
+  SerializedLeafCondition | SerializedConditionGroup;
 
 type AssignmentPolicyRule = {
   conditions: {
@@ -18,7 +24,7 @@ type AssignmentPolicyRule = {
 };
 
 export type DefaultPipelineAssignmentContract = {
-  linearPipelineDefinitionId: string;
+  pipelineDefinitionId: string;
   rulesJson: { rules: AssignmentPolicyRule[] };
   defaultEventType: "assign" | "skip";
   defaultEventParamsJson: Record<string, unknown> | null;
@@ -65,7 +71,9 @@ export class UnsupportedRuleError extends Error {
 
 // ─── Condition reconstruction ─────────────────────────────────────────────────
 
-function isLeafCondition(c: SerializedConditionNode): c is SerializedLeafCondition {
+function isLeafCondition(
+  c: SerializedConditionNode,
+): c is SerializedLeafCondition {
   return "fact" in c;
 }
 
@@ -73,7 +81,10 @@ function reconstructFactRef(fact: string, path: string | undefined): string {
   if (fact === CONTEXT_FACT && path === CONTEXT_IS_NEW_PATH) {
     return "context.isNew";
   }
-  if (fact === WORK_ITEM_FACT && path?.startsWith(WORK_ITEM_FIELDS_PATH_PREFIX)) {
+  if (
+    fact === WORK_ITEM_FACT &&
+    path?.startsWith(WORK_ITEM_FIELDS_PATH_PREFIX)
+  ) {
     const fieldName = path.slice(WORK_ITEM_FIELDS_PATH_PREFIX.length);
     return `workItem.field(${JSON.stringify(fieldName)})`;
   }
@@ -95,7 +106,9 @@ function reconstructNestable(cond: SerializedConditionNode): string {
     return `${factRef}.${method}(${JSON.stringify(cond.value)})`;
   }
   const mode = cond.all ? "all" : "any";
-  const children = (cond[mode] ?? []).map(reconstructNestable).join(",\n      ");
+  const children = (cond[mode] ?? [])
+    .map(reconstructNestable)
+    .join(",\n      ");
   return `${mode}(\n      ${children},\n    )`;
 }
 
@@ -106,14 +119,15 @@ function resolvePipelineKey(
   definitionIdToKey: Map<string, string>,
   contextDesc: string,
 ): string {
-  const pipelineDefinitionId = params?.["pipelineDefinitionId"] as string | undefined;
+  const pipelineDefinitionId = params?.["pipelineDefinitionId"] as
+    string | undefined;
   const pipelineKey = params?.["pipelineKey"] as string | undefined;
 
   if (pipelineDefinitionId) {
     const key = definitionIdToKey.get(pipelineDefinitionId);
     if (!key) {
       throw new UnsupportedRuleError(
-        `Cannot resolve linearPipelineDefinitionId "${pipelineDefinitionId}" to a pipeline key (${contextDesc}). ` +
+        `Cannot resolve pipelineDefinitionId "${pipelineDefinitionId}" to a pipeline key (${contextDesc}). ` +
           `Ensure the pipeline was pulled successfully.`,
       );
     }
@@ -156,7 +170,12 @@ function reconstructRuleExpr(
 
   // Single leaf condition: emit inline without wrapping all()/any()
   const firstCondition = conditions[0];
-  if (mode === "all" && conditions.length === 1 && firstCondition !== undefined && isLeafCondition(firstCondition)) {
+  if (
+    mode === "all" &&
+    conditions.length === 1 &&
+    firstCondition !== undefined &&
+    isLeafCondition(firstCondition)
+  ) {
     return `${reconstructNestable(firstCondition)}.then(${outcomeExpr})`;
   }
 
@@ -189,7 +208,8 @@ function collectImportedPipelineKeys(
   // Rule outcomes
   for (const rule of contract.rulesJson.rules) {
     if (rule.event.type === "assign") {
-      const id = rule.event.params?.["pipelineDefinitionId"] as string | undefined;
+      const id = rule.event.params?.["pipelineDefinitionId"] as
+        string | undefined;
       const pKey = rule.event.params?.["pipelineKey"] as string | undefined;
       if (id) {
         const resolved = definitionIdToKey.get(id);
@@ -208,7 +228,9 @@ function collectImportedPipelineKeys(
  * Always includes `defaultPipelineAssignment`. Adds `assign`, `skip`,
  * `all`, `any`, `workItem`, `context` as needed.
  */
-function collectNamedImports(contract: DefaultPipelineAssignmentContract): string[] {
+function collectNamedImports(
+  contract: DefaultPipelineAssignmentContract,
+): string[] {
   const names = new Set<string>(["defaultPipelineAssignment"]);
 
   // default outcome
@@ -236,7 +258,12 @@ function collectNamedImports(contract: DefaultPipelineAssignmentContract): strin
     const conditions = rule.conditions[mode] ?? [];
     // Need all/any in ctx if the top-level has >1 condition or a nested group
     const firstCond = conditions[0];
-    if (conditions.length > 1 || (conditions.length === 1 && firstCond !== undefined && !isLeafCondition(firstCond))) {
+    if (
+      conditions.length > 1 ||
+      (conditions.length === 1 &&
+        firstCond !== undefined &&
+        !isLeafCondition(firstCond))
+    ) {
       names.add(mode);
     }
     visitConditions(conditions);
@@ -252,7 +279,7 @@ function collectNamedImports(contract: DefaultPipelineAssignmentContract): strin
  * contract.
  *
  * @param contract          Server-side default pipeline assignment config.
- * @param definitionIdToKey Map from linearPipelineDefinitionId → pipeline key.
+ * @param definitionIdToKey Map from pipelineDefinitionId → pipeline key.
  *
  * @throws UnsupportedRuleError if the contract contains rules that cannot be
  *         reconstructed with the SDK's fluent DSL.
@@ -261,7 +288,10 @@ export function generateDefaultPipelineAssignmentFileContent(
   contract: DefaultPipelineAssignmentContract,
   definitionIdToKey: Map<string, string>,
 ): string {
-  const importedPipelineKeys = collectImportedPipelineKeys(contract, definitionIdToKey);
+  const importedPipelineKeys = collectImportedPipelineKeys(
+    contract,
+    definitionIdToKey,
+  );
   const namedImports = collectNamedImports(contract);
 
   const lines: string[] = [];

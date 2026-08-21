@@ -175,7 +175,7 @@ export type GetApiProjectsResolveResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -591,7 +591,7 @@ export type GetApiProjectsByProjectIdResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -714,7 +714,7 @@ export type GetApiProjectsResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -889,7 +889,7 @@ export type PostApiProjectsResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -951,7 +951,7 @@ export type PostApiProjectsResponse = PostApiProjectsResponses[keyof PostApiProj
 export type PutApiProjectsByProjectIdDefaultPipelineAssignmentData = {
     body: {
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -1115,7 +1115,7 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -1289,7 +1289,7 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {
@@ -4708,7 +4708,7 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUr
 
 export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponse = GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses[keyof GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses];
 
-export type PostApiLinearPipelineDefinitionsData = {
+export type PostApiPipelineDefinitionsData = {
     body: {
         projectId: string;
         key: string;
@@ -4805,10 +4805,10 @@ export type PostApiLinearPipelineDefinitionsData = {
     };
     path?: never;
     query?: never;
-    url: '/api/linear-pipeline-definitions';
+    url: '/api/pipeline-definitions';
 };
 
-export type PostApiLinearPipelineDefinitionsErrors = {
+export type PostApiPipelineDefinitionsErrors = {
     /**
      * Response for status 400
      */
@@ -4923,9 +4923,9 @@ export type PostApiLinearPipelineDefinitionsErrors = {
     };
 };
 
-export type PostApiLinearPipelineDefinitionsError = PostApiLinearPipelineDefinitionsErrors[keyof PostApiLinearPipelineDefinitionsErrors];
+export type PostApiPipelineDefinitionsError = PostApiPipelineDefinitionsErrors[keyof PostApiPipelineDefinitionsErrors];
 
-export type PostApiLinearPipelineDefinitionsResponses = {
+export type PostApiPipelineDefinitionsResponses = {
     /**
      * Response for status 200
      */
@@ -4940,7 +4940,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -4971,7 +4971,7 @@ export type PostApiLinearPipelineDefinitionsResponses = {
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -5040,9 +5040,9 @@ export type PostApiLinearPipelineDefinitionsResponses = {
     };
 };
 
-export type PostApiLinearPipelineDefinitionsResponse = PostApiLinearPipelineDefinitionsResponses[keyof PostApiLinearPipelineDefinitionsResponses];
+export type PostApiPipelineDefinitionsResponse = PostApiPipelineDefinitionsResponses[keyof PostApiPipelineDefinitionsResponses];
 
-export type PutApiLinearPipelineDefinitionsData = {
+export type PutApiPipelineDefinitionsData = {
     body: {
         projectId: string;
         key: string;
@@ -5139,10 +5139,10 @@ export type PutApiLinearPipelineDefinitionsData = {
     };
     path?: never;
     query?: never;
-    url: '/api/linear-pipeline-definitions';
+    url: '/api/pipeline-definitions';
 };
 
-export type PutApiLinearPipelineDefinitionsErrors = {
+export type PutApiPipelineDefinitionsErrors = {
     /**
      * Response for status 401
      */
@@ -5209,9 +5209,9 @@ export type PutApiLinearPipelineDefinitionsErrors = {
     };
 };
 
-export type PutApiLinearPipelineDefinitionsError = PutApiLinearPipelineDefinitionsErrors[keyof PutApiLinearPipelineDefinitionsErrors];
+export type PutApiPipelineDefinitionsError = PutApiPipelineDefinitionsErrors[keyof PutApiPipelineDefinitionsErrors];
 
-export type PutApiLinearPipelineDefinitionsResponses = {
+export type PutApiPipelineDefinitionsResponses = {
     /**
      * Response for status 200
      */
@@ -5226,7 +5226,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5257,7 +5257,7 @@ export type PutApiLinearPipelineDefinitionsResponses = {
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -5326,18 +5326,18 @@ export type PutApiLinearPipelineDefinitionsResponses = {
     };
 };
 
-export type PutApiLinearPipelineDefinitionsResponse = PutApiLinearPipelineDefinitionsResponses[keyof PutApiLinearPipelineDefinitionsResponses];
+export type PutApiPipelineDefinitionsResponse = PutApiPipelineDefinitionsResponses[keyof PutApiPipelineDefinitionsResponses];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveData = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveData = {
     body?: never;
     path: {
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/archive';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}/archive';
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveErrors = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors = {
     /**
      * Response for status 401
      */
@@ -5420,9 +5420,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveEr
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveError = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveErrors[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveErrors];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveError = PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponses = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
     /**
      * Response for status 200
      */
@@ -5437,7 +5437,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5468,7 +5468,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -5537,18 +5537,18 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveRe
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponse = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponses[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdArchiveResponses];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponse = PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveData = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveData = {
     body?: never;
     path: {
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/unarchive';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}/unarchive';
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveErrors = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors = {
     /**
      * Response for status 401
      */
@@ -5631,9 +5631,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveError = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveErrors[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveErrors];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveError = PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponses = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = {
     /**
      * Response for status 200
      */
@@ -5648,7 +5648,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5679,7 +5679,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -5748,9 +5748,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchive
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponse = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponses[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdUnarchiveResponses];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponse = PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses];
 
-export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsData = {
+export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsData = {
     body: {
         stepDefinitionId: string;
         stepDefinitionVersion: number;
@@ -5844,13 +5844,13 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsDat
         }>;
     };
     path: {
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps';
 };
 
-export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsErrors = {
+export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsErrors = {
     /**
      * Response for status 401
      */
@@ -5933,9 +5933,9 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsErr
     };
 };
 
-export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsError = PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsErrors[keyof PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsErrors];
+export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsError = PostApiPipelineDefinitionsByPipelineDefinitionIdStepsErrors[keyof PostApiPipelineDefinitionsByPipelineDefinitionIdStepsErrors];
 
-export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsResponses = {
+export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses = {
     /**
      * Response for status 200
      */
@@ -5950,7 +5950,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5981,7 +5981,7 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -6050,19 +6050,19 @@ export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsRes
     };
 };
 
-export type PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsResponse = PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsResponses[keyof PostApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsResponses];
+export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponse = PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses[keyof PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses];
 
-export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdData = {
+export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdData = {
     body?: never;
     path: {
-        linearPipelineDefinitionId: string;
-        linearPipelineStepDefinitionId: string;
+        pipelineDefinitionId: string;
+        pipelineStepDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps/{linearPipelineStepDefinitionId}';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}';
 };
 
-export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdErrors = {
+export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors = {
     /**
      * Response for status 401
      */
@@ -6145,9 +6145,9 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
     };
 };
 
-export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdError = DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdErrors[keyof DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdErrors];
+export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdError = DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors[keyof DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors];
 
-export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponses = {
+export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses = {
     /**
      * Response for status 200
      */
@@ -6162,7 +6162,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6193,7 +6193,7 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -6262,9 +6262,9 @@ export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsB
     };
 };
 
-export type DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponse = DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponses[keyof DeleteApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponses];
+export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponse = DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses[keyof DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdData = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdData = {
     body: {
         stepDefinitionId: string;
         stepDefinitionVersion: number;
@@ -6358,14 +6358,14 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         }>;
     };
     path: {
-        linearPipelineDefinitionId: string;
-        linearPipelineStepDefinitionId: string;
+        pipelineDefinitionId: string;
+        pipelineStepDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps/{linearPipelineStepDefinitionId}';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}';
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdErrors = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors = {
     /**
      * Response for status 401
      */
@@ -6448,9 +6448,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdError = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdErrors[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdErrors];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdError = PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponses = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses = {
     /**
      * Response for status 200
      */
@@ -6465,7 +6465,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6496,7 +6496,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -6565,9 +6565,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponse = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponses[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdResponses];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponse = PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyData = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyData = {
     body: {
         rulesJson: {
             rules: Array<{
@@ -6618,14 +6618,14 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
     };
     path: {
-        linearPipelineDefinitionId: string;
-        linearPipelineStepDefinitionId: string;
+        pipelineDefinitionId: string;
+        pipelineStepDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}/steps/{linearPipelineStepDefinitionId}/advancement-policy';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}/advancement-policy';
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyErrors = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyErrors = {
     /**
      * Response for status 401
      */
@@ -6708,9 +6708,9 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyError = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyErrors[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyErrors];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyError = PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyErrors[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyErrors];
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyResponses = {
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyResponses = {
     /**
      * Response for status 200
      */
@@ -6725,7 +6725,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6756,7 +6756,7 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -6825,18 +6825,18 @@ export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLi
     };
 };
 
-export type PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyResponse = PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyResponses[keyof PutApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdStepsByLinearPipelineStepDefinitionIdAdvancementPolicyResponses];
+export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyResponse = PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyResponses[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyResponses];
 
-export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdData = {
+export type GetApiPipelineDefinitionsByPipelineDefinitionIdData = {
     body?: never;
     path: {
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-definitions/{linearPipelineDefinitionId}';
+    url: '/api/pipeline-definitions/{pipelineDefinitionId}';
 };
 
-export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdErrors = {
+export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
     /**
      * Response for status 400
      */
@@ -6935,9 +6935,9 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdErrors = 
     };
 };
 
-export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdError = GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdErrors[keyof GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdErrors];
+export type GetApiPipelineDefinitionsByPipelineDefinitionIdError = GetApiPipelineDefinitionsByPipelineDefinitionIdErrors[keyof GetApiPipelineDefinitionsByPipelineDefinitionIdErrors];
 
-export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses = {
+export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
     /**
      * Response for status 200
      */
@@ -6952,7 +6952,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6983,7 +6983,7 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -7052,18 +7052,18 @@ export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses
     };
 };
 
-export type GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponse = GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses[keyof GetApiLinearPipelineDefinitionsByLinearPipelineDefinitionIdResponses];
+export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponse = GetApiPipelineDefinitionsByPipelineDefinitionIdResponses[keyof GetApiPipelineDefinitionsByPipelineDefinitionIdResponses];
 
-export type GetApiProjectsByProjectIdLinearPipelineDefinitionsData = {
+export type GetApiProjectsByProjectIdPipelineDefinitionsData = {
     body?: never;
     path: {
         projectId: string;
     };
     query?: never;
-    url: '/api/projects/{projectId}/linear-pipeline-definitions';
+    url: '/api/projects/{projectId}/pipeline-definitions';
 };
 
-export type GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors = {
+export type GetApiProjectsByProjectIdPipelineDefinitionsErrors = {
     /**
      * Response for status 401
      */
@@ -7130,9 +7130,9 @@ export type GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors = {
     };
 };
 
-export type GetApiProjectsByProjectIdLinearPipelineDefinitionsError = GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors[keyof GetApiProjectsByProjectIdLinearPipelineDefinitionsErrors];
+export type GetApiProjectsByProjectIdPipelineDefinitionsError = GetApiProjectsByProjectIdPipelineDefinitionsErrors[keyof GetApiProjectsByProjectIdPipelineDefinitionsErrors];
 
-export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses = {
+export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
     /**
      * Response for status 200
      */
@@ -7147,7 +7147,7 @@ export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses = {
         inputSchemaJson: unknown;
         stepDefinitions: Array<{
             id: string;
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -7178,7 +7178,7 @@ export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses = {
             retryPolicyJson: unknown;
             advancementPolicyDefinition: {
                 id: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineStepDefinitionId: string;
                 rulesJson: {
                     rules: Array<{
                         conditions: {
@@ -7247,9 +7247,9 @@ export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses = {
     }>;
 };
 
-export type GetApiProjectsByProjectIdLinearPipelineDefinitionsResponse = GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses[keyof GetApiProjectsByProjectIdLinearPipelineDefinitionsResponses];
+export type GetApiProjectsByProjectIdPipelineDefinitionsResponse = GetApiProjectsByProjectIdPipelineDefinitionsResponses[keyof GetApiProjectsByProjectIdPipelineDefinitionsResponses];
 
-export type GetApiLinearPipelineExecutionsData = {
+export type GetApiPipelineExecutionsData = {
     body?: never;
     path?: never;
     query: {
@@ -7261,10 +7261,10 @@ export type GetApiLinearPipelineExecutionsData = {
         page?: number;
         pageSize?: number;
     };
-    url: '/api/linear-pipeline-executions';
+    url: '/api/pipeline-executions';
 };
 
-export type GetApiLinearPipelineExecutionsErrors = {
+export type GetApiPipelineExecutionsErrors = {
     /**
      * Response for status 401
      */
@@ -7331,9 +7331,9 @@ export type GetApiLinearPipelineExecutionsErrors = {
     };
 };
 
-export type GetApiLinearPipelineExecutionsError = GetApiLinearPipelineExecutionsErrors[keyof GetApiLinearPipelineExecutionsErrors];
+export type GetApiPipelineExecutionsError = GetApiPipelineExecutionsErrors[keyof GetApiPipelineExecutionsErrors];
 
-export type GetApiLinearPipelineExecutionsResponses = {
+export type GetApiPipelineExecutionsResponses = {
     /**
      * Response for status 200
      */
@@ -7343,8 +7343,8 @@ export type GetApiLinearPipelineExecutionsResponses = {
             projectId: string;
             workItemId: string;
             workItemTitle: string;
-            linearPipelineDefinitionId: string;
-            linearPipelineDefinitionVersionId: string;
+            pipelineDefinitionId: string;
+            pipelineDefinitionVersionId: string;
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             attemptCount: number;
             latestAttempt: {
@@ -7366,21 +7366,21 @@ export type GetApiLinearPipelineExecutionsResponses = {
     };
 };
 
-export type GetApiLinearPipelineExecutionsResponse = GetApiLinearPipelineExecutionsResponses[keyof GetApiLinearPipelineExecutionsResponses];
+export type GetApiPipelineExecutionsResponse = GetApiPipelineExecutionsResponses[keyof GetApiPipelineExecutionsResponses];
 
-export type PostApiLinearPipelineExecutionsData = {
+export type PostApiPipelineExecutionsData = {
     body: {
         projectId: string;
         workItemId: string;
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
         inputJson?: unknown;
     };
     path?: never;
     query?: never;
-    url: '/api/linear-pipeline-executions';
+    url: '/api/pipeline-executions';
 };
 
-export type PostApiLinearPipelineExecutionsErrors = {
+export type PostApiPipelineExecutionsErrors = {
     /**
      * Response for status 400
      */
@@ -7495,9 +7495,9 @@ export type PostApiLinearPipelineExecutionsErrors = {
     };
 };
 
-export type PostApiLinearPipelineExecutionsError = PostApiLinearPipelineExecutionsErrors[keyof PostApiLinearPipelineExecutionsErrors];
+export type PostApiPipelineExecutionsError = PostApiPipelineExecutionsErrors[keyof PostApiPipelineExecutionsErrors];
 
-export type PostApiLinearPipelineExecutionsResponses = {
+export type PostApiPipelineExecutionsResponses = {
     /**
      * Response for status 200
      */
@@ -7506,14 +7506,14 @@ export type PostApiLinearPipelineExecutionsResponses = {
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -7522,8 +7522,8 @@ export type PostApiLinearPipelineExecutionsResponses = {
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -7540,12 +7540,15 @@ export type PostApiLinearPipelineExecutionsResponses = {
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -7562,7 +7565,7 @@ export type PostApiLinearPipelineExecutionsResponses = {
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -7577,18 +7580,18 @@ export type PostApiLinearPipelineExecutionsResponses = {
     };
 };
 
-export type PostApiLinearPipelineExecutionsResponse = PostApiLinearPipelineExecutionsResponses[keyof PostApiLinearPipelineExecutionsResponses];
+export type PostApiPipelineExecutionsResponse = PostApiPipelineExecutionsResponses[keyof PostApiPipelineExecutionsResponses];
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartData = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdStartData = {
     body?: never;
     path: {
-        linearPipelineExecutionId: string;
+        pipelineExecutionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/start';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/start';
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartErrors = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdStartErrors = {
     /**
      * Response for status 401
      */
@@ -7671,9 +7674,9 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartErrors
     };
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartError = PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartErrors[keyof PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartErrors];
+export type PutApiPipelineExecutionsByPipelineExecutionIdStartError = PutApiPipelineExecutionsByPipelineExecutionIdStartErrors[keyof PutApiPipelineExecutionsByPipelineExecutionIdStartErrors];
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartResponses = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdStartResponses = {
     /**
      * Response for status 200
      */
@@ -7682,14 +7685,14 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -7698,8 +7701,8 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -7716,12 +7719,15 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -7738,7 +7744,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -7753,18 +7759,18 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartRespon
     };
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartResponse = PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartResponses[keyof PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStartResponses];
+export type PutApiPipelineExecutionsByPipelineExecutionIdStartResponse = PutApiPipelineExecutionsByPipelineExecutionIdStartResponses[keyof PutApiPipelineExecutionsByPipelineExecutionIdStartResponses];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstData = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstData = {
     body?: never;
     path: {
-        linearPipelineExecutionId: string;
+        pipelineExecutionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/first';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/step-runs/first';
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstErrors = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors = {
     /**
      * Response for status 401
      */
@@ -7847,9 +7853,9 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstError = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstErrors[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstErrors];
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstError = PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstResponses = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses = {
     /**
      * Response for status 200
      */
@@ -7858,14 +7864,14 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -7874,8 +7880,8 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -7892,12 +7898,15 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -7914,7 +7923,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -7929,19 +7938,19 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFi
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstResponse = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstResponses[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsFirstResponses];
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponse = PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses];
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningData = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningData = {
     body?: never;
     path: {
-        linearPipelineExecutionId: string;
-        linearPipelineStepRunId: string;
+        pipelineExecutionId: string;
+        pipelineStepRunId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/{linearPipelineStepRunId}/running';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/step-runs/{pipelineStepRunId}/running';
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningErrors = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningErrors = {
     /**
      * Response for status 401
      */
@@ -8024,9 +8033,9 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
     };
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningError = PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningErrors[keyof PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningErrors];
+export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningError = PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningErrors[keyof PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningErrors];
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningResponses = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningResponses = {
     /**
      * Response for status 200
      */
@@ -8035,14 +8044,14 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -8051,8 +8060,8 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -8069,12 +8078,15 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -8091,7 +8103,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -8106,9 +8118,9 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByL
     };
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningResponse = PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningResponses[keyof PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdRunningResponses];
+export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningResponse = PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningResponses[keyof PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdRunningResponses];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsData = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsData = {
     body: {
         status: 'succeeded' | 'failed';
         resultJson: unknown;
@@ -8117,14 +8129,14 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
         createdFromBranch?: string | unknown;
     };
     path: {
-        linearPipelineExecutionId: string;
-        linearPipelineStepRunId: string;
+        pipelineExecutionId: string;
+        pipelineStepRunId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/{linearPipelineStepRunId}/results';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/step-runs/{pipelineStepRunId}/results';
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsErrors = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsErrors = {
     /**
      * Response for status 401
      */
@@ -8207,9 +8219,9 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsError = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsErrors[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsErrors];
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsError = PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsErrors[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsErrors];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsResponses = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsResponses = {
     /**
      * Response for status 200
      */
@@ -8218,14 +8230,14 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -8234,8 +8246,8 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -8252,12 +8264,15 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -8274,7 +8289,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -8289,9 +8304,9 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsResponse = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsResponses[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdResultsResponses];
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsResponse = PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsResponses[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdResultsResponses];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptData = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptData = {
     body: {
         projectId: string;
         stepExecutionId: string;
@@ -8300,14 +8315,14 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
         acceptanceReason: string;
     };
     path: {
-        linearPipelineExecutionId: string;
-        linearPipelineStepRunId: string;
+        pipelineExecutionId: string;
+        pipelineStepRunId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/step-runs/{linearPipelineStepRunId}/accept';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/step-runs/{pipelineStepRunId}/accept';
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptErrors = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptErrors = {
     /**
      * Response for status 401
      */
@@ -8390,9 +8405,9 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptError = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptErrors[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptErrors];
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptError = PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptErrors[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptErrors];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptResponses = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptResponses = {
     /**
      * Response for status 200
      */
@@ -8401,14 +8416,14 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -8417,8 +8432,8 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -8435,12 +8450,15 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -8457,7 +8475,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -8472,21 +8490,204 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsBy
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptResponse = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptResponses[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdStepRunsByLinearPipelineStepRunIdAcceptResponses];
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptResponse = PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptResponses[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptResponses];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunData = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptData = {
+    body: {
+        acceptedByUserId: string;
+        acceptanceReason: string;
+    };
+    path: {
+        pipelineExecutionId: string;
+        originNodeDefinitionId: string;
+    };
+    query?: never;
+    url: '/api/pipeline-executions/{pipelineExecutionId}/cohorts/{originNodeDefinitionId}/accept';
+};
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptError = PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptErrors[keyof PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptErrors];
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string;
+        workItemTitle: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
+        definitionStepCount: number;
+        inputJson: unknown;
+        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+        attempts: Array<{
+            id: string;
+            pipelineExecutionId: string;
+            attemptNumber: number;
+            currentStepKey: string | unknown;
+            startedAt: string | unknown;
+            completedAt: string | unknown;
+            routedToPipelineExecutionId: string | unknown;
+            status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+            stepRuns: Array<{
+                id: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
+                stepDefinitionId: string;
+                stepDefinitionVersion: number;
+                stepKey: string;
+                position: number;
+                status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned' | 'timeout';
+                satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
+                stepExecutionId: string;
+                stepExecutionResultId: string | unknown;
+                inheritedFromStepRunId: string | unknown;
+                acceptedByUserId: string | unknown;
+                acceptedAt: string | unknown;
+                acceptanceReason: string | unknown;
+                workBranch: string | unknown;
+                outputJson: unknown;
+                evaluation: {
+                    id: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
+                    stepExecutionId: string;
+                    stepExecutionResultId: string;
+                    stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
+                    factsSnapshotJson: {
+                        [key: string]: unknown;
+                    };
+                    ruleResultsJson: unknown;
+                    finalStatus: 'pass' | 'fail';
+                    finalAction: 'continue' | 'block' | 'complete' | 'route';
+                    finalPayloadJson: {
+                        [key: string]: unknown;
+                    } | unknown;
+                    createdAt: string;
+                } | unknown;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            events: Array<{
+                id: string;
+                pipelineExecutionAttemptId: string;
+                type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
+                payloadJson: {
+                    [key: string]: unknown;
+                } | unknown;
+                createdAt: string;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptResponse = PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptResponses[keyof PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDefinitionIdAcceptResponses];
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdRerunData = {
     body: {
         mode?: 'all' | 'failed';
         fromStepKey?: string;
     };
     path: {
-        linearPipelineExecutionId: string;
+        pipelineExecutionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/rerun';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/rerun';
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunErrors = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors = {
     /**
      * Response for status 401
      */
@@ -8569,9 +8770,9 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunError
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunError = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunErrors[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunErrors];
+export type PostApiPipelineExecutionsByPipelineExecutionIdRerunError = PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors[keyof PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors];
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunResponses = {
+export type PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses = {
     /**
      * Response for status 200
      */
@@ -8580,14 +8781,14 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -8596,8 +8797,8 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -8614,12 +8815,15 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -8636,7 +8840,7 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -8651,18 +8855,18 @@ export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunRespo
     };
 };
 
-export type PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunResponse = PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunResponses[keyof PostApiLinearPipelineExecutionsByLinearPipelineExecutionIdRerunResponses];
+export type PostApiPipelineExecutionsByPipelineExecutionIdRerunResponse = PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses[keyof PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses];
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelData = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdCancelData = {
     body?: never;
     path: {
-        linearPipelineExecutionId: string;
+        pipelineExecutionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}/cancel';
+    url: '/api/pipeline-executions/{pipelineExecutionId}/cancel';
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelErrors = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors = {
     /**
      * Response for status 401
      */
@@ -8745,9 +8949,9 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelError
     };
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelError = PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelErrors[keyof PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelErrors];
+export type PutApiPipelineExecutionsByPipelineExecutionIdCancelError = PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors[keyof PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors];
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelResponses = {
+export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses = {
     /**
      * Response for status 200
      */
@@ -8756,14 +8960,14 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -8772,8 +8976,8 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -8790,12 +8994,15 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -8812,7 +9019,7 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -8827,18 +9034,18 @@ export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelRespo
     };
 };
 
-export type PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelResponse = PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelResponses[keyof PutApiLinearPipelineExecutionsByLinearPipelineExecutionIdCancelResponses];
+export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponse = PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses[keyof PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses];
 
-export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdData = {
+export type GetApiPipelineExecutionsByPipelineExecutionIdData = {
     body?: never;
     path: {
-        linearPipelineExecutionId: string;
+        pipelineExecutionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/{linearPipelineExecutionId}';
+    url: '/api/pipeline-executions/{pipelineExecutionId}';
 };
 
-export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdErrors = {
+export type GetApiPipelineExecutionsByPipelineExecutionIdErrors = {
     /**
      * Response for status 401
      */
@@ -8921,9 +9128,9 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdErrors = {
     };
 };
 
-export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdError = GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdErrors[keyof GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdErrors];
+export type GetApiPipelineExecutionsByPipelineExecutionIdError = GetApiPipelineExecutionsByPipelineExecutionIdErrors[keyof GetApiPipelineExecutionsByPipelineExecutionIdErrors];
 
-export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses = {
+export type GetApiPipelineExecutionsByPipelineExecutionIdResponses = {
     /**
      * Response for status 200
      */
@@ -8932,14 +9139,14 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
         projectId: string;
         workItemId: string;
         workItemTitle: string;
-        linearPipelineDefinitionId: string;
-        linearPipelineDefinitionVersionId: string;
+        pipelineDefinitionId: string;
+        pipelineDefinitionVersionId: string;
         definitionStepCount: number;
         inputJson: unknown;
         status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
         attempts: Array<{
             id: string;
-            linearPipelineExecutionId: string;
+            pipelineExecutionId: string;
             attemptNumber: number;
             currentStepKey: string | unknown;
             startedAt: string | unknown;
@@ -8948,8 +9155,8 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
             status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
             stepRuns: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
-                linearPipelineStepDefinitionId: string;
+                pipelineExecutionAttemptId: string;
+                pipelineStepDefinitionId: string;
                 stepDefinitionId: string;
                 stepDefinitionVersion: number;
                 stepKey: string;
@@ -8966,12 +9173,15 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
                 outputJson: unknown;
                 evaluation: {
                     id: string;
-                    linearPipelineExecutionAttemptId: string;
-                    linearPipelineStepRunId: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepRunId: string;
                     stepExecutionId: string;
                     stepExecutionResultId: string;
                     stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
-                    linearPipelineStepAdvancementPolicyDefinitionId: string;
+                    pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                    policySnapshotJson: {
+                        [key: string]: unknown;
+                    } | unknown;
                     factsSnapshotJson: {
                         [key: string]: unknown;
                     };
@@ -8988,7 +9198,7 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
             }>;
             events: Array<{
                 id: string;
-                linearPipelineExecutionAttemptId: string;
+                pipelineExecutionAttemptId: string;
                 type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
                 payloadJson: {
                     [key: string]: unknown;
@@ -9003,18 +9213,200 @@ export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses =
     };
 };
 
-export type GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponse = GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses[keyof GetApiLinearPipelineExecutionsByLinearPipelineExecutionIdResponses];
+export type GetApiPipelineExecutionsByPipelineExecutionIdResponse = GetApiPipelineExecutionsByPipelineExecutionIdResponses[keyof GetApiPipelineExecutionsByPipelineExecutionIdResponses];
 
-export type GetApiLinearPipelineExecutionsCountsByPipelineData = {
+export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainData = {
+    body?: never;
+    path: {
+        pipelineExecutionId: string;
+    };
+    query?: never;
+    url: '/api/pipeline-executions/{pipelineExecutionId}/routed-chain';
+};
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainError = GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors[keyof GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors];
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        executions: Array<{
+            id: string;
+            projectId: string;
+            workItemId: string;
+            workItemTitle: string;
+            pipelineDefinitionId: string;
+            pipelineDefinitionVersionId: string;
+            definitionStepCount: number;
+            inputJson: unknown;
+            status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+            attempts: Array<{
+                id: string;
+                pipelineExecutionId: string;
+                attemptNumber: number;
+                currentStepKey: string | unknown;
+                startedAt: string | unknown;
+                completedAt: string | unknown;
+                routedToPipelineExecutionId: string | unknown;
+                status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+                stepRuns: Array<{
+                    id: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepDefinitionId: string;
+                    stepDefinitionId: string;
+                    stepDefinitionVersion: number;
+                    stepKey: string;
+                    position: number;
+                    status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned' | 'timeout';
+                    satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy';
+                    stepExecutionId: string;
+                    stepExecutionResultId: string | unknown;
+                    inheritedFromStepRunId: string | unknown;
+                    acceptedByUserId: string | unknown;
+                    acceptedAt: string | unknown;
+                    acceptanceReason: string | unknown;
+                    workBranch: string | unknown;
+                    outputJson: unknown;
+                    evaluation: {
+                        id: string;
+                        pipelineExecutionAttemptId: string;
+                        pipelineStepRunId: string;
+                        stepExecutionId: string;
+                        stepExecutionResultId: string;
+                        stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
+                        pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                        policySnapshotJson: {
+                            [key: string]: unknown;
+                        } | unknown;
+                        factsSnapshotJson: {
+                            [key: string]: unknown;
+                        };
+                        ruleResultsJson: unknown;
+                        finalStatus: 'pass' | 'fail';
+                        finalAction: 'continue' | 'block' | 'complete' | 'route';
+                        finalPayloadJson: {
+                            [key: string]: unknown;
+                        } | unknown;
+                        createdAt: string;
+                    } | unknown;
+                    createdAt: string;
+                    updatedAt: string;
+                }>;
+                events: Array<{
+                    id: string;
+                    pipelineExecutionAttemptId: string;
+                    type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
+                    payloadJson: {
+                        [key: string]: unknown;
+                    } | unknown;
+                    createdAt: string;
+                }>;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+        }>;
+        rollupStatus: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+    };
+};
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponse = GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses[keyof GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses];
+
+export type GetApiPipelineExecutionsCountsByPipelineData = {
     body?: never;
     path?: never;
     query: {
         projectId: string;
     };
-    url: '/api/linear-pipeline-executions/counts/by-pipeline';
+    url: '/api/pipeline-executions/counts/by-pipeline';
 };
 
-export type GetApiLinearPipelineExecutionsCountsByPipelineErrors = {
+export type GetApiPipelineExecutionsCountsByPipelineErrors = {
     /**
      * Response for status 401
      */
@@ -9081,30 +9473,30 @@ export type GetApiLinearPipelineExecutionsCountsByPipelineErrors = {
     };
 };
 
-export type GetApiLinearPipelineExecutionsCountsByPipelineError = GetApiLinearPipelineExecutionsCountsByPipelineErrors[keyof GetApiLinearPipelineExecutionsCountsByPipelineErrors];
+export type GetApiPipelineExecutionsCountsByPipelineError = GetApiPipelineExecutionsCountsByPipelineErrors[keyof GetApiPipelineExecutionsCountsByPipelineErrors];
 
-export type GetApiLinearPipelineExecutionsCountsByPipelineResponses = {
+export type GetApiPipelineExecutionsCountsByPipelineResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
         count: number;
     }>;
 };
 
-export type GetApiLinearPipelineExecutionsCountsByPipelineResponse = GetApiLinearPipelineExecutionsCountsByPipelineResponses[keyof GetApiLinearPipelineExecutionsCountsByPipelineResponses];
+export type GetApiPipelineExecutionsCountsByPipelineResponse = GetApiPipelineExecutionsCountsByPipelineResponses[keyof GetApiPipelineExecutionsCountsByPipelineResponses];
 
-export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdData = {
+export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdData = {
     body?: never;
     path: {
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
     };
     query?: never;
-    url: '/api/linear-pipeline-executions/step-rollups/by-definition/{linearPipelineDefinitionId}';
+    url: '/api/pipeline-executions/step-rollups/by-definition/{pipelineDefinitionId}';
 };
 
-export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdErrors = {
+export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdErrors = {
     /**
      * Response for status 401
      */
@@ -9187,18 +9579,18 @@ export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelin
     };
 };
 
-export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdError = GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdErrors[keyof GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdErrors];
+export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdError = GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdErrors[keyof GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdErrors];
 
-export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdResponses = {
+export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
-        linearPipelineStepDefinitionId: string;
+        pipelineStepDefinitionId: string;
         totalRunCount: number;
         latestRun: {
-            linearPipelineStepRunId: string;
-            linearPipelineExecutionId: string;
+            pipelineStepRunId: string;
+            pipelineExecutionId: string;
             status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned' | 'timeout';
             stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
             evaluationFinalAction: 'continue' | 'block' | 'complete' | 'route' | unknown;
@@ -9207,20 +9599,20 @@ export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelin
     }>;
 };
 
-export type GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdResponse = GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdResponses[keyof GetApiLinearPipelineExecutionsStepRollupsByDefinitionByLinearPipelineDefinitionIdResponses];
+export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdResponse = GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdResponses[keyof GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionIdResponses];
 
-export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdData = {
+export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdData = {
     body?: never;
     path: {
-        linearPipelineDefinitionId: string;
+        pipelineDefinitionId: string;
     };
     query: {
-        linearPipelineStepDefinitionId: string;
+        pipelineStepDefinitionId: string;
     };
-    url: '/api/linear-pipeline-executions/step-runs/by-definition/{linearPipelineDefinitionId}';
+    url: '/api/pipeline-executions/step-runs/by-definition/{pipelineDefinitionId}';
 };
 
-export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdErrors = {
+export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdErrors = {
     /**
      * Response for status 401
      */
@@ -9303,15 +9695,15 @@ export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDe
     };
 };
 
-export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdError = GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdErrors[keyof GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdErrors];
+export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdError = GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdErrors[keyof GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdErrors];
 
-export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdResponses = {
+export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
-        linearPipelineStepRunId: string;
-        linearPipelineExecutionId: string;
+        pipelineStepRunId: string;
+        pipelineExecutionId: string;
         status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'skipped' | 'cancelled' | 'abandoned' | 'timeout';
         stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
         evaluationFinalAction: 'continue' | 'block' | 'complete' | 'route' | unknown;
@@ -9319,7 +9711,7 @@ export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDe
     }>;
 };
 
-export type GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdResponse = GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdResponses[keyof GetApiLinearPipelineExecutionsStepRunsByDefinitionByLinearPipelineDefinitionIdResponses];
+export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdResponse = GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdResponses[keyof GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdResponses];
 
 export type DeleteApiWorkItemsByWorkItemIdData = {
     body?: never;
@@ -13249,7 +13641,7 @@ export type PostApiProjectsFromGithubResponses = {
             updatedAt: string;
         }>;
         defaultPipelineAssignment: {
-            linearPipelineDefinitionId: string;
+            pipelineDefinitionId: string;
             rulesJson: {
                 rules: Array<{
                     conditions: {

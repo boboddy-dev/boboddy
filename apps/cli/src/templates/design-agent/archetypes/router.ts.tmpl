@@ -68,24 +68,27 @@ export default pipeline({
   description: "Classify an incoming work item and route it to a pipeline.",
   status: "active",
 })
-  .step(classifyWorkItem, () => ({}))
-  // One rule per target, guarded by a shared confidence floor. `block` is the
-  // default so an unconfident classification parks instead of picking a lane.
-  .advance(({ stepSignals, all, route }) => ({
-    default: "block",
-    rules: [
-      all(
-        stepSignals.confidence.gte(0.7),
-        stepSignals.routeKey.eq("browser-repro"),
-      ).then(route("browser-repro")),
-      all(
-        stepSignals.confidence.gte(0.7),
-        stepSignals.routeKey.eq("failing-test-repro"),
-      ).then(route("failing-test-repro")),
-      all(
-        stepSignals.confidence.gte(0.7),
-        stepSignals.routeKey.eq("data-investigation"),
-      ).then(route("data-investigation")),
-    ],
-  }))
+  .step(classifyWorkItem, {
+    input: () => ({}),
+    // One rule per target, guarded by a shared confidence floor. `block` is
+    // the default so an unconfident classification parks instead of picking
+    // a lane.
+    advance: ({ stepSignals, all, route }) => ({
+      default: "block",
+      rules: [
+        all(
+          stepSignals.confidence.gte(0.7),
+          stepSignals.routeKey.eq("browser-repro"),
+        ).then(route("browser-repro")),
+        all(
+          stepSignals.confidence.gte(0.7),
+          stepSignals.routeKey.eq("failing-test-repro"),
+        ).then(route("failing-test-repro")),
+        all(
+          stepSignals.confidence.gte(0.7),
+          stepSignals.routeKey.eq("data-investigation"),
+        ).then(route("data-investigation")),
+      ],
+    }),
+  })
   .build();

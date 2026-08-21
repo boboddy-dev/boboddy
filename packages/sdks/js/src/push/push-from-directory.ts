@@ -51,13 +51,19 @@ export async function pushFromDirectory(
   dir: string,
   opts: PushFromDirectoryOptions,
 ): Promise<PushFromDirectoryResult> {
-  const log = opts.log ?? ((msg: string) => { console.warn(msg); });
+  const log =
+    opts.log ??
+    ((msg: string) => {
+      console.warn(msg);
+    });
   const headers = { Authorization: `Bearer ${opts.accessToken}` };
 
   const collected = await collectDefinitionsFromDirectory(dir);
   const { pipelines, steps } = collected;
 
-  log(`Found ${String(pipelines.length)} pipeline(s) and ${String(steps.length)} step(s).`);
+  log(
+    `Found ${String(pipelines.length)} pipeline(s) and ${String(steps.length)} step(s).`,
+  );
 
   const stepsClient = createStepDefinitionsClient(opts.baseUrl);
   const pipelinesClient = createPipelineDefinitionsClient(opts.baseUrl);
@@ -127,10 +133,13 @@ async function syncDefaultPipelineAssignment(
 ): Promise<boolean> {
   const serialized = serializeDefaultPipelineAssignment(spec);
 
-  // Fetch all server pipelines to resolve pipeline key → linearPipelineDefinitionId
-  const serverPipelines = await pipelinesClient.listByProjectId(opts.projectId, {
-    headers,
-  });
+  // Fetch all server pipelines to resolve pipeline key → pipelineDefinitionId
+  const serverPipelines = await pipelinesClient.listByProjectId(
+    opts.projectId,
+    {
+      headers,
+    },
+  );
 
   // Build key → id map from all referenced pipeline keys (assign outcomes)
   const pipelineKeyToId = new Map<string, string>(
@@ -142,7 +151,7 @@ async function syncDefaultPipelineAssignment(
 
   // Collect all pipeline keys referenced in the spec (assign outcomes)
   const referencedKeys = new Set<string>();
-  referencedKeys.add(serialized.linearPipelineDefinitionKey);
+  referencedKeys.add(serialized.pipelineDefinitionKey);
   for (const rule of serialized.rulesJson.rules) {
     if (
       rule.event.type === "assign" &&
@@ -163,13 +172,13 @@ async function syncDefaultPipelineAssignment(
     }
   }
 
-  // Resolve the primary linearPipelineDefinitionId
-  const linearPipelineDefinitionId = pipelineKeyToId.get(
-    serialized.linearPipelineDefinitionKey,
+  // Resolve the primary pipelineDefinitionId
+  const pipelineDefinitionId = pipelineKeyToId.get(
+    serialized.pipelineDefinitionKey,
   );
-  if (!linearPipelineDefinitionId) {
+  if (!pipelineDefinitionId) {
     throw new Error(
-      `Pipeline key "${serialized.linearPipelineDefinitionKey}" was not found on the server.`,
+      `Pipeline key "${serialized.pipelineDefinitionKey}" was not found on the server.`,
     );
   }
 
@@ -210,7 +219,7 @@ async function syncDefaultPipelineAssignment(
     path: { projectId: opts.projectId },
     body: {
       defaultPipelineAssignment: {
-        linearPipelineDefinitionId,
+        pipelineDefinitionId,
         rulesJson: { rules: resolvedRules },
         defaultEventType: serialized.defaultEventType,
         defaultEventParamsJson: serialized.defaultEventParamsJson,
@@ -226,6 +235,8 @@ async function syncDefaultPipelineAssignment(
     );
   }
 
-  log(`✓ default pipeline assignment → synced (primary pipeline: ${serialized.linearPipelineDefinitionKey})`);
+  log(
+    `✓ default pipeline assignment → synced (primary pipeline: ${serialized.pipelineDefinitionKey})`,
+  );
   return true;
 }

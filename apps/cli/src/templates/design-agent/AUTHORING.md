@@ -178,32 +178,41 @@ export default pipeline({
     bindings: ({ workItem }) => ({ accountRef: workItem.field("Account") }),
   },
 })
-  .step(investigate, () => ({}))
-  .advance(({ stepSignals, all }) => ({
-    default: "block",
-    rules: [
-      all(
-        stepSignals.confidence.gte(0.8),
-        stepSignals.identifiedFix.eq(true),
-      ).then("continue"),
-    ],
-  }))
-  .step(writeFix, ({ signal }) => ({
-    context: signal(investigate, "rootCause"),
-  }))
-  .advance(() => ({ default: "complete" }))
+  .step(investigate, {
+    input: () => ({}),
+    advance: ({ stepSignals, all }) => ({
+      default: "block",
+      rules: [
+        all(
+          stepSignals.confidence.gte(0.8),
+          stepSignals.identifiedFix.eq(true),
+        ).then("continue"),
+      ],
+    }),
+  })
+  .step(writeFix, {
+    input: ({ signal }) => ({
+      context: signal(investigate, "rootCause"),
+    }),
+    advance: () => ({ default: "complete" }),
+  })
   .build();
 ```
 
-The builder is a state machine: `pipeline()` → `.step()` → `.advance()` →
-(`.step()` | `.build()`). `.advance()` after every `.step()` is enforced by the
-type system, and the error message is opaque ("Property 'step' does not exist
-on type 'PipelineStepAdvancementBuilder'"), so recognize it on sight.
+`.step()` takes the step and a single options object: `input` (the mapper,
+optional only when the step declares no `additionalInput`) and `advance` (how
+the pipeline continues past this step) — both required in the same call, not
+as separate chained methods. `pipeline()` → `.step({ input, advance })` →
+(`.step({ input, advance })` | `.build()`).
 
-Optional third argument to `.step()` sets a per-step timeout in seconds:
+`advance` is required in every `.step()` call; TypeScript will not let you
+chain another `.step()` or call `.build()` without it.
+
+Optional `timeout` field on the same options object sets a per-step timeout in
+seconds:
 
 ```ts fragment
-.step(investigate, () => ({}), (cfg) => { cfg.timeout = 1800; })
+.step(investigate, { input: () => ({}), advance: ..., timeout: 1800 })
 ```
 
 ## 3. Bindings
@@ -219,7 +228,8 @@ Every step's input is assembled from three layers; later layers win.
      injects bindings only; no pipeline input schema.
 
    Both throw at build time if `bindings` returns a key not in `schema`.
-3. **Step mapper** — the second argument to `.step()`.
+3. **Step mapper** — `input` on the options object passed as the second
+   argument to `.step()`.
 
 Binding sources available in a step mapper: `input.<path>`, `signal(step, key)`,
 `output(step)`, `literal(value)`. There is **no** `workItem` accessor in a step
@@ -241,8 +251,7 @@ export default pipeline({
     bindings: ({ workItemField }) => ({ accountRef: workItemField("Account") }),
   },
 })
-  .step(investigate, () => ({}))
-  .advance(() => ({ default: "complete" }))
+  .step(investigate, { input: () => ({}), advance: () => ({ default: "complete" }) })
   .build();
 ```
 
@@ -264,8 +273,9 @@ export default pipeline({
 
 ## 4. Advancement
 
-`.advance(ctx => ({ default, rules? }))`. Rules are evaluated in order; the
-first match wins. If none match, `default` applies.
+`advance: (ctx) => ({ default, rules? })` on the same options object passed to
+`.step()`. Rules are evaluated in order; the first match wins. If none match,
+`default` applies.
 
 Outcomes: `"continue"`, `"block"` (park for a human), `"complete"`, or
 `route(pipelineKey, inputJson?)`.
@@ -283,7 +293,7 @@ Computed aggregates over numeric signals: `avg`, `weightedAvg`, `sum`, `min`,
 refs and returns something comparable.
 
 ```ts fragment
-.advance(({ stepSignals, avg, any, route }) => ({
+advance: ({ stepSignals, avg, any, route }) => ({
   default: "block",
   rules: [
     any(
@@ -293,7 +303,7 @@ refs and returns something comparable.
     avg(stepSignals.clarity, stepSignals.evidence).gte(0.7).then("continue"),
     stepSignals.routeKey.eq("data-pipeline").then(route("data-pipeline")),
   ],
-}))
+})
 ```
 
 `block` is the right default for any gate you are unsure about: it parks the
@@ -329,8 +339,8 @@ export default defaultPipelineAssignment(
 
 ## 6. Invariants — the things that actually break
 
-1. Every `.step()` must be followed by `.advance()` before another `.step()` or
-   `.build()`.
+1. Every `.step()` call's options object must include `advance` — the type
+   system enforces it in the same call, not as a separate chained method.
 2. A step whose `additionalInput` has a **required** field forces a mapper that
    supplies it. Optional fields do not.
 3. `signals[].sourcePath` must exist in the `result` schema. **The compiler will
@@ -355,9 +365,9 @@ export default defaultPipelineAssignment(
 Pick by **what the execution environment can reach**, not by what the app is.
 
 Every archetype has a complete, compile-verified implementation in *The
-archetype files* at the end of this section. Do not author the `.step()` /
-`.advance()` alternation from scratch: copy the closest file, rename its keys,
-and rewrite its prompts for this user's domain.
+archetype files* at the end of this section. Do not author the `.step()`
+calls from scratch: copy the closest file, rename its keys, and rewrite its
+prompts for this user's domain.
 
 | Reachability                              | Archetype                   | File                     |
 | ----------------------------------------- | --------------------------- | ------------------------ |
@@ -432,7 +442,7 @@ Adapt the dimensions to what this user's reports should contain.
 **Choose when** two or more target pipelines already exist. A router with one
 target is pointless — build the target first.
 
-Shape: `classify (no_workspace)` → `.advance()` with one
+Shape: `classify (no_workspace)` → `advance` with one
 `stepSignals.routeKey.eq(k).then(route(k))` rule per target.
 
 `routeKey` is constrained by `z.enum([...])` whose members are the exact pipeline

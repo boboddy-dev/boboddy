@@ -7,11 +7,20 @@
 // files, hand-edited files — so the tests have to bypass them too.
 
 import { z } from "zod";
+import { buildChainDependencyEdges } from "../src/definitions/pipelines/chain-graph";
 import type { PipelineDefinitionSpec } from "../src/definitions/pipelines";
 import type { StepDefinitionSpec } from "../src/definitions/steps";
 import { validateDefinitionSpecs } from "../src/definitions/validation";
 
-export type PipelineStep = PipelineDefinitionSpec["steps"][number];
+export type PipelineStep = PipelineDefinitionSpec["nodeDefinitions"][number] & {
+  /**
+   * Fixture-only ordinal: how tests express "this step really runs Nth"
+   * independent of array-literal order. Stripped before being placed into
+   * `nodeDefinitions` — `pipelineSpec()` sorts by it and synthesizes
+   * `dependencyEdges` from the sorted order instead.
+   */
+  __order: number;
+};
 export type Bindings = PipelineStep["inputBindingsJson"];
 
 export function stepSpec(
@@ -52,14 +61,16 @@ export function stepSpecWithOverrides(
 
 export function pipelineStep(
   stepKey: string,
-  position: number,
+  order: number,
   overrides: Partial<PipelineStep> = {},
 ): PipelineStep {
   return {
+    nodeKey: stepKey,
+    kind: "step",
     stepKey,
     stepName: stepKey,
     stepDescription: null,
-    position,
+    __order: order,
     inputBindingsJson: {},
     timeoutSeconds: null,
     advancementPolicyDefinition: {
@@ -77,13 +88,22 @@ export function pipelineSpec(
   key: string,
   steps: readonly PipelineStep[],
 ): PipelineDefinitionSpec {
+  const sorted = [...steps].sort((left, right) => left.__order - right.__order);
+  const nodeDefinitions = sorted.map((step) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __order, ...node } = step;
+    return node;
+  });
+  const dependencyEdges = buildChainDependencyEdges(nodeDefinitions);
+
   return {
     key,
     name: key,
     description: null,
     version: 1,
     status: "active",
-    steps: [...steps],
+    nodeDefinitions,
+    dependencyEdges,
   };
 }
 

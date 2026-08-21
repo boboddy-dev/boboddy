@@ -119,24 +119,28 @@ export default pipeline({
   description: "Reproduce a defect as a failing test, then fix it.",
   status: "active",
 })
-  .step(reproduceWithTest, () => ({}))
-  .advance(({ stepSignals, all }) => ({
-    default: "block",
-    rules: [
-      all(
-        stepSignals.testsFail.eq(true),
-        stepSignals.capturesReportedBug.eq(true),
-        stepSignals.confidence.gte(0.8),
-      ).then("continue"),
-    ],
-  }))
-  .step(fixFailingTest, ({ signal }) => ({
-    failingTestPaths: signal(reproduceWithTest, "testPaths"),
-    testCommand: signal(reproduceWithTest, "testCommand"),
-    failureOutput: signal(reproduceWithTest, "failureOutput"),
-  }))
-  .advance(({ stepSignals }) => ({
-    default: "block",
-    rules: [stepSignals.testsPass.eq(true).then("complete")],
-  }))
+  .step(reproduceWithTest, {
+    input: () => ({}),
+    advance: ({ stepSignals, all }) => ({
+      default: "block",
+      rules: [
+        all(
+          stepSignals.testsFail.eq(true),
+          stepSignals.capturesReportedBug.eq(true),
+          stepSignals.confidence.gte(0.8),
+        ).then("continue"),
+      ],
+    }),
+  })
+  .step(fixFailingTest, {
+    input: ({ signal }) => ({
+      failingTestPaths: signal(reproduceWithTest, "testPaths"),
+      testCommand: signal(reproduceWithTest, "testCommand"),
+      failureOutput: signal(reproduceWithTest, "failureOutput"),
+    }),
+    advance: ({ stepSignals }) => ({
+      default: "block",
+      rules: [stepSignals.testsPass.eq(true).then("complete")],
+    }),
+  })
   .build();

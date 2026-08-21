@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
   pipeline,
   PipelineBuilder,
-  PipelineStepAdvancementBuilder,
   PipelineStepBuilder,
 } from "../src/definitions/pipelines/builder";
 import { defineStep } from "../src/definitions/steps/define-step";
@@ -55,11 +54,13 @@ describe("pipeline() builder — Phase 1", () => {
         version: 3,
         status: "draft",
       })
-        .step(reproduceStep, ({ input }) => ({
-          title: input.workItemTitle,
-          description: input.workItemDescription,
-        }))
-        .advance(() => ({ default: "continue" }))
+        .step(reproduceStep, {
+          input: ({ input }) => ({
+            title: input.workItemTitle,
+            description: input.workItemDescription,
+          }),
+          advance: () => ({ default: "continue" }),
+        })
         .build();
 
       expect(spec.description).toBe("does stuff");
@@ -70,47 +71,43 @@ describe("pipeline() builder — Phase 1", () => {
 });
 
 describe("pipeline() builder — .step() (Phase 3)", () => {
-  test.concurrent(".step() returns a PipelineStepAdvancementBuilder", () => {
-    const builder = pipeline({ key: "p", name: "P" }).step(
-      reproduceStep,
-      ({ input }) => ({
-        title: input.workItemTitle,
-        description: input.workItemDescription,
-      }),
-    );
+  test.concurrent(
+    ".step() with `advance` in its options returns a PipelineStepBuilder",
+    () => {
+      const builder = pipeline({ key: "p", name: "P" }).step(reproduceStep, {
+        input: ({ input }) => ({
+          title: input.workItemTitle,
+          description: input.workItemDescription,
+        }),
+        advance: () => ({ default: "continue" }),
+      });
 
-    expect(builder).toBeInstanceOf(PipelineStepAdvancementBuilder);
-  });
-
-  test.concurrent(".advance() returns a PipelineStepBuilder", () => {
-    const builder = pipeline({ key: "p", name: "P" })
-      .step(reproduceStep, ({ input }) => ({
-        title: input.workItemTitle,
-        description: input.workItemDescription,
-      }))
-      .advance(() => ({ default: "continue" }));
-
-    expect(builder).toBeInstanceOf(PipelineStepBuilder);
-  });
+      expect(builder).toBeInstanceOf(PipelineStepBuilder);
+    },
+  );
 
   test.concurrent(
     "multi-step pipeline: signal and output bindings serialize correctly",
     () => {
       const spec = pipeline({ key: "p", name: "P" })
-        .step(reproduceStep, ({ input }) => ({
-          title: input.workItemTitle,
-          description: input.workItemDescription,
-        }))
-        .advance(() => ({ default: "continue" }))
-        .step(verifyStep, ({ signal, output }) => ({
-          reproUrl: signal(reproduceStep, "repro_url"),
-          checkSuccess: signal(reproduceStep, "success"),
-          fullPrior: output(reproduceStep),
-        }))
-        .advance(() => ({ default: "continue" }))
+        .step(reproduceStep, {
+          input: ({ input }) => ({
+            title: input.workItemTitle,
+            description: input.workItemDescription,
+          }),
+          advance: () => ({ default: "continue" }),
+        })
+        .step(verifyStep, {
+          input: ({ signal, output }) => ({
+            reproUrl: signal(reproduceStep, "repro_url"),
+            checkSuccess: signal(reproduceStep, "success"),
+            fullPrior: output(reproduceStep),
+          }),
+          advance: () => ({ default: "continue" }),
+        })
         .build();
 
-      const step1 = spec.steps[1];
+      const step1 = spec.nodeDefinitions[1];
       if (!step1) throw new Error("expected step1");
       expect(step1.inputBindingsJson).toMatchObject({
         reproUrl: {
@@ -132,17 +129,21 @@ describe("pipeline() builder — .step() (Phase 3)", () => {
     "_stepDefinitions accumulates referenced step specs deduped",
     () => {
       const spec = pipeline({ key: "p", name: "P" })
-        .step(reproduceStep, ({ input }) => ({
-          title: input.workItemTitle,
-          description: input.workItemDescription,
-        }))
-        .advance(() => ({ default: "continue" }))
-        .step(verifyStep, ({ signal, output }) => ({
-          reproUrl: signal(reproduceStep, "repro_url"),
-          checkSuccess: signal(reproduceStep, "success"),
-          fullPrior: output(reproduceStep),
-        }))
-        .advance(() => ({ default: "continue" }))
+        .step(reproduceStep, {
+          input: ({ input }) => ({
+            title: input.workItemTitle,
+            description: input.workItemDescription,
+          }),
+          advance: () => ({ default: "continue" }),
+        })
+        .step(verifyStep, {
+          input: ({ signal, output }) => ({
+            reproUrl: signal(reproduceStep, "repro_url"),
+            checkSuccess: signal(reproduceStep, "success"),
+            fullPrior: output(reproduceStep),
+          }),
+          advance: () => ({ default: "continue" }),
+        })
         .build();
 
       const keys = (spec._stepDefinitions ?? []).map((s) => s.key);

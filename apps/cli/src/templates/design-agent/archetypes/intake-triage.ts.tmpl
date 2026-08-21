@@ -63,22 +63,28 @@ export default pipeline({
   description: "Score incoming reports and park the ones nobody can act on.",
   status: "active",
 })
-  .step(scoreIntakeQuality, () => ({}))
-  // Averaging in the rule rather than asking the model for one holistic number
-  // keeps the sub-scores visible in the dashboard and keeps the threshold here,
-  // where it can be tuned without touching the prompt.
-  .advance(({ stepSignals, avg, any }) => ({
-    default: "block",
-    rules: [
-      // Any dimension that is nearly absent blocks regardless of the average.
-      any(
-        stepSignals.observed.lt(0.3),
-        stepSignals.expected.lt(0.3),
-        stepSignals.reproduction.lt(0.3),
-      ).then("block"),
-      avg(stepSignals.observed, stepSignals.expected, stepSignals.reproduction)
-        .gte(0.7)
-        .then("complete"),
-    ],
-  }))
+  .step(scoreIntakeQuality, {
+    input: () => ({}),
+    // Averaging in the rule rather than asking the model for one holistic
+    // number keeps the sub-scores visible in the dashboard and keeps the
+    // threshold here, where it can be tuned without touching the prompt.
+    advance: ({ stepSignals, avg, any }) => ({
+      default: "block",
+      rules: [
+        // Any dimension that is nearly absent blocks regardless of the average.
+        any(
+          stepSignals.observed.lt(0.3),
+          stepSignals.expected.lt(0.3),
+          stepSignals.reproduction.lt(0.3),
+        ).then("block"),
+        avg(
+          stepSignals.observed,
+          stepSignals.expected,
+          stepSignals.reproduction,
+        )
+          .gte(0.7)
+          .then("complete"),
+      ],
+    }),
+  })
   .build();

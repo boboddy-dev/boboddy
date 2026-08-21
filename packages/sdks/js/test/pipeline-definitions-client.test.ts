@@ -14,7 +14,12 @@ type MockResponse = { status: number; body: unknown };
 async function readRequestDetails(
   input: string | URL | Request,
   init?: RequestInit,
-): Promise<{ url: string; method: string; headers: Record<string, string>; body: unknown }> {
+): Promise<{
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: unknown;
+}> {
   if (input instanceof Request) {
     const text = await input.clone().text();
     return {
@@ -30,7 +35,9 @@ async function readRequestDetails(
     rawHeaders instanceof Headers
       ? Object.fromEntries(rawHeaders.entries())
       : Object.fromEntries(
-          Object.entries((rawHeaders as Record<string, string> | undefined) ?? {}),
+          Object.entries(
+            (rawHeaders as Record<string, string> | undefined) ?? {},
+          ),
         );
   const rawBody = init?.body;
   const body =
@@ -76,32 +83,36 @@ const ADVANCEMENT_POLICY = {
   allowedEventTypes: ["continue" as const],
 };
 
-function makeSpec(overrides?: Partial<PipelineDefinitionSpec>): PipelineDefinitionSpec {
+function makeSpec(
+  overrides?: Partial<PipelineDefinitionSpec>,
+): PipelineDefinitionSpec {
   return {
     key: "investigation",
     name: "Investigation",
     description: null,
     version: 1,
     status: "active",
-    steps: [
+    nodeDefinitions: [
       {
+        nodeKey: "investigate",
+        kind: "step",
         stepKey: "investigate",
         stepName: "Investigate",
         stepDescription: null,
-        position: 0,
         inputBindingsJson: {},
         timeoutSeconds: null,
         advancementPolicyDefinition: ADVANCEMENT_POLICY,
         computedSignalDefinitions: [],
       },
     ],
+    dependencyEdges: [],
     ...overrides,
   };
 }
 
 describe("createPipelineDefinitionsClient", () => {
   describe("listByProjectId", () => {
-    test("sends GET to /api/projects/{projectId}/linear-pipeline-definitions", async () => {
+    test("sends GET to /api/projects/{projectId}/pipeline-definitions", async () => {
       const { mockFetch, captured } = createMockFetch([
         { status: 200, body: [] },
       ]);
@@ -114,7 +125,7 @@ describe("createPipelineDefinitionsClient", () => {
         expect(captured).toHaveLength(1);
         expect(captured[0]?.method).toBe("GET");
         expect(captured[0]?.url).toBe(
-          `${BASE_URL}/api/projects/proj-1/linear-pipeline-definitions`,
+          `${BASE_URL}/api/projects/proj-1/pipeline-definitions`,
         );
         // Headers.entries() lowercases header names per the WHATWG spec.
         expect(captured[0]?.headers["authorization"]).toBe("Bearer test-token");
@@ -140,7 +151,7 @@ describe("createPipelineDefinitionsClient", () => {
   });
 
   describe("upsertFromSpec", () => {
-    test("sends PUT to /api/linear-pipeline-definitions with the built body", async () => {
+    test("sends PUT to /api/pipeline-definitions with the built body", async () => {
       const { mockFetch, captured } = createMockFetch([
         { status: 200, body: { id: "pipeline-id" } },
       ]);
@@ -157,7 +168,7 @@ describe("createPipelineDefinitionsClient", () => {
 
         expect(captured).toHaveLength(1);
         expect(captured[0]?.method).toBe("PUT");
-        expect(captured[0]?.url).toBe(`${BASE_URL}/api/linear-pipeline-definitions`);
+        expect(captured[0]?.url).toBe(`${BASE_URL}/api/pipeline-definitions`);
         expect(captured[0]?.body).toMatchObject({
           projectId: "proj-1",
           key: "investigation",
@@ -168,7 +179,7 @@ describe("createPipelineDefinitionsClient", () => {
               stepDefinitionId: "step-def-id",
               stepDefinitionVersion: 1,
               key: "investigate",
-              position: 0,
+              position: 1,
             },
           ],
         });
@@ -196,7 +207,10 @@ describe("createPipelineDefinitionsClient", () => {
         );
 
         const body = captured[0]?.body as {
-          stepDefinitions: Array<{ stepDefinitionId: string; stepDefinitionVersion: number }>;
+          stepDefinitions: Array<{
+            stepDefinitionId: string;
+            stepDefinitionVersion: number;
+          }>;
         };
         expect(body.stepDefinitions[0]).toMatchObject({
           stepDefinitionId: "new-id",
@@ -229,6 +243,58 @@ describe("createPipelineDefinitionsClient", () => {
       expect((caughtError as Error).message).toContain(
         'Step "investigate" referenced in pipeline "investigation" was not found on the server',
       );
+    });
+
+    test("throws a clear error when the spec contains a fanOut/cohortGate node (issue #167)", async () => {
+      const { mockFetch, captured } = createMockFetch([
+        { status: 200, body: { id: "pipeline-id" } },
+      ]);
+      const prev = globalThis.fetch;
+      globalThis.fetch = mockFetch;
+
+      const spec = makeSpec({
+        nodeDefinitions: [
+          {
+            nodeKey: "review",
+            kind: "fanOut",
+            stepKey: "review",
+            stepName: "Review",
+            stepDescription: null,
+            inputBindingsJson: {},
+            timeoutSeconds: null,
+            overSignalKey: "reviewer_count",
+          },
+          { nodeKey: "review__cohortGate", kind: "cohortGate" },
+        ],
+        dependencyEdges: [
+          { fromNodeKey: "review", toNodeKey: "review__cohortGate" },
+        ],
+      });
+
+      let caughtError: unknown;
+      try {
+        const client = createPipelineDefinitionsClient(BASE_URL);
+        await client.upsertFromSpec(
+          "proj-1",
+          spec,
+          [{ id: "step-def-id", key: "review", version: 1 }],
+          { headers: AUTH_HEADER },
+        );
+      } catch (err) {
+        caughtError = err;
+      } finally {
+        globalThis.fetch = prev;
+      }
+
+      // The wire contract this client pushes through is still chain-only —
+      // fan-out pipelines cannot be pushed yet (explicitly out of scope for
+      // issue #167). The client must fail loudly rather than silently
+      // mis-push, and must never have sent a request.
+      expect(caughtError).toBeInstanceOf(Error);
+      expect((caughtError as Error).message).toContain(
+        "fan-out pipelines cannot be pushed",
+      );
+      expect(captured).toHaveLength(0);
     });
 
     test("throws when the server returns an error status", async () => {

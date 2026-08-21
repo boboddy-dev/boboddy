@@ -265,31 +265,37 @@ export const writeFixPlanStep = defineStep({
 });
 
 // ─── The pipeline ───────────────────────────────────────────────────────────
-// A pipeline wires steps together. Each .step() mapper binds that step's
-// input; each .advance() decides what happens after the step finishes.
+// A pipeline wires steps together. Each .step()'s \`input\` option binds that
+// step's input; its \`advance\` option decides what happens after the step
+// finishes.
 export default pipeline({
   key: "triage-and-plan",
   name: "Triage & Plan",
   description: "Starter pipeline: triage a work item, then plan the fix.",
   status: "active",
 })
-  // \`input\` always exposes workItemTitle and workItemDescription.
-  .step(triageStep, ({ input }) => ({
-    title: input.workItemTitle,
-  }))
-  // Advancement is the heart of Boboddy: rules read signals and decide whether
-  // the pipeline continues, blocks for a human, completes, or routes to
-  // another pipeline. Here a confident triage continues to the next step;
-  // anything else blocks so a human can review it in the dashboard.
-  .advance(({ signal }) => ({
-    default: "block",
-    rules: [signal("confidence").gte(7).then("continue")],
-  }))
-  // Later steps can bind signals (or the whole output) of earlier steps.
-  .step(writeFixPlanStep, ({ signal }) => ({
-    triageSummary: signal(triageStep, "summary"),
-  }))
-  .advance(() => ({ default: "complete" }))
+  .step(triageStep, {
+    // \`input\` always exposes workItemTitle and workItemDescription.
+    input: ({ input }) => ({
+      title: input.workItemTitle,
+    }),
+    // Advancement is the heart of Boboddy: rules read signals and decide
+    // whether the pipeline continues, blocks for a human, completes, or
+    // routes to another pipeline. Here a confident triage continues to the
+    // next step; anything else blocks so a human can review it in the
+    // dashboard.
+    advance: ({ signal }) => ({
+      default: "block",
+      rules: [signal("confidence").gte(7).then("continue")],
+    }),
+  })
+  .step(writeFixPlanStep, {
+    // Later steps can bind signals (or the whole output) of earlier steps.
+    input: ({ signal }) => ({
+      triageSummary: signal(triageStep, "summary"),
+    }),
+    advance: () => ({ default: "complete" }),
+  })
   .build();
 `;
 
