@@ -174,7 +174,7 @@ export type DefaultPipelineAssignmentCtx = {
    * @example
    * workItem.field("issueType").eq("bug").then(assign(bugTriage))
    */
-  assign(pipeline: PipelineDefinitionSpec): AssignOutcome;
+  assign: (pipeline: PipelineDefinitionSpec) => AssignOutcome;
   /**
    * Outcome: do not assign any pipeline to this work item.
    * Used in both `rules` (via `.then(skip())`) and `default`.
@@ -182,7 +182,7 @@ export type DefaultPipelineAssignmentCtx = {
    * @example
    * workItem.field("status").eq("resolved").then(skip())
    */
-  skip(): SkipOutcome;
+  skip: () => SkipOutcome;
   /**
    * All nested conditions must match.
    *
@@ -192,7 +192,7 @@ export type DefaultPipelineAssignmentCtx = {
    *   workItem.field("priority").eq("high"),
    * ).then(assign(bugTriage))
    */
-  all(...refs: AssignmentNestable[]): AssignmentGroup;
+  all: (...refs: AssignmentNestable[]) => AssignmentGroup;
   /**
    * Any nested condition must match.
    *
@@ -202,7 +202,7 @@ export type DefaultPipelineAssignmentCtx = {
    *   workItem.field("status").eq("closed"),
    * ).then(skip())
    */
-  any(...refs: AssignmentNestable[]): AssignmentGroup;
+  any: (...refs: AssignmentNestable[]) => AssignmentGroup;
 };
 
 // ─── Return type from the callback ───────────────────────────────────────────

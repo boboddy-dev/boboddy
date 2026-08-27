@@ -353,6 +353,7 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
             sourceCreatedAt: string | unknown;
             sourceUpdatedAt: string | unknown;
             fields: unknown;
+            createdByUserId: string | unknown;
             createdByUsername: string | unknown;
             createdByImage: string | unknown;
             createdAt: string;
@@ -9036,6 +9037,112 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses = {
 
 export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponse = PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses[keyof PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses];
 
+export type PutApiPipelineExecutionsBatchCancelData = {
+    body: {
+        input: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/pipeline-executions/batch/cancel';
+};
+
+export type PutApiPipelineExecutionsBatchCancelErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PutApiPipelineExecutionsBatchCancelError = PutApiPipelineExecutionsBatchCancelErrors[keyof PutApiPipelineExecutionsBatchCancelErrors];
+
+export type PutApiPipelineExecutionsBatchCancelResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        cancelledIds: Array<string>;
+        skippedIds: Array<string>;
+    };
+};
+
+export type PutApiPipelineExecutionsBatchCancelResponse = PutApiPipelineExecutionsBatchCancelResponses[keyof PutApiPipelineExecutionsBatchCancelResponses];
+
 export type GetApiPipelineExecutionsByPipelineExecutionIdData = {
     body?: never;
     path: {
@@ -9926,6 +10033,7 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         createdAt: string;
@@ -9934,6 +10042,145 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
 };
 
 export type GetApiWorkItemsByWorkItemIdResponse = GetApiWorkItemsByWorkItemIdResponses[keyof GetApiWorkItemsByWorkItemIdResponses];
+
+export type PatchApiWorkItemsByWorkItemIdData = {
+    body: {
+        title: string;
+        description: string;
+    };
+    path: {
+        workItemId: string;
+    };
+    query?: never;
+    url: '/api/work-items/{workItemId}';
+};
+
+export type PatchApiWorkItemsByWorkItemIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PatchApiWorkItemsByWorkItemIdError = PatchApiWorkItemsByWorkItemIdErrors[keyof PatchApiWorkItemsByWorkItemIdErrors];
+
+export type PatchApiWorkItemsByWorkItemIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platformId?: string | unknown;
+        platformKey: string;
+        url?: string | unknown;
+        title: string;
+        description: string;
+        sourceCreatedAt: string | unknown;
+        sourceUpdatedAt: string | unknown;
+        fields: unknown;
+        createdByUserId: string | unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PatchApiWorkItemsByWorkItemIdResponse = PatchApiWorkItemsByWorkItemIdResponses[keyof PatchApiWorkItemsByWorkItemIdResponses];
 
 export type PostApiWorkItemsData = {
     body: {
@@ -10086,6 +10333,7 @@ export type PostApiWorkItemsResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         createdAt: string;
@@ -10230,6 +10478,7 @@ export type PutApiWorkItemsResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         createdAt: string;
@@ -10493,6 +10742,7 @@ export type PostApiWorkItemsBatchResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         createdAt: string;
@@ -10637,6 +10887,7 @@ export type PutApiWorkItemsBatchResponses = {
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
         fields: unknown;
+        createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         createdAt: string;
