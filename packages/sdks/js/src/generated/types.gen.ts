@@ -356,6 +356,7 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
             createdByUserId: string | unknown;
             createdByUsername: string | unknown;
             createdByImage: string | unknown;
+            parentWorkItemId: string | unknown;
             createdAt: string;
             updatedAt: string;
             signalScore: number | unknown;
@@ -10036,6 +10037,7 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -10175,12 +10177,134 @@ export type PatchApiWorkItemsByWorkItemIdResponses = {
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
 };
 
 export type PatchApiWorkItemsByWorkItemIdResponse = PatchApiWorkItemsByWorkItemIdResponses[keyof PatchApiWorkItemsByWorkItemIdResponses];
+
+export type GetApiWorkItemsByWorkItemIdChildrenData = {
+    body?: never;
+    path: {
+        workItemId: string;
+    };
+    query?: never;
+    url: '/api/work-items/{workItemId}/children';
+};
+
+export type GetApiWorkItemsByWorkItemIdChildrenErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiWorkItemsByWorkItemIdChildrenError = GetApiWorkItemsByWorkItemIdChildrenErrors[keyof GetApiWorkItemsByWorkItemIdChildrenErrors];
+
+export type GetApiWorkItemsByWorkItemIdChildrenResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        projectId: string;
+        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platformId?: string | unknown;
+        platformKey: string;
+        url?: string | unknown;
+        title: string;
+        description: string;
+        sourceCreatedAt: string | unknown;
+        sourceUpdatedAt: string | unknown;
+        fields: unknown;
+        createdByUserId: string | unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiWorkItemsByWorkItemIdChildrenResponse = GetApiWorkItemsByWorkItemIdChildrenResponses[keyof GetApiWorkItemsByWorkItemIdChildrenResponses];
 
 export type PostApiWorkItemsData = {
     body: {
@@ -10336,6 +10460,7 @@ export type PostApiWorkItemsResponses = {
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -10481,6 +10606,7 @@ export type PutApiWorkItemsResponses = {
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -10745,6 +10871,7 @@ export type PostApiWorkItemsBatchResponses = {
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -10890,12 +11017,152 @@ export type PutApiWorkItemsBatchResponses = {
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
 };
 
 export type PutApiWorkItemsBatchResponse = PutApiWorkItemsBatchResponses[keyof PutApiWorkItemsBatchResponses];
+
+export type PatchApiWorkItemsByWorkItemIdParentData = {
+    body: {
+        parentWorkItemId: string | unknown;
+    };
+    path: {
+        workItemId: string;
+    };
+    query?: never;
+    url: '/api/work-items/{workItemId}/parent';
+};
+
+export type PatchApiWorkItemsByWorkItemIdParentErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PatchApiWorkItemsByWorkItemIdParentError = PatchApiWorkItemsByWorkItemIdParentErrors[keyof PatchApiWorkItemsByWorkItemIdParentErrors];
+
+export type PatchApiWorkItemsByWorkItemIdParentResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platformId?: string | unknown;
+        platformKey: string;
+        url?: string | unknown;
+        title: string;
+        description: string;
+        sourceCreatedAt: string | unknown;
+        sourceUpdatedAt: string | unknown;
+        fields: unknown;
+        createdByUserId: string | unknown;
+        createdByUsername: string | unknown;
+        createdByImage: string | unknown;
+        parentWorkItemId: string | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PatchApiWorkItemsByWorkItemIdParentResponse = PatchApiWorkItemsByWorkItemIdParentResponses[keyof PatchApiWorkItemsByWorkItemIdParentResponses];
 
 export type GetApiWorkItemCommentsData = {
     body?: never;
@@ -11540,6 +11807,388 @@ export type PostApiWorkItemCommentsByCommentIdPinResponses = {
 };
 
 export type PostApiWorkItemCommentsByCommentIdPinResponse = PostApiWorkItemCommentsByCommentIdPinResponses[keyof PostApiWorkItemCommentsByCommentIdPinResponses];
+
+export type GetApiWorkItemBlocksData = {
+    body?: never;
+    path?: never;
+    query: {
+        workItemId: string;
+    };
+    url: '/api/work-item-blocks';
+};
+
+export type GetApiWorkItemBlocksErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiWorkItemBlocksError = GetApiWorkItemBlocksErrors[keyof GetApiWorkItemBlocksErrors];
+
+export type GetApiWorkItemBlocksResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        blockedBy: Array<{
+            id: string;
+            projectId: string;
+            blockedWorkItemId: string;
+            blockingWorkItemId: string;
+            createdByUserId: string | unknown;
+            createdAt: string;
+        }>;
+        blocking: Array<{
+            id: string;
+            projectId: string;
+            blockedWorkItemId: string;
+            blockingWorkItemId: string;
+            createdByUserId: string | unknown;
+            createdAt: string;
+        }>;
+    };
+};
+
+export type GetApiWorkItemBlocksResponse = GetApiWorkItemBlocksResponses[keyof GetApiWorkItemBlocksResponses];
+
+export type PostApiWorkItemBlocksData = {
+    body: {
+        blockedWorkItemId: string;
+        blockingWorkItemId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/work-item-blocks';
+};
+
+export type PostApiWorkItemBlocksErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiWorkItemBlocksError = PostApiWorkItemBlocksErrors[keyof PostApiWorkItemBlocksErrors];
+
+export type PostApiWorkItemBlocksResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        blockedWorkItemId: string;
+        blockingWorkItemId: string;
+        createdByUserId: string | unknown;
+        createdAt: string;
+    };
+};
+
+export type PostApiWorkItemBlocksResponse = PostApiWorkItemBlocksResponses[keyof PostApiWorkItemBlocksResponses];
+
+export type DeleteApiWorkItemBlocksByBlockIdData = {
+    body?: never;
+    path: {
+        blockId: string;
+    };
+    query?: never;
+    url: '/api/work-item-blocks/{blockId}';
+};
+
+export type DeleteApiWorkItemBlocksByBlockIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type DeleteApiWorkItemBlocksByBlockIdError = DeleteApiWorkItemBlocksByBlockIdErrors[keyof DeleteApiWorkItemBlocksByBlockIdErrors];
+
+export type DeleteApiWorkItemBlocksByBlockIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: number;
+};
+
+export type DeleteApiWorkItemBlocksByBlockIdResponse = DeleteApiWorkItemBlocksByBlockIdResponses[keyof DeleteApiWorkItemBlocksByBlockIdResponses];
 
 export type GetApiProjectsByProjectIdContextEntriesData = {
     body?: never;
@@ -13474,6 +14123,10 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncResponses =
             totalSeen: number;
             totalUpserted: number;
         }>;
+        parentLinksApplied?: number;
+        parentLinksSkipped?: number;
+        blocksCreated?: number;
+        blocksSkipped?: number;
     };
 };
 
