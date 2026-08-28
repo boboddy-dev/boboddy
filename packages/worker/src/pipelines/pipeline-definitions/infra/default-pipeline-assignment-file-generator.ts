@@ -1,3 +1,7 @@
+import {
+  WORK_ITEM_FIELDS_PATH_PREFIX,
+  WORK_ITEM_TOP_LEVEL_FIELDS,
+} from "@boboddy/sdk/definitions/pipelines";
 import { keyToVarName } from "../../../steps/step-definitions/infra/step-file-generator";
 
 // ─── Types matching the server-side wire format ───────────────────────────────
@@ -34,10 +38,23 @@ export type DefaultPipelineAssignmentContract = {
 // ─── Supported fact/path patterns ─────────────────────────────────────────────
 //
 //   fact: "workItem", path: "$.fields.<name>"  →  workItem.field("<name>")
+//   fact: "workItem", path: "$.<topLevelField>" →  workItem.<topLevelField>
 //   fact: "context",  path: "$.isNew"          →  context.isNew
+//
+// The top-level field list is imported from the SDK (`WORK_ITEM_TOP_LEVEL_FIELDS`)
+// rather than duplicated here, so this generator and the fluent DSL's
+// `ctx.workItem` accessor can never drift out of sync (see issue #125, where a
+// prior version of this drift produced pull output that didn't typecheck).
+const WORK_ITEM_TOP_LEVEL_PATHS = new Map<string, string>(
+  WORK_ITEM_TOP_LEVEL_FIELDS.map((field) => [`$.${field}`, field]),
+);
 
 const WORK_ITEM_FACT = "workItem";
-const WORK_ITEM_FIELDS_PATH_PREFIX = "$.fields.";
+// The SDK's `WORK_ITEM_FIELDS_PATH_PREFIX` is the bare `"fields."` key
+// prefix (shared with the regular pipeline/step accessor, which has no
+// JSONPath root); this DSL's paths are JSONPath-rooted at `$.`, hence the
+// prepended `$.` here.
+const WORK_ITEM_FIELDS_JSON_PATH_PREFIX = `$.${WORK_ITEM_FIELDS_PATH_PREFIX}`;
 const CONTEXT_FACT = "context";
 const CONTEXT_IS_NEW_PATH = "$.isNew";
 
@@ -81,16 +98,19 @@ function reconstructFactRef(fact: string, path: string | undefined): string {
   if (fact === CONTEXT_FACT && path === CONTEXT_IS_NEW_PATH) {
     return "context.isNew";
   }
-  if (
-    fact === WORK_ITEM_FACT &&
-    path?.startsWith(WORK_ITEM_FIELDS_PATH_PREFIX)
-  ) {
-    const fieldName = path.slice(WORK_ITEM_FIELDS_PATH_PREFIX.length);
-    return `workItem.field(${JSON.stringify(fieldName)})`;
+  if (fact === WORK_ITEM_FACT && path !== undefined) {
+    const topLevelField = WORK_ITEM_TOP_LEVEL_PATHS.get(path);
+    if (topLevelField) {
+      return `workItem.${topLevelField}`;
+    }
+    if (path.startsWith(WORK_ITEM_FIELDS_JSON_PATH_PREFIX)) {
+      const fieldName = path.slice(WORK_ITEM_FIELDS_JSON_PATH_PREFIX.length);
+      return `workItem.field(${JSON.stringify(fieldName)})`;
+    }
   }
   const desc = path ? `fact "${fact}" path "${path}"` : `fact "${fact}"`;
   throw new UnsupportedRuleError(
-    `Unsupported condition ${desc}. Only workItem.field(...) and context.isNew are supported by the fluent SDK.`,
+    `Unsupported condition ${desc}. Only workItem.field(...), workItem.<${WORK_ITEM_TOP_LEVEL_FIELDS.join("|")}>, and context.isNew are supported by the fluent SDK.`,
   );
 }
 
@@ -224,14 +244,20 @@ function collectImportedPipelineKeys(
 }
 
 /**
- * Collect the SDK named imports needed for this file.
- * Always includes `defaultPipelineAssignment`. Adds `assign`, `skip`,
- * `all`, `any`, `workItem`, `context` as needed.
+ * Collect the names the generated `defaultPipelineAssignment(({ ... }) => ...)`
+ * callback needs to destructure off its ctx parameter: some subset of
+ * `assign`, `skip`, `all`, `any`, `workItem`, `context`.
+ *
+ * These are ctx-provided bindings, not module exports — `defaultPipelineAssignment`
+ * is the only name this file imports from `@boboddy/sdk/definitions/pipelines`.
+ * (A prior version of this function conflated the two and emitted an import
+ * statement naming `workItem`/`assign`/etc., which don't exist as module
+ * exports and fail to compile.)
  */
-function collectNamedImports(
+function collectCtxParamNames(
   contract: DefaultPipelineAssignmentContract,
 ): string[] {
-  const names = new Set<string>(["defaultPipelineAssignment"]);
+  const names = new Set<string>();
 
   // default outcome
   if (contract.defaultEventType === "assign") names.add("assign");
@@ -292,13 +318,15 @@ export function generateDefaultPipelineAssignmentFileContent(
     contract,
     definitionIdToKey,
   );
-  const namedImports = collectNamedImports(contract);
+  const ctxParts = collectCtxParamNames(contract);
 
   const lines: string[] = [];
 
-  // Named imports from SDK
+  // `defaultPipelineAssignment` is the only module export this file needs —
+  // `workItem`/`context`/`assign`/`skip`/`all`/`any` are ctx-destructured
+  // parameter names, not exports, and must never appear in this import.
   lines.push(
-    `import { ${namedImports.join(", ")} } from "@boboddy/sdk/definitions/pipelines";`,
+    `import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";`,
   );
 
   // Pipeline default imports
@@ -306,11 +334,6 @@ export function generateDefaultPipelineAssignmentFileContent(
     lines.push(`import ${keyToVarName(key)} from "./${key}";`);
   }
   lines.push("");
-
-  // Determine which ctx parts are needed for the destructuring parameter
-  const ctxParts = namedImports.filter(
-    (n) => n !== "defaultPipelineAssignment",
-  );
 
   const ctxParam =
     ctxParts.length > 0 ? `({ ${ctxParts.join(", ")} })` : `(_ctx)`;

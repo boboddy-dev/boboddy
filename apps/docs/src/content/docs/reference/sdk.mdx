@@ -360,6 +360,7 @@ export default defaultPipelineAssignment(({ workItem, any, assign, skip }) => ({
       workItem.field("status").eq("resolved"),
       workItem.field("status").eq("manual support"),
     ).then(skip()),
+    workItem.title.contains("[urgent]").then(assign(bugTriage)),
     workItem.field("issueType").eq("bug").then(assign(bugTriage)),
     workItem
       .field("labels")
@@ -373,14 +374,17 @@ The callback receives a context object. Only `defaultPipelineAssignment` needs t
 
 ### Callback context
 
-| Property               | Description                                                  |
-| ---------------------- | ------------------------------------------------------------ |
-| `workItem.field(name)` | Returns a comparator ref for the named work item field       |
-| `context.isNew`        | Comparator ref; `true` when the work item is new             |
-| `assign(pipeline)`     | Outcome: start the given pipeline (`PipelineDefinitionSpec`) |
-| `skip()`               | Outcome: do not assign any pipeline                          |
-| `all(...refs)`         | All nested conditions must match                             |
-| `any(...refs)`         | Any nested condition must match                              |
+| Property                       | Description                                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `workItem.<property>`          | Comparator ref for a top-level work item property (`id`, `platform`, `title`, `url`, etc.)          |
+| `workItem.field(name)`         | Returns a comparator ref for the named work item field (`fields` bag), typed via `field<TName, TValue>` |
+| `context.isNew`                | Comparator ref; `true` when the work item is new             |
+| `assign(pipeline)`             | Outcome: start the given pipeline (`PipelineDefinitionSpec`) |
+| `skip()`                       | Outcome: do not assign any pipeline                          |
+| `all(...refs)`                 | All nested conditions must match                             |
+| `any(...refs)`                 | Any nested condition must match                              |
+
+`workItem`'s top-level properties are `id`, `projectId`, `platform`, `platformId`, `platformKey`, `url`, `title`, `description`, `sourceCreatedAt`, `sourceUpdatedAt`, `createdByUserId`, `parentWorkItemId`, `createdAt`, `updatedAt`. `platform` is typed to the real platform literal union; the date-like fields are ISO strings (or `null`), not `Date` objects. See the [pipeline assignment guide](/boboddy/guides/pipeline-assignment/#work-item-properties) for details.
 
 ### Return value shape
 
@@ -391,7 +395,7 @@ The callback receives a context object. Only `defaultPipelineAssignment` needs t
 
 ### Comparators
 
-All comparators available on advancement `SignalRef`s are also available here: `.eq`, `.ne`, `.gt`, `.gte`, `.lt`, `.lte`, `.in`, `.notIn`, `.contains`, `.doesNotContain`.
+All comparators available on advancement `SignalRef`s are also available here: `.eq`, `.ne`, `.gt`, `.gte`, `.lt`, `.lte`, `.in`, `.notIn`, `.contains`, `.doesNotContain`. Not every comparator applies to every field — `.gt`/`.gte`/`.lt`/`.lte` only exist on numeric fields, so e.g. `workItem.title.gt(...)` is a compile error.
 
 ---
 

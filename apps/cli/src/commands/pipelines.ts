@@ -271,8 +271,9 @@ const runPull = (args: ArgumentsCamelCase<PullArguments>): Promise<void> =>
     const assignmentMsg = result.defaultPipelineAssignmentFile
       ? ", default-pipeline-assignment.ts"
       : "";
+    const fieldsMsg = result.workItemFieldsFile ? ", work-item-fields.ts" : "";
     reporter.success(
-      `Pull complete. ${String(result.pipelineFiles)} pipeline file(s), ${String(result.stepFiles)} step file(s)${assignmentMsg}.`,
+      `Pull complete. ${String(result.pipelineFiles)} pipeline file(s), ${String(result.stepFiles)} step file(s)${assignmentMsg}${fieldsMsg}.`,
     );
   });
 

@@ -10,6 +10,11 @@ import {
   createPromptTemplateContext,
   type PromptTemplateContext,
 } from "./prompt-template";
+// `import type` only, so this doesn't create a runtime circular dependency
+// with `../pipelines/define-pipeline.ts` (which itself `import type`s
+// `StepDefinitionSpec`/`TypedStepDefinitionSpec` from this file) — both
+// directions are erased at compile time.
+import type { LiteralBinding, WorkItemBinding } from "../pipelines/define-pipeline";
 
 /**
  * Resolves the Zod schema node at a dot-notation path within a ZodObject schema.
@@ -240,17 +245,25 @@ export type DefineStepInput<
   executionMode?: "workspace" | "no_workspace";
 };
 
-export type AdditionalStepInputLiteralBinding = {
-  source: "literal";
-  value: unknown;
-};
+/**
+ * @deprecated Alias for `LiteralBinding` (`define-pipeline.ts`) — the two
+ * used to be independently declared, structurally-identical types. Kept
+ * only so existing imports of this name keep working.
+ */
+export type AdditionalStepInputLiteralBinding = LiteralBinding;
 
-export type AdditionalStepInputBinding =
-  | {
-      source: "work_item";
-      field: string;
-    }
-  | AdditionalStepInputLiteralBinding;
+/**
+ * The binding sources available to `PipelineMeta.additionalStepInput`'s
+ * `bindings` callback (`workItemField(...)`/`literal(...)` in
+ * `builder-helpers.ts`'s `resolveAdditionalStepInputBindings`) — the same
+ * `WorkItemBinding`/`LiteralBinding` shapes `.step()`'s own `input` mapper
+ * uses (`define-pipeline.ts`'s `AnyBinding`), restricted to the subset
+ * `resolveAdditionalStepInputBindings` can actually produce. Previously an
+ * independently-declared `{ source: "work_item"; field: string }` union
+ * member that had drifted apart from `WorkItemBinding` in shape only by
+ * coincidence, not by design.
+ */
+export type AdditionalStepInputBinding = WorkItemBinding | LiteralBinding;
 
 export type StepDefinitionSpec = {
   key: string;

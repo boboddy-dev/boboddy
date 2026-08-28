@@ -166,6 +166,9 @@ node_modules/
 # Regenerated from a template on every \`boboddy pipelines push\`.
 /push.ts
 
+# Keys pulled from the platform for work item fields
+/work-item-fields.ts
+
 # Written by the post-push run-offer gate (#146) when its dry run of the
 # pushed pipeline's first step fails; read once (and deleted) by the next
 # \`boboddy pipelines design\` session's orientation, so it is never meant to be

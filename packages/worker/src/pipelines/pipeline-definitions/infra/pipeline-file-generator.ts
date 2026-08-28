@@ -1,7 +1,18 @@
 import {
+  WORK_ITEM_FIELDS_PATH_PREFIX,
+  WORK_ITEM_TOP_LEVEL_FIELDS,
+} from "@boboddy/sdk/definitions/pipelines";
+import {
   keyToVarName,
   schemaToZodExpr,
 } from "../../../steps/step-definitions/infra/step-file-generator";
+
+// The top-level field list is imported from the SDK rather than duplicated
+// here, so this generator and the regular pipeline/step `WorkItemAccessor`
+// (`builder-helpers.ts`) can never drift out of sync — see the identical
+// rationale in `default-pipeline-assignment-file-generator.ts`, which reuses
+// the same constant for its own (JSONPath-rooted) reverse-generation.
+const WORK_ITEM_TOP_LEVEL_FIELD_SET = new Set<string>(WORK_ITEM_TOP_LEVEL_FIELDS);
 
 type InputBinding =
   | { source: "pipeline_input"; path: string | null }
@@ -240,7 +251,7 @@ function reconstructBindingExpr(
     case "work_item":
       if (binding.field === "title") return "input.workItemTitle";
       if (binding.field === "description") return "input.workItemDescription";
-      return `/* TODO: configure via additionalPipelineInput — workItem.field(${JSON.stringify(binding.field.replace(/^fields\./, ""))}) */ (undefined as never)`;
+      return `/* TODO: configure via additionalPipelineInput — ${reconstructWorkItemAccessorExpr(binding.field)} */ (undefined as never)`;
     case "step_signal":
       return `signal(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)}, ${JSON.stringify(binding.signalKey)})`;
     case "step_output":
@@ -270,10 +281,24 @@ function findWorkItemBindingForKey(
   return undefined;
 }
 
+/**
+ * Reconstructs a `WorkItemAccessor` expression (`builder-helpers.ts`) for a
+ * `work_item` binding's `field` value: `workItem.<field>` for any of
+ * `WORK_ITEM_TOP_LEVEL_FIELDS`, `workItem.field("<name>")` for a
+ * `fields.<name>` reference into the platform-specific `fields` bag.
+ *
+ * Checking top-level-field membership first (rather than assuming anything
+ * without the `fields.` prefix falls through to `.field(...)`) matters now
+ * that `WORK_ITEM_TOP_LEVEL_FIELDS` covers more than `title`/`description` —
+ * a field like `"platform"` must reconstruct as `workItem.platform`, not
+ * `workItem.field("platform")`.
+ */
 function reconstructWorkItemAccessorExpr(field: string): string {
-  if (field === "title") return "workItem.title";
-  if (field === "description") return "workItem.description";
-  return `workItem.field(${JSON.stringify(field.replace(/^fields\./, ""))})`;
+  if (WORK_ITEM_TOP_LEVEL_FIELD_SET.has(field)) return `workItem.${field}`;
+  const fieldName = field.startsWith(WORK_ITEM_FIELDS_PATH_PREFIX)
+    ? field.slice(WORK_ITEM_FIELDS_PATH_PREFIX.length)
+    : field;
+  return `workItem.field(${JSON.stringify(fieldName)})`;
 }
 
 type PipelineLevelInput = { keys: ReadonlySet<string>; block: string; needsZodImport: boolean };

@@ -26,6 +26,10 @@ import {
   type DefaultPipelineAssignmentContract,
 } from "../infra/default-pipeline-assignment-file-generator";
 import {
+  generateWorkItemFieldsFileContent,
+  type WorkItemFieldOption,
+} from "../infra/work-item-fields-file-generator";
+import {
   buildPipelineBuilderPackageJson,
   PIPELINE_BUILDER_GITIGNORE,
   PIPELINE_BUILDER_TSCONFIG,
@@ -52,7 +56,11 @@ export interface PullPipelineDefinitionsResult {
   pipelineFiles: number;
   /** true if default-pipeline-assignment.ts was written. */
   defaultPipelineAssignmentFile: boolean;
+  /** true if work-item-fields.ts was written. */
+  workItemFieldsFile: boolean;
 }
+
+export const WORK_ITEM_FIELDS_FILENAME = "work-item-fields.ts";
 
 function ensureScaffold(dir: string, sdkVersion: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -77,6 +85,9 @@ function resolveOutputFiles(dir: string, pipelineKeys: string[]): string[] {
   if (existsSync(join(dir, DEFAULT_PIPELINE_ASSIGNMENT_FILENAME))) {
     files.push(DEFAULT_PIPELINE_ASSIGNMENT_FILENAME);
   }
+  if (existsSync(join(dir, WORK_ITEM_FIELDS_FILENAME))) {
+    files.push(WORK_ITEM_FIELDS_FILENAME);
+  }
   return files;
 }
 
@@ -89,15 +100,21 @@ export async function pullPipelineDefinitions(
   const pipelineDefsClient = createPipelineDefinitionsClient(baseUrl);
   const boboddyClient = createBoboddyClient(baseUrl);
 
-  const [rawSteps, pipelines, projectResult] = (await Promise.all([
-    stepDefsClient.listByProjectId(projectId, { headers }),
-    pipelineDefsClient.listByProjectId(projectId, { headers }),
-    boboddyClient.projects.getProject({ path: { projectId }, headers }),
-  ])) as unknown as [
-    StepDefContract[],
-    PipelineContract[],
-    { data?: { defaultPipelineAssignment?: unknown }; error?: unknown },
-  ];
+  const [rawSteps, pipelines, projectResult, fieldOptionsResult] =
+    (await Promise.all([
+      stepDefsClient.listByProjectId(projectId, { headers }),
+      pipelineDefsClient.listByProjectId(projectId, { headers }),
+      boboddyClient.projects.getProject({ path: { projectId }, headers }),
+      boboddyClient.projects.listProjectWorkItemFieldOptions({
+        path: { projectId },
+        headers,
+      }),
+    ])) as unknown as [
+      StepDefContract[],
+      PipelineContract[],
+      { data?: { defaultPipelineAssignment?: unknown }; error?: unknown },
+      { data?: WorkItemFieldOption[]; error?: unknown },
+    ];
 
   const stepDefs = rawSteps;
 
@@ -110,6 +127,7 @@ export async function pullPipelineDefinitions(
       stepFiles: 0,
       pipelineFiles: 0,
       defaultPipelineAssignmentFile: false,
+      workItemFieldsFile: false,
     };
   }
 
@@ -209,7 +227,28 @@ export async function pullPipelineDefinitions(
     }
   }
 
-  return { stepFiles, pipelineFiles, defaultPipelineAssignmentFile };
+  // Write work-item-fields.ts: a per-project WorkItemFieldName snapshot for
+  // typed workItem.field<WorkItemFieldName>(...) usage. Always written (even
+  // when the project has no observed fields yet, as `never`) so its
+  // presence never depends on project state.
+  const fieldOptions = fieldOptionsResult.data ?? [];
+  const workItemFieldsContent = generateWorkItemFieldsFileContent(fieldOptions);
+  writeFileSync(
+    join(dir, WORK_ITEM_FIELDS_FILENAME),
+    workItemFieldsContent,
+    "utf-8",
+  );
+  logger.info(
+    { file: WORK_ITEM_FIELDS_FILENAME },
+    `✓ ${WORK_ITEM_FIELDS_FILENAME} (${String(fieldOptions.length)} field${fieldOptions.length !== 1 ? "s" : ""})`,
+  );
+
+  return {
+    stepFiles,
+    pipelineFiles,
+    defaultPipelineAssignmentFile,
+    workItemFieldsFile: true,
+  };
 }
 
 function isDefaultPipelineAssignmentContract(

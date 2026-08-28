@@ -108,6 +108,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           "/yarn.lock",
           "/deno.lock",
           "/push.ts",
+          "/work-item-fields.ts",
           "/.run-offer-gate-failure.json",
         ]);
 

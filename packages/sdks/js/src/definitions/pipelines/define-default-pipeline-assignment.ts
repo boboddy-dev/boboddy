@@ -1,4 +1,10 @@
 import type { PipelineDefinitionSpec } from "./define-pipeline";
+import {
+  WORK_ITEM_FIELDS_PATH_PREFIX,
+  WORK_ITEM_TOP_LEVEL_FIELDS,
+  type WorkItemTopLevelField,
+  type WorkItemTopLevelFieldTypeMap,
+} from "./work-item-fields";
 
 // ─── Reserved filename ────────────────────────────────────────────────────────
 
@@ -110,26 +116,66 @@ function makeLeaf(
 
 // ─── Field ref ────────────────────────────────────────────────────────────────
 
-/** Comparator-bound reference to a work-item field or context fact. */
-export interface AssignmentFieldRef {
-  // eslint-disable-next-line local/no-unknown-parameter-type
-  eq(value: unknown): AssignmentLeaf;
-  // eslint-disable-next-line local/no-unknown-parameter-type
-  ne(value: unknown): AssignmentLeaf;
+/**
+ * `.gt`/`.gte`/`.lt`/`.lte` are only ever meaningful for numeric fields.
+ * Intersected onto `AssignmentFieldRef<T>` only when `T` is (or includes)
+ * `number`, so e.g. `workItem.title.gt(...)` doesn't even type-check, let
+ * alone appear in autocomplete.
+ */
+type NumericComparators = {
   gt(value: number): AssignmentLeaf;
   gte(value: number): AssignmentLeaf;
   lt(value: number): AssignmentLeaf;
   lte(value: number): AssignmentLeaf;
-  in(values: ReadonlyArray<unknown>): AssignmentLeaf;
-  notIn(values: ReadonlyArray<unknown>): AssignmentLeaf;
-  // eslint-disable-next-line local/no-unknown-parameter-type
-  contains(value: unknown): AssignmentLeaf;
-  // eslint-disable-next-line local/no-unknown-parameter-type
-  doesNotContain(value: unknown): AssignmentLeaf;
-}
+};
 
-function makeFieldRef(fact: string, path?: string): AssignmentFieldRef {
-  return {
+/**
+ * Comparator-bound reference to a work-item field or context fact.
+ *
+ * `T` is the field's value type (defaulting to `unknown`, which preserves
+ * the pre-generic behavior for any caller that doesn't otherwise constrain
+ * it). `.contains`/`.doesNotContain` narrow to the array element type when
+ * `T` is an array — json-rules-engine's `contains`/`doesNotContain`
+ * operators check array-membership (or substring-membership for strings)
+ * against the fact's actual runtime shape, so an array-typed field's
+ * `.contains(...)` should accept one element, not the whole array.
+ */
+export type AssignmentFieldRef<T = unknown> = {
+  eq(value: T): AssignmentLeaf;
+  ne(value: T): AssignmentLeaf;
+  in(values: ReadonlyArray<T>): AssignmentLeaf;
+  notIn(values: ReadonlyArray<T>): AssignmentLeaf;
+  contains(value: T extends ReadonlyArray<infer U> ? U : T): AssignmentLeaf;
+  doesNotContain(
+    value: T extends ReadonlyArray<infer U> ? U : T,
+  ): AssignmentLeaf;
+} & (T extends number ? NumericComparators : Record<string, never>);
+
+/**
+ * Runtime implementation is intentionally untyped (`unknown` in, cast out to
+ * `AssignmentFieldRef<T>`): JS doesn't enforce parameter types at runtime, so
+ * only the exported type needs to carry the precision added in `T`.
+ */
+function makeFieldRef<T = unknown>(
+  fact: string,
+  path?: string,
+): AssignmentFieldRef<T> {
+  const untyped: {
+    // eslint-disable-next-line local/no-unknown-parameter-type
+    eq: (value: unknown) => AssignmentLeaf;
+    // eslint-disable-next-line local/no-unknown-parameter-type
+    ne: (value: unknown) => AssignmentLeaf;
+    gt: (value: number) => AssignmentLeaf;
+    gte: (value: number) => AssignmentLeaf;
+    lt: (value: number) => AssignmentLeaf;
+    lte: (value: number) => AssignmentLeaf;
+    in: (values: ReadonlyArray<unknown>) => AssignmentLeaf;
+    notIn: (values: ReadonlyArray<unknown>) => AssignmentLeaf;
+    // eslint-disable-next-line local/no-unknown-parameter-type
+    contains: (value: unknown) => AssignmentLeaf;
+    // eslint-disable-next-line local/no-unknown-parameter-type
+    doesNotContain: (value: unknown) => AssignmentLeaf;
+  } = {
     eq: (v) => makeLeaf(fact, path, "equal", v),
     ne: (v) => makeLeaf(fact, path, "notEqual", v),
     gt: (v) => makeLeaf(fact, path, "greaterThan", v),
@@ -141,22 +187,82 @@ function makeFieldRef(fact: string, path?: string): AssignmentFieldRef {
     contains: (v) => makeLeaf(fact, path, "contains", v),
     doesNotContain: (v) => makeLeaf(fact, path, "doesNotContain", v),
   };
+  return untyped as unknown as AssignmentFieldRef<T>;
+}
+
+// ─── Work-item top-level fields ───────────────────────────────────────────────
+//
+// `WORK_ITEM_TOP_LEVEL_FIELDS`/`WorkItemTopLevelField`/`WorkItemTopLevelFieldTypeMap`
+// live in `./work-item-fields` (imported above) — a shared module, not
+// private to this DSL, since the regular pipeline/step `WorkItemAccessor`
+// (`builder-helpers.ts`) needs the exact same list to expose the same
+// top-level properties on `ctx.workItem` there. See that module's doc
+// comments for the full rationale.
+
+/** Comparator-bound accessor for the work item passed to `defaultPipelineAssignment`. */
+export type WorkItemAssignmentAccessor = {
+  [K in WorkItemTopLevelField]: AssignmentFieldRef<WorkItemTopLevelFieldTypeMap[K]>;
+} & {
+  /**
+   * Accessor for a platform-specific field (Jira custom field, GitHub label,
+   * etc.) stored in the work item's `fields` bag. Since `fields` keys and
+   * value shapes are platform- and project-dependent, there is no static
+   * schema to check either against by default.
+   *
+   * Two independent, optional type parameters:
+   *  - `TName` constrains the `name` argument itself — pass a literal union
+   *    of known field names (e.g. the `WorkItemFieldName` type
+   *    `boboddy pipelines pull` generates into `work-item-fields.ts`) to get
+   *    compile-time validation and autocomplete on the field name.
+   *  - `TValue` types the comparator (`.eq`/`.gte`/etc.) argument, exactly
+   *    like the top-level accessors above — pass it for a known-shaped
+   *    custom field (e.g. a numeric one).
+   * Both default to permissive types, so `workItem.field(name)` with no
+   * type arguments keeps working exactly as before.
+   *
+   * @example
+   * workItem.field("issueType").eq("bug")
+   * workItem.field("labels").contains("regression")
+   * workItem.field<WorkItemFieldName>("issueType").eq("bug")
+   * workItem.field<WorkItemFieldName, number>("storyPoints").gte(3)
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- TName is intentionally single-use: it exists to preserve literal-type inference/autocomplete on the argument, not to relate multiple positions.
+  field<TName extends string = string, TValue = unknown>(
+    name: TName,
+  ): AssignmentFieldRef<TValue>;
+};
+
+function buildWorkItemAccessor(): WorkItemAssignmentAccessor {
+  const accessor: Record<string, unknown> = {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- TName is intentionally single-use: it exists to preserve literal-type inference/autocomplete on the argument, not to relate multiple positions.
+    field: <TName extends string = string, TValue = unknown>(name: TName) =>
+      makeFieldRef<TValue>(
+        "workItem",
+        `$.${WORK_ITEM_FIELDS_PATH_PREFIX}${name}`,
+      ),
+  };
+  for (const key of WORK_ITEM_TOP_LEVEL_FIELDS) {
+    accessor[key] = makeFieldRef("workItem", `$.${key}`);
+  }
+  return accessor as unknown as WorkItemAssignmentAccessor;
 }
 
 // ─── Context object ───────────────────────────────────────────────────────────
 
 export type DefaultPipelineAssignmentCtx = {
   /**
-   * Work-item field accessor.
+   * Work-item accessor: top-level properties (`workItem.title`,
+   * `workItem.platform`, `workItem.url`, ...) plus `workItem.field(name)`
+   * for the platform-specific `fields` bag.
    *
    * @example
    * workItem.field("issueType").eq("bug").then(assign(bugTriage))
    * workItem.field("labels").contains("regression").then(assign(regressionReview))
    * workItem.field("status").eq("resolved").then(skip())
+   * workItem.platform.eq("github").then(assign(githubTriage))
+   * workItem.title.contains("[urgent]").then(assign(urgentTriage))
    */
-  workItem: {
-    field(name: string): AssignmentFieldRef;
-  };
+  workItem: WorkItemAssignmentAccessor;
   /**
    * Context facts for the current ingestion event.
    * `context.isNew` is `true` when the work item is being created for the first time.
@@ -165,7 +271,7 @@ export type DefaultPipelineAssignmentCtx = {
    * context.isNew.eq(true).then(assign(onboarding))
    */
   context: {
-    isNew: AssignmentFieldRef;
+    isNew: AssignmentFieldRef<boolean>;
   };
   /**
    * Outcome: assign the work item to the given pipeline.
@@ -264,11 +370,9 @@ function makeGroup(
 
 function buildCtx(): DefaultPipelineAssignmentCtx {
   return {
-    workItem: {
-      field: (name: string) => makeFieldRef("workItem", `$.fields.${name}`),
-    },
+    workItem: buildWorkItemAccessor(),
     context: {
-      isNew: makeFieldRef("context", "$.isNew"),
+      isNew: makeFieldRef<boolean>("context", "$.isNew"),
     },
     assign: makeAssign,
     skip: () => ({ _tag: "skip" }),

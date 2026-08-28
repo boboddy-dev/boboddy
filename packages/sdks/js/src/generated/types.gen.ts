@@ -352,7 +352,9 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
             description: string;
             sourceCreatedAt: string | unknown;
             sourceUpdatedAt: string | unknown;
-            fields: unknown;
+            fields: {
+                [key: string]: unknown;
+            } | unknown;
             createdByUserId: string | unknown;
             createdByUsername: string | unknown;
             createdByImage: string | unknown;
@@ -1442,8 +1444,12 @@ export type GetApiStepDefinitionsResponses = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -1510,8 +1516,12 @@ export type PostApiStepDefinitionsData = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode?: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson?: {
             [key: string]: {
                 type: string;
@@ -1695,8 +1705,12 @@ export type PostApiStepDefinitionsResponses = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -1763,8 +1777,12 @@ export type PutApiStepDefinitionsData = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode?: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson?: {
             [key: string]: {
                 type: string;
@@ -1916,8 +1934,12 @@ export type PutApiStepDefinitionsResponses = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -2082,8 +2104,12 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -2248,8 +2274,12 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -4717,7 +4747,9 @@ export type PostApiPipelineDefinitionsData = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
-        inputSchemaJson?: unknown;
+        inputSchemaJson?: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
@@ -4746,7 +4778,9 @@ export type PostApiPipelineDefinitionsData = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 rulesJson: {
                     rules: Array<{
@@ -4793,14 +4827,18 @@ export type PostApiPipelineDefinitionsData = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
             };
             computedSignalDefinitions: Array<{
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
             }>;
         }>;
@@ -4939,7 +4977,9 @@ export type PostApiPipelineDefinitionsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -4970,7 +5010,9 @@ export type PostApiPipelineDefinitionsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -5019,7 +5061,9 @@ export type PostApiPipelineDefinitionsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -5029,7 +5073,9 @@ export type PostApiPipelineDefinitionsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -5051,7 +5097,9 @@ export type PutApiPipelineDefinitionsData = {
         name: string;
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
-        inputSchemaJson?: unknown;
+        inputSchemaJson?: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
@@ -5080,7 +5128,9 @@ export type PutApiPipelineDefinitionsData = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 rulesJson: {
                     rules: Array<{
@@ -5127,14 +5177,18 @@ export type PutApiPipelineDefinitionsData = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
             };
             computedSignalDefinitions: Array<{
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
             }>;
         }>;
@@ -5225,7 +5279,9 @@ export type PutApiPipelineDefinitionsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -5256,7 +5312,9 @@ export type PutApiPipelineDefinitionsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -5305,7 +5363,9 @@ export type PutApiPipelineDefinitionsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -5315,7 +5375,9 @@ export type PutApiPipelineDefinitionsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -5436,7 +5498,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -5467,7 +5531,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -5516,7 +5582,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -5526,7 +5594,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -5647,7 +5717,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -5678,7 +5750,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -5727,7 +5801,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -5737,7 +5813,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -5949,7 +6027,9 @@ export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -5980,7 +6060,9 @@ export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -6029,7 +6111,9 @@ export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -6039,7 +6123,9 @@ export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -6161,7 +6247,9 @@ export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineSte
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -6192,7 +6280,9 @@ export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineSte
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -6241,7 +6331,9 @@ export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineSte
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -6251,7 +6343,9 @@ export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineSte
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -6464,7 +6558,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -6495,7 +6591,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -6544,7 +6642,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -6554,7 +6654,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -6616,7 +6718,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
             }>;
         };
         defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-        defaultEventParamsJson: unknown;
+        defaultEventParamsJson: {
+            [key: string]: unknown;
+        } | unknown;
         allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
     };
     path: {
@@ -6724,7 +6828,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -6755,7 +6861,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -6804,7 +6912,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -6814,7 +6924,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -6951,7 +7063,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -6982,7 +7096,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -7031,7 +7147,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -7041,7 +7159,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -7146,7 +7266,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
         description: string | unknown;
         status: 'draft' | 'active' | 'archived';
         archivedAt: string | unknown;
-        inputSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
@@ -7177,7 +7299,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
                 };
             } | unknown;
             timeoutSeconds: number | unknown;
-            retryPolicyJson: unknown;
+            retryPolicyJson: {
+                [key: string]: unknown;
+            } | unknown;
             advancementPolicyDefinition: {
                 id: string;
                 pipelineStepDefinitionId: string;
@@ -7226,7 +7350,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
                     }>;
                 };
                 defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: unknown;
+                defaultEventParamsJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
                 createdAt: string;
                 updatedAt: string;
@@ -7236,7 +7362,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
                 key: string;
                 type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
                 inputSignalKeys: Array<string>;
-                configJson: unknown;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
                 createdAt: string;
                 updatedAt: string;
@@ -10033,7 +10161,9 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -10173,7 +10303,9 @@ export type PatchApiWorkItemsByWorkItemIdResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -10294,7 +10426,9 @@ export type GetApiWorkItemsByWorkItemIdChildrenResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -10317,7 +10451,9 @@ export type PostApiWorkItemsData = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
     };
     path?: never;
     query?: never;
@@ -10456,7 +10592,9 @@ export type PostApiWorkItemsResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -10479,7 +10617,9 @@ export type PutApiWorkItemsData = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
     };
     path?: never;
     query?: never;
@@ -10602,7 +10742,9 @@ export type PutApiWorkItemsResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -10728,7 +10870,9 @@ export type PostApiWorkItemsBatchData = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
     }>;
     path?: never;
     query?: never;
@@ -10867,7 +11011,9 @@ export type PostApiWorkItemsBatchResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -10890,7 +11036,9 @@ export type PutApiWorkItemsBatchData = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
     }>;
     path?: never;
     query?: never;
@@ -11013,7 +11161,9 @@ export type PutApiWorkItemsBatchResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -11152,7 +11302,9 @@ export type PatchApiWorkItemsByWorkItemIdParentResponses = {
         description: string;
         sourceCreatedAt: string | unknown;
         sourceUpdatedAt: string | unknown;
-        fields: unknown;
+        fields: {
+            [key: string]: unknown;
+        } | unknown;
         createdByUserId: string | unknown;
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
@@ -12648,7 +12800,9 @@ export type GetApiProjectsByProjectIdNotificationsResponses = {
         priority: 'low' | 'normal' | 'high' | 'urgent';
         source: 'agent' | 'system' | 'user';
         status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
-        payloadJson: unknown;
+        payloadJson: {
+            [key: string]: unknown;
+        } | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -12770,7 +12924,9 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdResponses = {
         priority: 'low' | 'normal' | 'high' | 'urgent';
         source: 'agent' | 'system' | 'user';
         status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
-        payloadJson: unknown;
+        payloadJson: {
+            [key: string]: unknown;
+        } | unknown;
         createdAt: string;
         updatedAt: string;
         deliveries: Array<{
@@ -13007,7 +13163,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondRespon
         priority: 'low' | 'normal' | 'high' | 'urgent';
         source: 'agent' | 'system' | 'user';
         status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
-        payloadJson: unknown;
+        payloadJson: {
+            [key: string]: unknown;
+        } | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -13120,7 +13278,9 @@ export type GetApiProjectsByProjectIdNotificationRulesResponses = {
         channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
         enabled: boolean;
         minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
-        conditionsJson: unknown;
+        conditionsJson: {
+            [key: string]: unknown;
+        } | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -13134,7 +13294,9 @@ export type PutApiProjectsByProjectIdNotificationRulesData = {
         channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
         enabled: boolean;
         minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
-        conditionsJson: unknown;
+        conditionsJson: {
+            [key: string]: unknown;
+        } | unknown;
     };
     path: {
         projectId: string;
@@ -13239,7 +13401,9 @@ export type PutApiProjectsByProjectIdNotificationRulesResponses = {
         channel: 'in_app' | 'work_item_platform_comment' | 'email' | 'slack';
         enabled: boolean;
         minPriority: 'low' | 'normal' | 'high' | 'urgent' | unknown;
-        conditionsJson: unknown;
+        conditionsJson: {
+            [key: string]: unknown;
+        } | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -13301,8 +13465,12 @@ export type GetApiStepDefinitionTemplatesResponses = {
         name: string;
         description: string | unknown;
         promptTemplate: string | unknown;
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -13452,8 +13620,12 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
         name: string;
         description: string | unknown;
         promptTemplate: string | unknown;
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;
@@ -13661,8 +13833,12 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
         version: number;
         kind: 'built_in' | 'user_defined';
         executionMode: 'workspace' | 'no_workspace';
-        inputSchemaJson: unknown;
-        resultSchemaJson: unknown;
+        inputSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
+        resultSchemaJson: {
+            [key: string]: unknown;
+        } | unknown;
         opencodeMcpJson: {
             [key: string]: {
                 type: string;

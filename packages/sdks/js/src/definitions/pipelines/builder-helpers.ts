@@ -18,6 +18,11 @@ import {
   materializeAccessor,
   type InputAccessor,
 } from "./input-accessor";
+import {
+  WORK_ITEM_FIELDS_PATH_PREFIX,
+  WORK_ITEM_TOP_LEVEL_FIELDS,
+  type WorkItemTopLevelField,
+} from "./work-item-fields";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyTypedStep = TypedStepDefinitionSpec<any, any, any, any>;
@@ -82,10 +87,32 @@ export type FanOutInputCtx<
 
 export type IsAny<T> = 0 extends 1 & T ? true : false;
 
+/**
+ * Work-item accessor for `additionalPipelineInput.bindings(({ workItem }) => ...)`:
+ * a top-level property (`workItem.title`, `workItem.platform`,
+ * `workItem.url`, ...) for every member of `WORK_ITEM_TOP_LEVEL_FIELDS`, plus
+ * `workItem.field(name)` for the platform-specific `fields` bag.
+ *
+ * Mirrors the default-pipeline-assignment DSL's `WorkItemAssignmentAccessor`
+ * (`define-default-pipeline-assignment.ts`) in which properties it exposes —
+ * both are generated off the same `WORK_ITEM_TOP_LEVEL_FIELDS` list — but
+ * returns a plain `WorkItemBinding` per property rather than a
+ * comparator-bound `AssignmentFieldRef`: a regular pipeline input binding
+ * has no conditions to compare against, it's just "read this work-item
+ * property into this input field."
+ *
+ * `field`'s optional `TName` type parameter accepts a literal union of known
+ * field names (e.g. the `WorkItemFieldName` type `boboddy pipelines pull`
+ * generates into `work-item-fields.ts`) for compile-time validation and
+ * autocomplete on the field name, exactly like the assignment DSL's
+ * `workItem.field<TName>(...)`. Defaults to permissive `string`, so
+ * `workItem.field(name)` with no type argument keeps working as before.
+ */
 export type WorkItemAccessor = {
-  readonly title: WorkItemBinding;
-  readonly description: WorkItemBinding;
-  readonly field: (fieldName: string) => WorkItemBinding;
+  readonly [K in WorkItemTopLevelField]: WorkItemBinding;
+} & {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- TName is intentionally single-use: it exists to preserve literal-type inference/autocomplete on the argument, not to relate multiple positions.
+  field<TName extends string = string>(fieldName: TName): WorkItemBinding;
 };
 
 export type PinnedWorkItemComment = {
@@ -169,7 +196,17 @@ export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
   additionalStepInput?: {
     schema: ZodType;
     bindings: (ctx: {
-      workItemField: (fieldName: string) => WorkItemBinding;
+      /**
+       * References a platform-specific field (Jira custom field, GitHub
+       * label, etc.) in the work item's `fields` bag. `TName` optionally
+       * accepts a literal union of known field names (e.g. the generated
+       * `WorkItemFieldName`) for compile-time validation and autocomplete,
+       * exactly like `WorkItemAccessor.field` above.
+       */
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- TName is intentionally single-use: it exists to preserve literal-type inference/autocomplete on the argument, not to relate multiple positions.
+      workItemField: <TName extends string = string>(
+        fieldName: TName,
+      ) => WorkItemBinding;
       // eslint-disable-next-line local/no-unknown-parameter-type
       literal: (value: unknown) => LiteralBinding;
     }) => Partial<Record<string, AdditionalStepInputBinding>>;
@@ -177,14 +214,18 @@ export type PipelineMeta<TInput extends ZodType = z.ZodUnknown> = {
 };
 
 export const WORK_ITEM_ACCESSOR: WorkItemAccessor = Object.freeze({
-  title: Object.freeze({ source: "work_item", field: "title" } as const),
-  description: Object.freeze({
-    source: "work_item",
-    field: "description",
-  } as const),
+  ...Object.fromEntries(
+    WORK_ITEM_TOP_LEVEL_FIELDS.map((field) => [
+      field,
+      Object.freeze({ source: "work_item", field }),
+    ]),
+  ),
   field: (fieldName: string): WorkItemBinding =>
-    Object.freeze({ source: "work_item", field: `fields.${fieldName}` }),
-});
+    Object.freeze({
+      source: "work_item",
+      field: `${WORK_ITEM_FIELDS_PATH_PREFIX}${fieldName}`,
+    }),
+}) as WorkItemAccessor;
 
 const WORK_ITEM_FIELD_BINDINGS: Record<string, WorkItemBinding> = {
   workItemTitle: { source: "work_item", field: "title" },
@@ -255,7 +296,7 @@ export function resolveAdditionalStepInputBindings(
   const raw = definition.bindings({
     workItemField: (fieldName: string) => ({
       source: "work_item",
-      field: `fields.${fieldName}`,
+      field: `${WORK_ITEM_FIELDS_PATH_PREFIX}${fieldName}`,
     }),
     literal,
   });
