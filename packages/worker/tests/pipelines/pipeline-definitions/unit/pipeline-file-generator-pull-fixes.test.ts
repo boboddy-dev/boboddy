@@ -2,27 +2,24 @@ import { describe, expect, test } from "bun:test";
 import { gen, makePipeline, makeStep } from "./pipeline-file-generator-test-helpers";
 
 // Regression tests for https://github.com/boboddy-dev/boboddy-platform/issues/125
-// `pipelines pull` was dropping `additionalPipelineInput` entirely and emitting
-// `.advance()` rules that reference `all(...)`/`any(...)` without destructuring
-// them from the callback params.
+// (`pipelines pull` was dropping `additionalPipelineInput` entirely and
+// emitting `.advance()` rules that reference `all(...)`/`any(...)` without
+// destructuring them from the callback params).
+//
+// The flat SDK rewrite (Phase 6) removed the mechanism issue #125 was about —
+// there is no more pipeline-level `additionalPipelineInput` layer, and no
+// `.advance()` callback to destructure. Every work-item field binding, custom
+// or not, now reconstructs directly and independently as `ctx.workItem.field(...)`
+// in whichever step's own mapper uses it (see `pipeline-file-generator.ts`'s
+// module doc). These tests carry the original regression forward onto the new
+// shape: a custom work-item field must never be dropped or emitted as a
+// broken placeholder, in a single step or across several.
 
-// ─── additionalPipelineInput reconstruction ──────────────────────────────────
-
-describe("additionalPipelineInput", () => {
-  const PIPELINE_INPUT_SCHEMA_JSON = {
-    $schema: "https://json-schema.org/draft/2020-12/schema",
-    type: "object",
-    properties: {
-      companyNames: { type: "string" },
-      employeeEmails: { type: "string" },
-    },
-    required: ["companyNames", "employeeEmails"],
-    additionalProperties: false,
-  };
-
-  test("reconstructs a pipeline-level additionalPipelineInput block instead of dropping it", () => {
+describe("custom work-item field bindings are never dropped", () => {
+  test("reconstructs the same custom field independently on two different steps", () => {
     const stepA = makeStep({
       key: "bad-data-investigation",
+      position: 0,
       inputBindingsJson: {
         workItemTitle: { source: "work_item", field: "title" },
         workItemDescription: { source: "work_item", field: "description" },
@@ -41,25 +38,27 @@ describe("additionalPipelineInput", () => {
       },
     });
 
-    const output = gen(
-      makePipeline([stepA, stepB], { inputSchemaJson: PIPELINE_INPUT_SCHEMA_JSON }),
-    );
+    const output = gen(makePipeline([stepA, stepB]));
 
-    // Emitted once, at the pipeline level.
-    expect(output).toContain("additionalPipelineInput: {");
-    expect(output).toContain('workItem.field("What are the Company Name(s):")');
-    expect(output).toContain('workItem.field("What are the Employee Email(s):")');
+    // Reconstructed on both steps, not just once at a pipeline level — there
+    // is no pipeline level to reconstruct it at anymore.
+    const companyNamesOccurrences = output.split('companyNames: ctx.workItem.field("What are the Company Name(s):")').length - 1;
+    const employeeEmailsOccurrences = output.split('employeeEmails: ctx.workItem.field("What are the Employee Email(s):")').length - 1;
+    expect(companyNamesOccurrences).toBe(2);
+    expect(employeeEmailsOccurrences).toBe(2);
 
-    // Must not leak into per-step mappers as broken TODO placeholders.
+    // No broken placeholders of any kind.
     expect(output).not.toContain("undefined as never");
-    expect(output).not.toContain("TODO: configure via additionalPipelineInput");
+    expect(output).not.toContain("TODO");
+    expect(output).not.toContain("additionalPipelineInput");
 
-    // Zod schema + zod import needed to declare it.
-    expect(output).toContain("z.object(");
-    expect(output).toContain('import { z } from "zod";');
+    // No pipeline-level input schema is needed for this — these are
+    // work-item bindings, not pipeline_input bindings.
+    expect(output).not.toContain("import { z }");
+    expect(output).not.toContain("input: z.object(");
   });
 
-  test("falls back to per-step TODO placeholders when there's no pipeline input schema", () => {
+  test("a single step with a custom field needs no fallback placeholder", () => {
     const step = makeStep({
       inputBindingsJson: {
         companyNames: { source: "work_item", field: "fields.Company Names" },
@@ -67,61 +66,42 @@ describe("additionalPipelineInput", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).not.toContain("additionalPipelineInput: {");
-    expect(output).toContain("TODO: configure via additionalPipelineInput");
+    expect(output).toContain('companyNames: ctx.workItem.field("Company Names")');
+    expect(output).not.toContain("TODO");
   });
 });
 
-// ─── .advance() combinator destructuring ─────────────────────────────────────
+describe("pipeline-level input schema (ctx.pipelineInput)", () => {
+  const PIPELINE_INPUT_SCHEMA_JSON = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    type: "object",
+    properties: {
+      diff: { type: "string" },
+    },
+    required: ["diff"],
+    additionalProperties: false,
+  };
 
-describe(".advance() combinator destructuring", () => {
-  test("destructures `all` from the .advance() callback when a multi-condition all(...) rule is emitted", () => {
-    const step = makeStep({
-      advancementPolicyDefinition: {
-        rulesJson: {
-          rules: [{
-            conditions: {
-              all: [
-                { fact: "confidence", operator: "greaterThanInclusive", value: 0.8 },
-                { fact: "reproduced", operator: "equal", value: true },
-              ],
-            },
-            event: { type: "continue" },
-          }],
-        },
-        defaultEventType: "block",
-        defaultEventParamsJson: null,
-        allowedEventTypes: ["continue", "block"],
+  test("reconstructs definePipeline({ input }) and per-step ctx.pipelineInput bindings, not a per-step additionalPipelineInput placeholder", () => {
+    const stepA = makeStep({
+      key: "analyze",
+      position: 0,
+      inputBindingsJson: {
+        diff: { source: "pipeline_input", path: "diff" },
       },
-      computedSignalDefinitions: [],
     });
 
-    const output = gen(makePipeline([step]));
-    expect(output).toContain(`all(stepSignals.confidence.gte(0.8), stepSignals.reproduced.eq(true)).then("continue")`);
-    // The callback signature must destructure every identifier used in its body.
-    expect(output).toMatch(/\(\s*\{\s*all\s*,\s*stepSignals\s*\}\s*\)\s*=>/);
+    const output = gen(makePipeline([stepA], { inputSchemaJson: PIPELINE_INPUT_SCHEMA_JSON }));
+
+    expect(output).toContain("input: z.object(");
+    expect(output).toContain('diff: ctx.pipelineInput("diff")');
+    expect(output).not.toContain("additionalPipelineInput");
+    expect(output).toContain('import { z } from "zod";');
   });
 
-  test("destructures `any` from the .advance() callback when a single-condition any(...) rule is emitted", () => {
-    const step = makeStep({
-      advancementPolicyDefinition: {
-        rulesJson: {
-          rules: [{
-            conditions: {
-              any: [{ fact: "flagged", operator: "equal", value: true }],
-            },
-            event: { type: "continue" },
-          }],
-        },
-        defaultEventType: "block",
-        defaultEventParamsJson: null,
-        allowedEventTypes: ["continue", "block"],
-      },
-      computedSignalDefinitions: [],
-    });
-
-    const output = gen(makePipeline([step]));
-    expect(output).toContain(`any(stepSignals.flagged.eq(true)).then("continue")`);
-    expect(output).toMatch(/\(\s*\{\s*any\s*,\s*stepSignals\s*\}\s*\)\s*=>/);
+  test("omits the input field entirely when the pipeline declares no input schema", () => {
+    const output = gen(makePipeline([makeStep()]));
+    expect(output).not.toContain("input: z.object(");
+    expect(output).not.toContain('import { z } from "zod";');
   });
 });

@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -22,6 +23,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   },
   integrations: [
+    react(),
     starlight({
       title: "Boboddy",
       description:
@@ -165,6 +167,13 @@ export default defineConfig({
         {
           label: "Reference",
           items: [{ autogenerate: { directory: "reference" } }],
+        },
+        {
+          label: "Catalog",
+          items: [
+            { label: "Overview", slug: "catalog" },
+            { label: "Pipeline Graph", slug: "catalog/pipeline-graph" },
+          ],
         },
       ],
     }),

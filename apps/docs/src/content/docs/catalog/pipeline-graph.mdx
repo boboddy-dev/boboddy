@@ -1,0 +1,54 @@
+---
+title: Pipeline Graph
+description: A compiled pipeline's node/edge graph, rendered interactively
+---
+
+import { Code } from "astro:components";
+import { translateSpecToGraph } from "@boboddy/pipeline-studio-ui";
+import { PipelineGraphView } from "@boboddy/pipeline-studio-ui/view";
+import CatalogExample from "../../../components/CatalogExample.astro";
+
+import { linearChainSpec } from "../../catalog-fixtures/pipeline-graph/linear-chain";
+import { choiceSpec } from "../../catalog-fixtures/pipeline-graph/choice";
+
+import linearChainSource from "../../catalog-fixtures/pipeline-graph/linear-chain.ts?raw";
+import choiceSource from "../../catalog-fixtures/pipeline-graph/choice.ts?raw";
+
+export const linearChainGraph = translateSpecToGraph(linearChainSpec, []);
+export const choiceGraph = translateSpecToGraph(choiceSpec, []);
+
+This is the same graph view `boboddy pipelines studio` renders locally over a live pipeline, embedded here over static, hand-authored fixtures instead of a running server. Each fixture below is authored with `definePipeline()` — the same builder used to write a real pipeline — which compiles down to a `PipelineDefinitionSpec`. That spec is translated into `{nodes, edges}` at build time (`translateSpecToGraph`, `@boboddy/pipeline-studio-ui`'s `"."` export), then rendered client-side by the same `PipelineGraphView` component the studio uses (its `"./view"` export). Drag to pan, scroll to zoom, and use the controls in the bottom-left corner to fit or reset the view.
+
+These examples cover node kinds worth seeing on a graph — a plain linear chain and a `choice` branch so far, with `fanOut`, `parallel`, and `loop` examples still to come.
+
+## Linear chain
+
+The simplest shape: a sequence of steps with no branching, ending in a terminal `succeed` node.
+
+<CatalogExample
+  title="Triage a bug report"
+  description="Reads the report, analyzes its severity, and writes a summary."
+>
+  <PipelineGraphView
+    client:visible
+    nodes={linearChainGraph.nodes}
+    edges={linearChainGraph.edges}
+  />
+  <Code slot="source" code={linearChainSource} lang="ts" theme="github-dark" />
+</CatalogExample>
+
+## Choice
+
+A `choice` node routes to one of several targets based on its `choices[]` conditions, falling back to `default` when none match.
+
+<CatalogExample
+  title="Route an incident by severity"
+  description="Classifies an incident, then pages on-call or files a ticket."
+>
+  <PipelineGraphView
+    client:visible
+    nodes={choiceGraph.nodes}
+    edges={choiceGraph.edges}
+  />
+  <Code slot="source" code={choiceSource} lang="ts" theme="github-dark" />
+</CatalogExample>

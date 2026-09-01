@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule, Computed } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype D — triage / intake quality scoring.
-// score (no_workspace) → gate on the average of the sub-scores. Needs nothing
-// but the work item's title and description, bound on every step automatically.
+// score (no_workspace) → block unless the average of the sub-scores clears
+// the bar. Needs nothing but the work item's title and description, bound on
+// every step automatically.
 
 export const scoreIntakeQuality = defineStep({
   key: "score-intake-quality",
@@ -57,34 +58,34 @@ it, so a human can see whether you read it the way they meant it.
   features: [Features.notifications()],
 });
 
-export default pipeline({
+export default definePipeline({
   key: "intake-triage",
   name: "Intake Triage",
   description: "Score incoming reports and park the ones nobody can act on.",
   status: "active",
-})
-  .step(scoreIntakeQuality, {
-    input: () => ({}),
-    // Averaging in the rule rather than asking the model for one holistic
-    // number keeps the sub-scores visible in the dashboard and keeps the
-    // threshold here, where it can be tuned without touching the prompt.
-    advance: ({ stepSignals, avg, any }) => ({
-      default: "block",
-      rules: [
-        // Any dimension that is nearly absent blocks regardless of the average.
-        any(
-          stepSignals.observed.lt(0.3),
-          stepSignals.expected.lt(0.3),
-          stepSignals.reproduction.lt(0.3),
-        ).then("block"),
-        avg(
-          stepSignals.observed,
-          stepSignals.expected,
-          stepSignals.reproduction,
-        )
-          .gte(0.7)
-          .then("complete"),
-      ],
-    }),
-  })
-  .build();
+  startAt: "scoreIntakeQuality",
+  states: {
+    scoreIntakeQuality: {
+      kind: "step",
+      step: scoreIntakeQuality,
+      input: () => ({}),
+      // `Computed.average(...)` combines the sub-scores in the rule rather
+      // than asking the model for one holistic number, which keeps the
+      // sub-scores visible in the dashboard and keeps the threshold here,
+      // where it can be tuned without touching the prompt. Any dimension
+      // that is nearly absent blocks regardless of the average.
+      blockWhen: Rule.any([
+        Rule.signal("observed", "lessThan", 0.3),
+        Rule.signal("expected", "lessThan", 0.3),
+        Rule.signal("reproduction", "lessThan", 0.3),
+        Rule.signal(
+          Computed.average(["observed", "expected", "reproduction"]),
+          "lessThan",
+          0.7,
+        ),
+      ]),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});

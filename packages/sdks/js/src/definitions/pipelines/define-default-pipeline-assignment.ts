@@ -343,7 +343,7 @@ function makeAssign(pipeline: PipelineDefinitionSpec): AssignOutcome {
     !Array.isArray((pipeline as Record<string, unknown>)["nodeDefinitions"])
   ) {
     throw new Error(
-      "assign() requires a pipeline spec produced by pipeline().build(). " +
+      "assign() requires a pipeline spec produced by definePipeline(). " +
         "Pass the default-exported value from a pipeline definition file.",
     );
   }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  orderChainNodeDefinitions,
-  tryOrderChainNodeDefinitions,
+  tryComputeTopoRanks,
+  tryOrderNodeDefinitionsByTopoRank,
 } from "../src/definitions/pipelines/chain-graph";
 import type {
   DependencyEdgeSpec,
@@ -15,7 +15,13 @@ const ADVANCEMENT_POLICY = {
   allowedEventTypes: ["continue" as const],
 };
 
-function node(nodeKey: string): NodeDefinitionSpec {
+function node(
+  nodeKey: string,
+  kind: "step" | "choice" = "step",
+): NodeDefinitionSpec {
+  if (kind === "choice") {
+    return { nodeKey, kind: "choice", choices: [], default: null };
+  }
   return {
     nodeKey,
     kind: "step",
@@ -33,82 +39,82 @@ function edge(fromNodeKey: string, toNodeKey: string): DependencyEdgeSpec {
   return { fromNodeKey, toNodeKey };
 }
 
-describe("tryOrderChainNodeDefinitions", () => {
-  test("orders a simple chain by walking edges from the root", () => {
+describe("tryComputeTopoRanks", () => {
+  test.concurrent("ranks a simple chain by walking edges from the root", () => {
     const nodes = [node("c"), node("a"), node("b")];
     const edges = [edge("a", "b"), edge("b", "c")];
 
-    const ordered = tryOrderChainNodeDefinitions(nodes, edges);
+    const ranks = tryComputeTopoRanks(nodes, edges);
 
-    expect(ordered?.map((n) => n.nodeKey)).toEqual(["a", "b", "c"]);
+    expect(ranks?.get("a")).toBe(0);
+    expect(ranks?.get("b")).toBe(1);
+    expect(ranks?.get("c")).toBe(2);
   });
 
-  test("returns the single node unordered when there are no edges", () => {
-    const nodes = [node("only")];
+  test.concurrent("ranks a branching graph (two choice targets converging)", () => {
+    // choice -> { a, b } -> shared -- both a and b feed into "shared".
+    const nodes = [node("choice", "choice"), node("a"), node("b"), node("shared")];
+    const edges = [
+      edge("choice", "a"),
+      edge("choice", "b"),
+      edge("a", "shared"),
+      edge("b", "shared"),
+    ];
 
-    const ordered = tryOrderChainNodeDefinitions(nodes, []);
+    const ranks = tryComputeTopoRanks(nodes, edges);
 
-    expect(ordered?.map((n) => n.nodeKey)).toEqual(["only"]);
+    expect(ranks?.get("choice")).toBe(0);
+    expect(ranks?.get("a")).toBe(1);
+    expect(ranks?.get("b")).toBe(1);
+    // Longest-path-from-root: shared is reached via rank-1 nodes, so rank 2.
+    expect(ranks?.get("shared")).toBe(2);
   });
 
-  test("returns an empty array for an empty node list with no edges", () => {
-    // Vacuously a valid (empty) chain.
-    const ordered = tryOrderChainNodeDefinitions([], []);
-    expect(ordered).toEqual([]);
+  test.concurrent("returns an empty map for an empty node list with no edges", () => {
+    const ranks = tryComputeTopoRanks([], []);
+    expect(ranks?.size).toBe(0);
   });
 
-  test("returns null when there are multiple roots", () => {
-    const nodes = [node("a"), node("b"), node("c")];
-    // "a" and "b" both have no incoming edge — two roots.
-    const edges = [edge("a", "c")];
-
-    expect(tryOrderChainNodeDefinitions(nodes, edges)).toBeNull();
-  });
-
-  test("returns null when a node has more than one outgoing edge (fan-out)", () => {
-    const nodes = [node("a"), node("b"), node("c")];
-    const edges = [edge("a", "b"), edge("a", "c")];
-
-    expect(tryOrderChainNodeDefinitions(nodes, edges)).toBeNull();
-  });
-
-  test("returns null when a node has more than one incoming edge (fan-in)", () => {
-    const nodes = [node("a"), node("b"), node("c")];
-    const edges = [edge("a", "c"), edge("b", "c")];
-
-    expect(tryOrderChainNodeDefinitions(nodes, edges)).toBeNull();
-  });
-
-  test("returns null for a cycle", () => {
+  test.concurrent("returns null for a cycle", () => {
     const nodes = [node("a"), node("b")];
     const edges = [edge("a", "b"), edge("b", "a")];
 
-    expect(tryOrderChainNodeDefinitions(nodes, edges)).toBeNull();
+    expect(tryComputeTopoRanks(nodes, edges)).toBeNull();
   });
 
-  test("returns null for a disconnected node", () => {
-    const nodes = [node("a"), node("b"), node("c")];
-    const edges = [edge("a", "b")];
+  test.concurrent("returns null when an edge references an unknown node key", () => {
+    const nodes = [node("a")];
+    const edges = [edge("a", "does-not-exist")];
 
-    expect(tryOrderChainNodeDefinitions(nodes, edges)).toBeNull();
+    expect(tryComputeTopoRanks(nodes, edges)).toBeNull();
   });
 });
 
-describe("orderChainNodeDefinitions", () => {
-  test("returns the ordered chain when structurally valid", () => {
+describe("tryOrderNodeDefinitionsByTopoRank", () => {
+  test.concurrent("orders nodes ascending by rank", () => {
     const nodes = [node("b"), node("a")];
     const edges = [edge("a", "b")];
 
-    expect(orderChainNodeDefinitions(nodes, edges).map((n) => n.nodeKey)).toEqual([
-      "a",
-      "b",
-    ]);
+    const ordered = tryOrderNodeDefinitionsByTopoRank(nodes, edges);
+
+    expect(ordered?.map((n) => n.nodeKey)).toEqual(["a", "b"]);
   });
 
-  test("throws a descriptive error for a malformed graph", () => {
-    const nodes = [node("a"), node("b"), node("c")];
-    const edges = [edge("a", "b")];
+  test.concurrent("breaks ties by declaration order", () => {
+    const nodes = [node("choice", "choice"), node("second"), node("first")];
+    const edges = [edge("choice", "second"), edge("choice", "first")];
 
-    expect(() => orderChainNodeDefinitions(nodes, edges)).toThrow();
+    const ordered = tryOrderNodeDefinitionsByTopoRank(nodes, edges);
+
+    // "second" and "first" share rank 1; declaration order (as given in
+    // `nodes`) breaks the tie.
+    expect(ordered?.map((n) => n.nodeKey)).toEqual(["choice", "second", "first"]);
+  });
+
+  test.concurrent("returns null for a cycle", () => {
+    const nodes = [node("a"), node("b")];
+    const edges = [edge("a", "b"), edge("b", "a")];
+
+    expect(tryOrderNodeDefinitionsByTopoRank(nodes, edges)).toBeNull();
   });
 });

@@ -313,12 +313,13 @@ describe("scaffoldPipelineBuilderDirectory", () => {
         );
         const defineStepCount = (content.match(/defineStep\(\{/g) ?? [])
           .length;
-        // real .step() calls reference a step variable; comments say ".step()"
-        const stepCallCount = (content.match(/\.step\(\w/g) ?? []).length;
+        // real `kind: "step"` states reference a step variable; comments say "step"
+        const stepStateCount = (content.match(/kind: "step",/g) ?? []).length;
         expect(defineStepCount).toBe(2);
-        expect(stepCallCount).toBe(2);
-        expect(content).toContain("pipeline(");
-        expect(content).toContain(".build()");
+        expect(stepStateCount).toBe(2);
+        expect(content).toContain("definePipeline(");
+        expect(content).toContain("startAt:");
+        expect(content).toContain("states:");
         expect(content).toContain("export default");
         expect(content).toContain("additionalInput:");
         expect(content).toContain("result:");
@@ -329,7 +330,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       }
     });
 
-    test("starter pipeline demonstrates a signal-gated advancement with a block default", () => {
+    test("starter pipeline demonstrates a signal-gated blockWhen and a succeed exit", () => {
       const dir = makeTempDir();
       try {
         scaffoldPipelineBuilderDirectory(dir, "0.0.0");
@@ -337,14 +338,12 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           join(dir, STARTER_PIPELINE_FILENAME),
           "utf-8",
         );
-        expect(content).toContain("advance: (");
-        expect(content).toContain('signal("confidence")');
-        expect(content).toContain(".gte(7)");
-        expect(content).toContain('.then("continue")');
-        expect(content).toContain('default: "block"');
-        // every step must have an `advance` option; real options take a callback
-        const advanceCount = (content.match(/advance: \(/g) ?? []).length;
-        expect(advanceCount).toBe(2);
+        expect(content).toContain("blockWhen:");
+        expect(content).toContain('Rule.when("confidence", "lessThan", 7)');
+        expect(content).toContain('kind: "succeed"');
+        // every `step` state must declare where it goes next
+        const nextCount = (content.match(/next: "/g) ?? []).length;
+        expect(nextCount).toBe(2);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

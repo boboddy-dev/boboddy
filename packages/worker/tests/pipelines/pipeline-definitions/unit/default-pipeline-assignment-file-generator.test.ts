@@ -3,7 +3,7 @@ import { z } from "zod";
 import { defineStep } from "@boboddy/sdk/definitions/steps";
 import {
   defaultPipelineAssignment,
-  pipeline,
+  definePipeline,
   serializeDefaultPipelineAssignment,
   WORK_ITEM_TOP_LEVEL_FIELDS,
   type AssignmentLeaf,
@@ -26,9 +26,15 @@ const triageStep = defineStep({
   signals: [{ sourcePath: "ok" }],
 });
 
-const triagePipeline = pipeline({ key: "triage-and-plan", name: "Triage and Plan" })
-  .step(triageStep, { advance: () => ({ default: "continue" }) })
-  .build();
+const triagePipeline = definePipeline({
+  key: "triage-and-plan",
+  name: "Triage and Plan",
+  startAt: "triage",
+  states: {
+    triage: { kind: "step", step: triageStep, next: "done" },
+    done: { kind: "succeed" },
+  },
+});
 
 const definitionIdToKey = new Map([[PIPELINE_DEFINITION_ID, "triage-and-plan"]]);
 
@@ -51,6 +57,93 @@ function contractFromSpec(
     allowedEventTypes: serialized.allowedEventTypes,
   };
 }
+
+/**
+ * Regression test for a real bug found while investigating a user-reported
+ * `boboddy pipelines studio` crash: the generator used to compute one set of
+ * names for BOTH the top-level SDK import statement AND the
+ * `defaultPipelineAssignment(ctx => ...)` callback's destructured ctx
+ * parameter. `assign`/`skip`/`all`/`any`/`workItem`/`context` are properties
+ * of the ctx object (`DefaultPipelineAssignmentCtx`,
+ * `define-default-pipeline-assignment.ts`), never top-level exports of
+ * `@boboddy/sdk/definitions/pipelines` — only `defaultPipelineAssignment`
+ * itself is. Importing them at the top level produced a generated
+ * `default-pipeline-assignment.ts` that failed to even load: "The requested
+ * module '@boboddy/sdk/definitions/pipelines' does not provide an export
+ * named 'assign'" (or `workItem`, `skip`, etc., depending on the contract).
+ */
+describe("generateDefaultPipelineAssignmentFileContent", () => {
+  test("imports only defaultPipelineAssignment, never ctx-only names, even when rules need them", () => {
+    const contract: DefaultPipelineAssignmentContract = {
+      pipelineDefinitionId: "default",
+      rulesJson: {
+        rules: [
+          {
+            conditions: {
+              all: [
+                {
+                  fact: "workItem",
+                  path: "$.fields.issueType",
+                  operator: "equal",
+                  value: "bug",
+                },
+              ],
+            },
+            event: { type: "assign", params: { pipelineKey: "bug-triage" } },
+          },
+        ],
+      },
+      defaultEventType: "skip",
+      defaultEventParamsJson: null,
+      allowedEventTypes: ["assign", "skip"],
+    };
+
+    const output = generateDefaultPipelineAssignmentFileContent(
+      contract,
+      new Map(),
+    );
+    const importLine = output.split("\n")[0];
+
+    // The exact bug: this line must never grow beyond `defaultPipelineAssignment`,
+    // no matter which ctx names the rules below reference.
+    expect(importLine).toBe(
+      'import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";',
+    );
+    expect(importLine).not.toContain("assign,");
+    expect(importLine).not.toContain("skip");
+    expect(importLine).not.toContain("workItem");
+
+    // The ctx names this contract needs still reach the callback parameter —
+    // just via destructuring, not the SDK import.
+    expect(output).toContain("({ assign, skip, workItem }) => ({");
+    expect(output).toContain("workItem.field(\"issueType\").eq(\"bug\")");
+    expect(output).toContain("default: skip()");
+  });
+
+  test("with no rules, only imports defaultPipelineAssignment and destructures just the default outcome's ctx name", () => {
+    const contract: DefaultPipelineAssignmentContract = {
+      pipelineDefinitionId: "default",
+      rulesJson: { rules: [] },
+      defaultEventType: "skip",
+      defaultEventParamsJson: null,
+      allowedEventTypes: ["assign", "skip"],
+    };
+
+    const output = generateDefaultPipelineAssignmentFileContent(
+      contract,
+      new Map(),
+    );
+
+    expect(output.split("\n")[0]).toBe(
+      'import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";',
+    );
+    // `skip` is needed for `default: skip()` even with zero rules — a
+    // default outcome always requires either `assign` or `skip` from ctx,
+    // so the bare `(_ctx)` parameter path is unreachable in practice; this
+    // pins the minimal real case instead.
+    expect(output).toContain("defaultPipelineAssignment(({ skip }) => ({");
+  });
+});
 
 describe("generateDefaultPipelineAssignmentFileContent / workItem top-level fields", () => {
   test("reconstructs a top-level workItem.title condition as a property access, not workItem.field(...)", () => {

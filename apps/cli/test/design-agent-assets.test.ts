@@ -141,15 +141,17 @@ describe("composed prompt size", () => {
   // Inlining the five archetype files took this from ~26,300 to ~51,700,
   // anchoring the interview to a work item plus the change-size gate took it to
   // ~56,300, the devcontainer-authoring phase to ~59,700, the well-known
-  // MCP server health check catalog (§10) to ~63,900, and project-tool
+  // MCP server health check catalog (§10) to ~63,900, project-tool
   // discovery plus the secrets/`.env.example` handling (phases 1, 3, 7, 10, and
-  // AUTHORING.md §1) to ~70,900 — the lower bound is set just under the
-  // current value so any further growth is a deliberate decision rather than a
-  // drift.
+  // AUTHORING.md §1) to ~70,900, and the flat pipeline SDK rewrite (Phase 6 —
+  // `definePipeline({states})`, the `choice`/routing sections, and the
+  // router archetype's per-target dispatch-state pattern) to ~78,900 — the
+  // lower bound is set just under the current value so any further growth is
+  // a deliberate decision rather than a drift.
   test("stays within the expected envelope", () => {
     const length = buildPipelineDesignerPrompt().length;
-    expect(length).toBeGreaterThan(70_000);
-    expect(length).toBeLessThan(74_000);
+    expect(length).toBeGreaterThan(76_000);
+    expect(length).toBeLessThan(82_000);
   });
 
   test("survives a round trip through the injected TUI config", () => {

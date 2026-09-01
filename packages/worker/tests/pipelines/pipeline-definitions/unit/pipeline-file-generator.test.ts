@@ -1,10 +1,46 @@
 import { describe, expect, test } from "bun:test";
 import { gen, makePipeline, makeStep } from "./pipeline-file-generator-test-helpers";
 
+// ─── Basic shape ──────────────────────────────────────────────────────────────
+
+describe("basic shape", () => {
+  test("emits definePipeline({states}) with a synthesized succeed terminal", () => {
+    const output = gen(makePipeline([makeStep({ key: "review-code" })]));
+
+    expect(output).toContain('import { definePipeline } from "@boboddy/sdk/definitions/pipelines";');
+    expect(output).toContain("export default definePipeline({");
+    expect(output).toContain('startAt: "review-code"');
+    expect(output).toContain('"review-code": {');
+    expect(output).toContain('kind: "step"');
+    expect(output).toContain('next: "done"');
+    expect(output).toContain('done: { kind: "succeed" }');
+    expect(output).not.toContain(".build()");
+    expect(output).not.toContain("pipeline(");
+  });
+
+  test("chains sequential steps by position and only terminates the last one", () => {
+    const stepA = makeStep({ key: "step-a", position: 0 });
+    const stepB = makeStep({ key: "step-b", position: 1 });
+
+    const output = gen(makePipeline([stepB, stepA])); // deliberately out of order
+    expect(output).toContain('startAt: "step-a"');
+    expect(output.indexOf('"step-a"')).toBeLessThan(output.indexOf('"step-b"'));
+    expect(output).toContain('"step-a": {');
+    expect(output).toMatch(/"step-a":\s*\{[\s\S]*?next: "step-b"/);
+    expect(output).toMatch(/"step-b":\s*\{[\s\S]*?next: "done"/);
+  });
+
+  test("picks a non-colliding terminal key when a state is already named `done`", () => {
+    const output = gen(makePipeline([makeStep({ key: "done" })]));
+    expect(output).toContain('next: "_done"');
+    expect(output).toContain('_done: { kind: "succeed" }');
+  });
+});
+
 // ─── work_item binding ────────────────────────────────────────────────────────
 
 describe("work_item binding", () => {
-  test("emits input.workItemTitle for a work_item title binding", () => {
+  test("emits ctx.workItem.title for a work_item title binding", () => {
     const step = makeStep({
       inputBindingsJson: {
         subject: { source: "work_item", field: "title" },
@@ -12,11 +48,10 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("input.workItemTitle");
-    expect(output).not.toContain("workItem.title");
+    expect(output).toContain("ctx.workItem.title");
   });
 
-  test("emits input.workItemDescription for a work_item description binding", () => {
+  test("emits ctx.workItem.description for a work_item description binding", () => {
     const step = makeStep({
       inputBindingsJson: {
         body: { source: "work_item", field: "description" },
@@ -24,21 +59,7 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("input.workItemDescription");
-    expect(output).not.toContain("workItem.description");
-  });
-
-  test("includes input in destructured ctx param when work_item binding is present", () => {
-    const step = makeStep({
-      inputBindingsJson: {
-        title: { source: "work_item", field: "title" },
-      },
-    });
-
-    const output = gen(makePipeline([step]));
-    expect(output).toMatch(/\(\s*\{\s*[^}]*input[^}]*\}\s*\)/);
-    // standalone "workItem" (not "workItemTitle"/"workItemDescription") must not appear as a ctx binding
-    expect(output).not.toMatch(/\bworkItem\b(?!Title|Description)/);
+    expect(output).toContain("ctx.workItem.description");
   });
 
   test("skips auto-injected workItemTitle and workItemDescription bindings", () => {
@@ -50,12 +71,12 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("_ctx");
-    expect(output).not.toContain("input.workItemTitle");
-    expect(output).not.toContain("input.workItemDescription");
+    expect(output).toContain("() => ({})");
+    expect(output).not.toContain("workItemTitle:");
+    expect(output).not.toContain("workItemDescription:");
   });
 
-  test("emits TODO comment for custom work item field bindings", () => {
+  test("reconstructs a custom work-item field directly — no TODO placeholder needed", () => {
     const step = makeStep({
       inputBindingsJson: {
         company: { source: "work_item", field: "fields.Company" },
@@ -63,26 +84,103 @@ describe("work_item binding", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain("TODO");
-    expect(output).toContain("Company");
+    expect(output).toContain('company: ctx.workItem.field("Company")');
+    expect(output).not.toContain("TODO");
+    // "company" is a valid identifier, so the binding key is emitted bare.
+    expect(output).not.toContain('"company":');
   });
 });
 
-// ─── Import line ──────────────────────────────────────────────────────────────
+// ─── Other binding sources ────────────────────────────────────────────────────
+
+describe("other binding sources", () => {
+  test("reconstructs a step_signal binding as ctx.signal(nodeKey, signalKey)", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        rootCause: { source: "step_signal", stepKey: "investigate", signalKey: "rootCause" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain('rootCause: ctx.signal("investigate", "rootCause")');
+  });
+
+  test("reconstructs a step_output binding as ctx.output(nodeKey)", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        fullResult: { source: "step_output", stepKey: "investigate" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain('fullResult: ctx.output("investigate")');
+  });
+
+  test("reconstructs a literal binding as ctx.literal(value) — fully supported, unlike the old builder", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        appUrl: { source: "literal", value: "https://staging.example.com" },
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain('appUrl: ctx.literal("https://staging.example.com")');
+    expect(output).not.toContain("not supported in SDK");
+  });
+
+  test("reconstructs a pipeline_input binding as ctx.pipelineInput(path)", () => {
+    const step = makeStep({
+      inputBindingsJson: {
+        diff: { source: "pipeline_input", path: "diff" },
+      },
+    });
+
+    const output = gen(makePipeline([step], { inputSchemaJson: { type: "object", properties: { diff: { type: "string" } } } }));
+    expect(output).toContain('diff: ctx.pipelineInput("diff")');
+    expect(output).toContain("input: z.object(");
+  });
+});
+
+// ─── Imports ──────────────────────────────────────────────────────────────────
 
 describe("imports", () => {
-  test("does not import Computed or Rule even when computed signal definitions are present", () => {
+  test("imports neither Rule nor Computed when there is no blockWhen", () => {
+    const output = gen(makePipeline([makeStep()]));
+    expect(output).not.toMatch(/import \{[^}]*Rule[^}]*\} from "@boboddy\/sdk\/definitions\/pipelines"/);
+    expect(output).not.toMatch(/import \{[^}]*Computed[^}]*\} from "@boboddy\/sdk\/definitions\/pipelines"/);
+  });
+
+  test("imports Rule (but not Computed) when a plain-signal blockWhen is emitted", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
           rules: [{
-            conditions: { all: [{ fact: "sum_a_b", operator: "greaterThan", value: 3 }] },
-            event: { type: "continue" },
+            conditions: { all: [{ fact: "confidence", operator: "lessThan", value: 7 }] },
+            event: { type: "block" },
           }],
         },
         defaultEventType: "continue",
         defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
+        allowedEventTypes: ["continue", "block"],
+      },
+    });
+
+    const output = gen(makePipeline([step]));
+    expect(output).toContain('import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";');
+  });
+
+  test("imports both Rule and Computed when a computed-signal blockWhen is emitted", () => {
+    const step = makeStep({
+      advancementPolicyDefinition: {
+        rulesJson: {
+          rules: [{
+            conditions: { all: [{ fact: "sum_a_b", operator: "lessThan", value: 3 }] },
+            event: { type: "block" },
+          }],
+        },
+        defaultEventType: "continue",
+        defaultEventParamsJson: null,
+        allowedEventTypes: ["continue", "block"],
       },
       computedSignalDefinitions: [{
         key: "sum_a_b",
@@ -94,70 +192,47 @@ describe("imports", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).not.toMatch(/import \{[^}]*Computed[^}]*\}/);
-    expect(output).not.toMatch(/import \{[^}]*Rule[^}]*\}/);
-    // computed is expressed via ctx destructuring, not imports
-    expect(output).toContain("sum(stepSignals.");
-  });
-
-  test("does not import Computed or Rule when no computed signal definitions are present", () => {
-    const step = makeStep({
-      advancementPolicyDefinition: {
-        rulesJson: {
-          rules: [{
-            conditions: { all: [{ fact: "score", operator: "greaterThan", value: 5 }] },
-            event: { type: "continue" },
-          }],
-        },
-        defaultEventType: "continue",
-        defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
-      },
-      computedSignalDefinitions: [],
-    });
-
-    const output = gen(makePipeline([step]));
-    expect(output).not.toContain("Computed");
-    expect(output).not.toContain("Rule");
+    expect(output).toContain(
+      'import { definePipeline, Rule, Computed } from "@boboddy/sdk/definitions/pipelines";',
+    );
   });
 });
 
-// ─── Single-condition rules ───────────────────────────────────────────────────
+// ─── blockWhen reconstruction ─────────────────────────────────────────────────
 
-describe("single-condition rules", () => {
-  test("emits stepSignals.key.op(val).then(outcome) for a plain signal fact", () => {
+describe("blockWhen — single condition", () => {
+  test("collapses a single-leaf `all` rule to Rule.when(...)", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
           rules: [{
-            conditions: { all: [{ fact: "clarity_score", operator: "greaterThan", value: 7 }] },
-            event: { type: "continue" },
+            conditions: { all: [{ fact: "clarity_score", operator: "lessThan", value: 7 }] },
+            event: { type: "block" },
           }],
         },
         defaultEventType: "continue",
         defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
+        allowedEventTypes: ["continue", "block"],
       },
-      computedSignalDefinitions: [],
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`stepSignals.clarity_score.gt(7).then("continue")`);
-    expect(output).not.toContain("Rule");
+    expect(output).toContain(`blockWhen: Rule.when("clarity_score", "lessThan", 7)`);
+    expect(output).not.toContain("Rule.all");
   });
 
-  test("emits ctx computed method for a computed signal fact", () => {
+  test("reconstructs a computed-signal condition as Rule.when(Computed.X([...]), ...)", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
           rules: [{
-            conditions: { all: [{ fact: "sum_score_a_score_b", operator: "greaterThan", value: 5 }] },
-            event: { type: "continue" },
+            conditions: { all: [{ fact: "sum_score_a_score_b", operator: "lessThan", value: 5 }] },
+            event: { type: "block" },
           }],
         },
         defaultEventType: "continue",
         defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
+        allowedEventTypes: ["continue", "block"],
       },
       computedSignalDefinitions: [{
         key: "sum_score_a_score_b",
@@ -169,31 +244,30 @@ describe("single-condition rules", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`sum(stepSignals.score_a, stepSignals.score_b).gt(5).then("continue")`);
-    expect(output).not.toContain("Computed");
+    expect(output).toContain(
+      `blockWhen: Rule.when(Computed.sum(["score_a", "score_b"]), "lessThan", 5)`,
+    );
   });
 });
 
-// ─── Multi-condition rules ────────────────────────────────────────────────────
-
-describe("multi-condition rules", () => {
-  test("emits all(...).then(outcome) for a multi-condition all rule mixing computed and plain facts", () => {
+describe("blockWhen — multiple conditions", () => {
+  test("reconstructs a multi-condition `all` group mixing computed and plain facts", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
           rules: [{
             conditions: {
               all: [
-                { fact: "average_quality_security", operator: "greaterThanInclusive", value: 7 },
-                { fact: "flagged", operator: "equal", value: false },
+                { fact: "average_quality_security", operator: "lessThan", value: 7 },
+                { fact: "flagged", operator: "equal", value: true },
               ],
             },
-            event: { type: "continue" },
+            event: { type: "block" },
           }],
         },
         defaultEventType: "continue",
         defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
+        allowedEventTypes: ["continue", "block"],
       },
       computedSignalDefinitions: [{
         key: "average_quality_security",
@@ -205,30 +279,28 @@ describe("multi-condition rules", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`avg(stepSignals.quality, stepSignals.security).gte(7)`);
-    expect(output).toContain(`stepSignals.flagged.eq(false)`);
-    expect(output).toContain(`.then("continue")`);
-    expect(output).not.toContain("Computed");
-    expect(output).not.toContain("Rule");
+    expect(output).toContain(
+      `blockWhen: Rule.all([Rule.signal(Computed.average(["quality", "security"]), "lessThan", 7), Rule.signal("flagged", "equal", true)])`,
+    );
   });
 
-  test("handles computed signal in nested any condition group", () => {
+  test("reconstructs a computed signal nested inside an `any` group", () => {
     const step = makeStep({
       advancementPolicyDefinition: {
         rulesJson: {
           rules: [{
             conditions: {
               all: [
-                { fact: "required_check", operator: "equal", value: true },
+                { fact: "required_check", operator: "equal", value: false },
                 { any: [{ fact: "sum_x_y", operator: "greaterThan", value: 10 }] },
               ],
             },
-            event: { type: "continue" },
+            event: { type: "block" },
           }],
         },
         defaultEventType: "continue",
         defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
+        allowedEventTypes: ["continue", "block"],
       },
       computedSignalDefinitions: [{
         key: "sum_x_y",
@@ -240,139 +312,6 @@ describe("multi-condition rules", () => {
     });
 
     const output = gen(makePipeline([step]));
-    expect(output).toContain(`sum(stepSignals.x, stepSignals.y).gt(10)`);
-    expect(output).not.toContain("Computed");
-  });
-});
-
-// ─── All 8 computed ctx method mappings ──────────────────────────────────────
-
-describe("computed ctx method mapping", () => {
-  const cases: Array<[string, string]> = [
-    ["average", "avg"],
-    ["weighted_average", "weightedAvg"],
-    ["sum", "sum"],
-    ["min", "min"],
-    ["max", "max"],
-    ["count", "count"],
-    ["boolean_any", "booleanAny"],
-    ["boolean_all", "booleanAll"],
-  ];
-
-  for (const [wireType, expectedMethod] of cases) {
-    test(`maps wire type "${wireType}" to ctx method "${expectedMethod}"`, () => {
-      const key = `${wireType}_sig_a_sig_b`;
-      const step = makeStep({
-        advancementPolicyDefinition: {
-          rulesJson: {
-            rules: [{
-              conditions: { all: [{ fact: key, operator: "equal", value: true }] },
-              event: { type: "continue" },
-            }],
-          },
-          defaultEventType: "continue",
-          defaultEventParamsJson: null,
-          allowedEventTypes: ["continue"],
-        },
-        computedSignalDefinitions: [{
-          key,
-          type: wireType,
-          inputSignalKeys: ["sig_a", "sig_b"],
-          configJson: null,
-          availableWhenResultStatusIn: null,
-        }],
-      });
-
-      const output = gen(makePipeline([step]));
-      expect(output).toContain(`${expectedMethod}(stepSignals.sig_a, stepSignals.sig_b)`);
-      expect(output).not.toContain("Computed");
-    });
-  }
-});
-
-// ─── Computed with options ────────────────────────────────────────────────────
-// The fluent ctx API doesn't expose configJson/availableWhenResultStatusIn;
-// the new generator uses the ctx method form regardless of those fields.
-
-describe("computed signals", () => {
-  test("uses ctx weightedAvg method even when configJson is set on the server", () => {
-    const step = makeStep({
-      advancementPolicyDefinition: {
-        rulesJson: {
-          rules: [{
-            conditions: { all: [{ fact: "weighted_average_a_b", operator: "greaterThan", value: 0.5 }] },
-            event: { type: "continue" },
-          }],
-        },
-        defaultEventType: "continue",
-        defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
-      },
-      computedSignalDefinitions: [{
-        key: "weighted_average_a_b",
-        type: "weighted_average",
-        inputSignalKeys: ["a", "b"],
-        configJson: { weights: [0.3, 0.7] },
-        availableWhenResultStatusIn: null,
-      }],
-    });
-
-    const output = gen(makePipeline([step]));
-    expect(output).toContain(`weightedAvg(stepSignals.a, stepSignals.b).gt(0.5).then("continue")`);
-    expect(output).not.toContain("Computed");
-  });
-
-  test("uses ctx sum method even when availableWhenResultStatusIn is set on the server", () => {
-    const step = makeStep({
-      advancementPolicyDefinition: {
-        rulesJson: {
-          rules: [{
-            conditions: { all: [{ fact: "sum_p_q", operator: "greaterThan", value: 1 }] },
-            event: { type: "continue" },
-          }],
-        },
-        defaultEventType: "continue",
-        defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
-      },
-      computedSignalDefinitions: [{
-        key: "sum_p_q",
-        type: "sum",
-        inputSignalKeys: ["p", "q"],
-        configJson: null,
-        availableWhenResultStatusIn: ["success", "partial"],
-      }],
-    });
-
-    const output = gen(makePipeline([step]));
-    expect(output).toContain(`sum(stepSignals.p, stepSignals.q).gt(1).then("continue")`);
-    expect(output).not.toContain("Computed");
-  });
-
-  test("omits options argument when both configJson and availableWhenResultStatusIn are null", () => {
-    const step = makeStep({
-      advancementPolicyDefinition: {
-        rulesJson: {
-          rules: [{
-            conditions: { all: [{ fact: "min_a_b", operator: "greaterThan", value: 0 }] },
-            event: { type: "continue" },
-          }],
-        },
-        defaultEventType: "continue",
-        defaultEventParamsJson: null,
-        allowedEventTypes: ["continue"],
-      },
-      computedSignalDefinitions: [{
-        key: "min_a_b",
-        type: "min",
-        inputSignalKeys: ["a", "b"],
-        configJson: null,
-        availableWhenResultStatusIn: null,
-      }],
-    });
-
-    const output = gen(makePipeline([step]));
-    expect(output).toContain(`min(stepSignals.a, stepSignals.b).gt(0).then("continue")`);
-    expect(output).not.toContain("Computed");
+    expect(output).toContain(`Rule.any([Rule.signal(Computed.sum(["x", "y"]), "greaterThan", 10)])`);
   });
 });

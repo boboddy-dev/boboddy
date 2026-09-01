@@ -151,6 +151,8 @@ export {
   buildPipelineBuilderPackageJson,
   scaffoldPipelineBuilderDirectory,
 } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
+export { detectPipelineRuntime } from "./pipelines/pipeline-definitions/infra/detect-pipeline-runtime";
+export type { PipelineRuntime } from "./pipelines/pipeline-definitions/infra/detect-pipeline-runtime";
 export {
   pullPipelineDefinitions,
   listExistingPipelineBuilderFiles,
@@ -205,3 +207,9 @@ export {
   runPipelineFirstStepDryRun,
 } from "./work/step-execution/application/run-pipeline-first-step-dry-run";
 export type { PipelineFirstStepDryRunOptions } from "./work/step-execution/application/run-pipeline-first-step-dry-run";
+export { computeStudioSnapshot } from "./pipelines/pipeline-studio/application/compute-studio-snapshot";
+export { runPipelineStudioServer } from "./pipelines/pipeline-studio/application/run-pipeline-studio-server";
+export type {
+  PipelineStudioServerHandle,
+  RunPipelineStudioServerOptions,
+} from "./pipelines/pipeline-studio/application/run-pipeline-studio-server";

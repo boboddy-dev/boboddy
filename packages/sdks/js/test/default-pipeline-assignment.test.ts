@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { pipeline } from "../src/definitions/pipelines/builder";
+import { definePipeline } from "../src/definitions/pipelines/define-pipeline";
 import {
   defaultPipelineAssignment,
   serializeDefaultPipelineAssignment,
@@ -21,14 +21,18 @@ const triageStep = defineStep({
   signals: [{ sourcePath: "ok" }],
 });
 
-const triagePipeline = pipeline({ key: "triage-and-plan", name: "Triage and Plan" })
-  .step(triageStep, {
-    advance: () => ({ default: "continue" }),
-  })
-  .build();
+const triagePipeline = definePipeline({
+  key: "triage-and-plan",
+  name: "Triage and Plan",
+  startAt: "triage",
+  states: {
+    triage: { kind: "step", step: triageStep, next: "done" },
+    done: { kind: "succeed" },
+  },
+});
 
 describe("defaultPipelineAssignment / assign()", () => {
-  test.concurrent("assign() accepts a real pipeline().build() output", () => {
+  test.concurrent("assign() accepts a real definePipeline() output", () => {
     const spec = defaultPipelineAssignment(({ assign }) => ({
       default: assign(triagePipeline),
       rules: [],
@@ -44,7 +48,7 @@ describe("defaultPipelineAssignment / assign()", () => {
         default: assign({ key: "not-a-pipeline" } as any),
         rules: [],
       })),
-    ).toThrow(/assign\(\) requires a pipeline spec produced by pipeline\(\)\.build\(\)/);
+    ).toThrow(/assign\(\) requires a pipeline spec produced by definePipeline\(\)/);
   });
 
   test.concurrent("assign() works inside a rule's .then()", () => {

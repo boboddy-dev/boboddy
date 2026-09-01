@@ -43,8 +43,20 @@ const buildStepDefinitionsClient = (stepDefinitions: StepDefinitions) => {
     },
     /**
      * Upserts a step definition keyed by (projectId, key, version). Accepts the
-     * `StepDefinitionSpec` produced by `defineStep()` directly — no separate
-     * fetch-existing/branch-on-id step needed.
+     * `StepDefinitionSpec` produced by `defineStep()`/`codeStep()` directly —
+     * no separate fetch-existing/branch-on-id step needed.
+     *
+     * `entrypointJson` (a `kind: "code"` step's resolved entrypoint — see
+     * `collect-definitions.ts`) and the widened `kind` union
+     * (`"user_defined" | "code"`) are not yet reflected in the
+     * OpenAPI-generated `UpsertStepDefinitionInput` type, so the request
+     * body is built explicitly and cast at the boundary rather than spread
+     * + `satisfies`-checked, mirroring the same pattern
+     * `pipeline-definitions-client.ts`'s `upsertFromSpec` already uses for
+     * its own wire-format-ahead-of-codegen gap. The spec's transient
+     * `entrypoint.fn` (a live, unserializable function reference —
+     * present only if a caller bypasses `collect-definitions.ts`'s own
+     * strip step) is never included here.
      */
     upsertFromSpec: async (
       projectId: string,
@@ -52,10 +64,23 @@ const buildStepDefinitionsClient = (stepDefinitions: StepDefinitions) => {
       options?: RequestOptions,
     ) => {
       const body = {
-        ...spec,
+        key: spec.key,
+        name: spec.name,
+        description: spec.description,
         prompt: spec.prompt ?? "",
+        version: spec.version,
+        kind: spec.kind,
+        entrypointJson: spec.entrypointJson ?? null,
+        executionMode: spec.executionMode,
+        inputSchemaJson: spec.inputSchemaJson,
+        resultSchemaJson: spec.resultSchemaJson,
+        opencodeMcpJson: spec.opencodeMcpJson,
+        opencodePluginJson: spec.opencodePluginJson,
+        healthChecksJson: spec.healthChecksJson,
+        status: spec.status,
+        signalExtractorDefinitions: spec.signalExtractorDefinitions,
         projectId,
-      } satisfies UpsertStepDefinitionInput;
+      } as unknown as UpsertStepDefinitionInput;
       const result = await stepDefinitions.upsertStepDefinition({
         body,
         headers: options?.headers,

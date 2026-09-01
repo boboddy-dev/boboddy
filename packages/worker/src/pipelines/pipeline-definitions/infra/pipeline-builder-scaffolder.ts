@@ -67,7 +67,16 @@ export function buildPipelineBuilderPackageJson(sdkVersion: string): string {
       },
       dependencies: {
         "@boboddy/sdk": resolveSdkDependency(sdkVersion),
-        zod: "^4.4.2",
+        // Capped below 4.5.0, not a plain "^4.4.2": zod 4.5.0-4.5.4's
+        // z.toJSONSchema() has a real upstream bug in its record-key
+        // handling (ctx.deferred is undefined in recordProcessor for a
+        // record nested inside certain wrapper types — colinhacks/zod#6496,
+        // "fixed" by colinhacks/zod#6497 but still reproduces on 4.5.4) that
+        // crashes any step/pipeline schema containing a z.record(...). A
+        // bare "^4.4.2" lets npm/bun resolve straight into that range on a
+        // fresh install. Lift this cap once a zod release is confirmed not
+        // to hit this — don't just bump the floor without checking.
+        zod: ">=4.4.2 <4.5.0",
       },
       // tsx lets `boboddy pipelines push` execute `push.ts` under node-based
       // package managers (npm/pnpm/yarn). bun and deno don't need it.
@@ -177,16 +186,16 @@ node_modules/
 `;
 
 // The starter template doubles as the tutorial: a complete two-step pipeline
-// showing every core concept (steps, schemas, signals, bindings, advancement)
-// in the file users will edit anyway. Both steps run in "no_workspace" mode so
+// showing every core concept (steps, schemas, signals, bindings, states) in
+// the file users will edit anyway. Both steps run in "no_workspace" mode so
 // the pipeline executes end to end without Docker or a devcontainer.
 export const STARTER_PIPELINE_FILE = `import { z } from "zod";
 import { defineStep } from "@boboddy/sdk/definitions/steps";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Your first Boboddy pipeline: two AI steps connected by a signal.
 //
-//   work item ──▶ Triage ──(confidence >= 7)──▶ Write Fix Plan ──▶ complete
+//   work item ──▶ Triage ──(confidence >= 7)──▶ Write Fix Plan ──▶ done
 //                    │
 //                    └──(confidence < 7)──▶ blocked for human review
 //
@@ -268,38 +277,39 @@ export const writeFixPlanStep = defineStep({
 });
 
 // ─── The pipeline ───────────────────────────────────────────────────────────
-// A pipeline wires steps together. Each .step()'s \`input\` option binds that
-// step's input; its \`advance\` option decides what happens after the step
-// finishes.
-export default pipeline({
+// A pipeline is a flat map of named states, each declaring what runs after it
+// (\`next\`) — see docs/research/flat-pipeline-sdk-and-visual-designer.md.
+export default definePipeline({
   key: "triage-and-plan",
   name: "Triage & Plan",
   description: "Starter pipeline: triage a work item, then plan the fix.",
   status: "active",
-})
-  .step(triageStep, {
-    // \`input\` always exposes workItemTitle and workItemDescription.
-    input: ({ input }) => ({
-      title: input.workItemTitle,
-    }),
-    // Advancement is the heart of Boboddy: rules read signals and decide
-    // whether the pipeline continues, blocks for a human, completes, or
-    // routes to another pipeline. Here a confident triage continues to the
-    // next step; anything else blocks so a human can review it in the
-    // dashboard.
-    advance: ({ signal }) => ({
-      default: "block",
-      rules: [signal("confidence").gte(7).then("continue")],
-    }),
-  })
-  .step(writeFixPlanStep, {
-    // Later steps can bind signals (or the whole output) of earlier steps.
-    input: ({ signal }) => ({
-      triageSummary: signal(triageStep, "summary"),
-    }),
-    advance: () => ({ default: "complete" }),
-  })
-  .build();
+  startAt: "triage",
+  states: {
+    triage: {
+      kind: "step",
+      step: triageStep,
+      // \`ctx.workItem\` exposes the current work item's title/description.
+      input: (ctx) => ({ title: ctx.workItem.title }),
+      // \`blockWhen\` pauses the run for human review instead of advancing.
+      // Here, anything below a confident triage blocks in the dashboard;
+      // a confident triage advances straight to \`next\`.
+      blockWhen: Rule.when("confidence", "lessThan", 7),
+      next: "writeFixPlan",
+    },
+    writeFixPlan: {
+      kind: "step",
+      step: writeFixPlanStep,
+      // Later states can bind signals (or the whole output) of earlier ones,
+      // addressed by state key.
+      input: (ctx) => ({
+        triageSummary: ctx.signal("triage", "summary"),
+      }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});
 `;
 
 // Scaffolded alongside the pipeline so new projects start with automatic

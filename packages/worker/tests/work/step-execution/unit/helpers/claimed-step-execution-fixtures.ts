@@ -27,6 +27,9 @@ export const stepDefinitionId = parseUuidV7(
 export function createWorkerContext(
   executionMode?: "workspace" | "no_workspace",
   healthChecksJson?: StepExecutionWorkerContext["stepDefinition"]["healthChecksJson"],
+  stepDefinitionOverrides?: Partial<
+    StepExecutionWorkerContext["stepDefinition"]
+  >,
 ): StepExecutionWorkerContext {
   const resolvedExecutionMode = executionMode ?? "workspace";
   const resolvedHealthChecksJson = healthChecksJson ?? null;
@@ -51,11 +54,14 @@ export function createWorkerContext(
       name: "Demo Step",
       prompt:
         "Open {{env.BASE_URL}} for {{input.title}} and save to {{boboddy.artifactsDir}}trace.zip. Legacy: {{title}} and {{stepArtifactsDir}}trace.zip.",
+      kind: "user_defined",
+      entrypointJson: null,
       executionMode: resolvedExecutionMode,
       resultSchemaJson: { type: "object" },
       opencodeMcpJson: null,
       opencodePluginJson: null,
       healthChecksJson: resolvedHealthChecksJson,
+      ...stepDefinitionOverrides,
     },
     agentPrompt: {
       sessionTitle: "Demo Step",
@@ -63,6 +69,20 @@ export function createWorkerContext(
       stepInstructionsPlaceholder: "__BOBODDY_STEP_INSTRUCTIONS__",
     },
   };
+}
+
+/** A `kind: "code"` worker context: no prompt, a resolved entrypoint. */
+export function createCodeStepWorkerContext(
+  entrypointJson: StepExecutionWorkerContext["stepDefinition"]["entrypointJson"] = {
+    sourceFile: ".boboddy/pipeline-builder/review-file-step.ts",
+    exportName: "reviewFileStep",
+  },
+): StepExecutionWorkerContext {
+  return createWorkerContext("workspace", null, {
+    kind: "code",
+    prompt: null,
+    entrypointJson,
+  });
 }
 
 export function createRunTracker(): StepExecutionRunTracker {

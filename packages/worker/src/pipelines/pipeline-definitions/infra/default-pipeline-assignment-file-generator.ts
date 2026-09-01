@@ -244,17 +244,18 @@ function collectImportedPipelineKeys(
 }
 
 /**
- * Collect the names the generated `defaultPipelineAssignment(({ ... }) => ...)`
- * callback needs to destructure off its ctx parameter: some subset of
- * `assign`, `skip`, `all`, `any`, `workItem`, `context`.
- *
- * These are ctx-provided bindings, not module exports — `defaultPipelineAssignment`
- * is the only name this file imports from `@boboddy/sdk/definitions/pipelines`.
- * (A prior version of this function conflated the two and emitted an import
- * statement naming `workItem`/`assign`/etc., which don't exist as module
- * exports and fail to compile.)
+ * Collect the `DefaultPipelineAssignmentCtx` property names this file's
+ * rules/default outcome actually reference — `assign`, `skip`, `all`,
+ * `any`, `workItem`, `context`. These are properties of the ctx object
+ * `defaultPipelineAssignment(ctx => ...)`'s callback receives (see
+ * `define-default-pipeline-assignment.ts`'s `DefaultPipelineAssignmentCtx`
+ * type), NOT top-level named exports of `@boboddy/sdk/definitions/pipelines`
+ * — only `defaultPipelineAssignment` itself is a real module export.
+ * Conflating the two here previously produced a generated file whose
+ * top-level `import { ..., assign, skip, ... }` statement failed to
+ * resolve, since none of those names exist as SDK exports.
  */
-function collectCtxParamNames(
+function collectCtxNames(
   contract: DefaultPipelineAssignmentContract,
 ): string[] {
   const names = new Set<string>();
@@ -318,13 +319,14 @@ export function generateDefaultPipelineAssignmentFileContent(
     contract,
     definitionIdToKey,
   );
-  const ctxParts = collectCtxParamNames(contract);
+  const ctxParts = collectCtxNames(contract);
 
   const lines: string[] = [];
 
-  // `defaultPipelineAssignment` is the only module export this file needs —
-  // `workItem`/`context`/`assign`/`skip`/`all`/`any` are ctx-destructured
-  // parameter names, not exports, and must never appear in this import.
+  // `defaultPipelineAssignment` is the only real named export this file
+  // needs from the SDK — every ctx-destructuring name below (`assign`,
+  // `skip`, `all`, `any`, `workItem`, `context`) is a property of the
+  // callback's ctx argument, not a module export.
   lines.push(
     `import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";`,
   );

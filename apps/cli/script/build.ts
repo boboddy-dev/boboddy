@@ -50,6 +50,7 @@ async function buildTarget(
       // invoked. Externalize it so `bun build --compile` doesn't try to bundle
       // its bin paths (matches OpenCode's build, packages/opencode/script/build.ts).
       "--external=node-gyp",
+      `--asset=${resolve(projectRoot, "../../packages/pipeline-studio-ui/dist")}`,
       ...extraDefines,
     ],
     {
@@ -98,6 +99,29 @@ async function main(): Promise<void> {
 
   await rm(distDirectory, { recursive: true, force: true });
   await mkdir(distDirectory, { recursive: true });
+
+  // Build @boboddy/pipeline-studio-ui's static assets (dist/index.html,
+  // dist/main.js, dist/main.css) so buildTarget() can embed them into every
+  // compiled binary via `--asset=`. Compiled binaries have no node_modules,
+  // so `pipelines studio` can't resolve these assets on disk at runtime the
+  // way `bun run` can — embedding is the only option for --compile builds.
+  const pipelineStudioUiDir = resolve(
+    projectRoot,
+    "../../packages/pipeline-studio-ui",
+  );
+  process.stdout.write(
+    "Building @boboddy/pipeline-studio-ui static assets...\n",
+  );
+  const uiBuild = Bun.spawn(["bun", "run", "build.ts"], {
+    cwd: pipelineStudioUiDir,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if ((await uiBuild.exited) !== 0) {
+    throw new Error(
+      "Failed to build @boboddy/pipeline-studio-ui static assets.",
+    );
+  }
 
   // Copy the @devcontainers/cli bundle and its companion assets into dist/.
   //

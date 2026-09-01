@@ -265,12 +265,22 @@ export type AdditionalStepInputLiteralBinding = LiteralBinding;
  */
 export type AdditionalStepInputBinding = WorkItemBinding | LiteralBinding;
 
+/**
+ * A `kind: "code"` step's portable entrypoint, once resolved by
+ * `collect-definitions.ts`'s identity-capture pass — see
+ * docs/research/flat-pipeline-sdk-and-visual-designer.md §7.7/§8.
+ */
+export type StepDefinitionEntrypointJson = {
+  sourceFile: string;
+  exportName: string;
+};
+
 export type StepDefinitionSpec = {
   key: string;
   name: string;
   description: string | null;
   version: number;
-  kind: "user_defined";
+  kind: "user_defined" | "code";
   status: "draft" | "active" | "archived";
   executionMode?: "workspace" | "no_workspace";
   prompt: string | null;
@@ -286,6 +296,21 @@ export type StepDefinitionSpec = {
   opencodeMcpJson: OpenCodeMcpServers | null;
   opencodePluginJson: OpenCodePlugins | null;
   healthChecksJson: HealthChecks | null;
+  /**
+   * `kind === "code"` only, and only *before* collection —
+   * `collect-definitions.ts` resolves this live `fn` reference down to
+   * `entrypointJson` (by identity-matching against the declaring module's
+   * other exports) and strips this field before the spec is ever pushed;
+   * it can never be serialized into the push request.
+   */
+  // A live function reference, deliberately untyped at this boundary — its
+  // real input/result types live on the phantom `TypedStepDefinitionSpec`
+  // this spec gets cast to (see `codeStep()`), not on the plain
+  // `StepDefinitionSpec` wire shape itself.
+  // eslint-disable-next-line local/no-unknown-parameter-type
+  entrypoint?: { fn: (input: unknown) => unknown };
+  /** `kind === "code"` only, present after `collect-definitions.ts` has run. */
+  entrypointJson?: StepDefinitionEntrypointJson | null;
 };
 
 // Maps a signal type string literal to its TypeScript type.

@@ -151,7 +151,7 @@ describe("createPipelineDefinitionsClient", () => {
   });
 
   describe("upsertFromSpec", () => {
-    test("sends PUT to /api/pipeline-definitions with the built body", async () => {
+    test("sends PUT to /api/pipeline-definitions with the graph-shaped body", async () => {
       const { mockFetch, captured } = createMockFetch([
         { status: 200, body: { id: "pipeline-id" } },
       ]);
@@ -174,14 +174,15 @@ describe("createPipelineDefinitionsClient", () => {
           key: "investigation",
           name: "Investigation",
           status: "active",
-          stepDefinitions: [
+          nodeDefinitions: [
             {
+              key: "investigate",
+              kind: "step",
               stepDefinitionId: "step-def-id",
               stepDefinitionVersion: 1,
-              key: "investigate",
-              position: 1,
             },
           ],
+          dependencyEdges: [],
         });
       } finally {
         globalThis.fetch = prev;
@@ -207,12 +208,12 @@ describe("createPipelineDefinitionsClient", () => {
         );
 
         const body = captured[0]?.body as {
-          stepDefinitions: Array<{
+          nodeDefinitions: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
           }>;
         };
-        expect(body.stepDefinitions[0]).toMatchObject({
+        expect(body.nodeDefinitions[0]).toMatchObject({
           stepDefinitionId: "new-id",
           stepDefinitionVersion: 2,
         });
@@ -241,11 +242,11 @@ describe("createPipelineDefinitionsClient", () => {
       }
       expect(caughtError).toBeInstanceOf(Error);
       expect((caughtError as Error).message).toContain(
-        'Step "investigate" referenced in pipeline "investigation" was not found on the server',
+        'Step "investigate" referenced by node "investigate" in pipeline "investigation" was not found',
       );
     });
 
-    test("throws a clear error when the spec contains a fanOut/cohortGate node (issue #167)", async () => {
+    test("pushes a fanOut/cohortGate pair via the graph shape (no longer chain-only)", async () => {
       const { mockFetch, captured } = createMockFetch([
         { status: 200, body: { id: "pipeline-id" } },
       ]);
@@ -263,15 +264,29 @@ describe("createPipelineDefinitionsClient", () => {
             inputBindingsJson: {},
             timeoutSeconds: null,
             overSignalKey: "reviewer_count",
+            advanceEachPolicyDefinition: {
+              rules: [],
+              defaultEventType: "continue",
+              defaultEventParamsJson: null,
+            },
+            maxConcurrency: null,
           },
-          { nodeKey: "review__cohortGate", kind: "cohortGate" },
+          {
+            nodeKey: "review__cohortGate",
+            kind: "cohortGate",
+            advanceAllPolicyDefinition: {
+              rules: [],
+              defaultEventType: "continue",
+              defaultEventParamsJson: null,
+            },
+            stepSignalsListDefinitions: [],
+          },
         ],
         dependencyEdges: [
           { fromNodeKey: "review", toNodeKey: "review__cohortGate" },
         ],
       });
 
-      let caughtError: unknown;
       try {
         const client = createPipelineDefinitionsClient(BASE_URL);
         await client.upsertFromSpec(
@@ -280,21 +295,64 @@ describe("createPipelineDefinitionsClient", () => {
           [{ id: "step-def-id", key: "review", version: 1 }],
           { headers: AUTH_HEADER },
         );
-      } catch (err) {
-        caughtError = err;
       } finally {
         globalThis.fetch = prev;
       }
 
-      // The wire contract this client pushes through is still chain-only —
-      // fan-out pipelines cannot be pushed yet (explicitly out of scope for
-      // issue #167). The client must fail loudly rather than silently
-      // mis-push, and must never have sent a request.
-      expect(caughtError).toBeInstanceOf(Error);
-      expect((caughtError as Error).message).toContain(
-        "fan-out pipelines cannot be pushed",
+      expect(captured).toHaveLength(1);
+      const body = captured[0]?.body as {
+        nodeDefinitions: Array<{ key: string; kind: string; configJson: unknown }>;
+      };
+      const fanOutNode = body.nodeDefinitions.find((n) => n.key === "review");
+      const gateNode = body.nodeDefinitions.find(
+        (n) => n.key === "review__cohortGate",
       );
-      expect(captured).toHaveLength(0);
+      expect(fanOutNode?.kind).toBe("fanOut");
+      expect(fanOutNode?.configJson).toMatchObject({
+        overSignalKey: "reviewer_count",
+      });
+      expect(gateNode?.kind).toBe("cohortGate");
+    });
+
+    test("omits inputBindingsJson/timeoutSeconds for terminal succeed/fail nodes", async () => {
+      const { mockFetch, captured } = createMockFetch([
+        { status: 200, body: { id: "pipeline-id" } },
+      ]);
+      const prev = globalThis.fetch;
+      globalThis.fetch = mockFetch;
+
+      const spec = makeSpec({
+        nodeDefinitions: [
+          { nodeKey: "done", kind: "succeed" },
+          { nodeKey: "failed", kind: "fail" },
+        ],
+        dependencyEdges: [],
+      });
+
+      try {
+        const client = createPipelineDefinitionsClient(BASE_URL);
+        await client.upsertFromSpec("proj-1", spec, [], {
+          headers: AUTH_HEADER,
+        });
+      } finally {
+        globalThis.fetch = prev;
+      }
+
+      expect(captured).toHaveLength(1);
+      const body = captured[0]?.body as {
+        nodeDefinitions: Array<{
+          key: string;
+          kind: string;
+          inputBindingsJson: unknown;
+        }>;
+      };
+      const succeedNode = body.nodeDefinitions.find((n) => n.key === "done");
+      const failNode = body.nodeDefinitions.find((n) => n.key === "failed");
+      // Must be null, not `{}` — the server rejects any non-null
+      // inputBindingsJson on non-working node kinds
+      // (NODE_DEFINITION_INPUT_BINDINGS_NOT_ALLOWED).
+      expect(succeedNode?.inputBindingsJson).toBeNull();
+      expect(failNode?.inputBindingsJson).toBeNull();
     });
 
     test("throws when the server returns an error status", async () => {

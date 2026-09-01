@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype A — browser / deployed-app reproduction.
-// reproduce (workspace + browser MCP) → gate → failing test → gate → fix.
+// reproduce (workspace + browser MCP) → block unless confident → failing test
+// → block unless confident → fix.
 // Replace APP_URL, the credential instructions, and the test conventions.
 
 const APP_URL = "https://staging.example.com";
@@ -199,55 +200,52 @@ carelessness.
   features: [Features.notifications()],
 });
 
-export default pipeline({
+export default definePipeline({
   key: "browser-repro",
   name: "Browser Repro",
   description: "Reproduce a bug in the deployed app, encode it as a test, fix it.",
   status: "active",
-  additionalPipelineInput: {
-    schema: z.object({ appUrl: z.string().nullable() }),
-    bindings: ({ literal }) => ({ appUrl: literal(APP_URL) }),
+  startAt: "reproduceInBrowser",
+  states: {
+    reproduceInBrowser: {
+      kind: "step",
+      step: reproduceInBrowser,
+      // `ctx.literal` supplies a fixed value that doesn't come from anywhere
+      // at runtime.
+      input: (ctx) => ({ appUrl: ctx.literal(APP_URL) }),
+      // Block unless the bug was actually reproduced with high confidence —
+      // the negation of "continue when reproduced && confidence >= 0.8".
+      blockWhen: Rule.any([
+        Rule.signal("reproduced", "equal", false),
+        Rule.signal("confidence", "lessThan", 0.8),
+      ]),
+      next: "writeFailingTest",
+    },
+    writeFailingTest: {
+      kind: "step",
+      step: writeFailingTest,
+      input: (ctx) => ({
+        observedBehavior: ctx.signal("reproduceInBrowser", "observedBehavior"),
+        expectedBehavior: ctx.signal("reproduceInBrowser", "expectedBehavior"),
+        reproductionSteps: ctx.signal("reproduceInBrowser", "reproductionSteps"),
+      }),
+      blockWhen: Rule.any([
+        Rule.signal("testsFail", "equal", false),
+        Rule.signal("capturesReportedBug", "equal", false),
+        Rule.signal("confidence", "lessThan", 0.8),
+      ]),
+      next: "implementFix",
+    },
+    implementFix: {
+      kind: "step",
+      step: implementFix,
+      input: (ctx) => ({
+        failingTestPaths: ctx.signal("writeFailingTest", "testPaths"),
+        testCommand: ctx.signal("writeFailingTest", "testCommand"),
+      }),
+      blockWhen: Rule.when("testsPass", "equal", false),
+      next: "done",
+    },
+    done: { kind: "succeed" },
   },
-})
-  // `appUrl` arrives from the pipeline-level binding, so the mapper is empty.
-  // Re-mapping it here would replace that binding and resolve to null.
-  .step(reproduceInBrowser, {
-    input: () => ({}),
-    advance: ({ stepSignals, all }) => ({
-      default: "block",
-      rules: [
-        all(
-          stepSignals.reproduced.eq(true),
-          stepSignals.confidence.gte(0.8),
-        ).then("continue"),
-      ],
-    }),
-  })
-  .step(writeFailingTest, {
-    input: ({ signal }) => ({
-      observedBehavior: signal(reproduceInBrowser, "observedBehavior"),
-      expectedBehavior: signal(reproduceInBrowser, "expectedBehavior"),
-      reproductionSteps: signal(reproduceInBrowser, "reproductionSteps"),
-    }),
-    advance: ({ stepSignals, all }) => ({
-      default: "block",
-      rules: [
-        all(
-          stepSignals.testsFail.eq(true),
-          stepSignals.capturesReportedBug.eq(true),
-          stepSignals.confidence.gte(0.8),
-        ).then("continue"),
-      ],
-    }),
-  })
-  .step(implementFix, {
-    input: ({ signal }) => ({
-      failingTestPaths: signal(writeFailingTest, "testPaths"),
-      testCommand: signal(writeFailingTest, "testCommand"),
-    }),
-    advance: ({ stepSignals }) => ({
-      default: "block",
-      rules: [stepSignals.testsPass.eq(true).then("complete")],
-    }),
-  })
-  .build();
+});

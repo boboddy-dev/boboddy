@@ -102,8 +102,8 @@ const ARCHETYPE_SECTION_PREAMBLE = `### The archetype files
 Each block below is a complete file that compiles against the shipped SDK. Copy
 the one you picked above into \`.boboddy/pipeline-builder/<pipeline-key>.ts\`,
 then adapt it: rename the keys, rewrite every prompt for this user's domain and
-vocabulary, and delete what they do not need. Never author the \`.step()\`
-calls from scratch, and never paste an archetype without rewriting its
+vocabulary, and delete what they do not need. Never author the state objects
+from scratch, and never paste an archetype without rewriting its
 prompts — prompt text is where a pipeline's quality lives, and these are
 written for a generic project.`;
 

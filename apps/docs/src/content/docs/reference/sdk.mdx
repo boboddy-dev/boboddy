@@ -20,6 +20,8 @@ Install the SDK:
   </TabItem>
 </Tabs>
 
+See the [Pipeline Graph catalog entry](/boboddy/catalog/pipeline-graph/) for an interactive view of a compiled pipeline's node/edge graph.
+
 ---
 
 ## `defineStep(options)`
@@ -203,140 +205,152 @@ See [Features](/boboddy/guides/steps/#features) for the guide.
 
 ---
 
-## `pipeline(meta)`
+## `codeStep(options)`
 
-Define an ordered sequence of steps using the fluent builder.
+Defines a `kind: "code"` step: a plain function instead of an LLM prompt. Produces the same step shape `defineStep()` does, so it plugs into a `states[key].step` field unchanged.
 
 ```typescript
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { codeStep } from "@boboddy/sdk/definitions/steps";
 import { z } from "zod";
 
-const inputSchema = z.object({ text: z.string() });
-
-const myPipeline = pipeline({
-  key: "my-pipeline",
-  name: "My Pipeline",
+export const sumScores = codeStep({
+  key: "sum-scores",
+  name: "Sum Scores",
+  inputSchema: z.object({ scores: z.array(z.number()) }),
+  resultSchema: z.object({ total: z.number() }),
+  fn: ({ scores }) => ({ total: scores.reduce((a, b) => a + b, 0) }),
+  signals: [{ sourcePath: "total", key: "total", type: "number" }],
   status: "active",
-  additionalPipelineInput: {
-    schema: z.object({ text: z.string() }),
-    bindings: ({ workItem }) => ({ text: workItem.field("Text") }),
-  },
-})
-  .step(myStep, {
-    input: ({ input }) => ({ text: input.text }),
-    advance: () => ({ default: "continue" }),
-  })
-  .build();
+});
 ```
 
-### `PipelineMeta` options
+### `DefineCodeStepInput` options
 
-| Field                     | Type                  | Required | Description                                                |
-| ------------------------- | --------------------- | -------- | ---------------------------------------------------------- |
-| `key`                     | `string`              | Yes      | Unique pipeline key                                        |
-| `name`                    | `string`              | Yes      | Display name                                               |
-| `version`                 | `number`              | No       | Version (default: `1`)                                     |
-| `description`             | `string`              | No       | Short description                                          |
-| `status`                  | `"draft" \| "active"` | No       | Draft pipelines are not executed                           |
-| `additionalPipelineInput` | `object`              | No       | Custom input fields; requires both `schema` and `bindings` |
-| `additionalStepInput`     | `object`              | No       | Default bindings applied to every step in the pipeline     |
+| Field          | Type                                             | Required | Description                                                        |
+| -------------- | ------------------------------------------------- | -------- | ---------------------------------------------------------------------- |
+| `key`          | `string`                                          | Yes      | Unique step key within the project                                 |
+| `name`         | `string`                                          | Yes      | Display name                                                        |
+| `version`      | `number`                                          | No       | Version (default: `1`)                                              |
+| `description`  | `string`                                          | No       | Short description                                                   |
+| `fn`           | `(input) => result \| Promise<result>`            | Yes      | The step's implementation; must be a plain named export of the module `codeStep()` is called from |
+| `inputSchema`  | `ZodType`                                         | No       | Zod schema for `fn`'s input                                          |
+| `resultSchema` | `ZodType`                                         | No       | Zod schema for `fn`'s return value                                   |
+| `signals`      | `CodeStepSignalSpec[]`                            | No       | Values to extract from the result; unlike `defineStep`, `type` is required (not inferred) |
+| `status`       | `"draft" \| "active"`                             | No       | Draft steps are not executed; defaults to `"active"`                |
 
-`additionalPipelineInput.schema` is a Zod object schema for extra pipeline input fields. `additionalPipelineInput.bindings` receives `{ workItem, literal }` and returns their bindings.
-
-`additionalStepInput` applies default bindings to every step in the pipeline. Its `bindings` function receives `{ workItemField, literal }` and compiles into regular step input bindings. Explicit `options.input` bindings on a `.step()` call override pipeline-level defaults.
-
-### Builder methods
-
-| Method                      | Description                                                                                                                                                                                                                                                                                    |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `.step(step, options)`      | Append a step. `options.input` receives `{ input, signal, output, literal, signalsList }` and returns a record of input bindings keyed by the step's input fields (optional if the step declares no additional input). `options.advance` is **required** — receives `{ signal, stepSignals, all, any, route, avg, sum, min, max, count, weightedAvg, booleanAny, booleanAll }` and returns `{ default, rules? }`, deciding how the pipeline continues past this step. `options.timeout` (optional, seconds) caps execution time. |
-| `.fanOutStep(step, config)` | Runs `step` as N parallel branches instead of one, in place of `.step(...)`. `config` resolves both the per-branch and whole-cohort advancement policies inline (`advance`, `advanceAll`) alongside `over`, `input`, and `timeout` — see [Fan-out](#fan-out) for `FanOutStepConfig`'s full field list. |
-| `.build()`                  | Finalize and return a `PipelineDefinitionSpec`.                                                                                                                                                                                                                                                |
-
-### Step input bindings
-
-Inside `.step()`'s `input` option:
-
-- **`input.workItemTitle`** / **`input.workItemDescription`** — always available; bind to the work item title or description.
-- **`input.<path>`** — custom fields from `additionalPipelineInput.schema`. `input.code` binds to path `"code"`; `input.ticket.title` binds to `"ticket.title"`. The accessor is a proxy — do not spread or coerce it to a primitive.
-- **`signal(step, signalKey)`** — bind to a prior step's signal. `signalKey` is typed against `step.__signalKeys`.
-- **`output(step)`** — bind to a prior step's whole output object.
-- **`literal(value)`** — a hardcoded constant.
-- **`signalsList(fanOutStep)`** — bind to a fan-out's whole cohort (every terminal branch's signals, aggregated server-side). `fanOutStep` is constrained to a step already passed as the first argument to an earlier `.fanOutStep(...)` call. See [Fan-out](#fan-out).
-
-### Fluent advancement rules
-
-Inside `.step()`'s `advance` option:
-
-- **`signal(key)`** — returns a typed `SignalRef` for the current step's signal. Chain a comparator (`.eq`, `.gt`, `.gte`, `.lt`, `.lte`, `.ne`, `.in`, `.notIn`, `.contains`, `.doesNotContain`) followed by `.then(outcome)`.
-- **`stepSignals.<key>`** — property-map shorthand equivalent to `signal(key)`. Both produce identical output.
-- **Computed factories** — `avg`, `weightedAvg`, `sum`, `min`, `max`, `count`, `booleanAny`, `booleanAll`. Each takes 2+ `signal(key)` or `stepSignals.key` references and returns a `SignalRef`. Identical calls across rules are deduplicated at build time.
-- **`all(...refs)` / `any(...refs)`** — group `SignalRef`s and other groups; terminate with `.then(outcome)`.
-- **`route(pipelineKey, inputJson?)`** — produces a route outcome value for `.then(...)`.
+`CodeStepSignalSpec` is `{ sourcePath, key?, type: "string" | "number" | "boolean" | "object" | "array", required?, availableWhenResultStatusIn? }`.
 
 ---
 
-## Fan-out
+## `definePipeline(config)`
 
-`.fanOutStep(step, config)` runs `step` as a variable number of parallel branches, resolved at runtime from a signal's value. It always compiles to a paired `fanOut` + `cohortGate` node; `config` resolves both the per-branch (`advance`) and whole-cohort (`advanceAll`) advancement policies inline, the same way `.step()`'s `advance` option resolves inline rather than via a chained call. See the [Fan-out guide](/boboddy/guides/pipelines/#fan-out-parallel-branches) for a full example.
-
-```typescript
-.fanOutStep(reviewStep, {
-  over: "reviewer_count",
-  input: ({ literal }) => ({ mode: literal("thorough") }),
-  timeout: 900,
-  advance: ({ signal }) => ({
-    default: "continue",
-    rules: [signal("passed").eq(false).then("block")],
-  }),
-  advanceAll: ({ branchOutcomes }) => ({
-    default: "block",
-    rules: [branchOutcomes.every("continue").then("continue")],
-  }),
-})
-```
-
-`over`'s resolved signal shape decides the branch mode: a number-typed signal resolves a fixed branch count (no `item` on `input`'s ctx); an array-typed signal resolves branch count from the array's length and adds a typed `item` — the array's element type — to every branch's `input` mapper.
+Define a pipeline as a flat map of named states — see [Building Pipelines](/boboddy/guides/pipelines/) for the full guide.
 
 ```typescript
-.fanOutStep(assigneeReviewStep, {
-  over: "assigneeIds", // a string[] signal on the preceding step
-  input: ({ item, input }) => ({
-    assigneeId: item,
-    ticketTitle: input.workItemTitle,
-  }),
-  advance: () => ({ default: "continue" }),
-  advanceAll: () => ({ default: "continue" }),
-})
+import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
+import { z } from "zod";
+
+const myPipeline = definePipeline({
+  key: "my-pipeline",
+  name: "My Pipeline",
+  status: "active",
+  input: z.object({ text: z.string() }),
+  startAt: "run",
+  states: {
+    run: {
+      kind: "step",
+      step: myStep,
+      input: (ctx) => ({ text: ctx.pipelineInput("text") }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});
 ```
 
-### `FanOutStepConfig`
+### `DefinePipelineInput` options
 
-| Field        | Type                | Required | Description                                                                                             |
-| ------------ | ------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
-| `over`       | `string`            | Yes      | Signal on the most recently declared step whose value determines branch count (and, if array-typed, each branch's `item`) at runtime |
-| `advance`    | `(ctx) => result`   | Yes      | Every branch's own continue/block decision — see [`advance` context](#advance-context) below              |
-| `advanceAll` | `(ctx) => result`   | Yes      | The whole cohort's continue/block decision — see [`advanceAll` context](#advanceall-context) below         |
-| `input`      | `(ctx) => bindings` | No       | Input bindings for the fan-out step; same context helpers as `.step(...)`'s mapper, plus `item` when `over` resolves to an array-typed signal |
-| `timeout`    | `number \| null`    | No       | Per-branch timeout in seconds                                                                              |
+| Field       | Type                  | Required | Description                                                       |
+| ----------- | --------------------- | -------- | --------------------------------------------------------------------- |
+| `key`       | `string`              | Yes      | Unique pipeline key                                                |
+| `name`      | `string`              | No       | Display name (default: `key`)                                     |
+| `version`   | `number`              | No       | Version (default: `1`)                                             |
+| `description` | `string`            | No       | Short description                                                  |
+| `status`    | `"draft" \| "active"` | No       | Draft pipelines are not executed                                   |
+| `input`     | `ZodType`             | No       | The pipeline's own input schema; drives `ctx.pipelineInput(path)`'s typing |
+| `startAt`   | `string`              | Yes      | The entry state's key. Must not name a `choice`/`succeed`/`fail` state |
+| `states`    | `Record<string, PipelineState>` | Yes | Every state in the pipeline, keyed by its unique state key       |
 
-### `advance` context
+### `PipelineState`
+
+A discriminated union on `kind`, keyed by each state's own map key (there is no separate `dependsOn` — every incoming edge is derived from another state's own forward pointer):
+
+| Kind | Shape |
+| --- | --- |
+| `step` | `{ kind: "step", step, input?, timeout?, blockWhen?, next }` |
+| `choice` | `{ kind: "choice", choices?: [{ when, next }], default? }` |
+| `fanOut` | `{ kind: "fanOut", step, over, maxConcurrency?, input?, timeout?, advanceEach, advanceAll, next }` |
+| `parallel` | `{ kind: "parallel", branches: Record<string, { step, input?, timeout? }>, advanceAll?, next }` |
+| `loop` | `{ kind: "loop", step, maxIterations, input?, timeout?, until, next, onExhausted }` |
+| `succeed` | `{ kind: "succeed" }` |
+| `fail` | `{ kind: "fail" }` |
+
+`next` on a `step`/`fanOut`/`parallel`/loop-exit accepts either a state key (`string`) or `{ routeToPipeline: string, input?: Record<string, unknown> | null }` to hand execution off to a different pipeline. See [States](/boboddy/guides/pipelines/#states) for a field-by-field breakdown of each kind, and [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) for `blockWhen`/`choices[].when`/`until` and `advanceEach`/`advanceAll`.
+
+### `NodeInputCtx` — the `input` mapper's context
+
+Every `step`/`fanOut`/`parallel`-branch/`loop`'s `input` mapper receives:
+
+| Method                          | Description                                                              |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| `ctx.pipelineInput(path)`        | Reads a dot-path out of the pipeline's own `input` schema                |
+| `ctx.workItem.<property>` / `.field(name)` | Reads a top-level work-item property (`id`, `platform`, `title`, `url`, etc.) or a `fields`-bag field directly |
+| `ctx.signal(nodeKey, signalKey)` | An earlier state's signal, addressed by that state's own key             |
+| `ctx.output(nodeKey)`            | An earlier state's whole result output                                   |
+| `ctx.signalsList(nodeKey)`       | A fan-out's whole cohort (every terminal branch's signals + output)      |
+| `ctx.literal(value)`             | A fixed value that doesn't come from anywhere at runtime                 |
+| `ctx.item`                       | **`fanOut` branches only** — the current branch's own item               |
+
+`workItemTitle` and `workItemDescription` are bound automatically on every state; there is no separate pipeline-level default-binding layer — every mapper must supply everything it needs itself.
+
+### `Rule` and `Computed`
+
+Exported from `@boboddy/sdk/definitions/pipelines`, used by `blockWhen`, a `choice` branch's `when`, and a `loop`'s `until`:
+
+```typescript
+Rule.when(signalKey, operator, value);   // bare condition
+Rule.signal(signalKey, operator, value); // leaf, for nesting in all/any
+Rule.all([condition, condition]);
+Rule.any([condition, condition]);
+```
+
+`operator` is one of `"equal" | "notEqual" | "lessThan" | "lessThanInclusive" | "greaterThan" | "greaterThanInclusive" | "in" | "notIn" | "contains" | "doesNotContain"`.
+
+`Computed.average` / `.weightedAverage` / `.sum` / `.min` / `.max` / `.count` / `.booleanAny` / `.booleanAll` each take an array of **two or more** signal keys and return a token that can be passed as `Rule.when`/`Rule.signal`'s `signal` argument in place of a bare key. See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) for the full reference and examples.
+
+---
+
+## Fan-out and parallel cohort advancement
+
+A `fanOut` state's `advanceEach`/`advanceAll` and a `parallel` state's `advanceAll` use a fluent, comparator-chain context distinct from the `Rule` DSL — see the [Fan-out guide](/boboddy/guides/pipelines/#fan-out-parallel-branches) for the state shapes and a full example.
+
+### `advanceEach` context
 
 Evaluated per-branch against that branch's own signals:
 
-- **`signal(key)`** / **`stepSignals.<key>`** — the branch's own signal, typed against `fanOutStep.__signalKeys`. Same comparators as a regular step's `SignalRef` (`.eq`, `.gt`, `.gte`, `.lt`, `.lte`, `.ne`, `.in`, `.notIn`, `.contains`, `.doesNotContain`).
+- **`signal(key)`** / **`stepSignals.<key>`** — the branch's own signal, typed against the step's declared signals. Chain a comparator (`.eq`, `.gt`, `.gte`, `.lt`, `.lte`, `.ne`, `.in`, `.notIn`, `.contains`, `.doesNotContain`) then `.then(outcome)`.
 - **`all(...refs)` / `any(...refs)`** — group refs; terminate with `.then(outcome)`.
-- **`.then(outcome)`** — `outcome` is restricted to `"continue" | "block"` (no `route`/`complete`).
-- No computed-signal factories (`avg`, `sum`, etc.) — core has no mechanism yet to resolve a computed signal for a fan-out branch's policy.
+- `outcome` is restricted to `"continue" | "block"` (no routing).
+- No computed-signal factories (`Computed.average`, etc.) — core has no mechanism yet to resolve a computed signal for a fan-out branch's policy.
 
 ### `advanceAll` context
 
 Evaluated once per cohort, after every branch has settled:
 
-- **`branchOutcomes.total()`** — the cohort's total branch count (fact `branchCount`). Returns a `CohortSignalRef<number>`.
-- **`branchOutcomes.count(outcome)`** — a single outcome's count across the cohort (fact `${outcome}Count`). Returns a `CohortSignalRef<number>`.
-- **`branchOutcomes.every(outcome)`** / **`.some(outcome)`** — `true` iff every/any branch resolved to `outcome`. Already a `CohortRuleLeaf` — go straight to `.then(outcome)`.
-- **`stepSignalsList.pluck(signalKey)`** — seeds an aggregation across every branch's `signalKey` value. Chain `.filter(operator, value)` / `.sortBy(direction?)` / `.unique()` to reshape, then exactly one reducer: `.count()`, `.sum()`, `.avg()`, `.min()`, `.max()`, `.booleanAll()`, `.booleanAny()`, `.join(separator?)`, `.first()`, or `.last()`. Returns a `CohortSignalRef`.
+- **`branchOutcomes.total()`** — the cohort's total branch count (fact `branchCount`). Returns a comparator ref.
+- **`branchOutcomes.count(outcome)`** — a single outcome's count across the cohort (fact `${outcome}Count`). Returns a comparator ref.
+- **`branchOutcomes.every(outcome)`** / **`.some(outcome)`** — `true` iff every/any branch resolved to `outcome`. Already a rule leaf — go straight to `.then(outcome)`.
+- **`stepSignalsList.pluck(signalKey)`** — seeds an aggregation across every branch's `signalKey` value. Chain `.filter(operator, value)` / `.sortBy(direction?)` / `.unique()` to reshape, then exactly one reducer: `.count()`, `.sum()`, `.avg()`, `.min()`, `.max()`, `.booleanAll()`, `.booleanAny()`, `.join(separator?)`, `.first()`, or `.last()`. Returns a comparator ref.
 - **`all(...refs)` / `any(...refs)`** — group refs; terminate with `.then(outcome)`.
 - `outcome` in `.then(outcome)` is restricted to `"continue" | "block"`.
 

@@ -3,6 +3,7 @@ import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp"
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 
 export type StepExecutionStatus =
+  | "pending"
   | "queued"
   | "running"
   | "succeeded"
@@ -57,7 +58,20 @@ export type StepExecutionWorkerContextContract = {
     id: string;
     key: string;
     name: string;
-    prompt: string;
+    /**
+     * Null only for `kind === "code"` steps, which do real work via a plain
+     * function instead of an LLM prompt (see `entrypointJson` below).
+     */
+    prompt: string | null;
+    /**
+     * `code` steps are plain functions instead of LLM prompts: the worker
+     * skips prompt rendering/health-check-harness/`promptAsync` entirely and
+     * instead resolves + imports `entrypointJson` against the target repo's
+     * checkout (see `execute-code-step.ts`).
+     */
+    kind: "built_in" | "user_defined" | "code";
+    /** `kind === "code"` only. A portable `{sourceFile, exportName}` pair. */
+    entrypointJson: { sourceFile: string; exportName: string } | null;
     /**
      * How the step runs. `workspace` (default) clones the repo and launches a
      * devcontainer with OpenCode inside it; `no_workspace` runs OpenCode

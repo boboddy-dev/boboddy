@@ -7,12 +7,58 @@
 // files, hand-edited files — so the tests have to bypass them too.
 
 import { z } from "zod";
-import { buildChainDependencyEdges } from "../src/definitions/pipelines/chain-graph";
-import type { PipelineDefinitionSpec } from "../src/definitions/pipelines";
+import type {
+  SerializedAdvancementPolicy,
+  SerializedComputedSignalDefinition,
+} from "../src/definitions/advancement-policies";
+import type {
+  DependencyEdgeSpec,
+  NodeDefinitionKind,
+  NodeDefinitionSpec,
+  PipelineDefinitionSpec,
+} from "../src/definitions/pipelines";
+import type { SerializedBinding } from "../src/definitions/pipelines/bindings";
 import type { StepDefinitionSpec } from "../src/definitions/steps";
 import { validateDefinitionSpecs } from "../src/definitions/validation";
 
-export type PipelineStep = PipelineDefinitionSpec["nodeDefinitions"][number] & {
+/** One dependency edge between each consecutive pair, in the order given. */
+function buildSequentialEdges(
+  nodeKeys: readonly string[],
+): DependencyEdgeSpec[] {
+  const edges: DependencyEdgeSpec[] = [];
+  for (let index = 0; index < nodeKeys.length - 1; index += 1) {
+    const from = nodeKeys[index];
+    const to = nodeKeys[index + 1];
+    if (!from || !to) continue;
+    edges.push({ fromNodeKey: from, toNodeKey: to });
+  }
+  return edges;
+}
+
+/**
+ * A loosely-typed node shape for building fixtures only. `NodeDefinitionSpec`
+ * is a real discriminated union — each `kind` legally carries only its own
+ * fields — but, per this file's header comment, these fixtures intentionally
+ * build the malformed/incomplete node shapes the runtime validator exists to
+ * catch (e.g. `fanOutNode()` in validate-definition-specs.test.ts overrides
+ * `kind` to `"fanOut"` without filling in every `fanOut`-only field), so they
+ * can't be typed as `NodeDefinitionSpec` itself. Cast to it at `pipelineSpec`,
+ * the one boundary where these fixtures become "real" pipeline specs.
+ */
+type LooseNodeDefinition = {
+  nodeKey: string;
+  kind: NodeDefinitionKind;
+  stepKey?: string;
+  stepName?: string;
+  stepDescription?: string | null;
+  inputBindingsJson?: Record<string, SerializedBinding>;
+  timeoutSeconds?: number | null;
+  advancementPolicyDefinition?: SerializedAdvancementPolicy;
+  computedSignalDefinitions?: SerializedComputedSignalDefinition[];
+  overSignalKey?: string;
+};
+
+export type PipelineStep = LooseNodeDefinition & {
   /**
    * Fixture-only ordinal: how tests express "this step really runs Nth"
    * independent of array-literal order. Stripped before being placed into
@@ -21,7 +67,7 @@ export type PipelineStep = PipelineDefinitionSpec["nodeDefinitions"][number] & {
    */
   __order: number;
 };
-export type Bindings = PipelineStep["inputBindingsJson"];
+export type Bindings = NonNullable<PipelineStep["inputBindingsJson"]>;
 
 export function stepSpec(
   key: string,
@@ -94,7 +140,9 @@ export function pipelineSpec(
     const { __order, ...node } = step;
     return node;
   });
-  const dependencyEdges = buildChainDependencyEdges(nodeDefinitions);
+  const dependencyEdges = buildSequentialEdges(
+    nodeDefinitions.map((node) => node.nodeKey),
+  );
 
   return {
     key,
@@ -102,7 +150,10 @@ export function pipelineSpec(
     description: null,
     version: 1,
     status: "active",
-    nodeDefinitions,
+    // `LooseNodeDefinition[]` -> `NodeDefinitionSpec[]`: see that type's own
+    // doc comment for why this fixture-only boundary bypasses the real
+    // discriminated union.
+    nodeDefinitions: nodeDefinitions as unknown as NodeDefinitionSpec[],
     dependencyEdges,
   };
 }

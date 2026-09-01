@@ -1442,7 +1442,11 @@ export type GetApiStepDefinitionsResponses = {
         description: string | unknown;
         prompt: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -1512,9 +1516,13 @@ export type PostApiStepDefinitionsData = {
         key: string;
         name: string;
         description: string | unknown;
-        prompt: string;
+        prompt?: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson?: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode?: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -1703,7 +1711,11 @@ export type PostApiStepDefinitionsResponses = {
         description: string | unknown;
         prompt: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -1773,9 +1785,13 @@ export type PutApiStepDefinitionsData = {
         key: string;
         name: string;
         description: string | unknown;
-        prompt: string;
+        prompt?: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson?: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode?: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -1932,7 +1948,11 @@ export type PutApiStepDefinitionsResponses = {
         description: string | unknown;
         prompt: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -2102,7 +2122,11 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
         description: string | unknown;
         prompt: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -2272,7 +2296,11 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
         description: string | unknown;
         prompt: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;
@@ -2444,7 +2472,7 @@ export type PostApiStepExecutionsClaimsResponses = {
             projectId: string;
             stepDefinitionId: string;
             stepDefinitionVersion: number;
-            status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
             inputJson: unknown;
             claimedBy: string | unknown;
             claimedAt: string | unknown;
@@ -2569,7 +2597,7 @@ export type GetApiStepExecutionsResponses = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -2610,7 +2638,7 @@ export type PostApiStepExecutionsData = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status?: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status?: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson?: unknown;
         executionTimeoutSeconds?: number | unknown;
     };
@@ -2745,7 +2773,7 @@ export type PostApiStepExecutionsResponses = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -2903,7 +2931,7 @@ export type PutApiStepExecutionsByStepExecutionIdHeartbeatResponses = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -3082,7 +3110,7 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
         };
         stepExecution: {
             id: string;
-            status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
             inputJson: unknown;
             executionTimeoutSeconds: number | unknown;
         };
@@ -3090,7 +3118,12 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
             id: string;
             key: string;
             name: string;
-            prompt: string;
+            prompt: string | unknown;
+            kind: 'built_in' | 'user_defined' | 'code';
+            entrypointJson: {
+                sourceFile: string;
+                exportName: string;
+            } | unknown;
             executionMode: 'workspace' | 'no_workspace';
             resultSchemaJson: {
                 [key: string]: unknown;
@@ -3270,7 +3303,7 @@ export type PostApiStepExecutionsByStepExecutionIdCompletionsResponses = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -3409,7 +3442,7 @@ export type PutApiStepExecutionsByStepExecutionIdRunningResponses = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -4047,7 +4080,7 @@ export type GetApiStepExecutionsByStepExecutionIdResponses = {
         projectId: string;
         stepDefinitionId: string;
         stepDefinitionVersion: number;
-        status: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -4750,7 +4783,7 @@ export type PostApiPipelineDefinitionsData = {
         inputSchemaJson?: {
             [key: string]: unknown;
         } | unknown;
-        stepDefinitions: Array<{
+        stepDefinitions?: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -4841,6 +4874,106 @@ export type PostApiPipelineDefinitionsData = {
                 } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
             }>;
+        }>;
+        nodeDefinitions?: Array<{
+            key: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            name: string;
+            stepDefinitionId?: string | unknown;
+            stepDefinitionVersion?: number | unknown;
+            description?: string | unknown;
+            inputBindingsJson?: {
+                [key: string]: {
+                    source: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    field: string;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    signalKey: string;
+                } | {
+                    source: string;
+                    value: unknown;
+                };
+            } | unknown;
+            timeoutSeconds?: number | unknown;
+            retryPolicyJson?: {
+                [key: string]: unknown;
+            } | unknown;
+            advancementPolicyRulesJson?: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            } | unknown;
+            advancementPolicyDefaultEventType?: 'continue' | 'block' | 'complete' | 'route' | unknown;
+            advancementPolicyDefaultEventParamsJson?: {
+                [key: string]: unknown;
+            } | unknown;
+            advancementPolicyAllowedEventTypes?: Array<'continue' | 'block' | 'complete' | 'route'> | unknown;
+            configJson?: {
+                [key: string]: unknown;
+            } | unknown;
+            computedSignalDefinitions: Array<{
+                key: string;
+                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
+                inputSignalKeys: Array<string>;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
+                availableWhenResultStatusIn: Array<string> | unknown;
+            }>;
+        }>;
+        dependencyEdges?: Array<{
+            fromNodeKey: string;
+            toNodeKey: string;
+            discriminantJson?: {
+                [key: string]: unknown;
+            } | unknown;
         }>;
     };
     path?: never;
@@ -4983,6 +5116,7 @@ export type PostApiPipelineDefinitionsResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5100,7 +5234,7 @@ export type PutApiPipelineDefinitionsData = {
         inputSchemaJson?: {
             [key: string]: unknown;
         } | unknown;
-        stepDefinitions: Array<{
+        stepDefinitions?: Array<{
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5191,6 +5325,106 @@ export type PutApiPipelineDefinitionsData = {
                 } | unknown;
                 availableWhenResultStatusIn: Array<string> | unknown;
             }>;
+        }>;
+        nodeDefinitions?: Array<{
+            key: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            name: string;
+            stepDefinitionId?: string | unknown;
+            stepDefinitionVersion?: number | unknown;
+            description?: string | unknown;
+            inputBindingsJson?: {
+                [key: string]: {
+                    source: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    field: string;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    path: string | unknown;
+                } | {
+                    source: string;
+                    stepKey: string;
+                    signalKey: string;
+                } | {
+                    source: string;
+                    value: unknown;
+                };
+            } | unknown;
+            timeoutSeconds?: number | unknown;
+            retryPolicyJson?: {
+                [key: string]: unknown;
+            } | unknown;
+            advancementPolicyRulesJson?: {
+                rules: Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+                [key: string]: unknown | Array<{
+                    conditions: {
+                        [key: string]: unknown;
+                    };
+                    event: {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                    name?: string;
+                    priority?: number;
+                    [key: string]: unknown | {
+                        [key: string]: unknown;
+                    } | {
+                        type: string;
+                        params?: {
+                            [key: string]: unknown;
+                        };
+                    } | string | number | undefined;
+                }>;
+            } | unknown;
+            advancementPolicyDefaultEventType?: 'continue' | 'block' | 'complete' | 'route' | unknown;
+            advancementPolicyDefaultEventParamsJson?: {
+                [key: string]: unknown;
+            } | unknown;
+            advancementPolicyAllowedEventTypes?: Array<'continue' | 'block' | 'complete' | 'route'> | unknown;
+            configJson?: {
+                [key: string]: unknown;
+            } | unknown;
+            computedSignalDefinitions: Array<{
+                key: string;
+                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
+                inputSignalKeys: Array<string>;
+                configJson: {
+                    [key: string]: unknown;
+                } | unknown;
+                availableWhenResultStatusIn: Array<string> | unknown;
+            }>;
+        }>;
+        dependencyEdges?: Array<{
+            fromNodeKey: string;
+            toNodeKey: string;
+            discriminantJson?: {
+                [key: string]: unknown;
+            } | unknown;
         }>;
     };
     path?: never;
@@ -5285,6 +5519,7 @@ export type PutApiPipelineDefinitionsResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5504,6 +5739,7 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5723,6 +5959,7 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5829,847 +6066,6 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
 };
 
 export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponse = PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses];
-
-export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsData = {
-    body: {
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        key: string;
-        name: string;
-        description: string | unknown;
-        position: number;
-        inputBindingsJson: {
-            [key: string]: {
-                source: string;
-                path: string | unknown;
-            } | {
-                source: string;
-                field: string;
-            } | {
-                source: string;
-                stepKey: string;
-                path: string | unknown;
-            } | {
-                source: string;
-                stepKey: string;
-                signalKey: string;
-            } | {
-                source: string;
-                value: unknown;
-            };
-        } | unknown;
-        timeoutSeconds: number | unknown;
-        retryPolicyJson: {
-            [key: string]: unknown;
-        } | unknown;
-        advancementPolicyDefinition: {
-            rulesJson: {
-                rules: Array<{
-                    conditions: {
-                        [key: string]: unknown;
-                    };
-                    event: {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                    name?: string;
-                    priority?: number;
-                    [key: string]: unknown | {
-                        [key: string]: unknown;
-                    } | {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    } | string | number | undefined;
-                }>;
-                [key: string]: unknown | Array<{
-                    conditions: {
-                        [key: string]: unknown;
-                    };
-                    event: {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                    name?: string;
-                    priority?: number;
-                    [key: string]: unknown | {
-                        [key: string]: unknown;
-                    } | {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    } | string | number | undefined;
-                }>;
-            };
-            defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-            defaultEventParamsJson: {
-                [key: string]: unknown;
-            } | unknown;
-            allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
-        };
-        computedSignalDefinitions: Array<{
-            key: string;
-            type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
-            inputSignalKeys: Array<string>;
-            configJson: {
-                [key: string]: unknown;
-            } | unknown;
-            availableWhenResultStatusIn: Array<string> | unknown;
-        }>;
-    };
-    path: {
-        pipelineDefinitionId: string;
-    };
-    query?: never;
-    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps';
-};
-
-export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsError = PostApiPipelineDefinitionsByPipelineDefinitionIdStepsErrors[keyof PostApiPipelineDefinitionsByPipelineDefinitionIdStepsErrors];
-
-export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        id: string;
-        projectId: string;
-        key: string;
-        name: string;
-        description: string | unknown;
-        status: 'draft' | 'active' | 'archived';
-        archivedAt: string | unknown;
-        inputSchemaJson: {
-            [key: string]: unknown;
-        } | unknown;
-        stepDefinitions: Array<{
-            id: string;
-            pipelineDefinitionId: string;
-            stepDefinitionId: string;
-            stepDefinitionVersion: number;
-            key: string;
-            name: string;
-            description: string | unknown;
-            position: number;
-            inputBindingsJson: {
-                [key: string]: {
-                    source: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    field: string;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    signalKey: string;
-                } | {
-                    source: string;
-                    value: unknown;
-                };
-            } | unknown;
-            timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
-            advancementPolicyDefinition: {
-                id: string;
-                pipelineStepDefinitionId: string;
-                rulesJson: {
-                    rules: Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                    [key: string]: unknown | Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                };
-                defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
-                allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
-                createdAt: string;
-                updatedAt: string;
-            };
-            computedSignalDefinitions: Array<{
-                id: string;
-                key: string;
-                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
-                inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
-                availableWhenResultStatusIn: Array<string> | unknown;
-                createdAt: string;
-                updatedAt: string;
-            }>;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        createdAt: string;
-        updatedAt: string;
-    };
-};
-
-export type PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponse = PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses[keyof PostApiPipelineDefinitionsByPipelineDefinitionIdStepsResponses];
-
-export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdData = {
-    body?: never;
-    path: {
-        pipelineDefinitionId: string;
-        pipelineStepDefinitionId: string;
-    };
-    query?: never;
-    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}';
-};
-
-export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdError = DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors[keyof DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors];
-
-export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        id: string;
-        projectId: string;
-        key: string;
-        name: string;
-        description: string | unknown;
-        status: 'draft' | 'active' | 'archived';
-        archivedAt: string | unknown;
-        inputSchemaJson: {
-            [key: string]: unknown;
-        } | unknown;
-        stepDefinitions: Array<{
-            id: string;
-            pipelineDefinitionId: string;
-            stepDefinitionId: string;
-            stepDefinitionVersion: number;
-            key: string;
-            name: string;
-            description: string | unknown;
-            position: number;
-            inputBindingsJson: {
-                [key: string]: {
-                    source: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    field: string;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    signalKey: string;
-                } | {
-                    source: string;
-                    value: unknown;
-                };
-            } | unknown;
-            timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
-            advancementPolicyDefinition: {
-                id: string;
-                pipelineStepDefinitionId: string;
-                rulesJson: {
-                    rules: Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                    [key: string]: unknown | Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                };
-                defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
-                allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
-                createdAt: string;
-                updatedAt: string;
-            };
-            computedSignalDefinitions: Array<{
-                id: string;
-                key: string;
-                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
-                inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
-                availableWhenResultStatusIn: Array<string> | unknown;
-                createdAt: string;
-                updatedAt: string;
-            }>;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        createdAt: string;
-        updatedAt: string;
-    };
-};
-
-export type DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponse = DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses[keyof DeleteApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses];
-
-export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdData = {
-    body: {
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        key: string;
-        name: string;
-        description: string | unknown;
-        position: number;
-        inputBindingsJson: {
-            [key: string]: {
-                source: string;
-                path: string | unknown;
-            } | {
-                source: string;
-                field: string;
-            } | {
-                source: string;
-                stepKey: string;
-                path: string | unknown;
-            } | {
-                source: string;
-                stepKey: string;
-                signalKey: string;
-            } | {
-                source: string;
-                value: unknown;
-            };
-        } | unknown;
-        timeoutSeconds: number | unknown;
-        retryPolicyJson: {
-            [key: string]: unknown;
-        } | unknown;
-        advancementPolicyDefinition: {
-            rulesJson: {
-                rules: Array<{
-                    conditions: {
-                        [key: string]: unknown;
-                    };
-                    event: {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                    name?: string;
-                    priority?: number;
-                    [key: string]: unknown | {
-                        [key: string]: unknown;
-                    } | {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    } | string | number | undefined;
-                }>;
-                [key: string]: unknown | Array<{
-                    conditions: {
-                        [key: string]: unknown;
-                    };
-                    event: {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                    name?: string;
-                    priority?: number;
-                    [key: string]: unknown | {
-                        [key: string]: unknown;
-                    } | {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    } | string | number | undefined;
-                }>;
-            };
-            defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-            defaultEventParamsJson: {
-                [key: string]: unknown;
-            } | unknown;
-            allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
-        };
-        computedSignalDefinitions: Array<{
-            key: string;
-            type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
-            inputSignalKeys: Array<string>;
-            configJson: {
-                [key: string]: unknown;
-            } | unknown;
-            availableWhenResultStatusIn: Array<string> | unknown;
-        }>;
-    };
-    path: {
-        pipelineDefinitionId: string;
-        pipelineStepDefinitionId: string;
-    };
-    query?: never;
-    url: '/api/pipeline-definitions/{pipelineDefinitionId}/steps/{pipelineStepDefinitionId}';
-};
-
-export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdError = PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdErrors];
-
-export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        id: string;
-        projectId: string;
-        key: string;
-        name: string;
-        description: string | unknown;
-        status: 'draft' | 'active' | 'archived';
-        archivedAt: string | unknown;
-        inputSchemaJson: {
-            [key: string]: unknown;
-        } | unknown;
-        stepDefinitions: Array<{
-            id: string;
-            pipelineDefinitionId: string;
-            stepDefinitionId: string;
-            stepDefinitionVersion: number;
-            key: string;
-            name: string;
-            description: string | unknown;
-            position: number;
-            inputBindingsJson: {
-                [key: string]: {
-                    source: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    field: string;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    path: string | unknown;
-                } | {
-                    source: string;
-                    stepKey: string;
-                    signalKey: string;
-                } | {
-                    source: string;
-                    value: unknown;
-                };
-            } | unknown;
-            timeoutSeconds: number | unknown;
-            retryPolicyJson: {
-                [key: string]: unknown;
-            } | unknown;
-            advancementPolicyDefinition: {
-                id: string;
-                pipelineStepDefinitionId: string;
-                rulesJson: {
-                    rules: Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                    [key: string]: unknown | Array<{
-                        conditions: {
-                            [key: string]: unknown;
-                        };
-                        event: {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        };
-                        name?: string;
-                        priority?: number;
-                        [key: string]: unknown | {
-                            [key: string]: unknown;
-                        } | {
-                            type: string;
-                            params?: {
-                                [key: string]: unknown;
-                            };
-                        } | string | number | undefined;
-                    }>;
-                };
-                defaultEventType: 'continue' | 'block' | 'complete' | 'route';
-                defaultEventParamsJson: {
-                    [key: string]: unknown;
-                } | unknown;
-                allowedEventTypes: Array<'continue' | 'block' | 'complete' | 'route'>;
-                createdAt: string;
-                updatedAt: string;
-            };
-            computedSignalDefinitions: Array<{
-                id: string;
-                key: string;
-                type: 'average' | 'weighted_average' | 'sum' | 'min' | 'max' | 'count' | 'boolean_any' | 'boolean_all';
-                inputSignalKeys: Array<string>;
-                configJson: {
-                    [key: string]: unknown;
-                } | unknown;
-                availableWhenResultStatusIn: Array<string> | unknown;
-                createdAt: string;
-                updatedAt: string;
-            }>;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        createdAt: string;
-        updatedAt: string;
-    };
-};
-
-export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponse = PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses[keyof PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdResponses];
 
 export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDefinitionIdAdvancementPolicyData = {
     body: {
@@ -6834,6 +6230,7 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -7069,6 +6466,7 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -7272,6 +6670,7 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -13831,7 +13230,11 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
         description: string | unknown;
         prompt: string | unknown;
         version: number;
-        kind: 'built_in' | 'user_defined';
+        kind: 'built_in' | 'user_defined' | 'code';
+        entrypointJson: {
+            sourceFile: string;
+            exportName: string;
+        } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
             [key: string]: unknown;

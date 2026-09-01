@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype B — code-level failing-test reproduction.
-// failing test (workspace) → gate → fix. The safe default when the repository
-// is the only thing the execution environment can reach.
+// failing test (workspace) → block unless confident → fix. The safe default
+// when the repository is the only thing the execution environment can reach.
 
 export const reproduceWithTest = defineStep({
   key: "reproduce-with-test",
@@ -113,34 +113,35 @@ suite is green), a \`summary\` a reviewer reads before the diff, and
   features: [Features.notifications()],
 });
 
-export default pipeline({
+export default definePipeline({
   key: "failing-test-repro",
   name: "Failing Test Repro",
   description: "Reproduce a defect as a failing test, then fix it.",
   status: "active",
-})
-  .step(reproduceWithTest, {
-    input: () => ({}),
-    advance: ({ stepSignals, all }) => ({
-      default: "block",
-      rules: [
-        all(
-          stepSignals.testsFail.eq(true),
-          stepSignals.capturesReportedBug.eq(true),
-          stepSignals.confidence.gte(0.8),
-        ).then("continue"),
-      ],
-    }),
-  })
-  .step(fixFailingTest, {
-    input: ({ signal }) => ({
-      failingTestPaths: signal(reproduceWithTest, "testPaths"),
-      testCommand: signal(reproduceWithTest, "testCommand"),
-      failureOutput: signal(reproduceWithTest, "failureOutput"),
-    }),
-    advance: ({ stepSignals }) => ({
-      default: "block",
-      rules: [stepSignals.testsPass.eq(true).then("complete")],
-    }),
-  })
-  .build();
+  startAt: "reproduceWithTest",
+  states: {
+    reproduceWithTest: {
+      kind: "step",
+      step: reproduceWithTest,
+      input: () => ({}),
+      blockWhen: Rule.any([
+        Rule.signal("testsFail", "equal", false),
+        Rule.signal("capturesReportedBug", "equal", false),
+        Rule.signal("confidence", "lessThan", 0.8),
+      ]),
+      next: "fixFailingTest",
+    },
+    fixFailingTest: {
+      kind: "step",
+      step: fixFailingTest,
+      input: (ctx) => ({
+        failingTestPaths: ctx.signal("reproduceWithTest", "testPaths"),
+        testCommand: ctx.signal("reproduceWithTest", "testCommand"),
+        failureOutput: ctx.signal("reproduceWithTest", "failureOutput"),
+      }),
+      blockWhen: Rule.when("testsPass", "equal", false),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});

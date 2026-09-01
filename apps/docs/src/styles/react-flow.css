@@ -1,0 +1,65 @@
+/*
+ * React Flow's stock stylesheet, wrapped in the `components` cascade layer.
+ *
+ * `apps/docs/src/styles/global.css` establishes an explicit Tailwind v4
+ * cascade-layer order (`@layer base, starlight, theme, components,
+ * utilities;`) required for Starlight compatibility. A raw
+ * `@import "@xyflow/react/dist/style.css"` would ship as an *unlayered*
+ * stylesheet, which (per CSS cascade rules) always wins over anything inside
+ * a `@layer` regardless of source order — risking it silently overriding
+ * Starlight/Tailwind chrome on any page that renders a graph. Importing it
+ * with `layer(components)` here keeps it inside the same layer order as the
+ * rest of this site's component-level styles.
+ *
+ * See `docs/research/pipeline-graph-docs-catalog.md` §3, decision 7.
+ */
+@import "@xyflow/react/dist/style.css" layer(components);
+
+/*
+ * React Flow themes itself via CSS custom properties (see
+ * https://reactflow.dev/learn/customization/theming#css-variables). Map its
+ * variables onto `@boboddy/design-tokens` so a graph rendered on this
+ * (forced dark-only) site matches the surrounding chrome instead of React
+ * Flow's light-mode defaults.
+ */
+.react-flow {
+  --xy-background-color: var(--color-bg);
+  --xy-background-pattern-dots-color: var(--color-border);
+  --xy-background-pattern-lines-color: var(--color-border);
+  --xy-background-pattern-cross-color: var(--color-border);
+
+  --xy-node-background-color: var(--color-surface);
+  --xy-node-color: var(--color-text);
+  --xy-node-border: 1px solid var(--color-border);
+  --xy-node-border-radius: 0.5rem;
+  --xy-node-boxshadow-hover: 0 0 0 1px var(--color-border-strong);
+  --xy-node-boxshadow-selected: 0 0 0 1px var(--color-accent-fg);
+
+  --xy-handle-background-color: var(--color-border-strong);
+  --xy-handle-border-color: var(--color-bg);
+
+  --xy-edge-stroke: var(--color-border-strong);
+  --xy-edge-stroke-selected: var(--color-accent-fg);
+  --xy-edge-label-background-color: var(--color-bg);
+  --xy-edge-label-color: var(--color-text-muted);
+
+  --xy-controls-button-background-color: var(--color-surface);
+  --xy-controls-button-background-color-hover: var(--color-bg-hover);
+  --xy-controls-button-color: var(--color-text);
+  --xy-controls-button-color-hover: var(--color-text);
+  --xy-controls-button-border-color: var(--color-border);
+
+  --xy-minimap-background-color: var(--color-surface);
+  --xy-minimap-mask-background-color: color-mix(
+    in srgb,
+    var(--color-bg) 60%,
+    transparent
+  );
+
+  --xy-selection-background-color: color-mix(
+    in srgb,
+    var(--color-accent-subtle) 50%,
+    transparent
+  );
+  --xy-selection-border: 1px solid var(--color-accent-muted);
+}

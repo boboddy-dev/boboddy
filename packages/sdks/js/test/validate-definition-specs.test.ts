@@ -120,7 +120,7 @@ describe("validateDefinitionSpecs — signal bindings", () => {
     });
     expect(issues).toHaveLength(1);
     expect(issues[0]?.message).toContain(
-      "no step with that key is in the pipeline",
+      "no node with that key is in the pipeline",
     );
     expect(issues[0]?.message).toContain("produce → consume");
   });
@@ -259,10 +259,10 @@ describe("validateDefinitionSpecs — signals_list bindings (issue #167)", () =>
     });
     expect(issues).toHaveLength(1);
     expect(issues[0]?.message).toContain(
-      'signals list of fan-out step "ghost"',
+      'signals list of fan-out node "ghost"',
     );
     expect(issues[0]?.message).toContain(
-      "no step with that key is in the pipeline",
+      "no node with that key is in the pipeline",
     );
   });
 

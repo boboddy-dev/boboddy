@@ -59,8 +59,8 @@ describe("archetype assets", () => {
       expect(source, name).toContain(
         'from "@boboddy/sdk/definitions/pipelines"',
       );
-      expect(source, name).toContain("export default pipeline({");
-      expect(source, name).toContain(".build();");
+      expect(source, name).toContain("export default definePipeline({");
+      expect(source, name).toContain("states: {");
       expect(source, name).toContain('status: "active"');
       // `buildArchetypeSection` wraps each source in a three-backtick fence.
       expect(source, name).not.toContain("```");

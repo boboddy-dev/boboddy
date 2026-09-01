@@ -1,6 +1,7 @@
 import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
+import type { RunCodeStepCommand } from "../application/execute-code-step";
 import type { FakeAiServer } from "../infra/fake-ai/fake-ai-server";
 import type {
   StepExecutionContract,
@@ -444,4 +445,13 @@ export type ProcessProjectWorkDeps = {
    * {@link runHealthChecks}. Defaults to `() => new FakeAiServer()`.
    */
   createFakeAiServer?: (() => FakeAiServer) | undefined;
+  /**
+   * Injectable command-runner seam for `kind: "code"` step execution
+   * (`execute-code-step.ts`). Overridable so unit tests can assert on the
+   * constructed `docker exec`/host command without ever shelling out to a
+   * real `docker`/`sh` binary — the same seam
+   * `process-project-work-monitor-helpers.ts`'s `runDockerExec` param
+   * provides. Defaults to `defaultRunCodeStepCommand` when omitted.
+   */
+  runCodeStepCommand?: RunCodeStepCommand | undefined;
 };

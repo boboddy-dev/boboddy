@@ -1,3 +1,4 @@
+
 # Boboddy pipeline authoring reference
 
 Everything below is verified against the shipped SDK. Prefer these shapes over
@@ -13,8 +14,8 @@ You are working inside `.boboddy/pipeline-builder/`. `boboddy pipelines push`
 scans **this directory only** — not subdirectories.
 
 | File                             | Role                                                                 |
-| -------------------------------- | -------------------------------------------------------------------- |
-| `<pipeline-key>.ts`              | One pipeline. Must `export default pipeline(...)…​.build()`.          |
+| --------------------------------- | --------------------------------------------------------------------- |
+| `<pipeline-key>.ts`              | One pipeline. Must `export default definePipeline({ ... })`.          |
 | `steps.ts`                       | Shared steps as **named** exports. Optional; steps may live inline.   |
 | `default-pipeline-assignment.ts` | Reserved. Routes incoming work items to a pipeline. Never a pipeline. |
 | `push.ts`                        | Generated on every push. Never edit. Skipped by the scanner and by the typecheck. |
@@ -26,8 +27,9 @@ Imports:
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
 import {
-  pipeline,
+  definePipeline,
   defaultPipelineAssignment,
+  Rule,
 } from "@boboddy/sdk/definitions/pipelines";
 ```
 
@@ -53,8 +55,9 @@ Investigate the reported problem, scoped to ${input.accountRef}.
 The read-only database is at ${env.READONLY_DB_URL}.
 `,
 
-  // Optional on purpose: this field is supplied by a pipeline-level binding
-  // (see §3). A required field here would force a mapper entry that breaks it.
+  // Optional on purpose: this field is supplied by the step's own `input`
+  // mapper in the pipeline that uses it (see §3). A required field here
+  // would force every pipeline using this step to supply it explicitly.
   additionalInput: z.object({
     accountRef: z.string().nullable().optional(),
   }),
@@ -88,9 +91,9 @@ The read-only database is at ${env.READONLY_DB_URL}.
     Interpolation is for emphasis and for weaving a value into a sentence.
   - `boboddy.artifactsDir` is the directory the execution collects artifacts
     from (traces, screenshots, reports). It already ends in a separator.
-- **`additionalInput`** — extra fields the pipeline must bind. Declaring it makes
-  the pipeline-level mapper **mandatory** (see §3 for the trap this creates).
-  `z.unknown()` means "no declared extra input" and keeps the mapper optional.
+- **`additionalInput`** — extra fields the state that runs this step must bind
+  via its own `input` mapper (see §3). `z.unknown()` means "no declared extra
+  input" and keeps the mapper optional.
 - **`result`** — the schema the agent's structured answer must satisfy. Keep it
   flat and scalar-heavy; every field you want to branch on must be a signal.
 - **`signals`** — `{ sourcePath, key?, type?, required?, availableWhenResultStatusIn? }`.
@@ -161,153 +164,258 @@ Whenever you introduce a `{env:VAR}` reference that is new to this directory:
 `.boboddy/.env` itself is never a file you create or edit — it holds real
 secret values, and it is the user's alone to write.
 
-## 2. Pipelines — `pipeline()`
+## 2. Pipelines — `definePipeline`
+
+A pipeline is a **flat map of named states** — there is no `.step().step()`
+chain to build. Each state says what kind of work it does (if any) and what
+runs after it (`next`); there is no `dependsOn` anywhere — every state's
+incoming edge is derived by the compiler from some other state's own forward
+pointer.
 
 ```ts
-import { z } from "zod";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
 import { investigate, writeFix } from "./steps";
 
-export default pipeline({
+export default definePipeline({
   key: "bug-repro-pipeline",
   name: "Bug Repro Pipeline",
   description: "Reproduce, then fix.",
   status: "active",
-  additionalPipelineInput: {
-    schema: z.object({ accountRef: z.string().nullable() }),
-    bindings: ({ workItem }) => ({ accountRef: workItem.field("Account") }),
+  startAt: "investigate",
+  states: {
+    investigate: {
+      kind: "step",
+      step: investigate,
+      input: () => ({}),
+      next: "writeFix",
+    },
+    writeFix: {
+      kind: "step",
+      step: writeFix,
+      input: (ctx) => ({
+        context: ctx.signal("investigate", "rootCause"),
+      }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
   },
-})
-  .step(investigate, {
-    input: () => ({}),
-    advance: ({ stepSignals, all }) => ({
-      default: "block",
-      rules: [
-        all(
-          stepSignals.confidence.gte(0.8),
-          stepSignals.identifiedFix.eq(true),
-        ).then("continue"),
-      ],
-    }),
-  })
-  .step(writeFix, {
-    input: ({ signal }) => ({
-      context: signal(investigate, "rootCause"),
-    }),
-    advance: () => ({ default: "complete" }),
-  })
-  .build();
+});
 ```
 
-`.step()` takes the step and a single options object: `input` (the mapper,
-optional only when the step declares no `additionalInput`) and `advance` (how
-the pipeline continues past this step) — both required in the same call, not
-as separate chained methods. `pipeline()` → `.step({ input, advance })` →
-(`.step({ input, advance })` | `.build()`).
+Key shape rules:
 
-`advance` is required in every `.step()` call; TypeScript will not let you
-chain another `.step()` or call `.build()` without it.
+- `states` is a **map keyed by node key** — the object key IS that state's
+  identity; there is no separate `key` field to keep in sync with it.
+- `startAt` names the entry state. It must not name a `choice`, `succeed`, or
+  `fail` state — the pipeline's first move has to do real work or branch on
+  the pipeline's own input, never on a predecessor that doesn't exist.
+- A `kind: "step"` state takes: `step` (the step to run), an optional `input`
+  mapper, and a required `next` — the state that runs after this one
+  succeeds. There is no separate `.advance()` call; `next` (plus the optional
+  `blockWhen` from §4) IS the advancement logic for a plain step.
+- Every path through the pipeline ends at a `succeed` or `fail` state
+  (`{ kind: "succeed" }` / `{ kind: "fail" }`), or hands off to a different
+  pipeline entirely via `next: { routeToPipeline: "other-pipeline-key" }` —
+  see §4. There is no more `"complete"` outcome string.
 
-Optional `timeout` field on the same options object sets a per-step timeout in
+Optional `timeout` field on the same state object sets a per-step timeout in
 seconds:
 
 ```ts fragment
-.step(investigate, { input: () => ({}), advance: ..., timeout: 1800 })
+investigate: { kind: "step", step: investigate, next: "writeFix", timeout: 1800 }
 ```
 
 ## 3. Bindings
 
-Every step's input is assembled from three layers; later layers win.
+Every state that does work (`step`, `fanOut`, a `parallel` branch, `loop`)
+gets its input from exactly one place: that state's own `input` mapper,
+called with a context object (`ctx`) offering every binding source. There is
+no separate pipeline-level "inject into every step" layer to keep in sync
+with — if two states need the same value, both mappers ask for it explicitly.
 
-1. **Automatic** — `workItemTitle` and `workItemDescription` are bound on every
-   step, always. You never declare them.
-2. **Pipeline-level** — injected into *every* step:
-   - `additionalPipelineInput: { schema, bindings: ({ workItem, literal }) => ({…}) }`
-     also gives step mappers a typed `input.<field>`.
-   - `additionalStepInput: { schema, bindings: ({ workItemField, literal }) => ({…}) }`
-     injects bindings only; no pipeline input schema.
-
-   Both throw at build time if `bindings` returns a key not in `schema`.
-3. **Step mapper** — `input` on the options object passed as the second
-   argument to `.step()`.
-
-Binding sources available in a step mapper: `input.<path>`, `signal(step, key)`,
-`output(step)`, `literal(value)`. There is **no** `workItem` accessor in a step
-mapper — work-item fields can only enter via the pipeline-level layers.
+1. **Automatic, on every state** — `workItemTitle` and `workItemDescription`
+   are bound automatically; you never declare them yourself.
+2. **`ctx` inside a state's `input` mapper** — the only other binding surface:
+   - `ctx.workItem.title` / `ctx.workItem.description` /
+     `ctx.workItem.field("Account")` — reads directly off the current work
+     item. Call this from any state that needs it; there is no separate
+     "pipeline-level work-item binding" step to declare first.
+   - `ctx.pipelineInput(path)` — reads a dot-path out of the pipeline's own
+     `input` schema (`definePipeline({ input: z.object({...}) })`). Only
+     useful if you declared one; omit `input` entirely if the pipeline takes
+     none.
+   - `ctx.signal(nodeKey, signalKey)` — an earlier state's signal, addressed
+     by that **state's own key** (not the step's key — two states can run the
+     same step).
+   - `ctx.output(nodeKey)` — an earlier state's whole result output.
+   - `ctx.signalsList(nodeKey)` — a `fanOut`'s whole cohort (every terminal
+     branch's signals + output); see the fan-out entry in §4's kind catalog.
+   - `ctx.literal(value)` — a fixed value that doesn't come from anywhere at
+     runtime.
+   - `ctx.item` — **`fanOut` branches only** — the current branch's own item.
+3. **A required `additionalInput` field forces a mapper entry that supplies
+   it.** Optional fields do not (`() => ({})` is a valid mapper when
+   everything it would supply is optional).
 
 ```ts
+import { defineStep } from "@boboddy/sdk/definitions/steps";
 import { z } from "zod";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
 import { investigate } from "./steps";
 
-export default pipeline({
+export default definePipeline({
   key: "scoped-pipeline",
   name: "Scoped",
   status: "active",
-  // Same effect as additionalPipelineInput, but bindings-only: no pipeline
-  // input schema, and step mappers get no typed `input.accountRef`.
-  additionalStepInput: {
-    schema: z.object({ accountRef: z.string().nullable() }),
-    bindings: ({ workItemField }) => ({ accountRef: workItemField("Account") }),
+  startAt: "investigate",
+  states: {
+    // `ctx.workItem.field(name)` reads a work-item custom field directly —
+    // there is no separate pipeline-level binding layer to keep in sync.
+    investigate: {
+      kind: "step",
+      step: investigate,
+      input: (ctx) => ({ accountRef: ctx.workItem.field("Account") }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
   },
-})
-  .step(investigate, { input: () => ({}), advance: () => ({ default: "complete" }) })
-  .build();
+});
 ```
 
 ### Traps
 
-- **Do not re-map a pipeline-level field inside a step mapper.** Writing
-  `({ input }) => ({ accountRef: input.accountRef })` replaces the `work_item`
-  binding with a `pipeline_input` binding, which resolves to `null` at runtime.
-  Let the pipeline-level binding flow through untouched.
-- **A step field fed by pipeline-level bindings must be optional in that step's
-  `additionalInput`** (`z.string().nullable().optional()`), or absent from it
-  entirely. A required field forces a mapper entry, and the only way to satisfy
-  it is the broken re-map above. With the field optional, `() => ({})` is a
-  valid mapper and the injected binding survives.
-- **`input.workItemComments` is not a binding.** Pinned comments are injected on
-  the resolved input at runtime; there is no binding form. Never map it.
-- `workItemTitle`, `workItemDescription`, and `workItemComments` are rejected as
-  `additionalPipelineInput` schema keys (the schema type resolves to `never`).
+- **`input.workItemComments` is not a binding.** Pinned comments are injected
+  on the resolved input at runtime; there is no binding form for them. Never
+  map it.
+- **A mapper only supplies what you write.** Unlike the retired builder,
+  there is no pipeline-level layer whose bindings survive an empty mapper —
+  `() => ({})` supplies nothing beyond the two automatic bindings above, full
+  stop. If two states need the same value, write it in both mappers.
 
 ## 4. Advancement
 
-`advance: (ctx) => ({ default, rules? })` on the same options object passed to
-`.step()`. Rules are evaluated in order; the first match wins. If none match,
-`default` applies.
+`next` is the default: a `step`/`fanOut`/`parallel`/loop-success state names
+the state that runs after it. Two things change that.
 
-Outcomes: `"continue"`, `"block"` (park for a human), `"complete"`, or
-`route(pipelineKey, inputJson?)`.
+### Blocking — `blockWhen`
 
-Signal refs: `stepSignals.<key>` or `signal("<key>")` — both are type-checked
-against the step's declared signal keys.
-
-Comparators: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `notIn`, `contains`,
-`doesNotContain`.
-
-Combinators: `all(...)`, `any(...)` — nestable, then `.then(outcome)`.
-
-Computed aggregates over numeric signals: `avg`, `weightedAvg`, `sum`, `min`,
-`max`, `count`, `booleanAny`, `booleanAll`. Each takes **two or more** signal
-refs and returns something comparable.
+A single-condition "pause for human review" gate on a plain `step`:
 
 ```ts fragment
-advance: ({ stepSignals, avg, any, route }) => ({
-  default: "block",
-  rules: [
-    any(
-      stepSignals.confidence.lt(0.4),
-      stepSignals.reproduced.eq(false),
-    ).then("block"),
-    avg(stepSignals.clarity, stepSignals.evidence).gte(0.7).then("continue"),
-    stepSignals.routeKey.eq("data-pipeline").then(route("data-pipeline")),
-  ],
-})
+{
+  kind: "step",
+  step: triageStep,
+  blockWhen: Rule.when("confidence", "lessThan", 7),
+  next: "writeFixPlan",
+}
 ```
 
-`block` is the right default for any gate you are unsure about: it parks the
-work item for a human instead of letting a low-confidence result cascade.
+When `blockWhen`'s condition matches, the run **blocks** in the dashboard
+instead of advancing to `next`. Read it as "block when this is true" — the
+inverse of writing a "continue when" condition. If your business rule is
+"continue only when reproduced AND confidence ≥ 0.8", write `blockWhen` as
+the negation:
+
+```ts fragment
+blockWhen: Rule.any([
+  Rule.signal("reproduced", "equal", false),
+  Rule.signal("confidence", "lessThan", 0.8),
+]),
+```
+
+### Branching — `choice`
+
+A `choice` state holds the whole routing table in one place — every branch's
+condition and target, plus a fallback:
+
+```ts fragment
+routeBySeverity: {
+  kind: "choice",
+  choices: [
+    { when: Rule.when("severity", "equal", "critical"), next: "pageOncall" },
+  ],
+  default: "fanOutFiles",
+},
+```
+
+Every `choices[].next` and `default` must name another state **in this same
+pipeline** — a `choice` cannot route to a different pipeline, and it cannot
+block, directly. To route conditionally to one of several pipelines, point
+each `choice` branch at its own small `step` state that does the routing —
+see the router archetype in §7E, which is the worked example for exactly this.
+
+### Routing to another pipeline
+
+The old `route(pipelineKey)` outcome survives as a special `next` value on a
+`step`/`fanOut`/`parallel`/loop-exit (never on a `choice` branch — see above):
+
+```ts fragment
+next: { routeToPipeline: "other-pipeline-key" }
+```
+
+`routeToPipeline` must name a pipeline that already exists on the server or is
+in the same push batch — push validates it and throws otherwise.
+
+### The `Rule` DSL
+
+`Rule.when(signalKey, operator, value)` — a bare condition, used by
+`blockWhen`, a `choice` branch's `when`, and a `loop`'s `until`.
+
+`Rule.signal(signalKey, operator, value)` — the same leaf condition, for
+nesting inside `Rule.all([...])` / `Rule.any([...])`.
+
+Operators: `"equal"`, `"notEqual"`, `"lessThan"`, `"lessThanInclusive"`,
+`"greaterThan"`, `"greaterThanInclusive"`, `"in"`, `"notIn"`, `"contains"`,
+`"doesNotContain"`.
+
+```ts fragment
+Rule.any([
+  Rule.signal("score", "lessThan", 0.3),
+  Rule.all([
+    Rule.signal("reviewerApproved", "equal", false),
+    Rule.signal("autoApproved", "equal", false),
+  ]),
+])
+```
+
+Aggregate over several numeric/boolean signals with `Computed` instead of
+asking the model for one holistic number — pass it where a plain signal key
+would go:
+
+```ts fragment
+Rule.signal(Computed.average(["observed", "expected", "reproduction"]), "greaterThanInclusive", 0.7)
+```
+
+`Computed.average` / `.weightedAverage` / `.sum` / `.min` / `.max` / `.count` /
+`.booleanAny` / `.booleanAll` all take **two or more** signal keys.
+
+### Other state kinds
+
+`step` and `choice` cover most pipelines. Four more kinds exist for fan-out,
+concurrency, and repetition — each is its own top-level entry in `states`,
+never something you nest inside a `step`:
+
+| Kind | What it does | Exits |
+| --- | --- | --- |
+| `fanOut` | Runs one step once per item in an array signal (`over`), with its own `advanceEach`/`advanceAll` cohort policy and an optional `maxConcurrency` cap. | `next`, after the whole cohort resolves |
+| `parallel` | Runs several **named, single-step** branches concurrently, with an `advanceAll` cohort policy (defaults to "continue iff every branch continued"). | `next`, after every branch is terminal |
+| `loop` | Repeats one step until an `until` condition matches or `maxIterations` is hit. | `next` (matched) or `onExhausted` (cap hit) |
+| `succeed` / `fail` | Terminal — this run (or this branch of it) is done. No work, no `next`. | none |
+
+```ts fragment
+refineUntilPasses: {
+  kind: "loop",
+  step: refineStep,
+  maxIterations: 5,
+  until: Rule.when("passesLint", "equal", true),
+  next: "publish",
+  onExhausted: "escalateToHuman",
+},
+```
+
+Reach for `fanOut`/`parallel`/`loop` only when a plain `step` chain can't
+express the shape you need — most pipelines, including every archetype in
+§7, are `step`/`choice`/`succeed`/`fail` only.
 
 ## 5. `default-pipeline-assignment.ts`
 
@@ -332,41 +440,58 @@ export default defaultPipelineAssignment(
 );
 ```
 
-- `assign()` takes the **default export** of a pipeline file (the built spec).
+- `assign()` takes the **default export** of a pipeline file (the compiled
+  spec `definePipeline()` returns).
 - At least one `assign()` must exist somewhere, or push throws.
 - Rules are ordered; first match wins; unmatched fall through to `default`.
 - `context.isNew` is `true` on first ingestion of the work item.
 
 ## 6. Invariants — the things that actually break
 
-1. Every `.step()` call's options object must include `advance` — the type
-   system enforces it in the same call, not as a separate chained method.
-2. A step whose `additionalInput` has a **required** field forces a mapper that
-   supplies it. Optional fields do not.
-3. `signals[].sourcePath` must exist in the `result` schema. **The compiler will
-   not tell you.** Check by eye.
-4. Signal keys used in `.advance()` are type-checked. Signal keys used in
-   `signal(step, "key")` bindings are type-checked. `sourcePath` is not.
-5. `route("x")` and `assign(...)` must name a pipeline that exists on the server
-   or is in the same push batch. Push validates and throws otherwise.
+1. Every `step`/`fanOut`/`parallel`/`loop` state's forward pointer (`next`,
+   plus `onExhausted` for `loop`) is required — the type system enforces it
+   in the same object literal. `choice` is the only kind where `next` is
+   spread across `choices[].next` + `default` instead of one field.
+2. A state whose step has a **required** `additionalInput` field forces an
+   `input` mapper that supplies it. Optional fields do not.
+3. `signals[].sourcePath` must exist in the `result` schema. **The compiler
+   will not tell you.** Check by eye.
+4. **No condition's signal argument is type-checked.** `blockWhen`, a
+   `choice` branch's `when`, and a `loop`'s `until` all take a bare string
+   signal key with no connection back to any particular step's declared
+   signals — a typo compiles cleanly and fails only at execution time. This
+   is looser than `ctx.signal(nodeKey, "key")` bindings, which the compiler
+   does check against the reachable state keys.
+5. `next: { routeToPipeline: "x" }` and `assign(...)` must name a pipeline
+   that exists on the server or is in the same push batch. Push validates
+   and throws otherwise.
 6. A pipeline file must use `export default`. A pipeline assigned to a named
    export is silently ignored by the scanner.
-7. Steps are pushed before pipelines, and pipelines before the assignment file —
-   so a single `push` can introduce a pipeline and route to it in one go.
+7. Steps are pushed before pipelines, and pipelines before the assignment
+   file — so a single `push` can introduce a pipeline and route to it in one
+   go.
 8. The scanner skips `push.ts` / `push.mjs` / `push.js` and
    `default-pipeline-assignment.ts`, ignores subdirectories, and only reads
    `.ts` / `.js` files.
 9. Steps referenced by a pipeline are pushed even if not exported by name.
    Named exports of the same `key@version` win.
 10. Use `status: "active"`. `"draft"` definitions do not execute.
+11. `states` is a map, not an array — no `dependsOn` anywhere. Every incoming
+    edge is derived from some other state's own `next` / `choices[].next` /
+    `default` / `onExhausted`.
+12. `startAt` must not name a `choice`, `succeed`, or `fail` state.
+13. A state may have **more than one incoming edge only if every source is a
+    `choice` or `loop` state.** Two plain `step`/`fanOut`/`parallel` states
+    can never both point `next` at the same target — `definePipeline` throws
+    at build time if you try, since that is an unhandled implicit barrier.
 
 ## 7. Archetype catalog
 
 Pick by **what the execution environment can reach**, not by what the app is.
 
 Every archetype has a complete, compile-verified implementation in *The
-archetype files* at the end of this section. Do not author the `.step()`
-calls from scratch: copy the closest file, rename its keys, and rewrite its
+archetype files* at the end of this section. Do not author the state objects
+from scratch: copy the closest file, rename its keys, and rewrite its
 prompts for this user's domain.
 
 | Reachability                              | Archetype                   | File                     |
@@ -382,8 +507,9 @@ prompts for this user's domain.
 **Choose when** reachability = a URL the execution environment can load, plus
 credentials it can obtain. Not for apps that only run on a developer laptop.
 
-Shape: `reproduce (workspace, playwright MCP)` → gate on
-`reproduced == true && confidence >= 0.8` → `failing test` → gate → `fix`.
+Shape: `reproduce (workspace, playwright MCP)` → blocks unless
+`reproduced == true && confidence >= 0.8` → `failing test` → blocks unless
+confident → `fix`.
 
 The reproduction prompt encodes a hard-won choreography — set the viewport
 before starting the trace, wait after the final triggering action, stop the
@@ -403,7 +529,8 @@ than guess.
 deployment, no database. This is the safe default for backend services,
 libraries, CLIs, embedded code, and any system that cannot be stood up.
 
-Shape: `failing test (workspace)` → gate on `confidence >= 0.8` → `fix`.
+Shape: `failing test (workspace)` → blocks unless `confidence >= 0.8` →
+`fix`.
 
 The reproduction step writes tests that fail for the reported reason and returns
 their paths; the fix step consumes those paths as its validation target. Adapt
@@ -416,34 +543,40 @@ observability MCP — and the report is about wrong, missing, or stale data rath
 than broken code paths. `executionMode: "no_workspace"`, because no repository
 is needed to run queries.
 
-Shape: `investigate (no_workspace, data MCP)` → gate on
+Shape: `investigate (no_workspace, data MCP)` → blocks unless
 `confidence >= 0.8 && identifiedRequiredChanges == true`.
 
 Note the split between `suspectedRootCause` (a theory) and
 `identifiedRequiredChanges` (a boolean naming a specific change): the gate reads
 the boolean. Replace the MCP server, and replace the work-item field that scopes
-the queries with one the user actually has. To hand the fix off, swap the
-`"complete"` outcome for `route("failing-test-repro")`.
+the queries with one the user actually has. To hand the fix off, replace the
+`next: "done"` target with `next: { routeToPipeline: "failing-test-repro" }`.
 
 ### D. Triage / intake quality scoring
 
 **Choose when** reachability = nothing. Needs no repo, no app, no data — only
 the work item's title and description. `executionMode: "no_workspace"`.
 
-Shape: `score (no_workspace)` → gate on the average of the sub-scores.
+Shape: `score (no_workspace)` → blocks unless the average of the sub-scores
+clears the bar.
 
-Independent dimensions are scored separately and combined with `avg(...)` in
-`.advance()` rather than asking the model for one holistic number, which keeps
-the sub-scores visible and the threshold tunable without touching the prompt.
-Adapt the dimensions to what this user's reports should contain.
+Independent dimensions are scored separately and combined with
+`Computed.average(...)` inside `blockWhen` rather than asking the model for
+one holistic number, which keeps the sub-scores visible and the threshold
+tunable without touching the prompt. Adapt the dimensions to what this user's
+reports should contain.
 
 ### E. Router → other pipelines
 
 **Choose when** two or more target pipelines already exist. A router with one
 target is pointless — build the target first.
 
-Shape: `classify (no_workspace)` → `advance` with one
-`stepSignals.routeKey.eq(k).then(route(k))` rule per target.
+Shape: `classify (no_workspace)` → blocks unless confident → a `choice` state
+picks one of the target pipelines by the classified `routeKey` → a tiny
+`dispatch` state per target that does no real work of its own, whose only job
+is to carry that target's `next: { routeToPipeline: ... }` (a `choice` branch
+can only target another state in this pipeline — see §4 — so reaching a
+different pipeline conditionally needs one such state per target).
 
 `routeKey` is constrained by `z.enum([...])` whose members are the exact pipeline
 keys, and those keys are repeated with selection criteria in the prompt. Replace

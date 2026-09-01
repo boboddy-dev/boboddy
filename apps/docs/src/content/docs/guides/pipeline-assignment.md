@@ -88,7 +88,7 @@ The date-like fields (`sourceCreatedAt`, `sourceUpdatedAt`, `createdAt`, `update
 | `workItem.<property>` | Access a top-level work item property (`title`, `platform`, `url`, etc. — see [Work item properties](#work-item-properties)). Returns a comparator ref. |
 | `workItem.field(name)` | Access a work item field by name. Returns a comparator ref. |
 | `context.isNew` | `true` when the work item is being created for the first time. Returns a comparator ref. |
-| `assign(pipeline)` | Outcome: start the given pipeline. Accepts a `PipelineDefinitionSpec` from `pipeline().build()`. |
+| `assign(pipeline)` | Outcome: start the given pipeline. Accepts the `PipelineDefinitionSpec` a `definePipeline()` file default-exports. |
 | `skip()` | Outcome: do not assign any pipeline. |
 | `all(...refs)` | All nested conditions must match. |
 | `any(...refs)` | Any nested condition must match. |

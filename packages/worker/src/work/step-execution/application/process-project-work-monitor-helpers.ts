@@ -11,8 +11,13 @@ import { detectArtifactKind } from "../../../artifacts/artifact-store/domain/det
 
 const execFileAsync = promisify(execFile);
 
-/** Single-quote a value for safe interpolation into a `sh -c` command. */
-function shQuote(value: string): string {
+/**
+ * Single-quote a value for safe interpolation into a `sh -c` command. Exported
+ * so other modules building their own `docker exec ... sh -lc "..."` commands
+ * (e.g. `execute-code-step.ts`) reuse this exact quoting idiom rather than
+ * reimplementing it.
+ */
+export function shQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 

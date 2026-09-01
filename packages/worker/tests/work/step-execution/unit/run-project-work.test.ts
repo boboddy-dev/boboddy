@@ -61,6 +61,8 @@ function createWorkerClient(
           key: "demo-step",
           name: "Demo Step",
           prompt: "Run the demo step.",
+          kind: "user_defined",
+          entrypointJson: null,
           executionMode: "workspace",
           resultSchemaJson: { type: "object" },
           opencodeMcpJson: null,

@@ -328,24 +328,55 @@ function any<TSignalKeys extends string>(
 }
 
 /**
- * Shorthand for a single-condition rule. Equivalent to
- * `Rule.all([Rule.signal(signal, operator, value)], outcome)`.
+ * When called with only `signal`/`operator`/`value`: returns a bare
+ * `SignalCondition` — used by a `choice` node's `choices[].when`, a `loop`
+ * node's `until`, and a `step` node's `blockWhen` (see
+ * docs/research/flat-pipeline-sdk-and-visual-designer.md §4/§5), none of
+ * which attach an outcome of their own (the routing target / block
+ * decision lives on the surrounding state, not on the condition).
+ *
+ * When called with `signal`/`operator`/`value`/`outcome`: returns a
+ * top-level `Rule` — shorthand for
+ * `Rule.all([Rule.signal(signal, operator, value)], outcome)`, used by the
+ * (legacy) full step-advancement-policy shape.
  *
  * @example
- * Rule.when("passed", "equal", true, "continue")
- * Rule.when("score", "greaterThanInclusive", 80, { outcome: "continue", outcomeJson: { via: "score" } })
+ * Rule.when("severity", "equal", "critical")       // bare condition
+ * Rule.when("passed", "equal", true, "continue")    // full rule
  */
 function when<TSignalKeys extends string>(
   signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
   operator: ConditionOperator,
   // eslint-disable-next-line local/no-unknown-parameter-type
   value: unknown,
+): SignalCondition<TSignalKeys>;
+function when<TSignalKeys extends string>(
+  signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
+  operator: ConditionOperator,
+  // eslint-disable-next-line local/no-unknown-parameter-type
+  value: unknown,
   outcome: AdvancementOutcome,
-): Rule<TSignalKeys> {
+): Rule<TSignalKeys>;
+function when<TSignalKeys extends string>(
+  signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
+  operator: ConditionOperator,
+  // eslint-disable-next-line local/no-unknown-parameter-type
+  value: unknown,
+  outcome?: AdvancementOutcome,
+): SignalCondition<TSignalKeys> | Rule<TSignalKeys> {
+  const condition: SignalCondition<TSignalKeys> = {
+    _tag: "signal",
+    signal,
+    operator,
+    value,
+  };
+  if (outcome === undefined) {
+    return condition;
+  }
   return {
     _tag: "rule",
     mode: "all",
-    conditions: [{ _tag: "signal", signal, operator, value }],
+    conditions: [condition],
     outcome,
   };
 }
@@ -415,7 +446,17 @@ type SerializedConditionGroup = {
   any?: SerializedCondition[];
 };
 
-type SerializedCondition = SerializedLeafCondition | SerializedConditionGroup;
+/**
+ * The bare-condition wire format (no outcome) — structurally identical to
+ * `packages/core`'s `RuleCondition`/`rule-condition.ts` (leaves:
+ * `{fact,operator,value}`, groups: `{all:[...]}`/`{any:[...]}`). Reused
+ * verbatim for a `choice` node's `choices[].conditionJson` and a `loop`
+ * node's `untilConditionJson` (see
+ * docs/research/flat-pipeline-sdk-and-visual-designer.md §7.2).
+ */
+export type SerializedCondition =
+  | SerializedLeafCondition
+  | SerializedConditionGroup;
 
 type SerializedRule = {
   conditions: SerializedConditionGroup;
@@ -446,7 +487,13 @@ function resolveOutcome(outcome: AdvancementOutcome): {
   };
 }
 
-function serializeCondition(condition: RuleCondition): SerializedCondition {
+/**
+ * Serializes an authored `RuleCondition` (leaf or `all`/`any` group) to its
+ * bare wire format — no outcome attached. Reused directly by `choice`'s
+ * `choices[].when`, `loop`'s `until`, and `step`'s `blockWhen` (see
+ * `SerializedCondition`'s own doc comment).
+ */
+export function serializeCondition(condition: RuleCondition): SerializedCondition {
   if (condition._tag === "signal") {
     return {
       fact:

@@ -1,31 +1,41 @@
 ---
 title: Building Pipelines
-description: Wire steps into orchestrated sequences with typed bindings and additional pipeline input
+description: Wire steps into a flat, named-state graph with typed bindings and pipeline-level input
 ---
 
-A **pipeline** is an ordered sequence of steps where each step's input can be bound to work item fields, pipeline-level additional inputs, prior step outputs, or signals extracted from prior results.
+A **pipeline** is a flat map of named **states**. Each state says what work it does (if any) and what runs after it — there's no separate ordering to keep in sync; the graph is entirely derived from each state's own forward pointer (`next`, or a `choice`/`loop` state's own routing fields).
+
+See the [Pipeline Graph catalog entry](/boboddy/catalog/pipeline-graph/) for an interactive view of what a compiled pipeline's node/edge graph looks like.
 
 ## Basic pipeline
 
-The recommended way to define a pipeline is the fluent `pipeline()` builder. Each `.step()`'s `input` mapper receives a typed `input` accessor that always includes `workItemTitle` and `workItemDescription`.
+Define a pipeline with `definePipeline()`. `startAt` names the entry state, and `states` is an object keyed by each state's own unique key — that object key *is* the state's identity; there's no separate `key` field to keep in sync with it.
 
 ```typescript
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
+import { reviewCodeStep } from "./steps";
 
-export default pipeline({
+export default definePipeline({
   key: "code-quality-pipeline",
   name: "Code Quality Pipeline",
   status: "active",
-})
-  .step(reviewCodeStep, {
-    input: ({ input }) => ({
-      title: input.workItemTitle,
-      code: input.workItemDescription,
-    }),
-    advance: () => ({ default: "continue" }),
-  })
-  .build();
+  startAt: "review",
+  states: {
+    review: {
+      kind: "step",
+      step: reviewCodeStep,
+      input: (ctx) => ({
+        title: ctx.workItem.title,
+        code: ctx.workItem.description,
+      }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});
 ```
+
+Every path through the pipeline ends at a `succeed` or `fail` state (`{ kind: "succeed" }` / `{ kind: "fail" }`), or hands off to a different pipeline entirely — see [Routing to another pipeline](#routing-to-another-pipeline).
 
 ## Scaffold pipeline definitions
 
@@ -63,138 +73,146 @@ boboddy pipelines push
 
 This pushes steps first, then pipelines, in a single command.
 
-## `pipeline()` options
+## `definePipeline()` options
 
-| Field                     | Type                  | Required | Description                                                      |
-| ------------------------- | --------------------- | -------- | ------------------------------------------------------------------ |
-| `key`                     | `string`              | Yes      | Unique identifier for this pipeline                              |
-| `name`                    | `string`              | Yes      | Human-readable display name                                      |
-| `version`                 | `number`              | No       | Version number (defaults to 1)                                   |
-| `description`             | `string`              | No       | Brief description                                                |
-| `status`                  | `"draft" \| "active"` | No       | Draft pipelines are not executed                                 |
-| `additionalPipelineInput` | `object`              | No       | Custom input fields beyond the built-in work item fields         |
+| Field         | Type                  | Required | Description                                                       |
+| ------------- | --------------------- | -------- | ------------------------------------------------------------------- |
+| `key`         | `string`              | Yes      | Unique identifier for this pipeline                               |
+| `name`        | `string`              | No       | Human-readable display name (defaults to `key`)                   |
+| `version`     | `number`              | No       | Version number (defaults to 1)                                    |
+| `description` | `string`              | No       | Brief description                                                 |
+| `status`      | `"draft" \| "active"` | No       | Draft pipelines are not executed                                  |
+| `input`       | `ZodType`             | No       | Schema for the pipeline's own input, read via `ctx.pipelineInput(path)` |
+| `startAt`     | `string`              | Yes      | The entry state's key. Must not name a `choice`, `succeed`, or `fail` state |
+| `states`      | `Record<string, ...>` | Yes      | Every state in the pipeline, keyed by its unique state key         |
 
-Call `.step(step, options)` for each step in sequence, then finish with `.build()` to produce the wire-format pipeline spec. `options.advance` is required on every step — it decides how the pipeline continues past that step. `options.timeout` (optional, seconds) caps how long a worker can spend on the step. See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) for how `advance` policies work.
+## States
 
-## Input binding
+Seven state kinds cover every pipeline shape. `step` and `choice` cover most pipelines; the rest exist for fan-out, concurrency, and repetition.
 
-Inside a `.step()`'s `input` option, five context helpers cover every binding source:
+| Kind | What it does | Exits |
+| --- | --- | --- |
+| `step` | Runs one step, with an optional `blockWhen` gate | `next` |
+| `choice` | Routes to one of several states by condition | `choices[].next` / `default` |
+| `fanOut` | Runs one step once per item in an array signal | `next`, after the whole cohort resolves |
+| `parallel` | Runs several named, single-step branches concurrently | `next`, after every branch is terminal |
+| `loop` | Repeats one step until a condition matches or an iteration cap is hit | `next` (matched) or `onExhausted` (cap hit) |
+| `succeed` | Terminal — this run finished successfully | none |
+| `fail` | Terminal — this run finished unsuccessfully | none |
 
-### `input.<path>` — built-in and additional pipeline input
+`blockWhen`, `choice`'s `when`, and `loop`'s `until` all use the `Rule` DSL — see [Pipeline Advancement](/boboddy/guides/pipeline-advancement/).
 
-The `input` accessor always exposes `workItemTitle` (string) and `workItemDescription` (string | null), plus any custom fields defined in `additionalPipelineInput.schema`. Drill into the shape; each property access returns a typed binding.
+### `step`
 
 ```typescript
-.step(reviewCodeStep, {
-  input: ({ input }) => ({
-    title: input.workItemTitle,
-    body: input.workItemDescription,
-    // custom field from additionalPipelineInput:
-    code: input.code,
-  }),
-  advance: () => ({ default: "continue" }),
+review: {
+  kind: "step",
+  step: reviewCodeStep,
+  input: (ctx) => ({ code: ctx.workItem.description }),
+  timeout: 120,
+  next: "done",
+}
+```
+
+| Field       | Type                          | Required | Description                                                  |
+| ----------- | ----------------------------- | -------- | -------------------------------------------------------------- |
+| `step`      | step definition                | Yes      | The step to run, from `defineStep()` or `codeStep()`         |
+| `input`     | `(ctx) => bindings`            | No       | Input bindings — see [Bindings](#bindings)                   |
+| `timeout`   | `number \| null`               | No       | Caps how long a worker can spend on the step, in seconds      |
+| `blockWhen` | `RuleCondition`                | No       | Pause for human review when this condition matches            |
+| `next`      | `string \| { routeToPipeline }`| Yes      | The state that runs after this one succeeds                   |
+
+There's no separate `.advance()` call: `next` (plus the optional `blockWhen`) *is* the advancement logic for a plain step.
+
+### `succeed` / `fail`
+
+```typescript
+done: { kind: "succeed" }
+```
+
+No fields besides `kind`. Every pipeline needs at least one reachable terminal state.
+
+## Bindings
+
+Every state that does work (`step`, `fanOut`, a `parallel` branch, `loop`) gets its input from exactly one place: that state's own `input` mapper, called with a context object offering every binding source. There is **no pipeline-level "inject into every step" layer** — if two states need the same value, both mappers ask for it explicitly.
+
+`workItemTitle` and `workItemDescription` are bound automatically on every state; you never declare them yourself. Beyond that, the `input` mapper's `ctx` offers:
+
+### `ctx.workItem` — work item fields
+
+```typescript
+input: (ctx) => ({
+  title: ctx.workItem.title,
+  body: ctx.workItem.description,
+  team: ctx.workItem.field("Team"),
 })
 ```
 
-Nested fields work as you'd expect — `input.ticket.title` binds to the dotted path `"ticket.title"`. **Do not** spread or coerce the accessor (`${input.code}`, `{ ...input.metadata }`): it will throw at build time. Drill into specific fields instead.
+`ctx.workItem.title` / `ctx.workItem.description` read the work item directly. `ctx.workItem.field(name)` reads a named custom field.
 
-### `signal(step, signalKey)` — bind to a prior step's signal
+### `ctx.pipelineInput(path)` — the pipeline's own input
 
-```typescript
-.step(refactorStep, {
-  input: ({ input, signal }) => ({
-    code: input.code,
-    previousScore: signal(reviewCodeStep, "clarity_score"),
-  }),
-  advance: () => ({ default: "continue" }),
-})
-```
-
-`signalKey` is constrained to the prior step's declared signal keys, so typos are compile errors.
-
-### `output(step)` — bind to a prior step's whole output
+Only useful if `definePipeline({ input: z.object({...}) })` declares a schema; omit `input` entirely if the pipeline takes none.
 
 ```typescript
-.step(refactorStep, {
-  input: ({ input, output }) => ({
-    code: input.code,
-    reviewResult: output(reviewCodeStep),
-  }),
-  advance: () => ({ default: "continue" }),
-})
-```
-
-### `literal(value)` — a hardcoded constant
-
-```typescript
-.step(myStep, {
-  input: ({ literal }) => ({
-    model: literal("gpt-4o"),
-  }),
-  advance: () => ({ default: "continue" }),
-})
-```
-
-### `signalsList(fanOutStep)` — bind to a fan-out's whole cohort
-
-Available from any step after a [fan-out](#fan-out-parallel-branches)'s `.advanceAll()` gate, even non-adjacent ones. Resolves to every terminal branch's signals, aggregated server-side.
-
-```typescript
-.step(reportStep, {
-  input: ({ signalsList }) => ({
-    reviews: signalsList(reviewStep),
-  }),
-  advance: () => ({ default: "continue" }),
-})
-```
-
-`fanOutStep` is constrained to a step already passed as the first argument to an earlier `.fanOutStep(...)` call in this pipeline.
-
-## Additional pipeline input
-
-When a step needs data beyond the built-in work item fields, define it with `additionalPipelineInput`. Both `schema` and `bindings` are required when the object is provided.
-
-```typescript
-import { z } from "zod";
-
-export default pipeline({
+export default definePipeline({
   key: "ticket-analyzer",
   name: "Ticket Analyzer",
-  additionalPipelineInput: {
-    schema: z.object({
-      storyPoints: z.number().nullable(),
-      team: z.string(),
-    }),
-    bindings: ({ workItem, literal }) => ({
-      storyPoints: workItem.field("Story Points"),
-      team: literal("platform"),
-    }),
+  input: z.object({ storyPoints: z.number().nullable() }),
+  startAt: "analyze",
+  states: {
+    analyze: {
+      kind: "step",
+      step: analyzeStep,
+      input: (ctx) => ({ storyPoints: ctx.pipelineInput("storyPoints") }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
   },
-})
-  .step(analyzeStep, {
-    input: ({ input }) => ({
-      title: input.workItemTitle,
-      storyPoints: input.storyPoints,
-      team: input.team,
-    }),
-    advance: () => ({ default: "continue" }),
-  })
-  .build();
+});
 ```
 
-The `bindings` callback receives `{ workItem, literal }`:
+### `ctx.signal(nodeKey, signalKey)` — an earlier state's signal
 
-- **`workItem.title`** / **`workItem.description`** — the work item's title or description
-- **`workItem.field(name)`** — a named custom field on the work item (e.g. `workItem.field("Story Points")`)
-- **`literal(value)`** — a hardcoded constant
+Addressed by that **state's own key**, not the step's key — two states can run the same step.
 
-Pipeline-level bindings are defaults applied to every step automatically. Explicit bindings in a `.step()`'s `input` option override them for that step.
+```typescript
+input: (ctx) => ({
+  previousScore: ctx.signal("review", "clarity_score"),
+})
+```
 
-`additionalStepInput` on `pipeline(...)` compiles into default bindings applied to every step in the pipeline. Explicit `.step()` `input` bindings override these defaults.
+### `ctx.output(nodeKey)` — an earlier state's whole output
+
+```typescript
+input: (ctx) => ({ reviewResult: ctx.output("review") })
+```
+
+### `ctx.literal(value)` — a hardcoded constant
+
+```typescript
+input: (ctx) => ({ model: ctx.literal("gpt-4o") })
+```
+
+### `ctx.signalsList(nodeKey)` — a fan-out's whole cohort
+
+Available from any state after a [fan-out](#fan-out-parallel-branches)'s cohort resolves, even non-adjacent ones. Resolves to every terminal branch's signals, aggregated server-side.
+
+```typescript
+input: (ctx) => ({ reviews: ctx.signalsList("fanOutReviewers") })
+```
+
+### `ctx.item` — the current fan-out branch's own item
+
+`fanOut` branches only — see [Fan-out](#fan-out-parallel-branches).
+
+:::caution
+No condition's signal argument is type-checked. `blockWhen`, a `choice` branch's `when`, and a `loop`'s `until` all take a bare string signal key with no connection back to any particular step's declared signals — a typo compiles cleanly and fails only at execution time. This is looser than `ctx.signal(nodeKey, "key")` bindings, which the compiler does check against the reachable state keys.
+:::
 
 ## Plugins in pipeline steps
 
-Opencode plugins are configured on the `defineStep()` itself, not on the pipeline's `.step()` input option. When that step runs inside a pipeline, Boboddy merges the step's `plugins` array into the generated Opencode config for that execution.
+Opencode plugins are configured on the `defineStep()` itself, not on a state's `input` option. When that step runs inside a pipeline, Boboddy merges the step's `plugins` array into the generated Opencode config for that execution.
 
 Use plain package names for default plugin loading:
 
@@ -222,74 +240,163 @@ Plugin entries are deduplicated by package name when Boboddy combines your basel
 
 ## Timeouts
 
-Set `timeout` in a step's options to cap how long a worker can spend on that step, in seconds:
+Set `timeout` on a `step`/`fanOut`/`loop` state to cap how long a worker can spend on it, in seconds:
 
 ```typescript
-.step(heavyAnalysisStep, {
-  input: ({ input }) => ({ payload: input.payload }),
-  advance: () => ({ default: "continue" }),
+heavyAnalysis: {
+  kind: "step",
+  step: heavyAnalysisStep,
+  input: (ctx) => ({ payload: ctx.pipelineInput("payload") }),
   timeout: 120,
-})
+  next: "done",
+}
 ```
 
 ## Fan-out: parallel branches
 
-`.fanOutStep(step, config)` runs one step as a variable number of parallel branches — think "review each of the N reviewers" or "process each of the N files" — instead of the single fixed execution `.step(...)` gives you. It replaces `.step(...)` at that point in the chain (do not call both for the same step) and always compiles to a `fanOut` node paired with a `cohortGate` node immediately after it.
+A `fanOut` state runs one step once for every item in an array signal — think "review each of the N reviewers" or "process each of the N files" — instead of the single fixed execution a `step` state gives you. It always compiles to a `fanOut` node paired with a `cohortGate` node immediately after it.
 
 ```typescript
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
 
-export default pipeline({ key: "code-review", name: "Code Review" })
-  .step(triageStep, { advance: () => ({ default: "continue" }) })
-  .fanOutStep(reviewStep, {
-    over: "reviewer_count",
-    advance: ({ signal }) => ({
-      default: "continue",
-      rules: [signal("passed").eq(false).then("block")],
-    }),
-    advanceAll: ({ branchOutcomes }) => ({
-      default: "block",
-      rules: [branchOutcomes.every("continue").then("continue")],
-    }),
-  })
-  .step(reportStep, {
-    input: ({ signalsList }) => ({ reviews: signalsList(reviewStep) }),
-    advance: () => ({ default: "continue" }),
-  })
-  .build();
+export default definePipeline({
+  key: "code-review",
+  name: "Code Review",
+  startAt: "triage",
+  states: {
+    triage: { kind: "step", step: triageStep, next: "fanOutReviewers" },
+    fanOutReviewers: {
+      kind: "fanOut",
+      step: reviewStep,
+      over: "reviewer_count",
+      maxConcurrency: 4,
+      advanceEach: () => ({ default: "continue" }),
+      advanceAll: (ctx) => ({
+        default: "block",
+        rules: [ctx.branchOutcomes.every("continue").then("continue")],
+      }),
+      next: "report",
+    },
+    report: {
+      kind: "step",
+      step: reportStep,
+      input: (ctx) => ({ reviews: ctx.signalsList("fanOutReviewers") }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});
 ```
 
-`over`'s resolved signal shape decides the branch mode. A number-typed signal (like `reviewer_count` above) resolves a fixed branch count, with no `item` on the `input` mapper's ctx. An array-typed signal resolves branch count from the array's length and adds a typed `item` — the array's element type — to every branch's `input` mapper:
+`over`'s resolved signal shape decides the branch mode. A number-typed signal (like `reviewer_count` above) resolves a fixed branch count, with no `ctx.item` in the `input` mapper. An array-typed signal resolves branch count from the array's length and makes `ctx.item` — the array's element type — available to every branch's `input` mapper:
 
 ```typescript
-.fanOutStep(assigneeReviewStep, {
-  over: "assigneeIds", // a string[] signal on the preceding step
-  input: ({ item, input }) => ({
-    assigneeId: item,
-    ticketTitle: input.workItemTitle,
+fanOutAssignees: {
+  kind: "fanOut",
+  step: assigneeReviewStep,
+  over: "analyze.assigneeIds", // an array-typed signal — the "stateKey.signalKey" form is documentation only
+  input: (ctx) => ({
+    assigneeId: ctx.item,
+    ticketTitle: ctx.workItem.title,
   }),
-  advance: () => ({ default: "continue" }),
+  advanceEach: () => ({ default: "continue" }),
   advanceAll: () => ({ default: "continue" }),
-})
+  next: "done",
+}
 ```
 
-`.fanOutStep(step, config)` requires `over`, `advance`, and `advanceAll` in its single `config` object (`input` and `timeout` are optional). Only after `advanceAll` resolves can the pipeline continue with another `.step(...)` — that step is wired as the `cohortGate`'s successor.
+### `FanOutState`
 
-### `FanOutStepConfig`
+| Field           | Type                       | Required | Description                                                                                             |
+| --------------- | -------------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `step`          | step definition             | Yes      | The step to run once per item                                                                          |
+| `over`          | `string`                   | Yes      | Signal whose value determines branch count (and, if array-typed, each branch's `ctx.item`) at runtime  |
+| `maxConcurrency`| `number \| null`           | No       | Caps how many branches release to the claim pool up front                                              |
+| `input`         | `(ctx) => bindings`        | No       | Input bindings; same context as a `step` state's mapper, plus `ctx.item`                                |
+| `timeout`       | `number \| null`           | No       | Per-branch timeout in seconds                                                                            |
+| `advanceEach`   | `(ctx) => result`          | Yes      | Every branch's own continue/block decision, evaluated against that branch's own signals                |
+| `advanceAll`    | `(ctx) => result`          | Yes      | The whole cohort's continue/block decision, once every branch has settled                               |
+| `next`          | `string`                   | Yes      | The state that runs once the whole cohort resolves                                                      |
 
-| Field        | Type                 | Required | Description                                                                                             |
-| ------------ | -------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
-| `over`       | string               | Yes      | Signal on the most recently declared step whose value determines branch count (and, if array-typed, each branch's `item`) at runtime |
-| `advance`    | `(ctx) => result`    | Yes      | Every branch's own continue/block decision, evaluated against that branch's own signals                |
-| `advanceAll` | `(ctx) => result`    | Yes      | The whole cohort's continue/block decision, once every branch has settled                               |
-| `input`      | `(ctx) => bindings`  | No       | Input bindings for the fan-out step, same accessors as `.step(...)`'s mapper, plus `item` when `over` resolves to an array-typed signal |
-| `timeout`    | `number \| null`     | No       | Per-branch timeout in seconds                                                                            |
+See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/#fan-out-cohort-advancement-advanceeach--advanceall) for the full `advanceEach`/`advanceAll` callback contexts.
 
-`over` is typed against the signal keys declared on the most recently declared step — not necessarily the fan-out's graph predecessor if a second `.fanOutStep()` immediately follows an `advanceAll` gate with no intervening `.step()`.
+## Parallel branches
 
-See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/#fan-out-cohort-advancement-advance--advanceall) for the full `advance`/`advanceAll` callback contexts.
+A `parallel` state runs several **named, single-step** branches concurrently — unlike `fanOut`, the branch count is fixed at author time and each branch can run a different step.
+
+```typescript
+gather: {
+  kind: "parallel",
+  branches: {
+    reviewA: { step: reviewStep, input: (ctx) => ({ code: ctx.workItem.description }) },
+    reviewB: { step: reviewStep, input: (ctx) => ({ code: ctx.workItem.description }) },
+  },
+  advanceAll: (ctx) => ({
+    default: "block",
+    rules: [ctx.branchOutcomes.every("continue").then("continue")],
+  }),
+  next: "done",
+}
+```
+
+| Field        | Type                                          | Required | Description                                                        |
+| ------------ | ---------------------------------------------- | -------- | -------------------------------------------------------------------- |
+| `branches`   | `Record<string, { step, input?, timeout? }>`   | Yes      | Named branches; requires at least one                              |
+| `advanceAll` | `(ctx) => result`                              | No       | Defaults to "continue iff every branch continued" when omitted     |
+| `next`       | `string`                                       | Yes      | The state that runs once every branch is terminal                  |
+
+## Loop
+
+A `loop` state repeats one step until an `until` condition matches or `maxIterations` is hit.
+
+```typescript
+refineUntilPasses: {
+  kind: "loop",
+  step: refineStep,
+  maxIterations: 5,
+  until: Rule.when("passesLint", "equal", true),
+  next: "publish",
+  onExhausted: "escalateToHuman",
+}
+```
+
+| Field           | Type                | Required | Description                                                    |
+| --------------- | ------------------- | -------- | ------------------------------------------------------------------ |
+| `step`          | step definition      | Yes      | The step to repeat                                              |
+| `maxIterations` | `number`            | Yes      | Iteration cap                                                    |
+| `input`         | `(ctx) => bindings` | No       | Input bindings, evaluated fresh on every iteration               |
+| `timeout`       | `number \| null`    | No       | Per-iteration timeout in seconds                                 |
+| `until`         | `RuleCondition`     | Yes      | Tested after each iteration; matching exits the loop successfully |
+| `next`          | `string`            | Yes      | The state that runs when `until` matches                         |
+| `onExhausted`   | `string`            | Yes      | The state that runs when `maxIterations` is hit first             |
+
+## Branching: `choice`
+
+A `choice` state holds a whole routing table in one place — every branch's condition and target, plus a fallback. See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/#branching-choice) for the full syntax.
+
+```typescript
+routeBySeverity: {
+  kind: "choice",
+  choices: [
+    { when: Rule.when("severity", "equal", "critical"), next: "pageOncall" },
+  ],
+  default: "fanOutFiles",
+}
+```
+
+Every `choices[].next` and `default` must name another state **in the same pipeline** — a `choice` cannot route to a different pipeline, and it cannot block, directly.
+
+## Routing to another pipeline
+
+Point a `step`/`fanOut`/`parallel`/loop-exit's `next` at a `{ routeToPipeline }` target instead of a state key to hand execution off to a different pipeline entirely:
+
+```typescript
+next: { routeToPipeline: "triage-pipeline" }
+```
+
+`routeToPipeline` must name a pipeline that already exists on the server or is in the same push batch — push validates it and throws otherwise.
 
 ## See also
 
-- [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) — advancement policies and computed signals.
+- [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) — `blockWhen`, `choice`, the `Rule`/`Computed` DSL, and fan-out cohort advancement.
 - [Default Pipeline Assignment](/boboddy/guides/pipeline-assignment/) — routing incoming work items to a pipeline automatically.

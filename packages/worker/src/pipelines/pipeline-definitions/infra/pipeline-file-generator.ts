@@ -7,6 +7,63 @@ import {
   schemaToZodExpr,
 } from "../../../steps/step-definitions/infra/step-file-generator";
 
+/**
+ * Regenerates local `.ts` pipeline source (`definePipeline({states})` — see
+ * docs/research/flat-pipeline-sdk-and-visual-designer.md §4) from
+ * `PipelineContract`, the shape `boboddy pipelines pull` receives off
+ * `GET /projects/:projectId/pipeline-definitions`.
+ *
+ * ## The node-kind gap
+ *
+ * That read endpoint's response schema (`pipelineDefinitionSchema` in
+ * `packages/core/src/pipeline-definitions/pipeline-definition/contracts/pipeline-definition-contracts.ts`)
+ * only ever emits `stepDefinitions[]` — a flat, `position`-ordered array with
+ * no `kind` field at all. `pipelineGraphEntityToContract` (in `packages/core`)
+ * maps EVERY node in the underlying graph — `step`, `choice`, `fanOut`,
+ * `cohortGate`, `parallel`, `loop`, `succeed`, `fail` alike — through
+ * `nodeDefinitionEntityToStepContract`, which forces each one into this same
+ * flat "step" row (synthesizing a fake `stepDefinitionId` for kinds that have
+ * no step of their own, and losing each kind's own config — a `choice`'s
+ * routing table, a `loop`'s `maxIterations`/`until`, a `parallel`'s branches —
+ * entirely; none of it is on the wire).
+ *
+ * Consequently, **this generator can only ever reconstruct a `step`-only,
+ * sequential chain.** It has no way to detect that a given row was actually a
+ * `choice`/`fanOut`/`parallel`/`loop`/`succeed`/`fail` node, because the
+ * contract never tells it — every row is treated as a plain `step` because
+ * that is the only thing this contract can represent. A pipeline authored
+ * with any other node kind will pull back as an (incorrect) all-`step` chain.
+ * Closing this gap needs its own ticket: extending
+ * `pipelineDefinitionSchema`/`pipelineGraphEntityToContract` to expose
+ * `kind`/`configJson`/branch structure per node, mirroring the richer
+ * `nodeDefinitions[]`/`dependencyEdges[]` shape the *write* side
+ * (`pipeline-definitions-client.ts`'s `upsertFromSpec`) already accepts.
+ *
+ * ## What IS reconstructed faithfully
+ *
+ * Every node the new SDK's `compileStepState` can produce for a plain `step`
+ * state compiles to exactly one of two advancement shapes on the wire (see
+ * `compile-node-definitions.ts`):
+ *
+ * - `defaultEventType: "continue"` or `"route"`, zero rules — an
+ *   unconditional `next` (or `next: { routeToPipeline }`).
+ * - the same, plus exactly one rule whose `event.type` is `"block"` — a
+ *   `blockWhen` condition.
+ *
+ * `reconstructAdvancement` below recognizes exactly these two shapes and
+ * reconstructs them as `next`/`blockWhen`. Anything else on the wire — more
+ * than one rule, a non-block rule outcome, or `defaultEventType: "block"`
+ * with no rules — cannot have come from a `step` state authored with the
+ * current SDK. It is either a pre-SDK-rewrite pipeline never re-pushed under
+ * the new authoring surface, or (per the gap above) a `choice`/other node
+ * kind misrepresented as a flat step. Rather than silently emit code that
+ * looks plausible but drops the real routing logic, that case is reported as
+ * `{ kind: "unsupported" }` and rendered as a loud `PULL WARNING` comment
+ * directly on the affected state, with a best-effort `next` guess (continue
+ * to whatever step is next in `position` order) so the file still compiles
+ * and a human can fix it by hand.
+ */
+
 // The top-level field list is imported from the SDK rather than duplicated
 // here, so this generator and the regular pipeline/step `WorkItemAccessor`
 // (`builder-helpers.ts`) can never drift out of sync — see the identical
@@ -71,27 +128,18 @@ export type PipelineContract = {
   stepDefinitions: PipelineStepContract[];
 };
 
-type StepKeyMap = Map<string, string>; // stepDefinitionId → varName
 type ComputedByKey = Map<string, SerializedComputedSignalDefinition>;
 
-// ─── Advancement policy reconstruction ───────────────────────────────────────
+// ─── Condition reconstruction ─────────────────────────────────────────────
 
-const OPERATOR_TO_METHOD: Record<string, string> = {
-  equal: "eq",
-  notEqual: "ne",
-  greaterThan: "gt",
-  greaterThanInclusive: "gte",
-  lessThan: "lt",
-  lessThanInclusive: "lte",
-  in: "in",
-  notIn: "notIn",
-  contains: "contains",
-  doesNotContain: "doesNotContain",
-};
-
-const COMPUTED_TO_CTX_METHOD: Record<string, string> = {
-  average: "avg",
-  weighted_average: "weightedAvg",
+/**
+ * Maps a computed signal's wire `type` to its `Computed.<factory>` name.
+ * Mirrors `COMPUTED_TO_CTX_METHOD`'s old mapping, just targeting the
+ * `Computed` namespace instead of a `.advance()` ctx method.
+ */
+const COMPUTED_TYPE_TO_FACTORY: Record<string, string> = {
+  average: "average",
+  weighted_average: "weightedAverage",
   sum: "sum",
   min: "min",
   max: "max",
@@ -104,273 +152,191 @@ function isLeafCondition(c: SerializedCondition): c is SerializedLeafCondition {
   return "fact" in c;
 }
 
-function reconstructOutcomeExpr(type: string, params: Record<string, unknown> | null | undefined): string {
-  if (type !== "route") return JSON.stringify(type);
-  const pipelineKey = params?.["pipelineKey"] as string | undefined;
-  const inputJson = params?.["inputJson"] as Record<string, unknown> | undefined;
-  if (!pipelineKey) return `"route"`;
-  if (inputJson) return `route(${JSON.stringify(pipelineKey)}, ${JSON.stringify(inputJson)})`;
-  return `route(${JSON.stringify(pipelineKey)})`;
-}
-
-function signalPropAccess(key: string): string {
-  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? `stepSignals.${key}` : `stepSignals[${JSON.stringify(key)}]`;
-}
-
+/** A condition's `signal` argument: a plain signal key, or `Computed.X([...])`. */
 function reconstructFactRef(fact: string, computedByKey: ComputedByKey): string {
   const computed = computedByKey.get(fact);
-  if (!computed) return signalPropAccess(fact);
-  const ctxMethod = COMPUTED_TO_CTX_METHOD[computed.type] ?? computed.type;
-  const args = computed.inputSignalKeys.map((k) => signalPropAccess(k)).join(", ");
-  return `${ctxMethod}(${args})`;
+  if (!computed) return JSON.stringify(fact);
+  const factory = COMPUTED_TYPE_TO_FACTORY[computed.type] ?? computed.type;
+  const keys = computed.inputSignalKeys.map((k) => JSON.stringify(k)).join(", ");
+  return `Computed.${factory}([${keys}])`;
 }
 
-// Returns a nestable expression (RuleLeaf or RuleGroup, no .then())
-function reconstructNestable(cond: SerializedCondition, computedByKey: ComputedByKey): string {
+/**
+ * Reconstructs a condition (leaf or `all`/`any` group) as a nestable
+ * `Rule.signal(...)`/`Rule.all([...])`/`Rule.any([...])` expression — no
+ * outcome, since these only ever feed `blockWhen`/a `choice`'s `when`/a
+ * `loop`'s `until` in the new SDK.
+ */
+function reconstructConditionTree(cond: SerializedCondition, computedByKey: ComputedByKey): string {
   if (isLeafCondition(cond)) {
-    const factRef = reconstructFactRef(cond.fact, computedByKey);
-    const method = OPERATOR_TO_METHOD[cond.operator] ?? cond.operator;
-    return `${factRef}.${method}(${JSON.stringify(cond.value)})`;
+    return `Rule.signal(${reconstructFactRef(cond.fact, computedByKey)}, ${JSON.stringify(cond.operator)}, ${JSON.stringify(cond.value)})`;
   }
   const mode = cond.all ? "all" : "any";
-  const children = (cond[mode] ?? []).map((c) => reconstructNestable(c, computedByKey)).join(", ");
-  return `${mode}(${children})`;
+  const children = (cond[mode] ?? []).map((c) => reconstructConditionTree(c, computedByKey)).join(", ");
+  return `Rule.${mode}([${children}])`;
 }
 
-// A rule's top-level conditions are emitted bare (no all(...)/any(...) wrapper)
-// only in the single-leaf-`all` special case; every other shape (including a
-// single-leaf `any`, or multiple conditions) is wrapped in a call to the
-// combinator named by `mode`, which must therefore be destructured from the
-// `.advance()` callback params wherever it's used.
-function ruleTopLevelMode(rule: AdvancementPolicyRule): {
-  mode: "all" | "any";
-  conditions: SerializedCondition[];
-  omitsWrapper: boolean;
-} {
+/**
+ * Reconstructs a single-rule advancement policy's condition group as a
+ * `blockWhen`-ready expression. The common single-leaf-`all` shape (what
+ * `Rule.when(...)` itself produces) collapses back to a bare `Rule.when(...)`
+ * call rather than a redundant `Rule.all([Rule.signal(...)])`.
+ */
+function reconstructBlockWhenExpr(rule: AdvancementPolicyRule, computedByKey: ComputedByKey): string {
   const mode = rule.conditions.all ? "all" : "any";
   const conditions = rule.conditions[mode] ?? [];
-  const firstCondition = conditions[0];
-  const omitsWrapper =
-    mode === "all" && conditions.length === 1 && firstCondition !== undefined && isLeafCondition(firstCondition);
-  return { mode, conditions, omitsWrapper };
-}
-
-// Returns a complete rule expression ending in .then(outcome)
-function reconstructRuleExpr(rule: AdvancementPolicyRule, computedByKey: ComputedByKey): string {
-  const outcome = reconstructOutcomeExpr(rule.event.type, rule.event.params);
-  const { mode, conditions, omitsWrapper } = ruleTopLevelMode(rule);
-
-  const firstCondition = conditions[0];
-  if (omitsWrapper && firstCondition !== undefined) {
-    return `${reconstructNestable(firstCondition, computedByKey)}.then(${outcome})`;
+  const first = conditions[0];
+  if (mode === "all" && conditions.length === 1 && first !== undefined && isLeafCondition(first)) {
+    return `Rule.when(${reconstructFactRef(first.fact, computedByKey)}, ${JSON.stringify(first.operator)}, ${JSON.stringify(first.value)})`;
   }
-
-  const nestableExprs = conditions.map((c) => reconstructNestable(c, computedByKey)).join(", ");
-  return `${mode}(${nestableExprs}).then(${outcome})`;
-}
-
-function collectCtxParts(policy: AdvancementPolicy, computedByKey: ComputedByKey): string[] {
-  const parts = new Set<string>();
-
-  if (policy.defaultEventType === "route") parts.add("route");
-
-  const visitConditions = (conditions: SerializedCondition[]) => {
-    for (const cond of conditions) {
-      if (isLeafCondition(cond)) {
-        const computed = computedByKey.get(cond.fact);
-        if (computed) {
-          const method = COMPUTED_TO_CTX_METHOD[computed.type];
-          if (method) parts.add(method);
-        }
-        parts.add("stepSignals");
-      } else {
-        const mode = cond.all ? "all" : "any";
-        parts.add(mode);
-        visitConditions(cond[mode] ?? []);
-      }
-    }
-  };
-
-  for (const rule of policy.rulesJson.rules) {
-    if (rule.event.type === "route") parts.add("route");
-    const { mode, conditions, omitsWrapper } = ruleTopLevelMode(rule);
-    // The top-level combinator is only omitted from the emitted expression in
-    // the single-leaf-`all` special case (see reconstructRuleExpr/ruleTopLevelMode);
-    // every other shape calls `all(...)`/`any(...)` and so needs it destructured.
-    if (!omitsWrapper) parts.add(mode);
-    visitConditions(conditions);
-  }
-
-  return [...parts].sort();
-}
-
-function reconstructAdvancementCallback(policy: AdvancementPolicy, computedByKey: ComputedByKey): string {
-  const rules = policy.rulesJson.rules;
-  const isDefaultContinueNoRules =
-    policy.defaultEventType === "continue" &&
-    (!policy.defaultEventParamsJson || Object.keys(policy.defaultEventParamsJson).length === 0) &&
-    rules.length === 0;
-
-  if (isDefaultContinueNoRules) return `() => ({ default: "continue" })`;
-
-  const ctxParts = collectCtxParts(policy, computedByKey);
-  const ctxParam = ctxParts.length > 0 ? `{ ${ctxParts.join(", ")} }` : `_ctx`;
-
-  const defaultStr = reconstructOutcomeExpr(policy.defaultEventType, policy.defaultEventParamsJson);
-  const lines: string[] = [`    default: ${defaultStr}`];
-  if (rules.length > 0) {
-    const ruleExprs = rules.map((r) => reconstructRuleExpr(r, computedByKey)).map((r) => `      ${r}`).join(",\n");
-    lines.push(`    rules: [\n${ruleExprs},\n    ]`);
-  }
-  return `(${ctxParam}) => ({\n${lines.join(",\n")},\n  })`;
+  const children = conditions.map((c) => reconstructConditionTree(c, computedByKey)).join(", ");
+  return `Rule.${mode}([${children}])`;
 }
 
 // ─── Input binding reconstruction ────────────────────────────────────────────
 
-function isAutoBinding(
-  key: string,
-  binding: InputBinding,
-  pipelineLevelKeys: ReadonlySet<string>,
-): boolean {
-  if (binding.source !== "work_item") return false;
-  if (key === "workItemTitle" && binding.field === "title") return true;
-  if (key === "workItemDescription" && binding.field === "description") return true;
-  // Bound at the pipeline level via additionalPipelineInput; the runtime merges
-  // this binding onto every step, so it's already covered by the pipeline-level
-  // declaration and must not be re-emitted (or re-broken) per step.
-  return pipelineLevelKeys.has(key);
-}
-
-function reconstructBindingExpr(
-  binding: InputBinding,
-  stepVarMap: StepKeyMap,
-): string {
-  switch (binding.source) {
-    case "pipeline_input":
-      return `input${binding.path ? `.${binding.path}` : ""}`;
-    case "work_item":
-      if (binding.field === "title") return "input.workItemTitle";
-      if (binding.field === "description") return "input.workItemDescription";
-      return `/* TODO: configure via additionalPipelineInput — ${reconstructWorkItemAccessorExpr(binding.field)} */ (undefined as never)`;
-    case "step_signal":
-      return `signal(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)}, ${JSON.stringify(binding.signalKey)})`;
-    case "step_output":
-      return `output(${stepVarMap.get(binding.stepKey) ?? JSON.stringify(binding.stepKey)})`;
-    case "literal":
-      return `/* TODO: literal binding (value: ${JSON.stringify(binding.value)}) — not supported in SDK */ (undefined as never)`;
-  }
-}
-
-// ─── Pipeline-level input reconstruction (additionalPipelineInput) ───────────
-
-function collectSchemaPropertyKeys(schemaJson: Record<string, unknown> | null): string[] {
-  if (!schemaJson) return [];
-  const properties = schemaJson["properties"];
-  if (!properties || typeof properties !== "object") return [];
-  return Object.keys(properties);
-}
-
-function findWorkItemBindingForKey(
-  key: string,
-  steps: readonly PipelineStepContract[],
-): (InputBinding & { source: "work_item" }) | undefined {
-  for (const step of steps) {
-    const binding = step.inputBindingsJson?.[key];
-    if (binding && binding.source === "work_item") return binding;
-  }
-  return undefined;
+function isAutoBinding(key: string, binding: InputBinding): boolean {
+  return (
+    binding.source === "work_item" &&
+    ((key === "workItemTitle" && binding.field === "title") ||
+      (key === "workItemDescription" && binding.field === "description"))
+  );
 }
 
 /**
  * Reconstructs a `WorkItemAccessor` expression (`builder-helpers.ts`) for a
- * `work_item` binding's `field` value: `workItem.<field>` for any of
- * `WORK_ITEM_TOP_LEVEL_FIELDS`, `workItem.field("<name>")` for a
+ * `work_item` binding's `field` value: `ctx.workItem.<field>` for any of
+ * `WORK_ITEM_TOP_LEVEL_FIELDS`, `ctx.workItem.field("<name>")` for a
  * `fields.<name>` reference into the platform-specific `fields` bag.
  *
- * Checking top-level-field membership first (rather than assuming anything
- * without the `fields.` prefix falls through to `.field(...)`) matters now
- * that `WORK_ITEM_TOP_LEVEL_FIELDS` covers more than `title`/`description` —
- * a field like `"platform"` must reconstruct as `workItem.platform`, not
- * `workItem.field("platform")`.
+ * Checking top-level-field membership first (rather than special-casing
+ * only `title`/`description`) matters now that `WORK_ITEM_TOP_LEVEL_FIELDS`
+ * covers more than those two — a field like `"platform"` must reconstruct
+ * as `ctx.workItem.platform`, not `ctx.workItem.field("platform")`.
  */
-function reconstructWorkItemAccessorExpr(field: string): string {
-  if (WORK_ITEM_TOP_LEVEL_FIELD_SET.has(field)) return `workItem.${field}`;
+function reconstructWorkItemExpr(field: string): string {
+  if (WORK_ITEM_TOP_LEVEL_FIELD_SET.has(field)) return `ctx.workItem.${field}`;
   const fieldName = field.startsWith(WORK_ITEM_FIELDS_PATH_PREFIX)
     ? field.slice(WORK_ITEM_FIELDS_PATH_PREFIX.length)
     : field;
-  return `workItem.field(${JSON.stringify(fieldName)})`;
+  return `ctx.workItem.field(${JSON.stringify(fieldName)})`;
 }
 
-type PipelineLevelInput = { keys: ReadonlySet<string>; block: string; needsZodImport: boolean };
-
-// additionalPipelineInput is serialized by the SDK builder by merging its
-// bindings onto every step's inputBindingsJson (there's no separate
-// "pipeline-level" storage). To round-trip it, find schema fields whose
-// work_item binding is present, and reconstruct the pipeline-level block
-// instead of leaving a broken per-step TODO placeholder on every step.
-function reconstructPipelineLevelInput(pipeline: PipelineContract, sortedSteps: readonly PipelineStepContract[]): PipelineLevelInput | null {
-  const schemaKeys = collectSchemaPropertyKeys(pipeline.inputSchemaJson);
-  if (schemaKeys.length === 0) return null;
-
-  const resolvedKeys: string[] = [];
-  const bindingLines: string[] = [];
-  for (const key of schemaKeys) {
-    const binding = findWorkItemBindingForKey(key, sortedSteps);
-    if (!binding) continue;
-    resolvedKeys.push(key);
-    bindingLines.push(`      ${JSON.stringify(key)}: ${reconstructWorkItemAccessorExpr(binding.field)}`);
+function reconstructBindingExpr(binding: InputBinding): string {
+  switch (binding.source) {
+    case "pipeline_input":
+      return `ctx.pipelineInput(${JSON.stringify(binding.path ?? "")})`;
+    case "work_item":
+      return reconstructWorkItemExpr(binding.field);
+    case "step_signal":
+      // `stepKey` here is the wire name for what the new SDK calls a node's
+      // own state key (see `bindings.ts`'s `serializeBinding` — a
+      // `step_signal` binding's `stepKey` is `ctx.signal`'s `nodeKey`
+      // argument, not the underlying step definition's own key).
+      return `ctx.signal(${JSON.stringify(binding.stepKey)}, ${JSON.stringify(binding.signalKey)})`;
+    case "step_output":
+      return `ctx.output(${JSON.stringify(binding.stepKey)})`;
+    case "literal":
+      return `ctx.literal(${JSON.stringify(binding.value)})`;
   }
-  if (resolvedKeys.length === 0) return null;
-
-  const schemaExpr = schemaToZodExpr(pipeline.inputSchemaJson);
-  const block = [
-    "additionalPipelineInput: {",
-    `    schema: ${schemaExpr},`,
-    "    bindings: ({ workItem }) => ({",
-    bindingLines.join(",\n") + ",",
-    "    }),",
-    "  }",
-  ].join("\n");
-
-  return { keys: new Set(resolvedKeys), block, needsZodImport: true };
 }
 
-// ─── Step mapper reconstruction ───────────────────────────────────────────────
+/** A JS object-literal key: bare when it's a valid identifier, quoted otherwise. */
+function objectKeyLiteral(key: string): string {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
+}
 
-function reconstructStepMapper(
-  step: PipelineStepContract,
-  stepVarMap: StepKeyMap,
-  pipelineLevelKeys: ReadonlySet<string>,
-): string {
+function reconstructInputMapper(step: PipelineStepContract): string {
   const allBindings = Object.entries(step.inputBindingsJson ?? {});
   // Auto-injected by the runtime; no need to emit explicit bindings for them.
-  const bindings = allBindings.filter(([key, binding]) => !isAutoBinding(key, binding, pipelineLevelKeys));
+  const bindings = allBindings.filter(([key, binding]) => !isAutoBinding(key, binding));
 
-  const usesInput = bindings.some(([, b]) => b.source === "pipeline_input");
-  const usesWorkItem = bindings.some(([, b]) => b.source === "work_item");
-  const usesSignal = bindings.some(([, b]) => b.source === "step_signal");
-  const usesOutput = bindings.some(([, b]) => b.source === "step_output");
+  if (bindings.length === 0) return `() => ({})`;
 
-  const ctxParts: string[] = [];
-  if (usesInput || usesWorkItem) ctxParts.push("input");
-  if (usesSignal) ctxParts.push("signal");
-  if (usesOutput) ctxParts.push("output");
+  const bindingLines = bindings.map(
+    ([fieldKey, binding]) => `    ${objectKeyLiteral(fieldKey)}: ${reconstructBindingExpr(binding)}`,
+  );
+  return `(ctx) => ({\n${bindingLines.join(",\n")},\n  })`;
+}
 
-  const ctxParam = ctxParts.length > 0 ? `{ ${ctxParts.join(", ")} }` : `_ctx`;
+// ─── Per-step advancement → next/blockWhen ───────────────────────────────────
 
-  if (bindings.length === 0) {
-    return `(${ctxParam}) => ({})`;
+type RouteTarget = { pipelineKey: string; inputJson?: Record<string, unknown> };
+
+type ReconstructedAdvancement =
+  | { kind: "ok"; blockWhenExpr: string | null; routeTo: RouteTarget | null }
+  | { kind: "unsupported"; reason: string };
+
+/**
+ * Classifies one step's advancement policy into the `next`/`blockWhen` shape
+ * a flat `step` state can express, or flags it as unsupported. See this
+ * file's module doc for exactly which wire shapes are reconstructable and
+ * why.
+ */
+function reconstructAdvancement(
+  policy: AdvancementPolicy,
+  computedByKey: ComputedByKey,
+): ReconstructedAdvancement {
+  const rules = policy.rulesJson.rules;
+
+  const routeTo: RouteTarget | null =
+    policy.defaultEventType === "route" &&
+    typeof policy.defaultEventParamsJson?.["pipelineKey"] === "string"
+      ? {
+          pipelineKey: policy.defaultEventParamsJson["pipelineKey"],
+          ...(policy.defaultEventParamsJson["inputJson"]
+            ? { inputJson: policy.defaultEventParamsJson["inputJson"] as Record<string, unknown> }
+            : {}),
+        }
+      : null;
+
+  if (policy.defaultEventType !== "continue" && policy.defaultEventType !== "route") {
+    return {
+      kind: "unsupported",
+      reason:
+        `defaultEventType ${JSON.stringify(policy.defaultEventType)} has no equivalent on a plain ` +
+        `"step" state in the flat SDK — only "continue" and "route" are. This node's routing may ` +
+        `depend on a "choice"/other node kind the read API cannot distinguish from a plain step ` +
+        `(see this file's module doc).`,
+    };
   }
+  if (rules.length === 0) {
+    return { kind: "ok", blockWhenExpr: null, routeTo };
+  }
+  if (rules.length > 1) {
+    return {
+      kind: "unsupported",
+      reason:
+        `${String(rules.length)} advancement rules — a flat "step" state supports at most one ` +
+        `blockWhen condition. This node's routing likely needs a "choice" state, which the read ` +
+        `API cannot reconstruct (see this file's module doc).`,
+    };
+  }
+  const rule = rules[0];
+  if (!rule || rule.event.type !== "block") {
+    return {
+      kind: "unsupported",
+      reason:
+        `advancement rule resolves to ${JSON.stringify(rule?.event.type)}, not "block" — a flat ` +
+        `"step" state has no way to conditionally reach an outcome other than block/continue/route.`,
+    };
+  }
+  return { kind: "ok", blockWhenExpr: reconstructBlockWhenExpr(rule, computedByKey), routeTo };
+}
 
-  const bindingLines = bindings.map(([fieldKey, binding]) => {
-    const expr = reconstructBindingExpr(binding, stepVarMap);
-    return `    ${JSON.stringify(fieldKey)}: ${expr}`;
-  });
-
-  return `(${ctxParam}) => ({\n${bindingLines.join(",\n")},\n  })`;
+function routeToExpr(routeTo: RouteTarget): string {
+  const inputPart = routeTo.inputJson ? `, input: ${JSON.stringify(routeTo.inputJson)}` : "";
+  return `{ routeToPipeline: ${JSON.stringify(routeTo.pipelineKey)}${inputPart} }`;
 }
 
 // ─── File generator ───────────────────────────────────────────────────────────
+
+/** Picks a `succeed` terminal key that can't collide with an authored node key. */
+function pickTerminalKey(usedKeys: ReadonlySet<string>): string {
+  let key = "done";
+  while (usedKeys.has(key)) key = `_${key}`;
+  return key;
+}
 
 export function generatePipelineFileContent(
   pipeline: PipelineContract,
@@ -378,25 +344,101 @@ export function generatePipelineFileContent(
 ): string {
   const sortedSteps = [...pipeline.stepDefinitions].sort((a, b) => a.position - b.position);
 
-  const stepVarMap: StepKeyMap = new Map();
+  const varNameByNodeKey = new Map<string, string>();
   for (const step of sortedSteps) {
-    stepVarMap.set(step.key, keyToVarName(step.key));
+    const stepDefKey = stepIdToKey.get(step.stepDefinitionId) ?? step.key;
+    varNameByNodeKey.set(step.key, keyToVarName(stepDefKey));
   }
-  for (const step of sortedSteps) {
-    const defKey = stepIdToKey.get(step.stepDefinitionId);
-    if (defKey && defKey !== step.key) stepVarMap.set(defKey, keyToVarName(defKey));
+  const uniqueStepVarNames = [...new Set(varNameByNodeKey.values())];
+
+  const terminalKey = pickTerminalKey(new Set(sortedSteps.map((s) => s.key)));
+
+  type RenderedState = {
+    text: string;
+    usesRuleImport: boolean;
+    usesComputedImport: boolean;
+    targetsTerminal: boolean;
+  };
+
+  const rendered: RenderedState[] = sortedSteps.map((step, index) => {
+    const varName = varNameByNodeKey.get(step.key) ?? keyToVarName(step.key);
+    const computedByKey: ComputedByKey = new Map(
+      step.computedSignalDefinitions.map((d) => [d.key, d]),
+    );
+    const advancement = reconstructAdvancement(step.advancementPolicyDefinition, computedByKey);
+    const nextStepKey = sortedSteps[index + 1]?.key;
+
+    let leadingComment = "";
+    let blockWhenLine = "";
+    let nextExpr: string;
+    let usesRuleImport = false;
+    let usesComputedImport = false;
+    let targetsTerminal = false;
+
+    if (advancement.kind === "unsupported") {
+      leadingComment =
+        `    // PULL WARNING: could not fully reconstruct this state's advancement policy — ` +
+        `${advancement.reason}\n` +
+        `    // Falling back to an unconditional \`next\` — verify this by hand before pushing.\n`;
+      // Best-effort fallback so the file still compiles: continue to the next
+      // positional step, or to the synthesized terminal if this was last.
+      if (nextStepKey !== undefined) {
+        nextExpr = JSON.stringify(nextStepKey);
+      } else {
+        nextExpr = JSON.stringify(terminalKey);
+        targetsTerminal = true;
+      }
+    } else {
+      if (advancement.blockWhenExpr) {
+        blockWhenLine = `    blockWhen: ${advancement.blockWhenExpr},\n`;
+        usesRuleImport = true;
+        usesComputedImport = advancement.blockWhenExpr.includes("Computed.");
+      }
+      if (advancement.routeTo) {
+        nextExpr = routeToExpr(advancement.routeTo);
+      } else if (nextStepKey !== undefined) {
+        nextExpr = JSON.stringify(nextStepKey);
+      } else {
+        nextExpr = JSON.stringify(terminalKey);
+        targetsTerminal = true;
+      }
+    }
+
+    const timeoutLine =
+      step.timeoutSeconds !== null ? `    timeout: ${String(step.timeoutSeconds)},\n` : "";
+
+    const text =
+      `  ${objectKeyLiteral(step.key)}: {\n` +
+      leadingComment +
+      `    kind: "step",\n` +
+      `    step: ${varName},\n` +
+      `    input: ${reconstructInputMapper(step)},\n` +
+      blockWhenLine +
+      timeoutLine +
+      `    next: ${nextExpr},\n` +
+      `  }`;
+
+    return { text, usesRuleImport, usesComputedImport, targetsTerminal };
+  });
+
+  const needsRuleImport = rendered.some((r) => r.usesRuleImport);
+  const needsComputedImport = rendered.some((r) => r.usesComputedImport);
+  const terminalNeeded = sortedSteps.length === 0 || rendered.some((r) => r.targetsTerminal);
+
+  const stateEntries = rendered.map((r) => r.text);
+  if (terminalNeeded) {
+    stateEntries.push(`  ${objectKeyLiteral(terminalKey)}: { kind: "succeed" }`);
   }
 
-  const stepVarNames = sortedSteps.map((s) => keyToVarName(s.key));
-  const uniqueStepVarNames = [...new Set(stepVarNames)];
-
-  const pipelineLevelInput = reconstructPipelineLevelInput(pipeline, sortedSteps);
-  const pipelineLevelKeys = pipelineLevelInput?.keys ?? new Set<string>();
+  const usesPipelineInputSchema = pipeline.inputSchemaJson !== null;
 
   const lines: string[] = [];
+  if (usesPipelineInputSchema) lines.push(`import { z } from "zod";`);
 
-  if (pipelineLevelInput?.needsZodImport) lines.push(`import { z } from "zod";`);
-  lines.push(`import { pipeline } from "@boboddy/sdk/definitions/pipelines";`);
+  const pipelineImports = ["definePipeline"];
+  if (needsRuleImport) pipelineImports.push("Rule");
+  if (needsComputedImport) pipelineImports.push("Computed");
+  lines.push(`import { ${pipelineImports.join(", ")} } from "@boboddy/sdk/definitions/pipelines";`);
   if (uniqueStepVarNames.length > 0) {
     lines.push(`import { ${uniqueStepVarNames.join(", ")} } from "./steps";`);
   }
@@ -409,33 +451,14 @@ export function generatePipelineFileContent(
   if (pipeline.description) metaFields.push(`  description: ${JSON.stringify(pipeline.description)}`);
   metaFields.push(`  version: ${String(pipeline.version)}`);
   metaFields.push(`  status: ${JSON.stringify(pipeline.status)} as const`);
-  if (pipelineLevelInput) metaFields.push(`  ${pipelineLevelInput.block}`);
-
-  const chainParts: string[] = [`pipeline({\n${metaFields.join(",\n")},\n})`];
-
-  for (const step of sortedSteps) {
-    const varName = keyToVarName(step.key);
-    const mapper = reconstructStepMapper(step, stepVarMap, pipelineLevelKeys);
-
-    const computedByKey: ComputedByKey = new Map(
-      step.computedSignalDefinitions.map((d) => [d.key, d]),
-    );
-    const advanceCallback = reconstructAdvancementCallback(step.advancementPolicyDefinition, computedByKey);
-
-    const optionLines: string[] = [
-      `    input: ${mapper}`,
-      `    advance: ${advanceCallback}`,
-    ];
-    if (step.timeoutSeconds !== null) {
-      optionLines.push(`    timeout: ${String(step.timeoutSeconds)}`);
-    }
-
-    chainParts.push(`  .step(${varName}, {\n${optionLines.join(",\n")},\n  })`);
+  if (usesPipelineInputSchema) {
+    metaFields.push(`  input: ${schemaToZodExpr(pipeline.inputSchemaJson)}`);
   }
+  const startAt = sortedSteps[0]?.key ?? terminalKey;
+  metaFields.push(`  startAt: ${JSON.stringify(startAt)}`);
+  metaFields.push(`  states: {\n${stateEntries.join(",\n")},\n  }`);
 
-  chainParts.push(`  .build()`);
-
-  lines.push(`export default ${chainParts.join("\n")};`);
+  lines.push(`export default definePipeline({\n${metaFields.join(",\n")},\n});`);
 
   return lines.join("\n") + "\n";
 }

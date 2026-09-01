@@ -1,9 +1,16 @@
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype E — router in front of other pipelines.
-// classify (no_workspace) → one route rule per target.
+// classify (no_workspace) → block unless confident → a `choice` state picks
+// one of the target pipelines by `routeKey`.
+//
+// A `choice` branch can only target another state in THIS pipeline — it
+// cannot reach a different pipeline directly (see §4 of the authoring
+// reference). Routing to one of several pipelines therefore needs one tiny
+// `dispatch` state per target, each doing no real work of its own; its only
+// job is to carry that target's `next: { routeToPipeline: ... }`.
 //
 // ROUTE_KEYS must be the exact keys of pipelines that already exist on the
 // server or are in the same push batch; push validates them and throws
@@ -62,33 +69,67 @@ report. Name the words in the report that decided it.
   features: [Features.notifications()],
 });
 
-export default pipeline({
+// The forwarder used by every `toX` dispatch state below. It does no real
+// work — it exists only so each dispatch state has a `step` to carry its own
+// `next: { routeToPipeline }` — so it stays `no_workspace` and asks nothing
+// of the model.
+export const dispatch = defineStep({
+  key: "dispatch",
+  name: "Dispatch",
+  description: "No-op forwarder: exists only to carry a route target.",
+  status: "active",
+  executionMode: "no_workspace",
+  agentPrompt: "Acknowledge the routing decision. No action is required.",
+});
+
+export default definePipeline({
   key: "work-item-router",
   name: "Work Item Router",
   description: "Classify an incoming work item and route it to a pipeline.",
   status: "active",
-})
-  .step(classifyWorkItem, {
-    input: () => ({}),
-    // One rule per target, guarded by a shared confidence floor. `block` is
-    // the default so an unconfident classification parks instead of picking
-    // a lane.
-    advance: ({ stepSignals, all, route }) => ({
-      default: "block",
-      rules: [
-        all(
-          stepSignals.confidence.gte(0.7),
-          stepSignals.routeKey.eq("browser-repro"),
-        ).then(route("browser-repro")),
-        all(
-          stepSignals.confidence.gte(0.7),
-          stepSignals.routeKey.eq("failing-test-repro"),
-        ).then(route("failing-test-repro")),
-        all(
-          stepSignals.confidence.gte(0.7),
-          stepSignals.routeKey.eq("data-investigation"),
-        ).then(route("data-investigation")),
+  startAt: "classify",
+  states: {
+    classify: {
+      kind: "step",
+      step: classifyWorkItem,
+      input: () => ({}),
+      // Block on low confidence rather than picking a lane at random.
+      blockWhen: Rule.when("confidence", "lessThan", 0.7),
+      next: "chooseRoute",
+    },
+    chooseRoute: {
+      kind: "choice",
+      choices: [
+        {
+          when: Rule.when("routeKey", "equal", "browser-repro"),
+          next: "toBrowserRepro",
+        },
+        {
+          when: Rule.when("routeKey", "equal", "failing-test-repro"),
+          next: "toFailingTestRepro",
+        },
       ],
-    }),
-  })
-  .build();
+      // `routeKey` is a 3-value enum; the third value falls through here
+      // rather than needing its own redundant `choices[]` entry.
+      default: "toDataInvestigation",
+    },
+    toBrowserRepro: {
+      kind: "step",
+      step: dispatch,
+      input: () => ({}),
+      next: { routeToPipeline: "browser-repro" },
+    },
+    toFailingTestRepro: {
+      kind: "step",
+      step: dispatch,
+      input: () => ({}),
+      next: { routeToPipeline: "failing-test-repro" },
+    },
+    toDataInvestigation: {
+      kind: "step",
+      step: dispatch,
+      input: () => ({}),
+      next: { routeToPipeline: "data-investigation" },
+    },
+  },
+});

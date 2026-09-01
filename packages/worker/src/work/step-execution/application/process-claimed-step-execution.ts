@@ -3,6 +3,7 @@ import path from "node:path";
 import { renderPromptTemplate } from "@boboddy/sdk/definitions/steps";
 import type { HealthCheck } from "@boboddy/sdk/health-checks";
 import { createUuidV7, type UuidV7 } from "../../../common/contracts/uuid-v7";
+import { executeCodeStep } from "./execute-code-step";
 import {
   buildContainerStepArtifactsDir,
   buildPromptRenderContext,
@@ -122,17 +123,28 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
+    // `kind === "code"` steps are plain functions instead of LLM prompts (see
+    // docs/research/flat-pipeline-sdk-and-visual-designer.md §9): they never
+    // declare health checks (no prompting harness to gate), skip prompt
+    // rendering entirely, and run `executeCodeStep` instead of
+    // `deps.agentRunner.promptAsync` below. The runtime environment (launch,
+    // work-branch checkout) stays required exactly as for an AI step.
+    const isCodeStep = workerContext.stepDefinition.kind === "code";
+
     // A step declaring no health checks must be byte-identical to today: no
     // fake-AI harness starts, no synthetic provider is registered, and
     // `fakeAiProviderOverride` stays unset below.
-    const declaredHealthChecks: HealthCheck[] =
-      workerContext.stepDefinition.healthChecksJson ?? [];
-    const harness = await startHealthCheckHarnessIfDeclared({
-      healthChecks: declaredHealthChecks,
-      isNoWorkspace:
-        workerContext.stepDefinition.executionMode === "no_workspace",
-      createFakeAiServer: deps.createFakeAiServer,
-    });
+    const declaredHealthChecks: HealthCheck[] = isCodeStep
+      ? []
+      : (workerContext.stepDefinition.healthChecksJson ?? []);
+    const harness = isCodeStep
+      ? { fakeAiServer: undefined, fakeAiProviderOverride: undefined }
+      : await startHealthCheckHarnessIfDeclared({
+          healthChecks: declaredHealthChecks,
+          isNoWorkspace:
+            workerContext.stepDefinition.executionMode === "no_workspace",
+          createFakeAiServer: deps.createFakeAiServer,
+        });
     fakeAiServer = harness.fakeAiServer;
 
     logger.log("step", "Launching runtime environment", {
@@ -212,25 +224,6 @@ export async function startProcessClaimedExecution(
       }
     }
 
-    // Render the prompt now that the runtime is up: artifact paths embedded in
-    // the prompt must be anchored at the resolved workspace folder OpenCode
-    // operates against (no longer a hardcoded `/workspace`).
-    const containerStepArtifactsDir = buildContainerStepArtifactsDir(
-      environment.workspaceFolder,
-    );
-    const renderedStepInstructions = renderPromptTemplate(
-      workerContext.stepDefinition.prompt,
-      buildPromptRenderContext({
-        inputJson: workerContext.stepExecution.inputJson,
-        env: process.env,
-        artifactsDir: `${containerStepArtifactsDir}/`,
-      }),
-    );
-    const resolvedPromptText = workerContext.agentPrompt.promptText.replaceAll(
-      workerContext.agentPrompt.stepInstructionsPlaceholder,
-      renderedStepInstructions,
-    );
-
     await markTrackedSessionRunning(tracker, {
       localRuntimeSessionId,
       workspacePath: environment.workspacePath,
@@ -254,6 +247,95 @@ export async function startProcessClaimedExecution(
       "step-artifacts",
     );
     await mkdir(stepArtifactsDir, { recursive: true });
+
+    if (isCodeStep) {
+      const entrypointJson = workerContext.stepDefinition.entrypointJson;
+      if (!entrypointJson) {
+        throw new Error(
+          `Step definition ${workerContext.stepDefinition.id} is kind "code" but has no entrypointJson`,
+        );
+      }
+
+      logger.log("step", "Starting code step execution", {
+        stepExecutionId: input.claim.stepExecution.id,
+        localRuntimeSessionId,
+        sourceFile: entrypointJson.sourceFile,
+        exportName: entrypointJson.exportName,
+      });
+      reporter.event({
+        type: "step:agent-running",
+        stepExecutionId: input.claim.stepExecution.id,
+      });
+
+      await executeCodeStep(
+        {
+          environment: {
+            workspacePath: environment.workspacePath,
+            workspaceFolder: environment.workspaceFolder,
+            runtimeContainerId: environment.runtimeContainerId,
+          },
+          entrypointJson,
+          inputJson: workerContext.stepExecution.inputJson,
+        },
+        { runCommand: deps.runCodeStepCommand },
+      );
+      logger.log("step", "Code step execution completed", {
+        stepExecutionId: input.claim.stepExecution.id,
+        localRuntimeSessionId,
+      });
+
+      // Code steps never create a real OpenCode agent session (no prompt was
+      // ever sent), so there is no real `agentSessionId` to report. A
+      // synthetic, unique-per-step-execution id is used instead: it only
+      // needs to be a stable string the tracker can persist and the monitor
+      // can pass to `getSessionStatus` (which resolves a session id absent
+      // from OpenCode's status map as simply "not running", so the monitor
+      // proceeds straight to the findings file `executeCodeStep` already
+      // wrote above).
+      const syntheticAgentSessionId = `code-step:${input.claim.stepExecution.id}`;
+      await attachTrackedAgentSession(
+        tracker,
+        localRuntimeSessionId,
+        syntheticAgentSessionId,
+      );
+      logger.log("step", "Attached agent session to local runtime session", {
+        localRuntimeSessionId,
+        agentSessionId: syntheticAgentSessionId,
+      });
+      stepExecutionId = input.claim.stepExecution.id;
+      return {
+        projectId: input.projectId,
+        localRuntimeSessionId,
+        stepExecutionId,
+        claimToken: input.claim.claimToken,
+        agentSessionId: syntheticAgentSessionId,
+        environment,
+      };
+    }
+
+    // Render the prompt now that the runtime is up: artifact paths embedded in
+    // the prompt must be anchored at the resolved workspace folder OpenCode
+    // operates against (no longer a hardcoded `/workspace`).
+    const containerStepArtifactsDir = buildContainerStepArtifactsDir(
+      environment.workspaceFolder,
+    );
+    if (!workerContext.stepDefinition.prompt) {
+      throw new Error(
+        `Step definition ${workerContext.stepDefinition.id} does not have an agent prompt`,
+      );
+    }
+    const renderedStepInstructions = renderPromptTemplate(
+      workerContext.stepDefinition.prompt,
+      buildPromptRenderContext({
+        inputJson: workerContext.stepExecution.inputJson,
+        env: process.env,
+        artifactsDir: `${containerStepArtifactsDir}/`,
+      }),
+    );
+    const resolvedPromptText = workerContext.agentPrompt.promptText.replaceAll(
+      workerContext.agentPrompt.stepInstructionsPlaceholder,
+      renderedStepInstructions,
+    );
 
     // Request-size diagnostic: the OpenAI ChatGPT/OAuth path is far more likely
     // to fail mid-stream on large requests, and request size here is dominated

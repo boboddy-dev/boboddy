@@ -1,0 +1,145 @@
+---
+/*
+  Shared chrome for every catalog entry (see
+  docs/research/pipeline-graph-docs-catalog.md §6). Wraps one embedded,
+  interactive example — e.g. a `client:visible` PipelineGraphView island —
+  with consistent title/description framing and an optional, collapsed-by-
+  default "view fixture source" disclosure, so individual catalog `.mdx`
+  pages don't each hand-roll their own layout.
+
+  Nothing consumes this component yet — Phase 4
+  (`catalog/pipeline-graph.mdx`) is the first real caller. The prop/slot
+  shape is designed up front so that phase only has to wire content in, not
+  redesign the wrapper:
+    - `title` / `description` mirror the frontmatter convention used
+      elsewhere on this site (see e.g. guides/steps.md).
+    - The default slot holds the example itself (the hydrated island).
+    - The named `source` slot holds the "view fixture source" content (e.g.
+      a fenced code block of the fixture that produced the example); only
+      rendered, inside a collapsed `<details>`, when a consumer actually
+      passes it.
+*/
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+const hasSource = Astro.slots.has("source");
+---
+
+<figure class="catalog-example">
+  <figcaption class="catalog-example__heading">
+    <p class="catalog-example__title">{title}</p>
+    {description && <p class="catalog-example__description">{description}</p>}
+  </figcaption>
+  <!--
+    `not-content` opts this subtree out of Starlight's `.sl-markdown-content`
+    prose styling (see markdown.css's `:not(:where(.not-content *))` guards).
+    Without it, Starlight's own
+    `.sl-markdown-content :is(img, picture, video, canvas, svg, iframe)`
+    reset (`max-width: 100%; height: auto`) reaches React Flow's internal,
+    dimensionless per-edge `<svg>` elements — collapsing their auto width to
+    0 and silently dropping every edge line, while the (`<div>`-based) node
+    boxes render fine. Confirmed by disabling that Starlight rule live: edges
+    reappear immediately.
+  -->
+  <div class="catalog-example__body not-content">
+    <slot />
+  </div>
+  {
+    hasSource && (
+      <details class="catalog-example__source not-content">
+        <summary>View fixture source</summary>
+        <slot name="source" />
+      </details>
+    )
+  }
+</figure>
+
+<style>
+  @layer starlight.components {
+    .catalog-example {
+      margin: 1.5rem 0;
+      border: 1px solid var(--color-border);
+      border-radius: 0.75rem;
+      background-color: color-mix(in srgb, var(--color-surface) 40%, transparent);
+      overflow: hidden;
+    }
+
+    .catalog-example__heading {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .catalog-example__title {
+      margin: 0;
+      font-weight: 600;
+      font-size: var(--sl-text-h4, 1.0625rem);
+      color: var(--color-text);
+    }
+
+    .catalog-example__description {
+      margin: 0.25rem 0 0;
+      font-size: var(--sl-text-sm, 0.875rem);
+      color: var(--color-text-muted);
+    }
+
+    /* Fixed (not min-) height: React Flow (and similar canvases) size
+       themselves to 100% of their parent, so the wrapper needs to hand
+       down an explicit height rather than let content define it. */
+    .catalog-example__body {
+      height: 24rem;
+      background-color: var(--color-bg);
+    }
+
+    .catalog-example__source {
+      border-top: 1px solid var(--color-border);
+      padding: 0.75rem 1.25rem;
+    }
+
+    .catalog-example__source summary {
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      transition: color var(--primer-transition, 80ms cubic-bezier(0.33, 1, 0.68, 1));
+    }
+
+    .catalog-example__source summary:hover {
+      color: var(--color-text);
+    }
+
+    /*
+     * Syntax-highlighted fixture source (`<Code>` from `astro:components`,
+     * see catalog/pipeline-graph.mdx). Shiki emits a bare `pre.shiki` with
+     * its theme's background/foreground baked in as an *inline* style
+     * (`style="background-color:...;color:..."`), which beats any plain
+     * class-based `background-color` here — hence `!important` to pull it
+     * onto `--color-bg` like the rest of the site's (Expressive-Code-
+     * rendered) code blocks, rather than showing the raw github-dark theme
+     * background verbatim.
+     *
+     * Deliberately no title bar / copy button (grilled — see PR
+     * discussion): this block already sits inside a collapsed-by-default
+     * `<details>` with its own border chrome, so a second "window frame"
+     * would be redundant, and it exists for the reader to *inspect* the
+     * fixture shape, not to copy-paste.
+     */
+    .catalog-example__source :global(pre) {
+      margin: 0.75rem 0 0;
+      padding: 0.875rem 1rem;
+      border: 1px solid var(--color-border);
+      border-radius: 0.5rem;
+      background-color: var(--color-bg) !important;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+
+    .catalog-example__source :global(pre) :global(code) {
+      background: transparent;
+    }
+  }
+</style>

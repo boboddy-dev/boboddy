@@ -302,6 +302,27 @@ export const reviewStep = defineStep({
 });
 ```
 
+## Code steps
+
+`codeStep()` defines a step whose implementation is a plain function instead of an LLM prompt. It plugs into a pipeline state's `step` field exactly like `defineStep()`'s output — use it for deterministic work (aggregation, formatting, calling an internal API) that doesn't need an agent.
+
+```typescript
+import { codeStep } from "@boboddy/sdk/definitions/steps";
+import { z } from "zod";
+
+export const sumScores = codeStep({
+  key: "sum-scores",
+  name: "Sum Scores",
+  inputSchema: z.object({ scores: z.array(z.number()) }),
+  resultSchema: z.object({ total: z.number() }),
+  fn: ({ scores }) => ({ total: scores.reduce((a, b) => a + b, 0) }),
+  signals: [{ sourcePath: "total", key: "total", type: "number" }],
+  status: "active",
+});
+```
+
+`fn` must be a plain named export of the same module `codeStep()` is called from — Boboddy resolves it to a portable `{sourceFile, exportName}` reference at push time. Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal rather than inferred from `resultSchema`. See [`codeStep(options)`](/boboddy/reference/sdk/#codestepoptions) for the full option table.
+
 ## Pushing steps
 
 Steps are pushed together with pipeline definitions using a single command from `.boboddy/pipeline-builder/`:

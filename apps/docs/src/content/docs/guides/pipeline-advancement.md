@@ -1,110 +1,155 @@
 ---
 title: Pipeline Advancement
-description: Decide whether a pipeline continues, blocks, or routes elsewhere using advancement policies and computed signals
+description: Block, branch, loop, and route with the Rule DSL and fan-out cohort advancement
 ---
 
-The `advance` option in a step's `.step(step, options)` call attaches an advancement policy to that step — it's required on every step. See [Building Pipelines](/boboddy/guides/pipelines/) for the `pipeline()` builder itself.
+A pipeline has two distinct advancement mechanisms:
 
-## Advancement policies
+- The **`Rule` DSL** — used by a `step` state's `blockWhen`, a `choice` state's `choices[].when`, and a `loop` state's `until`. Conditions are built with `Rule.when(...)` / `Rule.signal(...)` / `Rule.all(...)` / `Rule.any(...)`.
+- **Cohort advancement** — used by a `fanOut` state's `advanceEach`/`advanceAll` and a `parallel` state's `advanceAll`. These use a fluent, comparator-chain context (`signal(key).eq(value).then(outcome)`), evaluated per-branch and per-cohort.
 
-`options.advance` attaches a policy to the step. The callback receives a context with `signal`, `all`, `any`, `route`, and every computed-signal factory. The signal keys are typed against that step.
+See [Building Pipelines](/boboddy/guides/pipelines/) for the state shapes themselves.
+
+## The `Rule` DSL
 
 ```typescript
-.step(reviewCodeStep, {
-  input: ({ input }) => ({ code: input.code }),
-  advance: ({ signal }) => ({
-    default: "block",
-    rules: [signal("clarity_score").gt(7).then("continue")],
-  }),
-})
+import { Rule } from "@boboddy/sdk/definitions/pipelines";
+
+Rule.when(signalKey, operator, value); // a bare condition
+Rule.signal(signalKey, operator, value); // the same leaf, for nesting in all/any
+Rule.all([condition, condition]); // every nested condition must match
+Rule.any([condition, condition]); // any nested condition must match
 ```
 
-If the default outcome is `"block"` and no rule fires, the pipeline halts at that step and marks the execution as needing review.
-
-### Comparators on `SignalRef`
-
-| Method               | Wire operator           |
-| -------------------- | ----------------------- |
-| `.eq(value)`         | `equal`                 |
-| `.ne(value)`         | `notEqual`              |
-| `.gt(n)`             | `greaterThan`           |
-| `.gte(n)`            | `greaterThanInclusive`  |
-| `.lt(n)`             | `lessThan`              |
-| `.lte(n)`            | `lessThanInclusive`     |
-| `.in(values)`        | `in`                    |
-| `.notIn(values)`     | `notIn`                 |
-| `.contains(value)`   | `contains`              |
-| `.doesNotContain(v)` | `doesNotContain`        |
-
-Each returns a `RuleLeaf`. Call `.then(outcome)` to finalize as a rule, or pass it into `all(...)` / `any(...)` to nest.
-
-### Grouping with `all` and `any`
+`Rule.when` and `Rule.signal` are equivalent leaf conditions — use `Rule.when` on its own, and `Rule.signal` when nesting inside `Rule.all`/`Rule.any`:
 
 ```typescript
-advance: ({ signal, all, any }) => ({
-  default: "block",
-  rules: [
-    all(
-      signal("clarity_score").gte(7),
-      any(
-        signal("reviewer_approved").eq(true),
-        signal("auto_approved").eq(true),
-      ),
-    ).then("continue"),
+Rule.any([
+  Rule.signal("score", "lessThan", 0.3),
+  Rule.all([
+    Rule.signal("reviewerApproved", "equal", false),
+    Rule.signal("autoApproved", "equal", false),
+  ]),
+])
+```
+
+### Operators
+
+| Operator                | Description             |
+| ------------------------ | ----------------------- |
+| `equal`                  | Equal to                |
+| `notEqual`                | Not equal to             |
+| `lessThan`                | Less than                |
+| `lessThanInclusive`       | Less than or equal to    |
+| `greaterThan`             | Greater than             |
+| `greaterThanInclusive`    | Greater than or equal to |
+| `in`                      | Value is one of a list   |
+| `notIn`                   | Value is not in a list   |
+| `contains`                | Contains a value          |
+| `doesNotContain`          | Does not contain a value |
+
+:::caution
+No condition's signal argument is type-checked. A typo in `Rule.when("confidnce", ...)` compiles cleanly and only fails at execution time — re-read every signal key against the step's declared `signals` by eye.
+:::
+
+### Computed signals
+
+Aggregate several raw signals into a derived value inline with the `Computed` namespace, passed where a plain signal key would go:
+
+```typescript
+Rule.signal(
+  Computed.average(["quality_score", "security_score"]),
+  "greaterThanInclusive",
+  7,
+)
+```
+
+| Factory                          | Description                                       | Input signal types |
+| --------------------------------- | -------------------------------------------------- | ------------------- |
+| `Computed.average(keys)`          | Arithmetic mean of the input signals               | `number`            |
+| `Computed.weightedAverage(keys)`  | Weighted mean (pass weights via a later configJson)| `number`            |
+| `Computed.sum(keys)`              | Sum of the input signals                           | `number`            |
+| `Computed.min(keys)`              | Minimum value across the input signals             | `number`            |
+| `Computed.max(keys)`              | Maximum value across the input signals             | `number`            |
+| `Computed.count(keys)`            | Count of truthy or present signal values           | `any`               |
+| `Computed.booleanAny(keys)`       | `true` if any input signal is truthy               | `boolean`           |
+| `Computed.booleanAll(keys)`       | `true` only if all input signals are truthy        | `boolean`           |
+
+Each factory requires **at least two** signal keys, passed as an array. Identical calls are deduplicated into a single computed-signal definition at build time.
+
+## Blocking a step: `blockWhen`
+
+A single-condition "pause for human review" gate on a `step` state:
+
+```typescript
+{
+  kind: "step",
+  step: triageStep,
+  blockWhen: Rule.when("confidence", "lessThan", 7),
+  next: "writeFixPlan",
+}
+```
+
+When `blockWhen`'s condition matches, the run **blocks** in the dashboard instead of advancing to `next`. Read it as "block when this is true" — the inverse of writing a "continue when" condition. If your business rule is "continue only when reproduced and confidence ≥ 0.8", write `blockWhen` as the negation:
+
+```typescript
+blockWhen: Rule.any([
+  Rule.signal("reproduced", "equal", false),
+  Rule.signal("confidence", "lessThan", 0.8),
+]),
+```
+
+## Branching: `choice`
+
+A `choice` state holds the whole routing table in one place:
+
+```typescript
+routeBySeverity: {
+  kind: "choice",
+  choices: [
+    { when: Rule.when("severity", "equal", "critical"), next: "pageOncall" },
   ],
-}),
+  default: "fanOutFiles",
+}
 ```
 
-Groups are nestable arbitrarily. Each `.then(outcome)` closes the rule.
+Each `choices[]` entry pairs a `Rule` condition with the state to run when it matches; the first matching entry wins. `default` is the fallback when no `choices[]` entry matches. Both `choices[].next` and `default` must name another state **in the same pipeline** — a `choice` cannot route to a different pipeline and cannot block directly. To route conditionally to one of several pipelines, point each `choice` branch at its own small `step` state that does the routing (see [Routing to another pipeline](#routing-to-another-pipeline)).
 
-### Routing to another pipeline
+## Looping: `until`
+
+A `loop` state's `until` is a `Rule` condition tested after each iteration; matching exits the loop via `next`, while hitting `maxIterations` first exits via `onExhausted`:
 
 ```typescript
-advance: ({ signal, route }) => ({
-  default: "complete",
-  rules: [
-    signal("flagged").eq(true).then(route("triage-pipeline", { reason: "flagged" })),
-  ],
-}),
+refineUntilPasses: {
+  kind: "loop",
+  step: refineStep,
+  maxIterations: 5,
+  until: Rule.when("passesLint", "equal", true),
+  next: "publish",
+  onExhausted: "escalateToHuman",
+}
 ```
 
-## Computed signals
+## Routing to another pipeline
 
-Computed signals aggregate multiple raw signals into a derived value inline. The factories live on the same `advance` context — no separate declaration on the step required.
+A `step`/`fanOut`/`parallel`/loop-exit's `next` can target a different pipeline instead of a state key:
 
 ```typescript
-advance: ({ avg, signal, stepSignals }) => ({
-  default: "block",
-  rules: [
-    avg(stepSignals.quality_score, stepSignals.security_score).gte(7).then("continue"),
-    signal("flagged").eq(true).then("block"),
-  ],
-}),
+next: { routeToPipeline: "triage-pipeline" }
 ```
 
-### Available factories
+`routeToPipeline` must name a pipeline that already exists on the server or is in the same push batch — push validates it and throws otherwise. A `choice` branch can never target `routeToPipeline` directly (see [Branching](#branching-choice)).
 
-| Method                   | Description                                       | Input signal types |
-| ------------------------ | ------------------------------------------------- | ------------------ |
-| `avg(...keys)`           | Arithmetic mean of the input signals              | `number`           |
-| `weightedAvg(...keys)`   | Weighted mean (pass weights via configJson later) | `number`           |
-| `sum(...keys)`           | Sum of the input signals                          | `number`           |
-| `min(...keys)`           | Minimum value across the input signals            | `number`           |
-| `max(...keys)`           | Maximum value across the input signals            | `number`           |
-| `count(...keys)`         | Count of truthy or present signal values          | `any`              |
-| `booleanAny(...keys)`    | `true` if any input signal is truthy              | `boolean`          |
-| `booleanAll(...keys)`    | `true` only if all input signals are truthy       | `boolean`          |
+## Fan-out cohort advancement: `advanceEach` / `advanceAll`
 
-Each factory requires **at least two** signal keys. The same call across multiple rules is deduplicated into a single computed-signal definition at build time.
-
-## Fan-out cohort advancement: `advance` / `advanceAll`
-
-A [fan-out](/boboddy/guides/pipelines/#fan-out-parallel-branches) (`.fanOutStep(step, config)`) runs a step as N parallel branches, and needs two advancement decisions instead of one: each branch's own outcome (`advance`), then the whole cohort's outcome once every branch has settled (`advanceAll`). Both are keys inside `.fanOutStep()`'s single `config` object — not chained method calls — and both are restricted to a narrower `"continue" | "block"` outcome domain — no `route`/`complete`, since a fan-out branch or cohort can't redirect the pipeline to a different one.
+A [fan-out](/boboddy/guides/pipelines/#fan-out-parallel-branches) (`kind: "fanOut"`) runs a step as N parallel branches, and needs two advancement decisions instead of one: each branch's own outcome (`advanceEach`), then the whole cohort's outcome once every branch has settled (`advanceAll`). A `parallel` state only has `advanceAll`, evaluated the same way. Both are restricted to a narrower `"continue" | "block"` outcome domain — no routing, since a branch or cohort can't redirect the pipeline to a different one.
 
 ```typescript
-.fanOutStep(reviewStep, {
+fanOutReviewers: {
+  kind: "fanOut",
+  step: reviewStep,
   over: "reviewer_count",
-  advance: ({ signal }) => ({
+  advanceEach: ({ signal }) => ({
     default: "continue",
     rules: [signal("passed").eq(false).then("block")],
   }),
@@ -112,21 +157,24 @@ A [fan-out](/boboddy/guides/pipelines/#fan-out-parallel-branches) (`.fanOutStep(
     default: "block",
     rules: [branchOutcomes.every("continue").then("continue")],
   }),
-})
+  next: "report",
+}
 ```
 
-### `advance` — one branch's own outcome
+### `advanceEach` — one branch's own outcome
 
-Evaluated per-branch against that branch's own signals, the same way a regular step's `advance` option evaluates its signals. The callback context provides `signal(key)`, `stepSignals.<key>`, `all(...)`, and `any(...)` — no computed-signal factories (`avg`, `sum`, etc.), since core has no mechanism yet to resolve a computed signal against a fan-out branch's policy.
+Evaluated per-branch against that branch's own signals. The callback context provides `signal(key)`, `stepSignals.<key>`, `all(...)`, and `any(...)` — no computed-signal factories (`Computed.average`, etc.), since core has no mechanism yet to resolve a computed signal against a fan-out branch's policy.
 
 ```typescript
-advance: ({ signal, all }) => ({
+advanceEach: ({ signal, all }) => ({
   default: "continue",
   rules: [
     all(signal("confidence").lt(0.5), signal("passed").eq(false)).then("block"),
   ],
 }),
 ```
+
+`signal(key)` / `stepSignals.<key>` return a comparator-bound ref — chain `.eq()`, `.ne()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.in()`, `.notIn()`, `.contains()`, `.doesNotContain()`, then `.then(outcome)` to finalize as a rule (`outcome` is `"continue" | "block"`).
 
 ### `advanceAll` — the whole cohort's outcome
 
@@ -141,7 +189,7 @@ Evaluated once per cohort, after every branch has resolved to an outcome. The ca
 | `.every(outcome)`     | `true` iff every branch resolved to this outcome                  |
 | `.some(outcome)`      | `true` iff at least one branch resolved to this outcome           |
 
-`outcome` is one of `"continue" | "block" | "error" | "abandoned"` — the 4-value branch outcome classification (`error`/`abandoned` cover branches that failed or never ran, and can't be produced by `advance` itself). `.total()` and `.count()` return a `CohortSignalRef` — chain a comparator (`.eq`, `.gt`, `.gte`, etc., same as a regular `SignalRef`) and `.then(outcome)` to finalize. `.every()`/`.some()` are already booleans — go straight to `.then(outcome)`.
+`outcome` is one of `"continue" | "block" | "error" | "abandoned"` — the 4-value branch outcome classification (`error`/`abandoned` cover branches that failed or never ran, and can't be produced by `advanceEach` itself). `.total()` and `.count()` return a comparator ref — chain a comparator (`.eq`, `.gt`, `.gte`, etc.) and `.then(outcome)` to finalize. `.every()`/`.some()` are already booleans — go straight to `.then(outcome)`.
 
 ```typescript
 advanceAll: ({ branchOutcomes, all }) => ({
@@ -158,7 +206,7 @@ advanceAll: ({ branchOutcomes, all }) => ({
 
 #### `stepSignalsList`
 
-Aggregates a signal across every branch in the cohort — the fan-out counterpart to a regular step's computed signals. Seed with `.pluck(signalKey)`, optionally reshape with `.filter(operator, value)` / `.sortBy(direction?)` / `.unique()`, then finalize with exactly one reducer:
+Aggregates a signal across every branch in the cohort. Seed with `.pluck(signalKey)`, optionally reshape with `.filter(operator, value)` / `.sortBy(direction?)` / `.unique()`, then finalize with exactly one reducer:
 
 | Reducer         | Description                                  |
 | ---------------- | ----------------------------------------------- |
@@ -173,7 +221,7 @@ Aggregates a signal across every branch in the cohort — the fan-out counterpar
 | `.first()`       | The first value                                  |
 | `.last()`        | The last value                                   |
 
-Each reducer returns a `CohortSignalRef` — chain a comparator and `.then(outcome)` the same as `branchOutcomes`.
+Each reducer returns a comparator ref — chain a comparator and `.then(outcome)` the same as `branchOutcomes`.
 
 ```typescript
 advanceAll: ({ stepSignalsList }) => ({
@@ -193,44 +241,44 @@ advanceAll: ({ stepSignalsList }) => ({
 ## Multi-step pipeline example
 
 ```typescript
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 import { z } from "zod";
 import { reviewCodeStep, refactorStep, verifyStep } from "./steps";
 
-export default pipeline({
+export default definePipeline({
   key: "full-review",
   name: "Full Code Review Pipeline",
   status: "active",
-  additionalPipelineInput: {
-    schema: z.object({ code: z.string() }),
-    bindings: ({ workItem }) => ({
-      code: workItem.field("Code"),
-    }),
+  input: z.object({ code: z.string() }),
+  startAt: "review",
+  states: {
+    review: {
+      kind: "step",
+      step: reviewCodeStep,
+      input: (ctx) => ({ code: ctx.pipelineInput("code") }),
+      blockWhen: Rule.when("clarity_score", "lessThanInclusive", 6),
+      next: "refactor",
+    },
+    refactor: {
+      kind: "step",
+      step: refactorStep,
+      input: (ctx) => ({
+        code: ctx.pipelineInput("code"),
+        suggestions: ctx.output("review"),
+      }),
+      timeout: 60,
+      next: "verify",
+    },
+    verify: {
+      kind: "step",
+      step: verifyStep,
+      input: (ctx) => ({
+        original: ctx.pipelineInput("code"),
+        refactoredScore: ctx.signal("review", "clarity_score"),
+      }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
   },
-})
-  .step(reviewCodeStep, {
-    input: ({ input }) => ({
-      code: input.code,
-    }),
-    advance: ({ signal }) => ({
-      default: "block",
-      rules: [signal("clarity_score").gt(6).then("continue")],
-    }),
-  })
-  .step(refactorStep, {
-    input: ({ input, output }) => ({
-      code: input.code,
-      suggestions: output(reviewCodeStep),
-    }),
-    advance: () => ({ default: "continue" }),
-    timeout: 60,
-  })
-  .step(verifyStep, {
-    input: ({ input, signal }) => ({
-      original: input.code,
-      refactoredScore: signal(reviewCodeStep, "clarity_score"),
-    }),
-    advance: () => ({ default: "continue" }),
-  })
-  .build();
+});
 ```

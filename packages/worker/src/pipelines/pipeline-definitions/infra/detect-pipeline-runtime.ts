@@ -21,9 +21,10 @@ interface DetectOk {
 }
 
 /**
- * Detect how to run the push script in `pipelineBuilderDir`. Looks only inside
- * that directory — never walks up — so the user's outer repo (which might be a
- * different language entirely) doesn't influence the choice.
+ * Detect how to run a generated script (the `push` command's push script, or
+ * the pipeline studio's collect script) in `pipelineBuilderDir`. Looks only
+ * inside that directory — never walks up — so the user's outer repo (which
+ * might be a different language entirely) doesn't influence the choice.
  *
  * Priority (first match wins):
  *   1. `bun.lock` or `bun.lockb`           → `bun run <script>`

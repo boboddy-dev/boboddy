@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
-import { pipeline } from "@boboddy/sdk/definitions/pipelines";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype C — read-only data / state investigation.
-// investigate (no_workspace + data MCP) → gate. No repository is cloned, so
-// there is no Docker and no devcontainer requirement.
+// investigate (no_workspace + data MCP) → block unless confident. No
+// repository is cloned, so there is no Docker and no devcontainer
+// requirement.
 // Replace the MCP server and the work-item field that scopes the queries.
 
 export const investigateData = defineStep({
@@ -50,9 +51,9 @@ Separate what you suspect from what you know:
   broader, and what you ran to decide. People act on this first, so be specific.
 `,
 
-  // Optional because a pipeline-level binding supplies it. A required field
-  // would force a mapper entry, and the only way to write one replaces the
-  // work-item binding with a pipeline-input binding that resolves to null.
+  // Optional because the pipeline's own `input` mapper (below) supplies it
+  // via `ctx.workItem.field(...)`. Keeping it optional here means the
+  // pipeline is free to omit it entirely for a work item with no such field.
   additionalInput: z.object({
     accountRef: z.string().nullable().optional(),
   }),
@@ -77,29 +78,29 @@ Separate what you suspect from what you know:
   features: [Features.notifications()],
 });
 
-export default pipeline({
+export default definePipeline({
   key: "data-investigation",
   name: "Data Investigation",
   description: "Investigate a data problem against read-only sources.",
   status: "active",
-  additionalPipelineInput: {
-    schema: z.object({ accountRef: z.string().nullable() }),
-    bindings: ({ workItem }) => ({ accountRef: workItem.field("Account") }),
+  startAt: "investigateData",
+  states: {
+    investigateData: {
+      kind: "step",
+      step: investigateData,
+      // `ctx.workItem.field(name)` reads a work-item custom field directly —
+      // there is no separate pipeline-level binding layer to keep in sync.
+      input: (ctx) => ({ accountRef: ctx.workItem.field("Account") }),
+      // To hand the fix off instead of finishing here, replace `next: "done"`
+      // with `next: { routeToPipeline: "failing-test-repro" }` — that
+      // pipeline must already exist on the server or be in the same push
+      // batch.
+      blockWhen: Rule.any([
+        Rule.signal("confidence", "lessThan", 0.8),
+        Rule.signal("identifiedRequiredChanges", "equal", false),
+      ]),
+      next: "done",
+    },
+    done: { kind: "succeed" },
   },
-})
-  .step(investigateData, {
-    input: () => ({}),
-    // To hand the fix off instead of finishing here, replace "complete" with
-    // route("failing-test-repro") — that pipeline must already exist on the
-    // server or be in the same push batch.
-    advance: ({ stepSignals, all }) => ({
-      default: "block",
-      rules: [
-        all(
-          stepSignals.confidence.gte(0.8),
-          stepSignals.identifiedRequiredChanges.eq(true),
-        ).then("complete"),
-      ],
-    }),
-  })
-  .build();
+});

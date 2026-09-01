@@ -170,9 +170,9 @@ browser to create a project. ~10 minutes.
 
    The worker claims the pending step execution, runs the step's agent, and
    reports its signals back. Watch the pipeline view in the dashboard: each
-   step's `advance` policy reads those signals and decides whether the
-   pipeline continues, blocks for a human, or completes. That advance-on-signal
-   moment is the core of Boboddy.
+   state's `next` (and, if declared, `blockWhen`) reads those signals and
+   decides whether the pipeline continues on to the next state or blocks for
+   a human. That advance-on-signal moment is the core of Boboddy.
 
    Say no instead, and `design` prints the command to run it later — start a
    run from the work item's executions drawer in the dashboard, or from a
@@ -246,7 +246,7 @@ Run `npm run typecheck` (or the bun/pnpm/yarn equivalent) inside
 
 - [Defining Steps](/boboddy/guides/steps/) — inputs, results, signals, and
   execution modes.
-- [Building Pipelines](/boboddy/guides/pipelines/) — the `pipeline()` builder,
-  input bindings, and additional pipeline input.
+- [Building Pipelines](/boboddy/guides/pipelines/) — `definePipeline()`, state
+  kinds, and input bindings.
 - [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) — advancement
   policies and computed signals.

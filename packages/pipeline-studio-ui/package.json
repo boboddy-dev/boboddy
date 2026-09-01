@@ -1,0 +1,34 @@
+{
+  "name": "@boboddy/pipeline-studio-ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/graph/translate-spec-to-graph.ts",
+      "bun": "./src/graph/translate-spec-to-graph.ts",
+      "default": "./src/graph/translate-spec-to-graph.ts"
+    },
+    "./view": {
+      "types": "./src/graph/PipelineGraphView.tsx",
+      "bun": "./src/graph/PipelineGraphView.tsx",
+      "default": "./src/graph/PipelineGraphView.tsx"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "bun run build.ts",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@boboddy/sdk": "workspace:*",
+    "@xyflow/react": "^12.11.5",
+    "dagre": "^0.8.5",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.54",
+    "bun-types": "^1.4.0"
+  }
+}

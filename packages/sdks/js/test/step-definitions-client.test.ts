@@ -105,6 +105,7 @@ describe("createStepDefinitionsClient.upsertFromSpec", () => {
       expect(captured[0]?.url).toBe(`${BASE_URL}/api/step-definitions`);
       expect(captured[0]?.body).toEqual({
         ...spec,
+        entrypointJson: null,
         projectId: "proj-1",
       });
       // Headers.entries() lowercases header names per the WHATWG spec.

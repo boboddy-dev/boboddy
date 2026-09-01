@@ -7,6 +7,7 @@
 @import "@boboddy/design-tokens/css";
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+@import "./react-flow.css";
 
 /*
  * Tailwind theme: accent + gray ramps for `@astrojs/starlight-tailwind`.

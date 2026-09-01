@@ -1,5 +1,12 @@
-export { collectDefinitionsFromDirectory } from "./collect-definitions";
-export type { CollectedDefinitions } from "./collect-definitions";
+export {
+  collectDefinitionsFromDirectory,
+  collectDefinitionsFromDirectoryTolerant,
+} from "./collect-definitions";
+export type {
+  BrokenPipeline,
+  CollectedDefinitions,
+  TolerantCollectedDefinitions,
+} from "./collect-definitions";
 export { pushFromDirectory } from "./push-from-directory";
 export type {
   PushFromDirectoryOptions,

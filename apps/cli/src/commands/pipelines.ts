@@ -5,6 +5,7 @@ import { join } from "node:path";
 import * as clack from "@clack/prompts";
 import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
+  detectPipelineRuntime,
   listExistingPipelineBuilderFiles,
   loadAuthenticatedSession,
   PIPELINE_BUILDER_DIR,
@@ -16,7 +17,7 @@ import {
 } from "@boboddy/worker";
 import { version as CLI_VERSION } from "../../package.json";
 import { designCommand } from "./pipelines-design";
-import { detectPipelineRuntime } from "../lib/detect-pipeline-runtime";
+import { studioCommand } from "./pipelines-studio";
 import { withReporter } from "../lib/command-output";
 import {
   captureMilestone,
@@ -304,6 +305,7 @@ export const pipelinesCommand: CommandModule<object, object> = {
     argv
       .command(initCommand)
       .command(designCommand)
+      .command(studioCommand)
       .command(pushCommand)
       .command(pullCommand)
       .demandCommand(1, "A pipelines command is required."),

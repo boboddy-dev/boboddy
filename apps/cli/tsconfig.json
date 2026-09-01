@@ -9,6 +9,11 @@
       "@boboddy/worker/*": ["../../packages/worker/src/*"]
     }
   },
-  "include": ["src/**/*.ts", "script/**/*.ts", "test/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "script/**/*.ts",
+    "test/**/*.ts",
+    "../../packages/worker/src/types/process-off-fallback.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

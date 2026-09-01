@@ -1,10 +1,15 @@
-// Topological-order utility for the SDK's compiled pipeline graph.
+// General reachability/topological-order + cycle-detection pass over the
+// SDK's compiled pipeline graph.
 //
-// #162's own scope is chain-only: every node has at most one incoming and one
-// outgoing dependency edge. This is deliberately generalizable — #167 (fan-out
-// DSL) will need a richer version of this walk, but today's callers
-// (`upsertFromSpec`, `validate-definition-specs`) only ever need "is this a
-// single valid chain, and if so what order does it run in".
+// No longer "chain-only" (its original #162 scope, when every node had at
+// most one incoming/outgoing edge): `definePipeline()`'s `choice`/`loop`
+// states legitimately produce branching, even convergent, graphs (see
+// docs/research/flat-pipeline-sdk-and-visual-designer.md §6). This mirrors
+// `computeTopoRanks`'s Kahn's-algorithm approach in
+// `packages/core`'s `pipeline-graph-version-entity.ts`, so
+// `validate-definition-specs.ts` can order nodes for its "does this signal
+// binding run before its consumer" check against branching graphs, not
+// just single chains.
 
 import type {
   DependencyEdgeSpec,
@@ -12,109 +17,85 @@ import type {
 } from "./define-pipeline";
 
 /**
- * Orders `nodeDefinitions` by walking `dependencyEdges` from the single root
- * to the single leaf. Returns `null` (does not throw) on any structural
- * problem: multiple roots, a node with more than one outgoing edge, a node
- * with more than one incoming edge, a cycle, or a disconnected node.
+ * Computes, for every node key, the longest-path-from-root depth ("topo
+ * rank") over the given edges, using Kahn's algorithm — identical in
+ * approach to `packages/core`'s own `computeTopoRanks`. Returns `null`
+ * (does not throw) if the graph contains a cycle, or if `dependencyEdges`
+ * references a node key outside `nodeDefinitions` (a malformed/hand-edited
+ * spec) — every caller here is a diagnostic tool, not a build-time
+ * assertion, so it degrades gracefully rather than crashing the whole
+ * validation pass.
  */
-export function tryOrderChainNodeDefinitions(
-  nodeDefinitions: readonly NodeDefinitionSpec[],
+export function tryComputeTopoRanks(
+  nodeDefinitions: readonly Pick<NodeDefinitionSpec, "nodeKey">[],
   dependencyEdges: readonly DependencyEdgeSpec[],
-): NodeDefinitionSpec[] | null {
-  const nodesByKey = new Map<string, NodeDefinitionSpec>();
-  for (const nodeDefinition of nodeDefinitions) {
-    nodesByKey.set(nodeDefinition.nodeKey, nodeDefinition);
-  }
-
-  const outgoing = new Map<string, string>();
-  const incomingCount = new Map<string, number>();
-  for (const nodeDefinition of nodeDefinitions) {
-    incomingCount.set(nodeDefinition.nodeKey, 0);
+): Map<string, number> | null {
+  const nodeKeys = new Set(nodeDefinitions.map((node) => node.nodeKey));
+  const outgoing = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+  for (const key of nodeKeys) {
+    outgoing.set(key, []);
+    inDegree.set(key, 0);
   }
 
   for (const edge of dependencyEdges) {
-    if (!nodesByKey.has(edge.fromNodeKey) || !nodesByKey.has(edge.toNodeKey)) {
+    if (!nodeKeys.has(edge.fromNodeKey) || !nodeKeys.has(edge.toNodeKey)) {
       return null;
     }
-    if (outgoing.has(edge.fromNodeKey)) return null;
-    outgoing.set(edge.fromNodeKey, edge.toNodeKey);
-    incomingCount.set(
-      edge.toNodeKey,
-      (incomingCount.get(edge.toNodeKey) ?? 0) + 1,
-    );
+    outgoing.get(edge.fromNodeKey)?.push(edge.toNodeKey);
+    inDegree.set(edge.toNodeKey, (inDegree.get(edge.toNodeKey) ?? 0) + 1);
   }
 
-  for (const count of incomingCount.values()) {
-    if (count > 1) return null;
+  const rank = new Map<string, number>();
+  const queue: string[] = [];
+  for (const key of nodeKeys) {
+    if ((inDegree.get(key) ?? 0) === 0) {
+      rank.set(key, 0);
+      queue.push(key);
+    }
   }
 
-  if (nodeDefinitions.length === 0) return [];
+  let visitedCount = 0;
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === undefined) break;
+    visitedCount += 1;
 
-  const roots = nodeDefinitions.filter(
-    (nodeDefinition) => (incomingCount.get(nodeDefinition.nodeKey) ?? 0) === 0,
-  );
-  if (roots.length !== 1) return null;
-
-  const rootNode = roots[0];
-  if (!rootNode) return null;
-
-  const ordered: NodeDefinitionSpec[] = [];
-  const visited = new Set<string>();
-  let currentKey: string | undefined = rootNode.nodeKey;
-
-  while (currentKey !== undefined) {
-    if (visited.has(currentKey)) return null;
-    visited.add(currentKey);
-
-    const currentNode = nodesByKey.get(currentKey);
-    if (!currentNode) return null;
-    ordered.push(currentNode);
-
-    currentKey = outgoing.get(currentKey);
+    for (const next of outgoing.get(current) ?? []) {
+      rank.set(next, Math.max(rank.get(next) ?? 0, (rank.get(current) ?? 0) + 1));
+      const remaining = (inDegree.get(next) ?? 0) - 1;
+      inDegree.set(next, remaining);
+      if (remaining === 0) queue.push(next);
+    }
   }
 
-  if (ordered.length !== nodeDefinitions.length) return null;
-
-  return ordered;
+  if (visitedCount !== nodeKeys.size) return null;
+  return rank;
 }
 
 /**
- * Builds one dependency edge between each consecutive pair of `orderedNodes`,
- * in the order given. Used to synthesize a chain's edges from an already-known
- * author order (e.g. declaration order in `.step()` calls).
+ * `tryComputeTopoRanks`, ordering `nodeDefinitions` by ascending rank (ties
+ * broken by declaration order) instead of returning the raw rank map —
+ * the shape `validate-definition-specs.ts`'s "runs before its consumer"
+ * check wants directly. Returns `null` under the same conditions
+ * `tryComputeTopoRanks` does.
  */
-export function buildChainDependencyEdges(
-  orderedNodes: readonly Pick<NodeDefinitionSpec, "nodeKey">[],
-): DependencyEdgeSpec[] {
-  const dependencyEdges: DependencyEdgeSpec[] = [];
-  for (let index = 0; index < orderedNodes.length - 1; index += 1) {
-    const from = orderedNodes[index];
-    const to = orderedNodes[index + 1];
-    if (!from || !to) continue;
-    dependencyEdges.push({ fromNodeKey: from.nodeKey, toNodeKey: to.nodeKey });
-  }
-  return dependencyEdges;
-}
-
-/**
- * `tryOrderChainNodeDefinitions`, but throws a descriptive error instead of
- * returning `null` when the graph isn't a single valid chain.
- */
-export function orderChainNodeDefinitions(
+export function tryOrderNodeDefinitionsByTopoRank(
   nodeDefinitions: readonly NodeDefinitionSpec[],
   dependencyEdges: readonly DependencyEdgeSpec[],
-): NodeDefinitionSpec[] {
-  const ordered = tryOrderChainNodeDefinitions(
-    nodeDefinitions,
-    dependencyEdges,
-  );
-  if (ordered === null) {
-    const nodeKeys = nodeDefinitions.map((n) => n.nodeKey).join(", ");
-    throw new Error(
-      `Pipeline graph is not a single valid chain: nodes [${nodeKeys}] and ` +
-        `${String(dependencyEdges.length)} dependency edge(s) do not form a ` +
-        `connected, acyclic, single-incoming/single-outgoing chain.`,
-    );
-  }
-  return ordered;
+): NodeDefinitionSpec[] | null {
+  const rankByKey = tryComputeTopoRanks(nodeDefinitions, dependencyEdges);
+  if (rankByKey === null) return null;
+
+  return nodeDefinitions
+    .map((node, declarationIndex) => ({ node, declarationIndex }))
+    .sort((left, right) => {
+      const rankDiff =
+        (rankByKey.get(left.node.nodeKey) ?? 0) -
+        (rankByKey.get(right.node.nodeKey) ?? 0);
+      return rankDiff !== 0
+        ? rankDiff
+        : left.declarationIndex - right.declarationIndex;
+    })
+    .map(({ node }) => node);
 }
