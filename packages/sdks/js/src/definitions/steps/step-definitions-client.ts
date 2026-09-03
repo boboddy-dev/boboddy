@@ -67,7 +67,7 @@ const buildStepDefinitionsClient = (stepDefinitions: StepDefinitions) => {
         key: spec.key,
         name: spec.name,
         description: spec.description,
-        prompt: spec.prompt ?? "",
+        prompt: spec.prompt ?? null,
         version: spec.version,
         kind: spec.kind,
         entrypointJson: spec.entrypointJson ?? null,

@@ -132,7 +132,7 @@ describe("createStepDefinitionsClient.upsertFromSpec", () => {
     }
   });
 
-  test("normalizes a null prompt to an empty string in the request body", async () => {
+  test("keeps a null prompt as null in the request body (code steps carry no prompt; the API rejects empty strings)", async () => {
     const { mockFetch, captured } = createMockFetch([
       { status: 200, body: { id: "step-id" } },
     ]);
@@ -146,7 +146,7 @@ describe("createStepDefinitionsClient.upsertFromSpec", () => {
 
       expect(captured[0]?.body).toMatchObject({
         projectId: "proj-1",
-        prompt: "",
+        prompt: null,
       });
     } finally {
       globalThis.fetch = prev;
