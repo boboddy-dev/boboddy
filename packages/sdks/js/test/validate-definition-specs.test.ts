@@ -66,9 +66,22 @@ describe("validateDefinitionSpecs — route targets", () => {
 
 describe("validateDefinitionSpecs — signal bindings", () => {
   const producer = stepSpec("produce", z.object({ out: z.string() }), ["out"]);
-  const consumer = stepSpec("consume", z.object({ done: z.boolean() }), [
-    "done",
-  ]);
+  // `additionalInput` declares every field name these tests bind (`ctx`, plus
+  // `a`/`b`/`c` for the "ignores bindings that do not reference a step" case
+  // below) — otherwise Phase 2's `binding-target-field` check (this step
+  // declares no such additionalInput field) fires on every one of them,
+  // which isn't what these tests are about.
+  const consumer = {
+    ...stepSpec("consume", z.object({ done: z.boolean() }), ["done"]),
+    inputSchemaJson: z.toJSONSchema(
+      z.object({
+        ctx: z.unknown().optional(),
+        a: z.unknown().optional(),
+        b: z.unknown().optional(),
+        c: z.unknown().optional(),
+      }),
+    ),
+  };
 
   const binding = (
     bindings: Bindings,
@@ -144,7 +157,7 @@ describe("validateDefinitionSpecs — signal bindings", () => {
     });
     // `consume` binding a signal of itself never resolves either.
     expect(issues).toHaveLength(1);
-    expect(issues[0]?.message).toContain("does not run before it");
+    expect(issues[0]?.message).toContain("does not run on every path");
   });
 
   test("rejects a signal the producing step does not declare", () => {
@@ -280,7 +293,7 @@ describe("validateDefinitionSpecs — signals_list bindings (issue #167)", () =>
       steps: [],
     });
     expect(issues).toHaveLength(1);
-    expect(issues[0]?.message).toContain("does not run before it");
+    expect(issues[0]?.message).toContain("does not run on every path");
   });
 });
 

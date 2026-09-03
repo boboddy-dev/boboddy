@@ -11,7 +11,10 @@
 // silently dead at execution time, which is strictly worse than failing the
 // push, and every message is written to be actionable on its own.
 
-import { tryOrderNodeDefinitionsByTopoRank } from "../pipelines/chain-graph";
+import {
+  tryComputeDominators,
+  tryOrderNodeDefinitionsByTopoRank,
+} from "../pipelines/chain-graph";
 import {
   isWorkingNodeDefinition,
   type NodeDefinitionSpec,
@@ -20,6 +23,12 @@ import {
 import type { SerializedBinding } from "../pipelines/bindings";
 import type { StepDefinitionSpec } from "../steps/define-step";
 import { resolveSourcePath, type JsonSchemaNode } from "./json-schema-paths";
+import {
+  checkBindingTargetFields,
+  checkBindingTypeCompatibility,
+  checkUnboundRequiredInputs,
+} from "./validate-input-bindings";
+import { listPaths, type DefinitionValidationIssue } from "./validation-issue";
 
 export type DefinitionSpecSet = {
   readonly pipelines: readonly PipelineDefinitionSpec[];
@@ -34,41 +43,6 @@ export type ValidateDefinitionSpecsOptions = {
    */
   readonly knownPipelineKeys?: readonly string[];
 };
-
-export type DefinitionValidationIssue = {
-  readonly check:
-    | "signal-source-path"
-    | "route-target"
-    | "signal-binding"
-    | "health-check-mcp-server"
-    | "health-check-double-qualified";
-  readonly message: string;
-  /**
-   * The pipeline this issue belongs to, when the check is pipeline-scoped
-   * (`route-target`/`signal-binding`) — absent for step-only checks
-   * (`signal-source-path`/`health-check-*`), which have no pipeline
-   * context of their own. Required before the designer (Phase 5) can
-   * attach an error to the right graph node.
-   */
-  readonly pipelineKey?: string;
-  /** The node this issue is about, when pipeline-scoped. */
-  readonly nodeKey?: string;
-  /**
-   * A second, related node this issue is about — e.g. `signal-binding`'s
-   * producer node, when different from `nodeKey`'s consumer. Absent when
-   * the issue is about a single node, or when the "other end" isn't a
-   * node in this pipeline at all (`route-target`'s target is a different
-   * *pipeline*, not a node).
-   */
-  readonly targetNodeKey?: string;
-};
-
-/** Formats a path list for an error message, capped so it stays readable. */
-function listPaths(paths: readonly string[], limit = 24): string {
-  if (paths.length === 0) return "";
-  if (paths.length <= limit) return paths.join(", ");
-  return `${paths.slice(0, limit).join(", ")}, … (${String(paths.length - limit)} more)`;
-}
 
 function quotedOrRoot(prefix: string): string {
   return prefix ? `"${prefix}"` : "the result root";
@@ -107,6 +81,7 @@ function checkSignalSourcePaths(
 
       issues.push({
         check: "signal-source-path",
+        severity: "error",
         message:
           `Step "${step.key}" declares signal "${signal.key}" with sourcePath ` +
           `"${signal.sourcePath}", which can never resolve against the step's ` +
@@ -141,6 +116,7 @@ function checkHealthChecks(
       if (!mcpServerKeySet.has(check.mcp)) {
         issues.push({
           check: "health-check-mcp-server",
+          severity: "error",
           message:
             `${where} names MCP server "${check.mcp}", but the step declares no ` +
             `such server in mcpServers. Declared servers: ${mcpServerKeys.length > 0 ? listPaths([...mcpServerKeys].sort()) : "(none)"}.`,
@@ -151,6 +127,7 @@ function checkHealthChecks(
       if (check.tool.startsWith(prefix)) {
         issues.push({
           check: "health-check-double-qualified",
+          severity: "error",
           message:
             `${where} sets mcp "${check.mcp}" and tool "${check.tool}", which already ` +
             `starts with "${prefix}". When "mcp" is set, "tool" should be the bare tool ` +
@@ -213,6 +190,7 @@ function checkRouteTargets(
         if (known.has(target)) continue;
         issues.push({
           check: "route-target",
+          severity: "error",
           pipelineKey: pipeline.key,
           nodeKey: node.nodeKey,
           message:
@@ -346,6 +324,20 @@ function checkSignalBindings(
     const nodeByKey = new Map(
       pipeline.nodeDefinitions.map((node) => [node.nodeKey, node]),
     );
+    // The real correctness question is "does the producer run on *every*
+    // path to the consumer" (dominance), not merely "does it run at an
+    // earlier rank" — a topo-rank linearization allows a producer that only
+    // fires down one `choice` branch to still rank below a consumer it
+    // converges into from another branch. Falls back to the old rank
+    // comparison only when the graph is too malformed for a dominator tree
+    // to mean anything (`tryComputeDominators` returns `null` — see its own
+    // doc comment), same "array order is all that's left" bias
+    // `executionRanks` already documents above.
+    const dominatorSets = tryComputeDominators(
+      pipeline.nodeDefinitions,
+      pipeline.dependencyEdges,
+      pipeline.entryNodeKey,
+    );
 
     pipeline.nodeDefinitions.forEach((node, index) => {
       const consumerRank = ranks.get(index) ?? index;
@@ -368,6 +360,7 @@ function checkSignalBindings(
               : `binds input "${field}" to the output of node "${source.nodeKey}"`;
 
         const issueBase = {
+          severity: "error" as const,
           pipelineKey: pipeline.key,
           nodeKey: node.nodeKey,
           targetNodeKey: source.nodeKey,
@@ -387,13 +380,24 @@ function checkSignalBindings(
           continue;
         }
 
-        if (producerRank >= consumerRank) {
+        // A node trivially dominates itself (`dom(n)` always contains `n`),
+        // but a binding referencing its own node is still never satisfiable
+        // — the node hasn't produced anything yet at the point its own
+        // bindings resolve — so self-reference is excluded here rather than
+        // treated as "runs on every path to itself."
+        const producesBeforeConsumer =
+          dominatorSets !== null
+            ? source.nodeKey !== node.nodeKey &&
+              (dominatorSets.get(node.nodeKey)?.has(source.nodeKey) ?? false)
+            : producerRank < consumerRank;
+
+        if (!producesBeforeConsumer) {
           issues.push({
             check: "signal-binding",
             ...issueBase,
             message:
-              `${where} ${what}, but that node does not run before it, so the ` +
-              `value will never exist. ${orderHint}`,
+              `${where} ${what}, but that node does not run on every path ` +
+              `leading to this node, so the value may not exist. ${orderHint}`,
           });
           continue;
         }
@@ -439,15 +443,30 @@ export function validateDefinitionSpecs(
     ...checkHealthChecks(specs.steps),
     ...checkRouteTargets(specs.pipelines, options.knownPipelineKeys ?? []),
     ...checkSignalBindings(specs.pipelines, stepsByKey),
+    ...checkUnboundRequiredInputs(specs.pipelines, stepsByKey),
+    ...checkBindingTargetFields(specs.pipelines, stepsByKey),
+    ...checkBindingTypeCompatibility(specs.pipelines, stepsByKey),
   ];
 }
 
-/** `validateDefinitionSpecs`, but throws a single aggregated error. */
+/**
+ * `validateDefinitionSpecs`, but throws a single aggregated error.
+ *
+ * Only counts and lists `severity: "error"` issues — `"warning"`-tier issues
+ * (`binding-type-mismatch`) and `"info"`-tier issues (`binding-target-field`'s
+ * unbound-field-name sub-check) never block a push and are silently dropped
+ * from both the header count and the body here. They're still present in
+ * `validateDefinitionSpecs`'s own return value for any caller that wants to
+ * surface them (e.g. the designer, in a later phase); this is the one entry
+ * point whose whole job is "should this push be blocked."
+ */
 export function assertValidDefinitionSpecs(
   specs: DefinitionSpecSet,
   options: ValidateDefinitionSpecsOptions = {},
 ): void {
-  const issues = validateDefinitionSpecs(specs, options);
+  const issues = validateDefinitionSpecs(specs, options).filter(
+    (issue) => issue.severity === "error",
+  );
   if (issues.length === 0) return;
 
   const header =

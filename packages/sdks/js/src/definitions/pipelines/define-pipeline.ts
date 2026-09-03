@@ -12,7 +12,6 @@ import type {
 import type { AnyTypedStep } from "./builder-helpers";
 import type { SerializedBinding } from "./bindings";
 import {
-  assertNoIllegalConvergentEdges,
   compileChoiceState,
   compileFanOutState,
   compileLoopState,
@@ -180,6 +179,8 @@ export type PipelineDefinitionSpec = {
   version: number;
   status: "draft" | "active" | "archived";
   inputSchemaJson?: Record<string, unknown> | null;
+  /** The node the pipeline begins execution at — mirrors `config.startAt`. */
+  entryNodeKey: string;
   nodeDefinitions: NodeDefinitionSpec[];
   dependencyEdges: DependencyEdgeSpec[];
   /** Step specs referenced by this pipeline. Used by the push command to auto-push steps that aren't explicitly exported. */
@@ -253,11 +254,6 @@ export function definePipeline<TInput extends ZodType = z.ZodUnknown>(
     dependencyEdges.push(...compiled.edges);
   }
 
-  const nodeKindByKey = new Map(
-    nodeDefinitions.map((node) => [node.nodeKey, node.kind]),
-  );
-  assertNoIllegalConvergentEdges(config.key, nodeKindByKey, dependencyEdges);
-
   let inputSchemaJson: Record<string, unknown> | null = null;
   if (config.input) {
     try {
@@ -274,6 +270,7 @@ export function definePipeline<TInput extends ZodType = z.ZodUnknown>(
     version: config.version ?? 1,
     status: config.status ?? "active",
     inputSchemaJson,
+    entryNodeKey: config.startAt,
     _stepDefinitions: [...stepDefMap.values()],
     nodeDefinitions,
     dependencyEdges,

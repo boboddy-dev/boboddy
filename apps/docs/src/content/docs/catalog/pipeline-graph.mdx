@@ -14,8 +14,8 @@ import { choiceSpec } from "../../catalog-fixtures/pipeline-graph/choice";
 import linearChainSource from "../../catalog-fixtures/pipeline-graph/linear-chain.ts?raw";
 import choiceSource from "../../catalog-fixtures/pipeline-graph/choice.ts?raw";
 
-export const linearChainGraph = translateSpecToGraph(linearChainSpec, []);
-export const choiceGraph = translateSpecToGraph(choiceSpec, []);
+export const linearChainGraph = translateSpecToGraph(linearChainSpec, [], []);
+export const choiceGraph = translateSpecToGraph(choiceSpec, [], []);
 
 This is the same graph view `boboddy pipelines studio` renders locally over a live pipeline, embedded here over static, hand-authored fixtures instead of a running server. Each fixture below is authored with `definePipeline()` — the same builder used to write a real pipeline — which compiles down to a `PipelineDefinitionSpec`. That spec is translated into `{nodes, edges}` at build time (`translateSpecToGraph`, `@boboddy/pipeline-studio-ui`'s `"."` export), then rendered client-side by the same `PipelineGraphView` component the studio uses (its `"./view"` export). Drag to pan, scroll to zoom, and use the controls in the bottom-left corner to fit or reset the view.
 

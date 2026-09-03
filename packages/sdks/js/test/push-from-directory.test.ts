@@ -74,6 +74,7 @@ export default {
   description: null,
   version: 1,
   status: "active",
+  entryNodeKey: "step-a",
   nodeDefinitions: [
     {
       nodeKey: "step-a",
@@ -207,6 +208,7 @@ describe("pushFromDirectory route validation", () => {
         description: null,
         version: 1,
         status: "active",
+        entryNodeKey: "step-a",
         nodeDefinitions: [
           {
             nodeKey: "step-a",

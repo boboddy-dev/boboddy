@@ -4,10 +4,14 @@ import type {
   NodeDefinitionSpec,
   PipelineDefinitionSpec,
 } from "@boboddy/sdk/definitions/pipelines";
+import type { StepDefinitionSpec } from "@boboddy/sdk/definitions/steps";
 import type { DefinitionValidationIssue } from "@boboddy/sdk/definitions/validation";
 import { translatePipelineToSnapshot, translateSpecToGraph } from "./translate-spec-to-graph";
 
-function pipeline(
+// Exported for `translate-spec-to-graph-shape.test.ts` (split out of this
+// file to stay under the repo's `max-lines` lint rule) to reuse rather than
+// duplicate.
+export function pipeline(
   nodeDefinitions: NodeDefinitionSpec[],
   dependencyEdges: DependencyEdgeSpec[],
 ): PipelineDefinitionSpec {
@@ -17,19 +21,20 @@ function pipeline(
     description: null,
     version: 1,
     status: "active",
+    entryNodeKey: nodeDefinitions[0]?.nodeKey ?? "review-pr",
     nodeDefinitions,
     dependencyEdges,
   };
 }
 
-const ADVANCEMENT_POLICY = {
+export const ADVANCEMENT_POLICY = {
   rulesJson: { rules: [] },
   defaultEventType: "continue" as const,
   defaultEventParamsJson: null,
   allowedEventTypes: ["continue" as const],
 };
 
-function stepNode(
+export function stepNode(
   overrides: Partial<Extract<NodeDefinitionSpec, { kind: "step" }>> & {
     nodeKey: string;
     stepKey: string;
@@ -47,23 +52,23 @@ function stepNode(
   };
 }
 
-const ANALYZE: NodeDefinitionSpec = stepNode({
+export const ANALYZE: NodeDefinitionSpec = stepNode({
   nodeKey: "analyze",
   stepKey: "analyze-step",
   stepName: "Analyze",
 });
-const ROUTE: NodeDefinitionSpec = {
+export const ROUTE: NodeDefinitionSpec = {
   nodeKey: "routeBySeverity",
   kind: "choice",
   choices: [{ conditionJson: { fact: "severity", operator: "equal", value: "critical" }, targetNodeKey: "pageOncall" }],
   default: "summarize",
 };
-const PAGE_ONCALL: NodeDefinitionSpec = stepNode({
+export const PAGE_ONCALL: NodeDefinitionSpec = stepNode({
   nodeKey: "pageOncall",
   stepKey: "page-oncall-step",
   stepName: "Page Oncall",
 });
-const SUMMARIZE: NodeDefinitionSpec = stepNode({
+export const SUMMARIZE: NodeDefinitionSpec = stepNode({
   nodeKey: "summarize",
   stepKey: "summarize-step",
   stepName: "Summarize",
@@ -72,12 +77,32 @@ const SUMMARIZE: NodeDefinitionSpec = stepNode({
   },
 });
 
-const EDGES: DependencyEdgeSpec[] = [
+export const EDGES: DependencyEdgeSpec[] = [
   { fromNodeKey: "analyze", toNodeKey: "routeBySeverity" },
   { fromNodeKey: "routeBySeverity", toNodeKey: "pageOncall" },
   { fromNodeKey: "routeBySeverity", toNodeKey: "summarize" },
   { fromNodeKey: "pageOncall", toNodeKey: "summarize" },
 ];
+
+export function stepSpec(
+  overrides: Partial<StepDefinitionSpec> & { key: string },
+): StepDefinitionSpec {
+  return {
+    name: overrides.key,
+    description: null,
+    version: 1,
+    kind: "user_defined",
+    status: "active",
+    prompt: null,
+    inputSchemaJson: null,
+    resultSchemaJson: null,
+    signalExtractorDefinitions: [],
+    opencodeMcpJson: null,
+    opencodePluginJson: null,
+    healthChecksJson: null,
+    ...overrides,
+  };
+}
 
 describe("translateSpecToGraph — mapping", () => {
   test("maps every node and edge, with a stable label per kind", () => {
@@ -134,6 +159,7 @@ describe("translateSpecToGraph — issue attachment", () => {
     const spec = pipeline([ANALYZE, ROUTE, PAGE_ONCALL, SUMMARIZE], EDGES);
     const issue: DefinitionValidationIssue = {
       check: "route-target",
+      severity: "error",
       pipelineKey: "review-pr",
       nodeKey: "pageOncall",
       message: "routes to an unknown pipeline",
@@ -154,6 +180,7 @@ describe("translateSpecToGraph — issue attachment", () => {
     // pageOncall -> summarize IS a direct edge in this fixture.
     const issue: DefinitionValidationIssue = {
       check: "signal-binding",
+      severity: "error",
       pipelineKey: "review-pr",
       nodeKey: "summarize",
       targetNodeKey: "pageOncall",
@@ -174,6 +201,7 @@ describe("translateSpecToGraph — issue attachment", () => {
     // analyze -> summarize is NOT a direct edge (analyze -> routeBySeverity -> ... -> summarize).
     const issue: DefinitionValidationIssue = {
       check: "signal-binding",
+      severity: "error",
       pipelineKey: "review-pr",
       nodeKey: "summarize",
       targetNodeKey: "analyze",
@@ -194,6 +222,7 @@ describe("translateSpecToGraph — issue attachment", () => {
     const spec = pipeline([ANALYZE], []);
     const issue: DefinitionValidationIssue = {
       check: "route-target",
+      severity: "error",
       pipelineKey: "some-other-pipeline",
       nodeKey: "analyze",
       message: "not about this pipeline",
@@ -208,6 +237,7 @@ describe("translateSpecToGraph — issue attachment", () => {
     const spec = pipeline([ANALYZE], []);
     const issue: DefinitionValidationIssue = {
       check: "signal-source-path",
+      severity: "error",
       message: "sourcePath never resolves",
     };
 
@@ -228,3 +258,4 @@ describe("translatePipelineToSnapshot", () => {
     expect(snapshot.nodes).toHaveLength(1);
   });
 });
+

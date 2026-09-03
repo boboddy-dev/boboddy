@@ -1,17 +1,57 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DefinitionValidationIssue } from "@boboddy/sdk/definitions/validation";
 import type { BrokenPipeline } from "@boboddy/sdk/push";
+import { NodeDetailPanel } from "./graph/NodeDetailPanel";
 import { PipelineGraphView } from "./graph/PipelineGraphView";
+import { SeverityChip } from "./graph/SeverityChip";
 import type { StudioSnapshot } from "./graph/studio-graph-types";
 
+/**
+ * One issue row. Step-only issues (`nodeKey === undefined`, e.g.
+ * `signal-source-path`/`health-check-*`) have no node to jump to and render
+ * as a plain, non-interactive row; everything else is clickable and selects
+ * the node it's about, swapping in `NodeDetailPanel` (see `App`).
+ */
 function IssueRow({
   issue,
+  onSelectNode,
 }: {
   issue: DefinitionValidationIssue;
+  onSelectNode: (nodeKey: string) => void;
 }) {
+  if (issue.nodeKey === undefined) {
+    return (
+      <li className="studio-issue">
+        <div className="studio-issue-header">
+          <SeverityChip severity={issue.severity} />
+          <span className="studio-issue-check">{issue.check}</span>
+        </div>
+        {issue.message}
+      </li>
+    );
+  }
+
+  const nodeKey = issue.nodeKey;
+
   return (
-    <li className="studio-issue">
-      <span className="studio-issue-check">{issue.check}</span>
+    <li
+      className="studio-issue studio-issue-clickable"
+      role="button"
+      tabIndex={0}
+      onClick={() => {
+        onSelectNode(nodeKey);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelectNode(nodeKey);
+        }
+      }}
+    >
+      <div className="studio-issue-header">
+        <SeverityChip severity={issue.severity} />
+        <span className="studio-issue-check">{issue.check}</span>
+      </div>
       {issue.message}
     </li>
   );
@@ -47,8 +87,10 @@ function useStudioSnapshot(): StudioSnapshot | null {
 
 function IssuesPanel({
   issues,
+  onSelectNode,
 }: {
   issues: readonly DefinitionValidationIssue[];
+  onSelectNode: (nodeKey: string) => void;
 }) {
   if (issues.length === 0) {
     return <p className="studio-issues-empty">No validation issues.</p>;
@@ -56,7 +98,11 @@ function IssuesPanel({
   return (
     <ul className="studio-issues-list">
       {issues.map((issue, index) => (
-        <IssueRow key={`${issue.check}-${issue.nodeKey ?? ""}-${String(index)}`} issue={issue} />
+        <IssueRow
+          key={`${issue.check}-${issue.nodeKey ?? ""}-${String(index)}`}
+          issue={issue}
+          onSelectNode={onSelectNode}
+        />
       ))}
     </ul>
   );
@@ -110,6 +156,7 @@ export function App() {
   const snapshot = useStudioSnapshot();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dialogPipeline, setDialogPipeline] = useState<BrokenPipeline | null>(null);
+  const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
   const pipelines = snapshot?.status === "ok" ? snapshot.pipelines : [];
   const brokenPipelines = snapshot?.status === "ok" ? snapshot.brokenPipelines : [];
@@ -120,6 +167,35 @@ export function App() {
     () =>
       pipelines.find((p) => p.key === selectedKey) ?? pipelines[0] ?? null,
     [pipelines, selectedKey],
+  );
+
+  // A selected node id from a previous pipeline is meaningless (and likely
+  // nonexistent) once the picker switches pipelines — reset to the issues
+  // list rather than showing a stale/broken detail panel.
+  useEffect(() => {
+    setSelectedNodeKey(null);
+  }, [selected?.key]);
+
+  const selectedNode = selected?.nodes.find((n) => n.id === selectedNodeKey) ?? null;
+
+  // Narrows the full-batch `validationIssues` down to the currently selected
+  // pipeline's own issues, PLUS step-only issues (`pipelineKey === undefined`
+  // — `signal-source-path`/`health-check-*`) — those never belong to any one
+  // pipeline and would otherwise be unreachable from every picker selection,
+  // so they stay visible regardless of what's selected. Matches
+  // `issuesForPipeline`'s filter in `translate-spec-to-graph.ts` (which
+  // deliberately excludes step-only issues, since it's building per-pipeline
+  // GRAPH data that has no node to attach them to) plus that broader
+  // "always show step-only" carve-out. When every pipeline is broken
+  // (`selected === null`), this only shows step-only issues — there's no
+  // "currently selected pipeline" for the pipeline-scoped half to match.
+  const validationIssues = snapshot?.status === "ok" ? snapshot.validationIssues : [];
+  const filteredIssues = useMemo(
+    () =>
+      validationIssues.filter(
+        (issue) => issue.pipelineKey === selected?.key || issue.pipelineKey === undefined,
+      ),
+    [validationIssues, selected],
   );
 
   function handleSelect(key: string): void {
@@ -166,7 +242,15 @@ export function App() {
       </header>
       <div className="studio-graph">
         {selected ? (
-          <PipelineGraphView key={selected.key} nodes={selected.nodes} edges={selected.edges} />
+          <PipelineGraphView
+            key={selected.key}
+            nodes={selected.nodes}
+            edges={selected.edges}
+            onSelectNode={setSelectedNodeKey}
+            onDeselect={() => {
+              setSelectedNodeKey(null);
+            }}
+          />
         ) : (
           <p className="studio-status">
             Every pipeline in .boboddy/pipeline-builder currently has an error — pick one above to see it.
@@ -174,8 +258,19 @@ export function App() {
         )}
       </div>
       <aside className="studio-issues">
-        <h2>Validation issues</h2>
-        <IssuesPanel issues={snapshot.validationIssues} />
+        {selectedNode ? (
+          <NodeDetailPanel
+            node={selectedNode}
+            onBack={() => {
+              setSelectedNodeKey(null);
+            }}
+          />
+        ) : (
+          <>
+            <h2>Validation issues</h2>
+            <IssuesPanel issues={filteredIssues} onSelectNode={setSelectedNodeKey} />
+          </>
+        )}
       </aside>
       {dialogPipeline ? (
         <BrokenPipelineDialog

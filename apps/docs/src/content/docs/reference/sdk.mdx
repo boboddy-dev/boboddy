@@ -184,11 +184,15 @@ const step = defineStep({
 | Feature                       | Effect                                                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Features.notifications()`    | Adds a `$boboddy_notifications_v1` result array + signal (type `array`, not required) and prompt text for emitting user notifications.            |
-| `Features.feedbackRequests()` | Convenience wrapper over `notifications()`, backed by the same `$boboddy_notifications_v1` signal, aimed at asking the project team questions.     |
+| `Features.feedbackRequests()` | A real specialization of `notifications()` (not an alias): narrows every emitted item to `kind: "feedback_request"`, backed by the same `$boboddy_notifications_v1` signal. |
+
+`Features` is exclusively for `features: [...]` attachment — value construction (`Notify`) and signal reading (`NotificationSignal`) are separate exports, kept apart on purpose so `Features.` autocomplete only ever shows things you attach to a step.
 
 Each notification item is:
 
 ```typescript
+// Inferred from the same zod schema `resultSchemaJson` is built from —
+// there is no independently hand-written type to drift out of sync.
 type NotificationItem = {
   kind: "feedback_request" | "status_update" | "blocked" | "result_ready" | "warning";
   title: string;
@@ -199,7 +203,26 @@ type NotificationItem = {
 };
 ```
 
-`Features.notifications.signal.find(signals)` and `Features.notifications.signal.key` are helpers for reading emitted notifications from a step's signals.
+### `NotificationSignal`
+
+`NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key. `NotificationSignal.find(signals)` parses a step execution's signals array back into `NotificationItem[] | undefined`.
+
+### `Notify`
+
+A flat namespace of builder functions for constructing a notification result value at runtime — the same shape as `Rule`/`Computed` in `@boboddy/sdk/definitions/pipelines` — without hand-writing the object shape. Most useful inside a `codeStep()`'s `fn`, where there's no agent to follow the prompt instructions.
+
+```typescript
+Notify.create(item: NotificationItem);
+Notify.inApp(title, body, priority, options?);
+Notify.feedbackRequest(question, category, urgency, suggestedKey?);
+Notify.merge(...fragments);
+```
+
+- `create` is the one generic constructor — field names match `NotificationItem` exactly.
+- `inApp` is the only channel with dedicated sugar, because `in_app` is the only channel the platform actually delivers today; `work_item_platform_comment`, `email`, and `slack` are accepted by the schema as suggestions but currently have no delivery adapter. Use `Notify.create({ ..., suggestedChannels: [...] })` directly to suggest one of those.
+- `feedbackRequest` is the value-builder counterpart to `Features.feedbackRequests()`.
+- Each of `create`/`inApp`/`feedbackRequest` returns `{ $boboddy_notifications_v1: [item] }` — return it directly, or spread it into a larger result. `inApp`'s `options` is `{ kind?, payload? }`; `kind` defaults to `"status_update"`.
+- `merge(...fragments)` combines multiple builder results into one.
 
 See [Features](/boboddy/guides/steps/#features) for the guide.
 
@@ -236,6 +259,7 @@ export const sumScores = codeStep({
 | `inputSchema`  | `ZodType`                                         | No       | Zod schema for `fn`'s input                                          |
 | `resultSchema` | `ZodType`                                         | No       | Zod schema for `fn`'s return value                                   |
 | `signals`      | `CodeStepSignalSpec[]`                            | No       | Values to extract from the result; unlike `defineStep`, `type` is required (not inferred) |
+| `features`     | `AnyStepFeature[]`                                | No       | Feature plugins from `Features`; only each feature's result extension and signals apply (no prompt on a code step) |
 | `status`       | `"draft" \| "active"`                             | No       | Draft steps are not executed; defaults to `"active"`                |
 
 `CodeStepSignalSpec` is `{ sourcePath, key?, type: "string" | "number" | "boolean" | "object" | "array", required?, availableWhenResultStatusIn? }`.

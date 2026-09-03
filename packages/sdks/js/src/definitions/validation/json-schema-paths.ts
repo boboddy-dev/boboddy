@@ -334,18 +334,29 @@ export function enumeratePaths(
 }
 
 /**
- * Whether `sourcePath` can resolve against `schema`.
- *
- * Pass the step's `resultSchemaJson` as both the node and the document root;
- * `$ref`s are resolved against the root.
+ * Same walk `resolveSourcePath` does, but keeping the resolved node itself
+ * rather than collapsing it to a boolean-shaped `PathResolution`. Shared by
+ * `resolveSourcePath` and `resolvePathType` below, so the parsing / `$ref`
+ * / `anyOf` walk lives in exactly one place.
  */
-export function resolveSourcePath(
+type NodeResolution =
+  | { readonly kind: "resolved"; readonly node: JsonSchemaNode }
+  | { readonly kind: "indeterminate" }
+  | {
+      readonly kind: "invalid";
+      readonly resolvedPrefix: string;
+      readonly segment: string;
+      readonly reason: PathFailureReason;
+      readonly availablePaths: readonly string[];
+    };
+
+function resolvePathToNode(
   schema: JsonSchemaNode,
   sourcePath: string,
-): PathResolution {
+): NodeResolution {
   const segments = parseSourcePath(sourcePath);
   // `"$"` (or an empty path) is the whole result object and always resolves.
-  if (segments.length === 0) return { kind: "resolved" };
+  if (segments.length === 0) return { kind: "resolved", node: schema };
 
   let candidates: JsonSchemaNode[] = [schema];
   let resolvedPrefix = "";
@@ -375,5 +386,107 @@ export function resolveSourcePath(
     resolvedPrefix = resolvedPrefix ? `${resolvedPrefix}.${segment}` : segment;
   }
 
-  return { kind: "resolved" };
+  const [node] = candidates;
+  return node ? { kind: "resolved", node } : { kind: "indeterminate" };
+}
+
+/**
+ * Whether `sourcePath` can resolve against `schema`.
+ *
+ * Pass the step's `resultSchemaJson` as both the node and the document root;
+ * `$ref`s are resolved against the root.
+ */
+export function resolveSourcePath(
+  schema: JsonSchemaNode,
+  sourcePath: string,
+): PathResolution {
+  const result = resolvePathToNode(schema, sourcePath);
+  if (result.kind === "resolved") return { kind: "resolved" };
+  if (result.kind === "indeterminate") return { kind: "indeterminate" };
+  return {
+    kind: "invalid",
+    resolvedPrefix: result.resolvedPrefix,
+    segment: result.segment,
+    reason: result.reason,
+    availablePaths: result.availablePaths,
+  };
+}
+
+/**
+ * The type vocabulary a schema node is reduced to. `"integer"` (a JSON
+ * Schema refinement Zod emits for `z.number().int()`) collapses into
+ * `"number"`; anything the schema doesn't pin to exactly one of these is
+ * `"unknown"`.
+ */
+export type SchemaType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array"
+  | "null"
+  | "unknown";
+
+const KNOWN_TYPES: ReadonlySet<string> = new Set([
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "array",
+  "null",
+]);
+
+function normalizeTypeName(name: string): string {
+  return name === "integer" ? "number" : name;
+}
+
+/**
+ * Reduces a JSON Schema node to its top-level type, per `SchemaType`.
+ *
+ * Follows the same `$ref` / `anyOf` / `oneOf` / `allOf` flattening
+ * `resolveSourcePath` uses, so a `$ref` is resolved against `root` (default:
+ * `node` itself — pass the document root explicitly when `node` came from
+ * deeper inside it). Returns `"unknown"` — never a guess — when: the schema
+ * is absent (`{}`, e.g. `z.unknown()`) or a boolean schema (`true` / `false`);
+ * a `$ref` fails to resolve; or the branches disagree on type (a union of
+ * a string and a number, say). A false "this is definitely a string" is
+ * worse than an honest "unknown" here, same bias as path resolution.
+ */
+export function resolveSchemaType(
+  node: JsonSchemaNode,
+  root: JsonSchemaNode = node,
+): SchemaType {
+  const branches = flatten(node, root);
+  if (!branches || branches.length === 0) return "unknown";
+
+  const types = new Set<string>();
+  for (const branch of branches) {
+    const record = asRecord(branch);
+    if (!record) return "unknown";
+    const names = [...typeNames(record)].map(normalizeTypeName);
+    if (names.length !== 1) return "unknown";
+    const [name] = names;
+    if (!name || !KNOWN_TYPES.has(name)) return "unknown";
+    types.add(name);
+  }
+
+  if (types.size !== 1) return "unknown";
+  return [...types][0] as SchemaType;
+}
+
+/**
+ * The type `sourcePath` resolves to within `schema` — `"unknown"` whenever
+ * the path doesn't provably resolve to a single node (indeterminate or
+ * invalid) or the node it resolves to doesn't pin down a single type.
+ *
+ * Pass the step's `resultSchemaJson` as `schema`; `$ref`s are resolved
+ * against it as the document root, matching `resolveSourcePath`.
+ */
+export function resolvePathType(
+  schema: JsonSchemaNode,
+  sourcePath: string,
+): SchemaType {
+  const result = resolvePathToNode(schema, sourcePath);
+  if (result.kind !== "resolved") return "unknown";
+  return resolveSchemaType(result.node, schema);
 }

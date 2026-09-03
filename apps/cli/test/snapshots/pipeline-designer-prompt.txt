@@ -858,10 +858,12 @@ export default defaultPipelineAssignment(
     edge is derived from some other state's own `next` / `choices[].next` /
     `default` / `onExhausted`.
 12. `startAt` must not name a `choice`, `succeed`, or `fail` state.
-13. A state may have **more than one incoming edge only if every source is a
-    `choice` or `loop` state.** Two plain `step`/`fanOut`/`parallel` states
-    can never both point `next` at the same target — `definePipeline` throws
-    at build time if you try, since that is an unhandled implicit barrier.
+13. Any number of states may point `next` / `choices[].next` / `default` /
+    `onExhausted` at the same downstream target — convergent edges are fine
+    from any state kind. What's required instead: the pipeline has exactly
+    one entry point, `startAt`, and every state must be reachable from it by
+    following those forward edges. `definePipeline` throws at build time on
+    an orphaned state it can't reach from `startAt`.
 
 ## 7. Archetype catalog
 

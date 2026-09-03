@@ -15,6 +15,7 @@ import type {
   DependencyEdgeSpec,
   NodeDefinitionKind,
   NodeDefinitionSpec,
+  ParallelBranchSpec,
   PipelineDefinitionSpec,
 } from "../src/definitions/pipelines";
 import type { SerializedBinding } from "../src/definitions/pipelines/bindings";
@@ -56,6 +57,7 @@ type LooseNodeDefinition = {
   advancementPolicyDefinition?: SerializedAdvancementPolicy;
   computedSignalDefinitions?: SerializedComputedSignalDefinition[];
   overSignalKey?: string;
+  branches?: Record<string, ParallelBranchSpec>;
 };
 
 export type PipelineStep = LooseNodeDefinition & {
@@ -130,6 +132,19 @@ export function pipelineStep(
   };
 }
 
+/**
+ * A `parallel` node with the given branches, each independently binding its
+ * own `stepKey`'s step (see `ParallelBranchSpec`) — the other node-kind
+ * fixture available alongside `pipelineStep()`'s `step`/`fanOut` shapes.
+ */
+export function parallelStep(
+  nodeKey: string,
+  order: number,
+  branches: Record<string, ParallelBranchSpec>,
+): PipelineStep {
+  return { nodeKey, kind: "parallel", __order: order, branches };
+}
+
 export function pipelineSpec(
   key: string,
   steps: readonly PipelineStep[],
@@ -143,6 +158,11 @@ export function pipelineSpec(
   const dependencyEdges = buildSequentialEdges(
     nodeDefinitions.map((node) => node.nodeKey),
   );
+  // Some fixtures deliberately build a zero-node pipeline (e.g. to test
+  // route-target validation against a pipeline whose own contents don't
+  // matter) — `entryNodeKey` has no real node to name in that case, so it
+  // falls back to the pipeline's own key; nothing reads it in those tests.
+  const entryNodeKey = nodeDefinitions[0]?.nodeKey ?? key;
 
   return {
     key,
@@ -150,6 +170,7 @@ export function pipelineSpec(
     description: null,
     version: 1,
     status: "active",
+    entryNodeKey,
     // `LooseNodeDefinition[]` -> `NodeDefinitionSpec[]`: see that type's own
     // doc comment for why this fixture-only boundary bypasses the real
     // discriminated union.

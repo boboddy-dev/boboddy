@@ -349,7 +349,9 @@ export type SignalTypeMapOf<
 // `& Record<never, never>` that `FeatureResultExtensions` contributes when
 // `features` is omitted (the common case), so hovers show the plain result
 // shape instead of a redundant empty-intersection member.
-type EffectiveResult<
+// Exported so `define-code-step.ts` can give `codeStep()`'s `fn` the same
+// feature-extended return type `defineStep()` gives its result schema.
+export type EffectiveResult<
   TResult,
   TFeatures extends ReadonlyArray<AnyStepFeature>,
 > = Prettify<TResult & FeatureResultExtensions<TFeatures>>;

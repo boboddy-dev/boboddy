@@ -92,6 +92,7 @@ function makeSpec(
     description: null,
     version: 1,
     status: "active",
+    entryNodeKey: "investigate",
     nodeDefinitions: [
       {
         nodeKey: "investigate",
@@ -174,6 +175,7 @@ describe("createPipelineDefinitionsClient", () => {
           key: "investigation",
           name: "Investigation",
           status: "active",
+          entryNodeKey: "investigate",
           nodeDefinitions: [
             {
               key: "investigate",

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { defineStep } from "../src/definitions/steps/define-step";
 import {
   Features,
+  NotificationSignal,
   type AnyStepFeature,
 } from "../src/definitions/steps/step-features";
 
@@ -298,7 +299,7 @@ describe("defineStep", () => {
       });
     });
 
-    test("Features.feedbackRequests() is backed by the same notifications signal", () => {
+    test("Features.feedbackRequests() is backed by the same notifications signal, narrowed to kind: 'feedback_request'", () => {
       const spec = defineStep({
         key: "my-step",
         name: "My Step",
@@ -309,12 +310,13 @@ describe("defineStep", () => {
 
       expect(spec.resultSchemaJson).toMatchObject({
         properties: {
-          $boboddy_notifications_v1: { type: "array" },
+          $boboddy_notifications_v1: {
+            type: "array",
+            items: { properties: { kind: { const: "feedback_request" } } },
+          },
         },
       });
-      expect(Features.feedbackRequests.signal.key).toBe(
-        "$boboddy_notifications_v1",
-      );
+      expect(NotificationSignal.key).toBe("$boboddy_notifications_v1");
       expect(spec.signalExtractorDefinitions).toContainEqual({
         key: "$boboddy_notifications_v1",
         sourcePath: "$boboddy_notifications_v1",

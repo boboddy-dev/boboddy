@@ -305,36 +305,3 @@ export function compileTerminalState(
 ): CompiledState {
   return { nodeDefinitions: [{ nodeKey: stateKey, kind }], edges: [] };
 }
-
-/**
- * The SDK-side mirror of §6's domain invariant: a node may have more than
- * one incoming edge only when every source is a `choice`/`loop` state
- * (never an unconditional `step`/`fanOut`/`parallel`/`cohortGate`
- * successor) — gives authors a fast local error instead of a round-trip to
- * the server.
- */
-export function assertNoIllegalConvergentEdges(
-  pipelineKey: string,
-  nodeKindByKey: ReadonlyMap<string, NodeDefinitionSpec["kind"]>,
-  edges: readonly DependencyEdgeSpec[],
-): void {
-  const incoming = new Map<string, DependencyEdgeSpec[]>();
-  for (const edge of edges) {
-    const list = incoming.get(edge.toNodeKey) ?? [];
-    list.push(edge);
-    incoming.set(edge.toNodeKey, list);
-  }
-
-  for (const [targetKey, incomingEdges] of incoming) {
-    if (incomingEdges.length <= 1) continue;
-    const hasInvalidSource = incomingEdges.some((edge) => {
-      const kind = nodeKindByKey.get(edge.fromNodeKey);
-      return kind !== "choice" && kind !== "loop";
-    });
-    if (hasInvalidSource) {
-      throw new Error(
-        `Pipeline "${pipelineKey}": state "${targetKey}" has more than one incoming edge, but not every source is a 'choice'/'loop' state (unconditional convergent edges are not allowed — see docs/research/flat-pipeline-sdk-and-visual-designer.md §6).`,
-      );
-    }
-  }
-}

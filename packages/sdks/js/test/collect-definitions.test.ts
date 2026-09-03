@@ -103,6 +103,7 @@ describe("collectDefinitionsFromDirectoryTolerant", () => {
   description: null,
   version: 1,
   status: "active",
+  entryNodeKey: "done",
   nodeDefinitions: [{ nodeKey: "done", kind: "succeed" }],
   dependencyEdges: [],
 };
@@ -141,6 +142,7 @@ export default {
   description: null,
   version: 1,
   status: "active",
+  entryNodeKey: "done",
   nodeDefinitions: [{ nodeKey: "done", kind: "succeed" }],
   dependencyEdges: [],
   _stepDefinitions: [

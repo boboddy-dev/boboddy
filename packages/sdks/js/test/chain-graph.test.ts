@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  tryComputeDominators,
   tryComputeTopoRanks,
   tryOrderNodeDefinitionsByTopoRank,
 } from "../src/definitions/pipelines/chain-graph";
@@ -116,5 +117,87 @@ describe("tryOrderNodeDefinitionsByTopoRank", () => {
     const edges = [edge("a", "b"), edge("b", "a")];
 
     expect(tryOrderNodeDefinitionsByTopoRank(nodes, edges)).toBeNull();
+  });
+});
+
+describe("tryComputeDominators", () => {
+  test.concurrent("the entry node dominates every reachable node", () => {
+    // choice -> { a, b } -> shared -- both a and b feed into "shared".
+    const nodes = [node("choice", "choice"), node("a"), node("b"), node("shared")];
+    const edges = [
+      edge("choice", "a"),
+      edge("choice", "b"),
+      edge("a", "shared"),
+      edge("b", "shared"),
+    ];
+
+    const dominators = tryComputeDominators(nodes, edges, "choice");
+
+    expect(dominators?.get("a")?.has("choice")).toBe(true);
+    expect(dominators?.get("b")?.has("choice")).toBe(true);
+    expect(dominators?.get("shared")?.has("choice")).toBe(true);
+  });
+
+  test.concurrent("every node dominates itself", () => {
+    const nodes = [node("a"), node("b")];
+    const edges = [edge("a", "b")];
+
+    const dominators = tryComputeDominators(nodes, edges, "a");
+
+    expect(dominators?.get("a")?.has("a")).toBe(true);
+    expect(dominators?.get("b")?.has("b")).toBe(true);
+  });
+
+  test.concurrent(
+    "a node on only one branch of a choice does not dominate the shared target",
+    () => {
+      // choice -+-> pageOncall -+-> summarize
+      //         +-------------------^
+      const nodes = [
+        node("choice", "choice"),
+        node("pageOncall"),
+        node("summarize"),
+      ];
+      const edges = [
+        edge("choice", "pageOncall"),
+        edge("choice", "summarize"),
+        edge("pageOncall", "summarize"),
+      ];
+
+      const dominators = tryComputeDominators(nodes, edges, "choice");
+
+      expect(dominators?.get("summarize")?.has("pageOncall")).toBe(false);
+      expect(dominators?.get("summarize")?.has("choice")).toBe(true);
+    },
+  );
+
+  test.concurrent("returns null when entryNodeKey names no node", () => {
+    const nodes = [node("a")];
+    const edges: DependencyEdgeSpec[] = [];
+
+    expect(tryComputeDominators(nodes, edges, "does-not-exist")).toBeNull();
+  });
+
+  test.concurrent("returns null for a cycle", () => {
+    const nodes = [node("a"), node("b")];
+    const edges = [edge("a", "b"), edge("b", "a")];
+
+    expect(tryComputeDominators(nodes, edges, "a")).toBeNull();
+  });
+
+  test.concurrent("returns null when an edge references an unknown node key", () => {
+    const nodes = [node("a")];
+    const edges = [edge("a", "does-not-exist")];
+
+    expect(tryComputeDominators(nodes, edges, "a")).toBeNull();
+  });
+
+  test.concurrent("omits nodes unreachable from the entry", () => {
+    const nodes = [node("a"), node("b"), node("island")];
+    const edges = [edge("a", "b")];
+
+    const dominators = tryComputeDominators(nodes, edges, "a");
+
+    expect(dominators?.has("island")).toBe(false);
   });
 });

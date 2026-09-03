@@ -265,7 +265,41 @@ The feature contributes a single signal, `$boboddy_notifications_v1` (type `arra
 
 ### `Features.feedbackRequests()`
 
-A convenience wrapper over `Features.notifications()`, backed by the same `$boboddy_notifications_v1` signal. Use it when a step's primary escalation path is asking the project team clarifying questions.
+A real specialization of `Features.notifications()`, not an alias — it narrows every emitted item to `kind: "feedback_request"` (in both the pushed JSON Schema and the prompt section), backed by the same `$boboddy_notifications_v1` signal. Use it when a step's primary escalation path is asking the project team clarifying questions.
+
+### Building notifications at runtime — `Notify`
+
+`Features.notifications()` wires the schema/signal for you, but composing a well-formed `NotificationItem` by hand still requires knowing the exact field names and the `$boboddy_notifications_v1` key. `Notify` is a separate, flat namespace of builder functions (the same shape as `Rule`/`Computed` in `@boboddy/sdk/definitions/pipelines`) for constructing a notification result value directly — most useful in a [code step](#code-steps), where there's no agent to follow the prompt instructions. It's deliberately separate from `Features`: `Features.*` is only ever something you attach via `features: [...]`; `Notify.*` is only ever something you call to build a value.
+
+```typescript
+Notify.inApp(title, body, priority, options?);
+```
+
+Returns `{ $boboddy_notifications_v1: [item] }` — return it directly if the notification is the step's whole result, or spread it into a larger result object. `options` accepts `kind` (defaults to `"status_update"`) and `payload`.
+
+`inApp` is the only channel with dedicated sugar, because it's the only channel the platform actually delivers today — `work_item_platform_comment`, `email`, and `slack` suggestions are accepted by the schema but currently have no delivery adapter, so they'll always end up as a failed delivery rather than a silent no-op. To suggest one of those anyway (e.g. once its adapter ships), use `Notify.create({ ..., suggestedChannels: [...] })` directly — `suggestedChannels` is always just a suggestion the platform's notification policy decides on, never a delivery guarantee, which is why it isn't hidden behind a same-looking function per channel.
+
+`Notify.feedbackRequest(question, category, urgency, suggestedKey?)` is the value-builder counterpart to `Features.feedbackRequests()`. `Notify.merge(...)` combines fragments from more than one `Notify.*` call into a single result.
+
+```typescript
+import { codeStep, Features, Notify } from "@boboddy/sdk/definitions/steps";
+
+export const notifyBlocked = codeStep({
+  key: "notify-blocked",
+  name: "Notify Blocked",
+  features: [Features.notifications()],
+  fn: () =>
+    Notify.inApp(
+      "Build failed",
+      "The build failed after 3 retries — needs a human look.",
+      "high",
+    ),
+});
+```
+
+### Reading notifications back out — `NotificationSignal`
+
+`NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key, and `NotificationSignal.find(signals)` parses a step execution's signals array back into `NotificationItem[]` (or `undefined` if none were emitted or the value doesn't parse).
 
 ## Execution mode
 
@@ -322,6 +356,8 @@ export const sumScores = codeStep({
 ```
 
 `fn` must be a plain named export of the same module `codeStep()` is called from — Boboddy resolves it to a portable `{sourceFile, exportName}` reference at push time. Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal rather than inferred from `resultSchema`. See [`codeStep(options)`](/boboddy/reference/sdk/#codestepoptions) for the full option table.
+
+`codeStep()` also accepts [`features`](#features) — only each feature's result-schema extension and signals apply (there's no prompt to append to on a code step). See [Building notifications at runtime — `Notify`](#building-notifications-at-runtime--notify) for the `Features.notifications()` + `Notify` + code-step pairing.
 
 ## Pushing steps
 

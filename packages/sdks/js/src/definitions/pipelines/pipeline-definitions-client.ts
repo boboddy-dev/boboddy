@@ -204,6 +204,7 @@ const buildPipelineDefinitionsClient = (
         description: spec.description,
         status: spec.status,
         inputSchemaJson: spec.inputSchemaJson,
+        entryNodeKey: spec.entryNodeKey,
         nodeDefinitions,
         dependencyEdges,
       } as unknown as UpsertPipelineDefinitionInput;

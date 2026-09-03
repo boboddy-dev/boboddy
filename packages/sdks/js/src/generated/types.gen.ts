@@ -4975,6 +4975,7 @@ export type PostApiPipelineDefinitionsData = {
                 [key: string]: unknown;
             } | unknown;
         }>;
+        entryNodeKey?: string;
     };
     path?: never;
     query?: never;
@@ -5426,6 +5427,7 @@ export type PutApiPipelineDefinitionsData = {
                 [key: string]: unknown;
             } | unknown;
         }>;
+        entryNodeKey?: string;
     };
     path?: never;
     query?: never;

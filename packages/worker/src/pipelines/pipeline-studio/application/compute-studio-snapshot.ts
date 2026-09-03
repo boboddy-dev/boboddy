@@ -83,7 +83,7 @@ export async function computeStudioSnapshot(
       { knownPipelineKeys: NO_KNOWN_PIPELINE_KEYS },
     );
     const pipelines = collected.pipelines.map((spec) =>
-      translatePipelineToSnapshot(spec, issues),
+      translatePipelineToSnapshot(spec, issues, collected.steps),
     );
 
     return {

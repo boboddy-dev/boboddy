@@ -197,7 +197,7 @@ describe("definePipeline — convergent edges", () => {
     ).not.toThrow();
   });
 
-  test.concurrent("rejects two unconditional steps converging on one shared target", () => {
+  test.concurrent("allows two unconditional steps converging on one shared target", () => {
     expect(() =>
       definePipeline({
         key: "converge-bad",
@@ -208,7 +208,7 @@ describe("definePipeline — convergent edges", () => {
           shared: { kind: "succeed" },
         },
       }),
-    ).toThrow(/unconditional convergent edges are not allowed/);
+    ).not.toThrow();
   });
 });
 
@@ -247,5 +247,17 @@ describe("definePipeline — misc", () => {
     expect(spec.name).toBe("defaults-test");
     expect(spec.version).toBe(1);
     expect(spec.status).toBe("active");
+  });
+
+  test.concurrent("entryNodeKey round-trips from config.startAt", () => {
+    const spec = definePipeline({
+      key: "entry-node-key-test",
+      startAt: "review",
+      states: {
+        review: { kind: "step", step: reviewStep, next: "done" },
+        done: { kind: "succeed" },
+      },
+    });
+    expect(spec.entryNodeKey).toBe("review");
   });
 });
