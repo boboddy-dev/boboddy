@@ -1,4 +1,5 @@
 export {
+  PIPELINE_BUILDER_DIR,
   collectDefinitionsFromDirectory,
   collectDefinitionsFromDirectoryTolerant,
 } from "./collect-definitions";

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import {
+  PIPELINE_BUILDER_DIR,
   collectDefinitionsFromDirectory,
   collectDefinitionsFromDirectoryTolerant,
 } from "../src/push/collect-definitions";
@@ -54,9 +55,49 @@ export const reviewFileStep = codeStep({
       expect(step?.entrypoint).toBeUndefined();
       expect(step?.entrypointJson?.exportName).toBe("doReview");
       expect(step?.entrypointJson?.sourceFile).toBe(
-        relative(process.cwd(), join(dir, "review-file-step.ts")),
+        join(PIPELINE_BUILDER_DIR, "review-file-step.ts"),
       );
     } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Regression test for the bug where `boboddy pipelines push` (and
+  // `studio`) spawn their collecting subprocess with `cwd` already set to
+  // the pipeline-builder directory being collected — the real-world
+  // condition `resolveCodeStepEntrypoint` must resolve `sourceFile`
+  // correctly under, since `process.cwd()` can no longer be trusted as a
+  // repo-root anchor there. See collect-definitions.ts's own doc comment.
+  test("resolves sourceFile correctly even when process.cwd() is the collected directory itself", async () => {
+    const dir = makeTempDir();
+    const originalCwd = process.cwd();
+    try {
+      writeFileSync(
+        join(dir, "review-file-step.ts"),
+        `
+import { codeStep } from "${codeStepImportSpecifier(dir)}";
+
+export function doReview(input) {
+  return { ok: true };
+}
+
+export const reviewFileStep = codeStep({
+  key: "review-file",
+  name: "Review File",
+  fn: doReview,
+});
+`,
+      );
+
+      process.chdir(dir);
+      const collected = await collectDefinitionsFromDirectory(dir);
+      const step = collected.steps.find((s) => s.key === "review-file");
+
+      expect(step?.entrypointJson?.sourceFile).toBe(
+        join(PIPELINE_BUILDER_DIR, "review-file-step.ts"),
+      );
+    } finally {
+      process.chdir(originalCwd);
       rmSync(dir, { recursive: true, force: true });
     }
   });

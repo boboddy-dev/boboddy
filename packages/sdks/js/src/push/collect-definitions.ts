@@ -27,6 +27,19 @@ const INTERNAL_SCRIPT_NAMES = new Set([
   ".boboddy-studio-collect.mjs",
 ]);
 
+/**
+ * The fixed, repo-root-relative directory `boboddy pipelines init` scaffolds
+ * and `boboddy pipelines push`/`studio` always run from. `resolveCodeStepEntrypoint`
+ * uses this to record a `kind: "code"` step's `sourceFile` relative to the repo
+ * root (what the worker's `execute-code-step.ts` expects when it joins
+ * `sourceFile` onto the checked-out workspace root), regardless of what the
+ * collecting process's own `cwd` happens to be.
+ *
+ * Duplicated nowhere else — `@boboddy/worker`'s own `PIPELINE_BUILDER_DIR`
+ * imports this one, so there's a single source of truth.
+ */
+export const PIPELINE_BUILDER_DIR = ".boboddy/pipeline-builder";
+
 export type CollectedDefinitions = {
   readonly pipelines: readonly PipelineDefinitionSpec[];
   /** Deduped by `key@vN`; named exports take precedence over embedded steps. */
@@ -66,17 +79,27 @@ function isStepDefinitionSpec(value: unknown): value is StepDefinitionSpec {
 
 /**
  * For a `kind === "code"` spec: finds whichever export of `mod` `===
- * spec.entrypoint.fn` by reference identity, combines it with the
- * module's own path (recorded relative to the repo root — the process's
- * own cwd, i.e. the target repo's checkout root that `boboddy pipelines
- * push` is run from) into `entrypointJson`, and strips the live `fn`
- * reference (it can never be serialized into the push request). Every
- * other kind passes through unchanged.
+ * spec.entrypoint.fn` by reference identity, combines it with the module's
+ * own path — recorded relative to the repo root as
+ * `PIPELINE_BUILDER_DIR/<file>`, since `absDir` (the directory being
+ * collected) is always `PIPELINE_BUILDER_DIR` itself — into `entrypointJson`,
+ * and strips the live `fn` reference (it can never be serialized into the
+ * push request). Every other kind passes through unchanged.
+ *
+ * Deliberately does *not* use `process.cwd()`: `boboddy pipelines push` and
+ * `studio` both spawn their collecting subprocess with `cwd` already set to
+ * `PIPELINE_BUILDER_DIR` (so the subprocess's own runtime/lockfile detection
+ * resolves correctly), which previously made `relative(process.cwd(), ...)`
+ * collapse to a bare filename with no `PIPELINE_BUILDER_DIR` prefix — the
+ * worker then joined that bare filename onto the workspace root and looked
+ * in the wrong place (`ERR_MODULE_NOT_FOUND`). Anchoring on `absDir` instead
+ * is correct regardless of the calling process's cwd.
  */
 function resolveCodeStepEntrypoint(
   spec: StepDefinitionSpec,
   mod: Record<string, unknown>,
   absoluteFilePath: string,
+  absDir: string,
 ): StepDefinitionSpec {
   if (spec.kind !== "code") return spec;
 
@@ -102,7 +125,7 @@ function resolveCodeStepEntrypoint(
   const resolved: StepDefinitionSpec = { ...spec };
   delete resolved.entrypoint;
   resolved.entrypointJson = {
-    sourceFile: relative(process.cwd(), absoluteFilePath),
+    sourceFile: join(PIPELINE_BUILDER_DIR, relative(absDir, absoluteFilePath)),
     exportName,
   };
   return resolved;
@@ -151,6 +174,7 @@ function fileNameWithoutExtension(file: string): string {
  */
 async function collectFile(
   absoluteFilePath: string,
+  absDir: string,
   pipelines: PipelineDefinitionSpec[],
   stepMap: Map<string, StepDefinitionSpec>,
 ): Promise<void> {
@@ -162,7 +186,12 @@ async function collectFile(
       continue;
     }
     if (isStepDefinitionSpec(value)) {
-      const resolved = resolveCodeStepEntrypoint(value, mod, absoluteFilePath);
+      const resolved = resolveCodeStepEntrypoint(
+        value,
+        mod,
+        absoluteFilePath,
+        absDir,
+      );
       stepMap.set(`${resolved.key}@v${String(resolved.version)}`, resolved);
     }
   }
@@ -229,7 +258,7 @@ export async function collectDefinitionsFromDirectory(
   const stepMap = new Map<string, StepDefinitionSpec>();
 
   for (const file of sourceFiles) {
-    await collectFile(join(absDir, file), pipelines, stepMap);
+    await collectFile(join(absDir, file), absDir, pipelines, stepMap);
   }
 
   for (const spec of pipelines) {
@@ -264,7 +293,7 @@ export async function collectDefinitionsFromDirectoryTolerant(
 
   for (const file of sourceFiles) {
     try {
-      await collectFile(join(absDir, file), pipelines, stepMap);
+      await collectFile(join(absDir, file), absDir, pipelines, stepMap);
     } catch (error) {
       brokenPipelines.push({
         key: fileNameWithoutExtension(file),

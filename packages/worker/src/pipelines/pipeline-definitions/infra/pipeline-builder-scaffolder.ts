@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
+import { PIPELINE_BUILDER_DIR } from "@boboddy/sdk/push";
 
-export const PIPELINE_BUILDER_DIR = ".boboddy/pipeline-builder";
+export { PIPELINE_BUILDER_DIR };
 
 export const STARTER_PIPELINE_KEY = "triage-and-plan";
 export const STARTER_PIPELINE_FILENAME = `${STARTER_PIPELINE_KEY}.ts`;
