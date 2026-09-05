@@ -2,38 +2,16 @@ import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
+import { CLI_BUILD_TARGETS, type CliBuildTarget } from "./targets";
 
 const require = createRequire(import.meta.url);
 
-interface BuildTarget {
-  readonly bunTarget: string;
-  readonly outputName: string;
-  readonly codesign?: boolean;
-}
-
-const CLI_NAME = "boboddy";
 const projectRoot = resolve(import.meta.dir, "..");
 const distDirectory = resolve(projectRoot, "dist");
 const entrypoint = resolve(projectRoot, "src/index.ts");
 
-const allTargets: readonly BuildTarget[] = [
-  {
-    bunTarget: "bun-darwin-arm64",
-    outputName: `${CLI_NAME}-darwin-arm64`,
-    codesign: true,
-  },
-  {
-    bunTarget: "bun-darwin-x64",
-    outputName: `${CLI_NAME}-darwin-x64`,
-    codesign: true,
-  },
-  { bunTarget: "bun-linux-x64", outputName: `${CLI_NAME}-linux-x64` },
-  { bunTarget: "bun-linux-arm64", outputName: `${CLI_NAME}-linux-arm64` },
-  { bunTarget: "bun-windows-x64", outputName: `${CLI_NAME}-windows-x64.exe` },
-];
-
 async function buildTarget(
-  target: BuildTarget,
+  target: CliBuildTarget,
   extraDefines: readonly string[] = [],
 ): Promise<void> {
   const outfile = resolve(distDirectory, target.outputName);
@@ -171,7 +149,7 @@ async function main(): Promise<void> {
   await mkdir(dirname(updateUIDDest), { recursive: true });
   await copyFile(updateUIDSrc, updateUIDDest);
 
-  for (const target of allTargets) {
+  for (const target of CLI_BUILD_TARGETS) {
     process.stdout.write(`Building ${target.outputName}...\n`);
     await buildTarget(target, [versionDefine]);
   }

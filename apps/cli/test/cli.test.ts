@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { concurrentTest, hasReporterLine } from "./utils";
@@ -156,6 +156,73 @@ describe("boboddy CLI", () => {
     expect(
       hasLogLine(parseLogLines(result.stdout), { msg: "CLI wrapper failed" }),
     ).toBe(true);
+  });
+
+  concurrentTest("reports a missing devcontainer bundle in the wrapper", () => {
+    // Regression test for a corrupted/partially-extracted install: the
+    // platform binary is present but dist/devcontainer/... never got
+    // extracted (see script/publish.ts's module doc). This must fail
+    // immediately with an actionable message instead of silently passing a
+    // bad BOBODDY_DEVCONTAINER_SCRIPT path through to the compiled binary,
+    // where it previously surfaced minutes later as an opaque
+    // "devcontainer CLI exited with a non-zero exit code".
+    const fakeDist = mkdtempSync(resolve(tmpdir(), "boboddy-dist-"));
+    try {
+      writeFileSync(resolve(fakeDist, "boboddy-darwin-arm64"), "#!/bin/sh\n");
+
+      const result = run(["node", wrapperEntrypoint, "hello"], {
+        BOBODDY_DIST_DIR: fakeDist,
+        BOBODDY_PLATFORM: "darwin",
+        BOBODDY_ARCH: "arm64",
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      const logs = parseLogLines(result.stdout);
+      expect(hasLogLine(logs, { msg: "CLI wrapper failed" })).toBe(true);
+      const failure = logs.find((log) => log["msg"] === "CLI wrapper failed");
+      expect(String(failure?.["message"])).toContain(
+        "Missing devcontainer CLI bundle",
+      );
+      expect(String(failure?.["message"])).toContain("npm install -g @boboddy/cli");
+    } finally {
+      rmSync(fakeDist, { recursive: true, force: true });
+    }
+  });
+
+  concurrentTest("resolves both the binary and devcontainer bundle from a complete dist/ layout", () => {
+    // Happy-path counterpart to the two failure tests above: a complete
+    // legacy dist/ layout (as produced by `bun run build`, and as
+    // BOBODDY_DIST_DIR forces in dev/CI) must get past both integrity checks
+    // and reach spawnSync. We don't need the "binary" to actually be a
+    // runnable executable — reaching spawnSync (rather than failing on a
+    // wrapper-level integrity check) is the thing under test — so a
+    // non-executable stand-in is fine as long as the resulting spawn error
+    // is Node's ENOEXEC/EACCES, not one of our own "Missing ..." messages.
+    const fakeDist = mkdtempSync(resolve(tmpdir(), "boboddy-dist-"));
+    try {
+      writeFileSync(resolve(fakeDist, "boboddy-darwin-arm64"), "#!/bin/sh\nexit 0\n", {
+        mode: 0o755,
+      });
+      mkdirSync(resolve(fakeDist, "devcontainer", "dist", "spec-node"), {
+        recursive: true,
+      });
+      writeFileSync(
+        resolve(fakeDist, "devcontainer", "dist", "spec-node", "devcontainers-cli.js"),
+        "",
+      );
+
+      const result = run(["node", wrapperEntrypoint, "hello"], {
+        BOBODDY_DIST_DIR: fakeDist,
+        BOBODDY_PLATFORM: "darwin",
+        BOBODDY_ARCH: "arm64",
+      });
+
+      const logs = parseLogLines(result.stdout);
+      expect(hasLogLine(logs, { msg: "CLI wrapper failed" })).toBe(false);
+    } finally {
+      rmSync(fakeDist, { recursive: true, force: true });
+    }
   });
 
   concurrentTest("reports auth status when not signed in", () => {

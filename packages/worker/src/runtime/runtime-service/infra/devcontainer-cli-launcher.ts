@@ -1,4 +1,5 @@
 import { execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -61,16 +62,35 @@ const DEVCONTAINER_CONFIG_CANDIDATES = [
  */
 export function resolveDevcontainerCliScriptPath(): string {
   const scriptPath = process.env["BOBODDY_DEVCONTAINER_SCRIPT"];
-  if (scriptPath) {
-    return scriptPath;
+  if (!scriptPath) {
+    throw new ConfigurationError(
+      "BOBODDY_DEVCONTAINER_SCRIPT is not set. This is normally injected by the " +
+        "CLI shim (bin/boboddy). If running the worker directly, set this env var " +
+        "to the path of dist/devcontainer/dist/spec-node/devcontainers-cli.js.",
+      "DEVCONTAINER_CLI_NOT_FOUND",
+    );
   }
 
-  throw new ConfigurationError(
-    "BOBODDY_DEVCONTAINER_SCRIPT is not set. This is normally injected by the " +
-      "CLI shim (bin/boboddy). If running the worker directly, set this env var " +
-      "to the path of dist/devcontainer/dist/spec-node/devcontainers-cli.js.",
-    "DEVCONTAINER_CLI_NOT_FOUND",
-  );
+  // The shim (bin/boboddy) already verifies this file exists before it ever
+  // launches the worker, so this should be unreachable in normal operation.
+  // It fires when the worker is invoked directly (bypassing the shim, e.g. a
+  // local `bun run` or a test) against a corrupted/incomplete install — most
+  // commonly a partial npm global install that wrote the platform binary but
+  // never finished extracting this bundle. Fail loudly here with the actual
+  // missing path and a remediation step, instead of letting the spawn fail
+  // instantly with an opaque non-JSON error that the CLI-output parser can't
+  // extract a summary from (see extractDevcontainerErrorSummary's fallback).
+  if (!existsSync(scriptPath)) {
+    throw new ConfigurationError(
+      `Devcontainer CLI bundle not found at ${scriptPath}. The boboddy install ` +
+        "looks incomplete or corrupted. Try reinstalling: `npm install -g " +
+        "@boboddy/cli --force` (or `npm cache clean --force && npm install -g " +
+        "@boboddy/cli`).",
+      "DEVCONTAINER_CLI_NOT_FOUND",
+    );
+  }
+
+  return scriptPath;
 }
 
 export function buildDevcontainerCliCommand(

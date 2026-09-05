@@ -9,6 +9,20 @@ import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 
 const execFileAsync = promisify(execFile);
 
+/** Force non-interactive auth failures instead of a hung credential prompt. */
+function gitEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+}
+
+/**
+ * Backstop for a stalled transfer (e.g. a dead TCP connection after a network
+ * path change): abort if no data arrives for this many seconds, on top of
+ * `execFileAsync`'s own hard wall-clock timeout below.
+ */
+const CLONE_LOW_SPEED_TIME_SECONDS = 60;
+const CLONE_LOW_SPEED_LIMIT_BYTES_PER_SEC = 1000;
+const CLONE_TIMEOUT_MS = 10 * 60_000;
+
 async function resolveBranchName(workspacePath: string): Promise<string> {
   const commands = [
     ["-C", workspacePath, "branch", "--show-current"],
@@ -41,12 +55,24 @@ export class GitCliCloneService implements GitCloneService {
   ): Promise<CloneRepositoryResult> {
     // Always clone the repo's default HEAD. When a step needs a different base
     // branch, the caller checks it out after clone (see prepareWorkBranch).
-    const args = ["clone", "--origin", "origin", "--no-tags"];
+    const args = [
+      "-c",
+      `http.lowSpeedLimit=${String(CLONE_LOW_SPEED_LIMIT_BYTES_PER_SEC)}`,
+      "-c",
+      `http.lowSpeedTime=${String(CLONE_LOW_SPEED_TIME_SECONDS)}`,
+      "clone",
+      "--origin",
+      "origin",
+      "--no-tags",
+    ];
 
     args.push(input.gitUrl, input.workspacePath);
 
     try {
-      await execFileAsync("git", args);
+      await execFileAsync("git", args, {
+        env: gitEnv(),
+        timeout: CLONE_TIMEOUT_MS,
+      });
       return {
         resolvedBranch: await resolveBranchName(input.workspacePath),
       };

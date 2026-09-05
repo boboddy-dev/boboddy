@@ -28,6 +28,10 @@ const logger = pino(
   transport,
 );
 
+// Keep in sync with apps/cli/script/targets.ts (CLI_BUILD_TARGETS) and this
+// package's bin/postinstall.js — see the doc comment in targets.ts. This
+// file is plain CommonJS (not compiled), so it can't import that module at
+// runtime.
 const binaryNames = {
   "darwin:arm64": `${cliName}-darwin-arm64`,
   "darwin:x64": `${cliName}-darwin-x64`,
@@ -35,6 +39,26 @@ const binaryNames = {
   "linux:x64": `${cliName}-linux-x64`,
   "win32:x64": `${cliName}-windows-x64.exe`,
 };
+
+// The published @boboddy/cli package ships no binaries itself — each
+// platform's binary lives in its own optionalDependency package, installed
+// by npm only when it matches the current machine (see script/publish.ts).
+// This keeps a normal `npm install -g @boboddy/cli` from downloading and
+// extracting all 5 platforms' binaries (~170MB combined) every time, which
+// made large-package extraction interruptions (network blips, disk
+// pressure, concurrent installs) far more likely to leave a corrupted,
+// partially-extracted install behind.
+const platformPackageNames = {
+  "darwin:arm64": "@boboddy/cli-darwin-arm64",
+  "darwin:x64": "@boboddy/cli-darwin-x64",
+  "linux:arm64": "@boboddy/cli-linux-arm64",
+  "linux:x64": "@boboddy/cli-linux-x64",
+  "win32:x64": "@boboddy/cli-win32-x64",
+};
+
+const reinstallHint =
+  "Try reinstalling: `npm install -g @boboddy/cli --force` " +
+  "(or `npm cache clean --force && npm install -g @boboddy/cli`).";
 
 function fail(message) {
   logger.error({ message }, "CLI wrapper failed");
@@ -48,13 +72,68 @@ if (binaryName === undefined) {
   fail(`Unsupported platform or architecture: ${platform}/${arch}.`);
 }
 
-const binaryPath = resolve(distDirectory, binaryName);
+const distOverride = process.env.BOBODDY_DIST_DIR;
+
+// Resolve the compiled binary. Two supported layouts:
+//   1. Dev build / explicit override (BOBODDY_DIST_DIR, or a local
+//      `bun run build`): a single dist/ next to this file holding every
+//      platform's binary. bin/postinstall.js's rescue download (see its
+//      module doc) also lands here, so a repaired install resolves through
+//      this same branch.
+//   2. Published npm install: this package carries no binaries; the current
+//      platform's binary comes from its optionalDependency package. Falls
+//      back to the monolithic dist/ layout if that package isn't resolvable
+//      (npm failed to install it — e.g. a dropped connection — and
+//      bin/postinstall.js's rescue download either hasn't run yet or itself
+//      failed; see reinstallHint below).
+function resolveBinaryPath() {
+  if (distOverride) {
+    return resolve(distOverride, binaryName);
+  }
+  const packageName = platformPackageNames[targetKey];
+  if (packageName !== undefined) {
+    try {
+      return require.resolve(`${packageName}/bin/${binaryName}`);
+    } catch {
+      // Fall through — see layout 1 above.
+    }
+  }
+  return resolve(distDirectory, binaryName);
+}
+
+const binaryPath = resolveBinaryPath();
 const devFilePath = resolve(distDirectory, ".dev");
 const isDevBuild = existsSync(devFilePath);
 const devSdkArtifactPath = isDevBuild ? readFileSync(devFilePath, "utf8").trim() : "";
 
 if (!existsSync(binaryPath)) {
-  fail(`Missing compiled binary: ${binaryPath}`);
+  fail(
+    `Missing compiled binary for ${platform}/${arch} (looked for ${binaryPath}). ` +
+      `Your ${cliName} install looks incomplete or corrupted. ${reinstallHint}`,
+  );
+}
+
+// Resolve *and verify* the devcontainer CLI bundle up front. This bundle
+// always lives alongside this shim (dist/devcontainer/..., not split per
+// platform, since it's plain cross-platform JS) regardless of which layout
+// the binary above came from. Checking existence here — rather than trusting
+// the path and letting a missing file surface deep inside a worker run —
+// turns a corrupted/partial install into an immediate, actionable error
+// instead of a cryptic "devcontainer CLI exited with a non-zero exit code"
+// several seconds into a `boboddy work` session (the CLI bundle's own
+// structured JSON error format never gets a chance to run if the file is
+// missing, so the worker's error parser has nothing to extract a summary
+// from — see extractDevcontainerErrorSummary's fallback string).
+const devcontainerScriptOverride = process.env["BOBODDY_DEVCONTAINER_SCRIPT"];
+const devcontainerScriptPath =
+  devcontainerScriptOverride ??
+  resolve(distDirectory, "devcontainer", "dist", "spec-node", "devcontainers-cli.js");
+
+if (!devcontainerScriptOverride && !existsSync(devcontainerScriptPath)) {
+  fail(
+    `Missing devcontainer CLI bundle (looked for ${devcontainerScriptPath}). ` +
+      `Your ${cliName} install looks incomplete or corrupted. ${reinstallHint}`,
+  );
 }
 
 const extraEnv = {
@@ -64,7 +143,7 @@ const extraEnv = {
   // CLI's extensionPath (join(__dirname, "..", "..")) resolves to
   // dist/devcontainer/, where build.ts also places scripts/updateUID.Dockerfile
   // (used on Linux when remapping the container user's UID/GID).
-  BOBODDY_DEVCONTAINER_SCRIPT: process.env["BOBODDY_DEVCONTAINER_SCRIPT"] ?? resolve(distDirectory, "devcontainer", "dist", "spec-node", "devcontainers-cli.js"),
+  BOBODDY_DEVCONTAINER_SCRIPT: devcontainerScriptPath,
 };
 if (devSdkArtifactPath) extraEnv["BOBODDY_SDK_ARTIFACT_PATH"] = devSdkArtifactPath;
 
