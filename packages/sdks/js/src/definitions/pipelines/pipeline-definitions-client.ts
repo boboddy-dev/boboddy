@@ -50,9 +50,8 @@ function resolveStepRef(
 /**
  * Builds one node's `configJson` from its kind-specific `NodeDefinitionSpec`
  * fields — the richer `nodeDefinitions[]`/`dependencyEdges[]` graph shape's
- * counterpart to a chain node's flat `position`-ordered row (see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §11 Phase 3's
- * wire-format resolution). `choice`/`loop`'s configs are plain data (no
+ * counterpart to a chain node's flat `position`-ordered row.
+ * `choice`/`loop`'s configs are plain data (no
  * step-key resolution needed); `parallel`'s branches each carry their own
  * `stepKey` that must be resolved the same way a top-level node's does.
  */

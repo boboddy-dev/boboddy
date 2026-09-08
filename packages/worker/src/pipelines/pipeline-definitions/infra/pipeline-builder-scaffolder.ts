@@ -279,7 +279,7 @@ export const writeFixPlanStep = defineStep({
 
 // ─── The pipeline ───────────────────────────────────────────────────────────
 // A pipeline is a flat map of named states, each declaring what runs after it
-// (\`next\`) — see docs/research/flat-pipeline-sdk-and-visual-designer.md.
+// (\`next\`).
 export default definePipeline({
   key: "triage-and-plan",
   name: "Triage & Plan",

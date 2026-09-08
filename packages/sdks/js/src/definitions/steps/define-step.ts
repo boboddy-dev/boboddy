@@ -267,8 +267,7 @@ export type AdditionalStepInputBinding = WorkItemBinding | LiteralBinding;
 
 /**
  * A `kind: "code"` step's portable entrypoint, once resolved by
- * `collect-definitions.ts`'s identity-capture pass — see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §7.7/§8.
+ * `collect-definitions.ts`'s identity-capture pass.
  */
 export type StepDefinitionEntrypointJson = {
   sourceFile: string;

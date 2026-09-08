@@ -8,8 +8,7 @@ import {
 } from "../../../steps/step-definitions/infra/step-file-generator";
 
 /**
- * Regenerates local `.ts` pipeline source (`definePipeline({states})` — see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §4) from
+ * Regenerates local `.ts` pipeline source (`definePipeline({states})`) from
  * `PipelineContract`, the shape `boboddy pipelines pull` receives off
  * `GET /projects/:projectId/pipeline-definitions`.
  *

@@ -12,12 +12,10 @@ import type {
 
 /**
  * The `input:` mapper ctx every `step`/`fanOut`/`loop`/parallel-branch
- * state receives (see docs/research/flat-pipeline-sdk-and-visual-designer.md
- * §4). Nodes are addressed by their plain string state key rather than a
+ * state receives. Nodes are addressed by their plain string state key rather than a
  * typed step reference — the flat, forward-only authoring model has no
  * "tuple of prior steps" to statically check a binding's source/signal
- * key against (cross-node static proof is explicitly out of scope; see
- * that doc's §1).
+ * key against (cross-node static proof is explicitly out of scope).
  */
 export type NodeInputCtx<TInput extends ZodType = ZodType> = {
   /** Reads a value from the pipeline's own input, by dot-path. */

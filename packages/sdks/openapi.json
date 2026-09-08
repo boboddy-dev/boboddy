@@ -32888,6 +32888,2049 @@
         }
       }
     },
+    "/api/pipeline-definitions/{pipelineDefinitionId}/versions/{pipelineDefinitionVersionId}/graph-spec": {
+      "get": {
+        "operationId": "getPipelineDefinitionGraphSpec",
+        "tags": [
+          "PipelineDefinitions"
+        ],
+        "parameters": [
+          {
+            "name": "pipelineDefinitionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pipelineDefinitionVersionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "active",
+                        "archived"
+                      ]
+                    },
+                    "inputSchemaJson": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "entryNodeKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nodeDefinitions": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "step"
+                              },
+                              "stepKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "stepName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "stepDescription": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "inputBindingsJson": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "additionalProperties": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "pipeline_input"
+                                        },
+                                        "path": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "step_signal"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "signalKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey",
+                                        "signalKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "step_output"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "literal"
+                                        },
+                                        "value": {}
+                                      },
+                                      "required": [
+                                        "source",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "signals_list"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "fan_out_item"
+                                        }
+                                      },
+                                      "required": [
+                                        "source"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "timeoutSeconds": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "advancementPolicyDefinition": {
+                                "type": "object",
+                                "properties": {
+                                  "rulesJson": {
+                                    "type": "object",
+                                    "properties": {
+                                      "rules": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "conditions": {
+                                              "type": "object",
+                                              "properties": {
+                                                "all": {
+                                                  "type": "array",
+                                                  "items": {}
+                                                },
+                                                "any": {
+                                                  "type": "array",
+                                                  "items": {}
+                                                }
+                                              },
+                                              "additionalProperties": false
+                                            },
+                                            "event": {
+                                              "type": "object",
+                                              "properties": {
+                                                "type": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "params": {
+                                                  "type": "object",
+                                                  "propertyNames": {
+                                                    "type": "string"
+                                                  },
+                                                  "additionalProperties": {}
+                                                }
+                                              },
+                                              "required": [
+                                                "type"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "required": [
+                                            "conditions",
+                                            "event"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "rules"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "defaultEventType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "continue",
+                                      "block",
+                                      "route",
+                                      "complete"
+                                    ]
+                                  },
+                                  "defaultEventParamsJson": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {}
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "allowedEventTypes": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "continue",
+                                        "block",
+                                        "route",
+                                        "complete"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "rulesJson",
+                                  "defaultEventType",
+                                  "defaultEventParamsJson",
+                                  "allowedEventTypes"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "computedSignalDefinitions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "key": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "average",
+                                        "weighted_average",
+                                        "sum",
+                                        "min",
+                                        "max",
+                                        "count",
+                                        "boolean_any",
+                                        "boolean_all"
+                                      ]
+                                    },
+                                    "inputSignalKeys": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "configJson": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {}
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "availableWhenResultStatusIn": {
+                                      "anyOf": [
+                                        {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          }
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "type",
+                                    "inputSignalKeys",
+                                    "configJson",
+                                    "availableWhenResultStatusIn"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "stepKey",
+                              "stepName",
+                              "stepDescription",
+                              "inputBindingsJson",
+                              "timeoutSeconds",
+                              "advancementPolicyDefinition",
+                              "computedSignalDefinitions"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "fanOut"
+                              },
+                              "stepKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "stepName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "stepDescription": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "inputBindingsJson": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "additionalProperties": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "pipeline_input"
+                                        },
+                                        "path": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "step_signal"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "signalKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey",
+                                        "signalKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "step_output"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "literal"
+                                        },
+                                        "value": {}
+                                      },
+                                      "required": [
+                                        "source",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "signals_list"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "fan_out_item"
+                                        }
+                                      },
+                                      "required": [
+                                        "source"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "timeoutSeconds": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "overSignalKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "advanceEachPolicyDefinition": {
+                                "type": "object",
+                                "properties": {
+                                  "rules": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "conditions": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {}
+                                        },
+                                        "event": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "enum": [
+                                                "continue",
+                                                "block"
+                                              ]
+                                            },
+                                            "params": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            }
+                                          },
+                                          "required": [
+                                            "type"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "conditions",
+                                        "event"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "defaultEventType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "continue",
+                                      "block"
+                                    ]
+                                  },
+                                  "defaultEventParamsJson": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {}
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "rules",
+                                  "defaultEventType",
+                                  "defaultEventParamsJson"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "maxConcurrency": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "stepKey",
+                              "stepName",
+                              "stepDescription",
+                              "inputBindingsJson",
+                              "timeoutSeconds",
+                              "overSignalKey",
+                              "advanceEachPolicyDefinition",
+                              "maxConcurrency"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "cohortGate"
+                              },
+                              "advanceAllPolicyDefinition": {
+                                "type": "object",
+                                "properties": {
+                                  "rules": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "conditions": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {}
+                                        },
+                                        "event": {
+                                          "type": "object",
+                                          "properties": {
+                                            "type": {
+                                              "type": "string",
+                                              "enum": [
+                                                "continue",
+                                                "block"
+                                              ]
+                                            },
+                                            "params": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            }
+                                          },
+                                          "required": [
+                                            "type"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "conditions",
+                                        "event"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "defaultEventType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "continue",
+                                      "block"
+                                    ]
+                                  },
+                                  "defaultEventParamsJson": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {}
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "rules",
+                                  "defaultEventType",
+                                  "defaultEventParamsJson"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "stepSignalsListDefinitions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "key": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "ops": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "op": {
+                                                "type": "string",
+                                                "const": "pluck"
+                                              },
+                                              "signalKey": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              }
+                                            },
+                                            "required": [
+                                              "op",
+                                              "signalKey"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "op": {
+                                                "type": "string",
+                                                "const": "filter"
+                                              },
+                                              "operator": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "equal",
+                                                  "notEqual",
+                                                  "lessThan",
+                                                  "lessThanInclusive",
+                                                  "greaterThan",
+                                                  "greaterThanInclusive",
+                                                  "in",
+                                                  "notIn",
+                                                  "contains",
+                                                  "doesNotContain"
+                                                ]
+                                              },
+                                              "value": {}
+                                            },
+                                            "required": [
+                                              "op",
+                                              "operator",
+                                              "value"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "op": {
+                                                "type": "string",
+                                                "const": "sortBy"
+                                              },
+                                              "direction": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "asc",
+                                                  "desc"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "op",
+                                              "direction"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "op": {
+                                                "type": "string",
+                                                "const": "unique"
+                                              }
+                                            },
+                                            "required": [
+                                              "op"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "reducer": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "count"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "sum"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "avg"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "min"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "max"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "booleanAll"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "booleanAny"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "join"
+                                            },
+                                            "separator": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "op",
+                                            "separator"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "first"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "op": {
+                                              "type": "string",
+                                              "const": "last"
+                                            }
+                                          },
+                                          "required": [
+                                            "op"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "ops",
+                                    "reducer"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "advanceAllPolicyDefinition",
+                              "stepSignalsListDefinitions"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "choice"
+                              },
+                              "choices": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "conditionJson": {},
+                                    "targetNodeKey": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "required": [
+                                    "conditionJson",
+                                    "targetNodeKey"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "default": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "choices",
+                              "default"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "parallel"
+                              },
+                              "branches": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "stepKey": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "stepName": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "stepDescription": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "inputBindingsJson": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "additionalProperties": {
+                                        "oneOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "pipeline_input"
+                                              },
+                                              "path": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "path"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "work_item"
+                                              },
+                                              "field": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "field"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "step_signal"
+                                              },
+                                              "stepKey": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              },
+                                              "signalKey": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "stepKey",
+                                              "signalKey"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "step_output"
+                                              },
+                                              "stepKey": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "stepKey"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "literal"
+                                              },
+                                              "value": {}
+                                            },
+                                            "required": [
+                                              "source",
+                                              "value"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "signals_list"
+                                              },
+                                              "stepKey": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              }
+                                            },
+                                            "required": [
+                                              "source",
+                                              "stepKey"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "source": {
+                                                "type": "string",
+                                                "const": "fan_out_item"
+                                              }
+                                            },
+                                            "required": [
+                                              "source"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "stepKey",
+                                    "stepName",
+                                    "stepDescription",
+                                    "inputBindingsJson"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "advanceAllPolicyDefinition": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "rules": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "conditions": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {}
+                                            },
+                                            "event": {
+                                              "type": "object",
+                                              "properties": {
+                                                "type": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "continue",
+                                                    "block"
+                                                  ]
+                                                },
+                                                "params": {
+                                                  "type": "object",
+                                                  "propertyNames": {
+                                                    "type": "string"
+                                                  },
+                                                  "additionalProperties": {}
+                                                }
+                                              },
+                                              "required": [
+                                                "type"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "required": [
+                                            "conditions",
+                                            "event"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "defaultEventType": {
+                                        "type": "string",
+                                        "enum": [
+                                          "continue",
+                                          "block"
+                                        ]
+                                      },
+                                      "defaultEventParamsJson": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {}
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "rules",
+                                      "defaultEventType",
+                                      "defaultEventParamsJson"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "branches"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "loop"
+                              },
+                              "stepKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "stepName": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "stepDescription": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "inputBindingsJson": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "additionalProperties": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "pipeline_input"
+                                        },
+                                        "path": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "path"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "work_item"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "step_signal"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "signalKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey",
+                                        "signalKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "step_output"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "literal"
+                                        },
+                                        "value": {}
+                                      },
+                                      "required": [
+                                        "source",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "signals_list"
+                                        },
+                                        "stepKey": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "stepKey"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "fan_out_item"
+                                        }
+                                      },
+                                      "required": [
+                                        "source"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "timeoutSeconds": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "maxIterations": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "untilConditionJson": {}
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "stepKey",
+                              "stepName",
+                              "stepDescription",
+                              "inputBindingsJson",
+                              "timeoutSeconds",
+                              "maxIterations",
+                              "untilConditionJson"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "succeed"
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "const": "fail"
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "dependencyEdges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fromNodeKey": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "toNodeKey": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "discriminantJson": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "fromNodeKey",
+                          "toNodeKey"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "description",
+                    "version",
+                    "status",
+                    "entryNodeKey",
+                    "nodeDefinitions",
+                    "dependencyEdges"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Response for status 400",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Response for status 401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Response for status 403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Response for status 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Response for status 422",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Response for status 500",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{projectId}/pipeline-definitions": {
       "get": {
         "operationId": "listPipelineDefinitions",
@@ -33952,12 +35995,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -33968,6 +36025,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -33977,7 +36069,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -33989,11 +36080,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -34081,19 +36180,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -34108,6 +36207,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -34145,7 +36254,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -34174,8 +36285,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -34210,6 +36321,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -35454,12 +37568,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -35470,6 +37598,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -35479,7 +37642,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -35491,11 +37653,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -35583,19 +37753,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -35610,6 +37780,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -35647,7 +37827,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -35676,8 +37858,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -35712,6 +37894,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -36317,12 +38502,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -36333,6 +38532,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -36342,7 +38576,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -36354,11 +38587,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -36446,19 +38687,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -36473,6 +38714,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -36510,7 +38761,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -36539,8 +38792,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -36575,6 +38828,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -37188,12 +39444,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -37204,6 +39474,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -37213,7 +39518,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -37225,11 +39529,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -37317,19 +39629,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -37344,6 +39656,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -37381,7 +39703,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -37410,8 +39734,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -37446,6 +39770,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -38220,12 +40547,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -38236,6 +40577,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -38245,7 +40621,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -38257,11 +40632,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -38349,19 +40732,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -38376,6 +40759,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -38413,7 +40806,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -38442,8 +40837,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -38478,6 +40873,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -39192,12 +41590,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -39208,6 +41620,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -39217,7 +41664,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -39229,11 +41675,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -39321,19 +41775,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -39348,6 +41802,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -39385,7 +41849,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -39414,8 +41880,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -39450,6 +41916,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -40128,12 +42597,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -40144,6 +42627,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -40153,7 +42671,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -40165,11 +42682,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -40257,19 +42782,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -40284,6 +42809,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -40321,7 +42856,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -40350,8 +42887,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -40386,6 +42923,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -41056,12 +43596,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -41072,6 +43626,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -41081,7 +43670,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -41093,11 +43681,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -41185,19 +43781,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -41212,6 +43808,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -41249,7 +43855,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -41278,8 +43886,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -41314,6 +43922,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -41919,12 +44530,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -41935,6 +44560,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -41944,7 +44604,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -41956,11 +44615,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -42048,19 +44715,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -42075,6 +44742,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -42112,7 +44789,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -42141,8 +44820,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -42177,6 +44856,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -43190,12 +45872,26 @@
                                   "type": "string"
                                 },
                                 "stepDefinitionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepDefinitionVersion": {
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepKey": {
                                   "type": "string",
@@ -43206,6 +45902,41 @@
                                   "exclusiveMinimum": 0,
                                   "maximum": 9007199254740991
                                 },
+                                "nodeKind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "step",
+                                    "fanOut",
+                                    "cohortGate",
+                                    "choice",
+                                    "parallel",
+                                    "loop",
+                                    "succeed",
+                                    "fail"
+                                  ]
+                                },
+                                "branchIndex": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "branchKey": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -43215,7 +45946,6 @@
                                     "satisfied",
                                     "unsatisfied",
                                     "blocked",
-                                    "skipped",
                                     "cancelled",
                                     "abandoned",
                                     "timeout"
@@ -43227,11 +45957,19 @@
                                     "not_evaluated",
                                     "satisfied_by_policy",
                                     "satisfied_by_user",
-                                    "unsatisfied_by_policy"
+                                    "unsatisfied_by_policy",
+                                    "not_applicable"
                                   ]
                                 },
                                 "stepExecutionId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "stepExecutionResultId": {
                                   "anyOf": [
@@ -43319,19 +46057,19 @@
                                           "type": "string"
                                         },
                                         "stepExecutionId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultId": {
-                                          "type": "string"
-                                        },
-                                        "stepExecutionResultStatus": {
                                           "anyOf": [
                                             {
-                                              "type": "string",
-                                              "enum": [
-                                                "succeeded",
-                                                "failed"
-                                              ]
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "stepExecutionResultId": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
                                             },
                                             {
                                               "type": "null"
@@ -43346,6 +46084,16 @@
                                             {
                                               "type": "null"
                                             }
+                                          ]
+                                        },
+                                        "decisionKind": {
+                                          "type": "string",
+                                          "enum": [
+                                            "step_policy",
+                                            "choice",
+                                            "loop_until",
+                                            "advance_each",
+                                            "advance_all"
                                           ]
                                         },
                                         "policySnapshotJson": {
@@ -43383,7 +46131,9 @@
                                             "continue",
                                             "block",
                                             "complete",
-                                            "route"
+                                            "route",
+                                            "route_to_node",
+                                            "repeat"
                                           ]
                                         },
                                         "finalPayloadJson": {
@@ -43412,8 +46162,8 @@
                                         "pipelineStepRunId",
                                         "stepExecutionId",
                                         "stepExecutionResultId",
-                                        "stepExecutionResultStatus",
                                         "pipelineStepAdvancementPolicyDefinitionId",
+                                        "decisionKind",
                                         "policySnapshotJson",
                                         "factsSnapshotJson",
                                         "ruleResultsJson",
@@ -43448,6 +46198,9 @@
                                 "stepDefinitionVersion",
                                 "stepKey",
                                 "position",
+                                "nodeKind",
+                                "branchIndex",
+                                "branchKey",
                                 "status",
                                 "satisfactionStatus",
                                 "stepExecutionId",
@@ -44058,12 +46811,26 @@
                                         "type": "string"
                                       },
                                       "stepDefinitionId": {
-                                        "type": "string"
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       },
                                       "stepDefinitionVersion": {
-                                        "type": "integer",
-                                        "exclusiveMinimum": 0,
-                                        "maximum": 9007199254740991
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "exclusiveMinimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       },
                                       "stepKey": {
                                         "type": "string",
@@ -44074,6 +46841,41 @@
                                         "exclusiveMinimum": 0,
                                         "maximum": 9007199254740991
                                       },
+                                      "nodeKind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "step",
+                                          "fanOut",
+                                          "cohortGate",
+                                          "choice",
+                                          "parallel",
+                                          "loop",
+                                          "succeed",
+                                          "fail"
+                                        ]
+                                      },
+                                      "branchIndex": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "branchKey": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
                                       "status": {
                                         "type": "string",
                                         "enum": [
@@ -44083,7 +46885,6 @@
                                           "satisfied",
                                           "unsatisfied",
                                           "blocked",
-                                          "skipped",
                                           "cancelled",
                                           "abandoned",
                                           "timeout"
@@ -44095,11 +46896,19 @@
                                           "not_evaluated",
                                           "satisfied_by_policy",
                                           "satisfied_by_user",
-                                          "unsatisfied_by_policy"
+                                          "unsatisfied_by_policy",
+                                          "not_applicable"
                                         ]
                                       },
                                       "stepExecutionId": {
-                                        "type": "string"
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       },
                                       "stepExecutionResultId": {
                                         "anyOf": [
@@ -44187,19 +46996,19 @@
                                                 "type": "string"
                                               },
                                               "stepExecutionId": {
-                                                "type": "string"
-                                              },
-                                              "stepExecutionResultId": {
-                                                "type": "string"
-                                              },
-                                              "stepExecutionResultStatus": {
                                                 "anyOf": [
                                                   {
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "succeeded",
-                                                      "failed"
-                                                    ]
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "stepExecutionResultId": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
                                                   },
                                                   {
                                                     "type": "null"
@@ -44214,6 +47023,16 @@
                                                   {
                                                     "type": "null"
                                                   }
+                                                ]
+                                              },
+                                              "decisionKind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "step_policy",
+                                                  "choice",
+                                                  "loop_until",
+                                                  "advance_each",
+                                                  "advance_all"
                                                 ]
                                               },
                                               "policySnapshotJson": {
@@ -44251,7 +47070,9 @@
                                                   "continue",
                                                   "block",
                                                   "complete",
-                                                  "route"
+                                                  "route",
+                                                  "route_to_node",
+                                                  "repeat"
                                                 ]
                                               },
                                               "finalPayloadJson": {
@@ -44280,8 +47101,8 @@
                                               "pipelineStepRunId",
                                               "stepExecutionId",
                                               "stepExecutionResultId",
-                                              "stepExecutionResultStatus",
                                               "pipelineStepAdvancementPolicyDefinitionId",
+                                              "decisionKind",
                                               "policySnapshotJson",
                                               "factsSnapshotJson",
                                               "ruleResultsJson",
@@ -44316,6 +47137,9 @@
                                       "stepDefinitionVersion",
                                       "stepKey",
                                       "position",
+                                      "nodeKind",
+                                      "branchIndex",
+                                      "branchKey",
                                       "status",
                                       "satisfactionStatus",
                                       "stepExecutionId",
@@ -45132,7 +47956,6 @@
                                   "satisfied",
                                   "unsatisfied",
                                   "blocked",
-                                  "skipped",
                                   "cancelled",
                                   "abandoned",
                                   "timeout"
@@ -45160,7 +47983,9 @@
                                       "continue",
                                       "block",
                                       "complete",
-                                      "route"
+                                      "route",
+                                      "route_to_node",
+                                      "repeat"
                                     ]
                                   },
                                   {
@@ -45559,7 +48384,6 @@
                           "satisfied",
                           "unsatisfied",
                           "blocked",
-                          "skipped",
                           "cancelled",
                           "abandoned",
                           "timeout"
@@ -45587,7 +48411,9 @@
                               "continue",
                               "block",
                               "complete",
-                              "route"
+                              "route",
+                              "route_to_node",
+                              "repeat"
                             ]
                           },
                           {

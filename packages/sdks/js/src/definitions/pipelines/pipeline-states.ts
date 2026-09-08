@@ -11,8 +11,7 @@ import type { AnyBinding } from "./bindings";
 import type { FanOutNodeInputCtx, NodeInputCtx } from "./node-input-ctx";
 
 /**
- * The 7 authoring state kinds (see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §4/§5). Every
+ * The 7 authoring state kinds. Every
  * kind besides `choice`/`succeed`/`fail` does its own work (a `step`) and
  * therefore declares exactly one authored `input`/`timeout`; `choice` and
  * `loop` are the only kinds with more than one possible exit.

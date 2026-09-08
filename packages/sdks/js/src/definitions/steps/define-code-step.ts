@@ -46,8 +46,7 @@ export type DefineCodeStepInput<
    * this reference against the declaring module's other exports) before
    * the (unserializable) function reference is ever sent over the wire.
    * Must be a plain named export of the same module `codeStep()` is
-   * called from (see docs/research/flat-pipeline-sdk-and-visual-designer.md
-   * §7.7/§8's "code-step entrypoints resolve against the target repo").
+   * called from (code-step entrypoints resolve against the target repo).
    *
    * Typed against `EffectiveResult`, not the bare `resultSchema` output, so
    * a step with `features: [Features.notifications()]` can return the

@@ -123,9 +123,8 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
-    // `kind === "code"` steps are plain functions instead of LLM prompts (see
-    // docs/research/flat-pipeline-sdk-and-visual-designer.md §9): they never
-    // declare health checks (no prompting harness to gate), skip prompt
+    // `kind === "code"` steps are plain functions instead of LLM prompts: they
+    // never declare health checks (no prompting harness to gate), skip prompt
     // rendering entirely, and run `executeCodeStep` instead of
     // `deps.agentRunner.promptAsync` below. The runtime environment (launch,
     // work-branch checkout) stays required exactly as for an AI step.

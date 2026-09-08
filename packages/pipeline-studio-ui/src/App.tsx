@@ -60,7 +60,7 @@ function IssueRow({
 /**
  * Subscribes to the studio server's `/api/stream` SSE endpoint and re-renders
  * on every message. Read-only, v1 scope: nothing here ever writes back to the
- * source directory — see docs/research/flat-pipeline-sdk-and-visual-designer.md §3.
+ * source directory.
  */
 function useStudioSnapshot(): StudioSnapshot | null {
   const [snapshot, setSnapshot] = useState<StudioSnapshot | null>(null);

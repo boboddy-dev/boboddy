@@ -6,8 +6,7 @@ import type { BaseReporter } from "./reporter-types";
  * than `pipelines design`'s (`design-preflight.ts`). That command is about
  * to launch an authenticated agent session against a real project, so it
  * resolves a session, a project id, and a work item. The studio is
- * explicitly local-only (see docs/research/flat-pipeline-sdk-and-visual-designer.md
- * §10: "no network call") — it never needs to talk to the server at all, so
+ * explicitly local-only — it never needs to talk to the server at all, so
  * this preflight only confirms/scaffolds the one thing it genuinely depends
  * on: `.boboddy/pipeline-builder` existing with its dependencies installed
  * (`collectDefinitionsFromDirectory` dynamically imports every file in it,

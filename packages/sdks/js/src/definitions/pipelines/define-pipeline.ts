@@ -190,8 +190,7 @@ export type PipelineDefinitionSpec = {
 // ─── definePipeline() ────────────────────────────────────────────────────────
 
 /**
- * Compiles a flat, ASL-flavored pipeline definition (see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §4) into the wire
+ * Compiles a flat, ASL-flavored pipeline definition into the wire
  * `PipelineDefinitionSpec` shape. `states` is a map keyed by node key —
  * there is no `dependsOn`; every node's incoming edge(s) are derived here
  * by walking each state's own forward pointer(s) (`next`/`choices[].next`/

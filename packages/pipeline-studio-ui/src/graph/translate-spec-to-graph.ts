@@ -1,6 +1,5 @@
-// Pure `PipelineDefinitionSpec` → React Flow `{nodes, edges}` translation (see
-// docs/research/flat-pipeline-sdk-and-visual-designer.md §10). No I/O, no
-// randomness: the same spec + issues always produce the same graph, which is
+// Pure `PipelineDefinitionSpec` → React Flow `{nodes, edges}` translation. No
+// I/O, no randomness: the same spec + issues always produce the same graph, which is
 // what lets this run identically in the browser and (for the SSE payload
 // server-side, see `@boboddy/worker`'s `compute-studio-snapshot.ts`) in Bun.
 //

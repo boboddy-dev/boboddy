@@ -330,8 +330,7 @@ function any<TSignalKeys extends string>(
 /**
  * When called with only `signal`/`operator`/`value`: returns a bare
  * `SignalCondition` — used by a `choice` node's `choices[].when`, a `loop`
- * node's `until`, and a `step` node's `blockWhen` (see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §4/§5), none of
+ * node's `until`, and a `step` node's `blockWhen`, none of
  * which attach an outcome of their own (the routing target / block
  * decision lives on the surrounding state, not on the condition).
  *
@@ -451,8 +450,7 @@ type SerializedConditionGroup = {
  * `packages/core`'s `RuleCondition`/`rule-condition.ts` (leaves:
  * `{fact,operator,value}`, groups: `{all:[...]}`/`{any:[...]}`). Reused
  * verbatim for a `choice` node's `choices[].conditionJson` and a `loop`
- * node's `untilConditionJson` (see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §7.2).
+ * node's `untilConditionJson`.
  */
 export type SerializedCondition =
   | SerializedLeafCondition

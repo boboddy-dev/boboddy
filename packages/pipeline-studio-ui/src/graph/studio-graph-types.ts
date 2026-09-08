@@ -110,10 +110,9 @@ export type PipelineGraphSnapshot = {
 };
 
 /**
- * The SSE stream's payload shape (see `docs/research/flat-pipeline-sdk-and-visual-designer.md`
- * §10). One entry per pipeline collected from `.boboddy/pipeline-builder` —
- * generalized from the plan's single-graph wording because a builder
- * directory commonly holds more than one pipeline file; the client picks
+ * The SSE stream's payload shape. One entry per pipeline collected from
+ * `.boboddy/pipeline-builder` — generalized to cover multiple pipelines,
+ * since a builder directory commonly holds more than one pipeline file; the client picks
  * which one to render (see `App.tsx`).
  *
  * `validationIssues` carries the FULL, unfiltered issue list, not just the

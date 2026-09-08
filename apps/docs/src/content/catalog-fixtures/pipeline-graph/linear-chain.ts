@@ -6,8 +6,7 @@ import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
  * Linear chain — three sequential steps then a terminal `succeed`. The
  * simplest shape a pipeline graph can take: no branching, no fan-out, no
  * loop. Authored with `definePipeline()` — the same builder real pipelines
- * are written with (see `docs/research/flat-pipeline-sdk-and-visual-designer.md`
- * §4) — rather than the compiled `PipelineDefinitionSpec` wire shape it
+ * are written with — rather than the compiled `PipelineDefinitionSpec` wire shape it
  * produces. The steps below are illustrative stand-ins, never pushed or
  * executed (see `docs/research/pipeline-graph-docs-catalog.md` §7).
  */

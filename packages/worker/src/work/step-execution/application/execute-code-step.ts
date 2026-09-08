@@ -1,7 +1,7 @@
 /**
  * Executes a `kind: "code"` step definition's entrypoint — a plain function
  * living in the target repo's own checkout — instead of prompting an AI
- * agent. See docs/research/flat-pipeline-sdk-and-visual-designer.md §7.7/§9.
+ * agent.
  *
  * Mechanism (bind-mount trick, avoids streaming code over `docker exec`
  * stdin): a small runner script + the step's input JSON are written directly

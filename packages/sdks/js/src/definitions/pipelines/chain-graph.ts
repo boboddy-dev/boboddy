@@ -3,8 +3,7 @@
 //
 // No longer "chain-only" (its original #162 scope, when every node had at
 // most one incoming/outgoing edge): `definePipeline()`'s `choice`/`loop`
-// states legitimately produce branching, even convergent, graphs (see
-// docs/research/flat-pipeline-sdk-and-visual-designer.md §6). This mirrors
+// states legitimately produce branching, even convergent, graphs. This mirrors
 // `computeTopoRanks`'s Kahn's-algorithm approach in
 // `packages/core`'s `pipeline-graph-version-entity.ts`, so
 // `validate-definition-specs.ts` can order nodes for its "does this signal

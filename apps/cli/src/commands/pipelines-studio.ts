@@ -18,9 +18,8 @@ import type { CommandContext } from "../lib/command-output";
 import type { BaseReporter } from "../lib/reporter-types";
 
 /**
- * `boboddy pipelines studio` — a read-only, local-only visual designer (see
- * docs/research/flat-pipeline-sdk-and-visual-designer.md §10). Unlike
- * `pipelines design`, this command's terminal handoff is NOT a TUI: it starts
+ * `boboddy pipelines studio` — a read-only, local-only visual designer.
+ * Unlike `pipelines design`, this command's terminal handoff is NOT a TUI: it starts
  * a local HTTP server, opens the user's browser to it, then just watches
  * `.boboddy/pipeline-builder` until the user Ctrl-Cs.
  */
