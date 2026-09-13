@@ -201,6 +201,17 @@ export default defineConfig(
     // must be disabled for them to avoid "parserOptions not set" errors.
     files: ["**/*.{js,mjs,cjs}"],
     ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      ...tseslint.configs.disableTypeChecked.rules,
+      // Plain CommonJS scripts (not compiled from TS) legitimately need require().
+      "@typescript-eslint/no-require-imports": "off",
+    },
   },
   eslintConfigPrettier,
 );

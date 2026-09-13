@@ -11273,7 +11273,12 @@ export type GetApiWorkItemCommentsResponses = {
         id: string;
         projectId: string;
         workItemId: string;
-        authorUserId: string;
+        authorUserId: string | unknown;
+        authorKind: 'user' | 'agent';
+        agentSessionId: string | unknown;
+        sourceNotificationId: string | unknown;
+        externalCommentId: string | unknown;
+        externalCommentUrl: string | unknown;
         authorUsername: string | unknown;
         authorImage: string | unknown;
         body: string;
@@ -11404,7 +11409,12 @@ export type PostApiWorkItemCommentsResponses = {
         id: string;
         projectId: string;
         workItemId: string;
-        authorUserId: string;
+        authorUserId: string | unknown;
+        authorKind: 'user' | 'agent';
+        agentSessionId: string | unknown;
+        sourceNotificationId: string | unknown;
+        externalCommentId: string | unknown;
+        externalCommentUrl: string | unknown;
         authorUsername: string | unknown;
         authorImage: string | unknown;
         body: string;
@@ -11655,7 +11665,12 @@ export type PatchApiWorkItemCommentsByCommentIdResponses = {
         id: string;
         projectId: string;
         workItemId: string;
-        authorUserId: string;
+        authorUserId: string | unknown;
+        authorKind: 'user' | 'agent';
+        agentSessionId: string | unknown;
+        sourceNotificationId: string | unknown;
+        externalCommentId: string | unknown;
+        externalCommentUrl: string | unknown;
         authorUsername: string | unknown;
         authorImage: string | unknown;
         body: string;
@@ -11787,7 +11802,12 @@ export type PostApiWorkItemCommentsByCommentIdPinResponses = {
         id: string;
         projectId: string;
         workItemId: string;
-        authorUserId: string;
+        authorUserId: string | unknown;
+        authorKind: 'user' | 'agent';
+        agentSessionId: string | unknown;
+        sourceNotificationId: string | unknown;
+        externalCommentId: string | unknown;
+        externalCommentUrl: string | unknown;
         authorUsername: string | unknown;
         authorImage: string | unknown;
         body: string;
@@ -11798,6 +11818,441 @@ export type PostApiWorkItemCommentsByCommentIdPinResponses = {
 };
 
 export type PostApiWorkItemCommentsByCommentIdPinResponse = PostApiWorkItemCommentsByCommentIdPinResponses[keyof PostApiWorkItemCommentsByCommentIdPinResponses];
+
+export type GetApiWorkItemCommentDraftsData = {
+    body?: never;
+    path?: never;
+    query: {
+        workItemId: string;
+    };
+    url: '/api/work-item-comment-drafts';
+};
+
+export type GetApiWorkItemCommentDraftsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiWorkItemCommentDraftsError = GetApiWorkItemCommentDraftsErrors[keyof GetApiWorkItemCommentDraftsErrors];
+
+export type GetApiWorkItemCommentDraftsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        notification: {
+            id: string;
+            projectId: string;
+            workItemId: string | unknown;
+            pipelineExecutionId: string | unknown;
+            stepExecutionId: string | unknown;
+            stepSignalId: string | unknown;
+            agentSessionId: string | unknown;
+            kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+            audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
+            title: string;
+            body: string;
+            priority: 'low' | 'normal' | 'high' | 'urgent';
+            source: 'agent' | 'system' | 'user';
+            status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
+            payloadJson: {
+                [key: string]: unknown;
+            } | unknown;
+            createdAt: string;
+            updatedAt: string;
+        };
+        lastError: string | unknown;
+    }>;
+};
+
+export type GetApiWorkItemCommentDraftsResponse = GetApiWorkItemCommentDraftsResponses[keyof GetApiWorkItemCommentDraftsResponses];
+
+export type PostApiWorkItemCommentDraftsByNotificationIdApproveData = {
+    body: {
+        body: string;
+        apiKey?: string;
+    };
+    path: {
+        notificationId: string;
+    };
+    query?: never;
+    url: '/api/work-item-comment-drafts/{notificationId}/approve';
+};
+
+export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 502
+     */
+    502: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiWorkItemCommentDraftsByNotificationIdApproveError = PostApiWorkItemCommentDraftsByNotificationIdApproveErrors[keyof PostApiWorkItemCommentDraftsByNotificationIdApproveErrors];
+
+export type PostApiWorkItemCommentDraftsByNotificationIdApproveResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string;
+        authorUserId: string | unknown;
+        authorKind: 'user' | 'agent';
+        agentSessionId: string | unknown;
+        sourceNotificationId: string | unknown;
+        externalCommentId: string | unknown;
+        externalCommentUrl: string | unknown;
+        authorUsername: string | unknown;
+        authorImage: string | unknown;
+        body: string;
+        isPinned: boolean;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiWorkItemCommentDraftsByNotificationIdApproveResponse = PostApiWorkItemCommentDraftsByNotificationIdApproveResponses[keyof PostApiWorkItemCommentDraftsByNotificationIdApproveResponses];
+
+export type PostApiWorkItemCommentDraftsByNotificationIdRejectData = {
+    body?: never;
+    path: {
+        notificationId: string;
+    };
+    query?: never;
+    url: '/api/work-item-comment-drafts/{notificationId}/reject';
+};
+
+export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiWorkItemCommentDraftsByNotificationIdRejectError = PostApiWorkItemCommentDraftsByNotificationIdRejectErrors[keyof PostApiWorkItemCommentDraftsByNotificationIdRejectErrors];
+
+export type PostApiWorkItemCommentDraftsByNotificationIdRejectResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        projectId: string;
+        workItemId: string | unknown;
+        pipelineExecutionId: string | unknown;
+        stepExecutionId: string | unknown;
+        stepSignalId: string | unknown;
+        agentSessionId: string | unknown;
+        kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
+        audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
+        title: string;
+        body: string;
+        priority: 'low' | 'normal' | 'high' | 'urgent';
+        source: 'agent' | 'system' | 'user';
+        status: 'pending' | 'delivered' | 'partially_delivered' | 'suppressed' | 'failed';
+        payloadJson: {
+            [key: string]: unknown;
+        } | unknown;
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiWorkItemCommentDraftsByNotificationIdRejectResponse = PostApiWorkItemCommentDraftsByNotificationIdRejectResponses[keyof PostApiWorkItemCommentDraftsByNotificationIdRejectResponses];
 
 export type GetApiWorkItemBlocksData = {
     body?: never;

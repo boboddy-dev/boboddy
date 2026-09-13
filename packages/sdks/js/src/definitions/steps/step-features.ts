@@ -88,7 +88,10 @@ const DEFAULT_NOTIFICATION_KIND: NotificationKind = "status_update";
 const notificationItemSchema = z
   .object({
     kind: notificationKindSchema.describe("The kind of user notification."),
-    title: z.string().describe("Short, human-readable notification title."),
+    title: z
+      .string()
+      .optional()
+      .describe("Short, human-readable notification title."),
     body: z.string().describe("The notification body / details."),
     priority: notificationPrioritySchema.describe(
       "How important this notification is for the user.",
@@ -144,6 +147,7 @@ const notificationsFeature: NotificationsFeature = {
     "- **priority**: One of `low`, `normal`, `high`, `urgent`.",
     '- **suggestedChannels** *(optional)*: Channels you think are worth using (e.g. `["in_app", "work_item_platform_comment"]`).',
     "  You only *suggest* channels — the platform policy decides the final delivery channels.",
+    '  Suggesting `work_item_platform_comment` does NOT post anything directly: it always requires a human to review the exact text and explicitly approve it before it\'s posted to the work item\'s originating platform issue (e.g. GitHub) — it becomes a pending draft on that comment thread, not an immediate post.',
     '- **payload** *(optional)*: Kind-specific data. For `feedback_request`, include `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational", "suggestedKey"?: string }`.',
   ].join("\n"),
   _signals: [

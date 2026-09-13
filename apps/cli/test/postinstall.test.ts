@@ -50,7 +50,9 @@ function runPostinstall(root: string, env?: NodeJS.ProcessEnv): Promise<SpawnRes
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
-    child.on("close", (code) => promiseResolve({ stdout, stderr, exitCode: code ?? 1 }));
+    child.on("close", (code) => {
+      promiseResolve({ stdout, stderr, exitCode: code ?? 1 });
+    });
   });
 }
 
