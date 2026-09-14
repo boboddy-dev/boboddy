@@ -243,10 +243,10 @@ export type GetApiProjectsByProjectIdWorkItemsData = {
         q?: string;
         page?: number;
         pageSize?: number;
-        sortPipelineId?: string;
-        sortStepKey?: string;
-        sortSignalKey?: string;
-        sortDirection?: 'asc' | 'desc';
+        updatedAfter?: string;
+        updatedBefore?: string;
+        awaitingApproval?: string;
+        sort?: string;
     };
     url: '/api/projects/{projectId}/work-items';
 };
@@ -363,6 +363,7 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
             updatedAt: string;
             signalScore: number | unknown;
             latestExecutionStatus: string | unknown;
+            awaitingApprovalCount: number;
         }>;
         pagination: {
             page: number;

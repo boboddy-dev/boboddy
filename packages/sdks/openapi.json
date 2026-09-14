@@ -645,7 +645,7 @@
             }
           },
           {
-            "name": "sortPipelineId",
+            "name": "updatedAfter",
             "in": "query",
             "required": false,
             "schema": {
@@ -653,33 +653,27 @@
             }
           },
           {
-            "name": "sortStepKey",
+            "name": "updatedBefore",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "type": "string"
             }
           },
           {
-            "name": "sortSignalKey",
+            "name": "awaitingApproval",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "minLength": 1
+              "type": "string"
             }
           },
           {
-            "name": "sortDirection",
+            "name": "sort",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ]
+              "type": "string"
             }
           }
         ],
@@ -854,6 +848,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "awaitingApprovalCount": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -873,7 +872,8 @@
                           "createdAt",
                           "updatedAt",
                           "signalScore",
-                          "latestExecutionStatus"
+                          "latestExecutionStatus",
+                          "awaitingApprovalCount"
                         ],
                         "additionalProperties": false
                       }
