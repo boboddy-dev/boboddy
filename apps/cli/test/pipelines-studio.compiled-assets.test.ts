@@ -57,6 +57,32 @@ const handle = await runPipelineStudioServer({ builderDir });
 process.stdout.write(\`STUDIO_URL:\${handle.url}\\n\`);
 `;
 
+/**
+ * Ad-hoc re-signs a freshly compiled binary on macOS, mirroring
+ * `apps/cli/script/build.ts`'s `buildTarget()` codesign step exactly:
+ * `bun build --compile` embeds assets/the JS bundle after the binary's
+ * initial signature, leaving an invalid `LC_CODE_SIGNATURE` — the OS SIGKILLs
+ * the process (`Code Signature Invalid`) the moment it pages in memory past
+ * that point, before it gets a chance to run at all. Strip and re-sign with
+ * an ad-hoc identity to produce a signature that actually covers the whole
+ * binary. A no-op on non-macOS platforms, which don't enforce this.
+ */
+async function codesignIfDarwin(outfile: string): Promise<void> {
+  if (process.platform !== "darwin") return;
+  const strip = Bun.spawn(["codesign", "--remove-signature", outfile], {
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  await strip.exited;
+  const sign = Bun.spawn(["codesign", "--sign", "-", "--force", outfile], {
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if ((await sign.exited) !== 0) {
+    throw new Error(`codesign failed for ${outfile}`);
+  }
+}
+
 /** Reads the compiled entrypoint's stdout until it prints the server's URL. */
 async function readStudioUrl(
   stdout: ReadableStream<Uint8Array>,
@@ -123,6 +149,7 @@ describe("boboddy pipelines studio — compiled binary asset embedding", () => {
             `Compile failed:\n${buildResult.logs.map(String).join("\n")}`,
           );
         }
+        await codesignIfDarwin(outfile);
 
         // 4. Run the compiled binary and read the server's URL off its stdout.
         subprocess = Bun.spawn([outfile, builderDir], {
@@ -313,6 +340,7 @@ export default definePipeline({
             `Compile failed:\n${buildResult.logs.map(String).join("\n")}`,
           );
         }
+        await codesignIfDarwin(outfile);
 
         // 4. Run the compiled binary against the real, populated builderDir.
         subprocess = Bun.spawn([outfile, builderDir], {

@@ -31,6 +31,7 @@ export interface WorkArguments {
   once: boolean;
   preserveRuntimeOnComplete: boolean;
   pollIntervalMs: number | undefined;
+  maxPollIntervalMs: number | undefined;
   workerId: string | undefined;
   workItemId: string | undefined;
   /**
@@ -156,6 +157,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
       once,
       preserveRuntimeOnComplete,
       pollIntervalMs: arguments_.pollIntervalMs,
+      maxPollIntervalMs: arguments_.maxPollIntervalMs,
       workerId: arguments_.workerId,
       workItemId: arguments_.workItemId,
       dryRun,
@@ -212,6 +214,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
       preserveRuntimeOnComplete,
       once,
       pollIntervalMs: arguments_.pollIntervalMs,
+      maxPollIntervalMs: arguments_.maxPollIntervalMs,
       workerId: arguments_.workerId,
       workItemId: arguments_.workItemId,
       dest: createTransport(),
@@ -278,6 +281,16 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       .option("pollIntervalMs", {
         alias: "p",
         describe: "How often to poll for new step executions",
+        type: "number",
+      })
+      .option("maxPollIntervalMs", {
+        alias: "max-poll-interval-ms",
+        describe:
+          "Ceiling the claim poll backs off to once there's no claimable " +
+          "work (doubles from --pollIntervalMs on each empty poll, resets " +
+          "the moment work is claimed). Pass the same value as " +
+          "--pollIntervalMs to poll at a fixed cadence instead. " +
+          "Defaults to 60000 (1 minute).",
         type: "number",
       })
       .option("once", {

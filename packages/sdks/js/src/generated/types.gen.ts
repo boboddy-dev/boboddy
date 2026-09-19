@@ -7472,6 +7472,13 @@ export type PostApiPipelineExecutionsResponses = {
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -7654,6 +7661,13 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartResponses = {
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -7836,6 +7850,13 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -8019,6 +8040,13 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -8208,6 +8236,13 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -8397,6 +8432,13 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -8583,6 +8625,13 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -8768,6 +8817,13 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses = {
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -8950,6 +9006,13 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses = {
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -9238,6 +9301,13 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdResponses = {
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                 stepExecutionId: string | unknown;
                 stepExecutionResultId: string | unknown;
+                stepExecutionSnapshot: {
+                    id: string;
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    startedAt: string | unknown;
+                    completedAt: string | unknown;
+                    updatedAt: string;
+                } | unknown;
                 inheritedFromStepRunId: string | unknown;
                 acceptedByUserId: string | unknown;
                 acceptedAt: string | unknown;
@@ -9421,6 +9491,13 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses = 
                     satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
                     stepExecutionId: string | unknown;
                     stepExecutionResultId: string | unknown;
+                    stepExecutionSnapshot: {
+                        id: string;
+                        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                        startedAt: string | unknown;
+                        completedAt: string | unknown;
+                        updatedAt: string;
+                    } | unknown;
                     inheritedFromStepRunId: string | unknown;
                     acceptedByUserId: string | unknown;
                     acceptedAt: string | unknown;

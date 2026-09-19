@@ -31,4 +31,19 @@ export function validateProcessProjectWorkInput(
   assertPositiveInt(input.concurrency, "concurrency");
   assertPositiveInt(input.pollIntervalMs, "pollIntervalMs");
   assertPositiveInt(input.leaseDurationSeconds, "leaseDurationSeconds");
+
+  if (input.maxPollIntervalMs !== undefined) {
+    assertPositiveInt(input.maxPollIntervalMs, "maxPollIntervalMs");
+
+    if (input.maxPollIntervalMs < input.pollIntervalMs) {
+      throw new CoreValidationError(
+        "maxPollIntervalMs must be greater than or equal to pollIntervalMs",
+        "PROCESS_PROJECT_WORK_INVALID_CONFIG",
+        {
+          maxPollIntervalMs: input.maxPollIntervalMs,
+          pollIntervalMs: input.pollIntervalMs,
+        },
+      );
+    }
+  }
 }

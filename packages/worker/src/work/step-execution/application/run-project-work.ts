@@ -3,9 +3,7 @@ import type { DestinationStream } from "pino";
 import { parseUuidV7 } from "../../../common/contracts/uuid-v7";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
 import { resolveArtifactStores } from "../../../artifacts/artifact-store/infra/resolve-artifact-stores";
-import {
-  processProjectWork as processProjectWorkInCore,
-} from "./process-project-work";
+import { processProjectWork as processProjectWorkInCore } from "./process-project-work";
 import type {
   ProcessProjectWorkResult,
   ProjectWorkLogger,
@@ -21,17 +19,14 @@ import {
   type LocalRuntimeSessionStore,
   SqliteLocalRuntimeSessionStore,
 } from "../infra/sqlite-local-runtime-session-store";
-import {
-  DefaultLocalProjectRuntimeEnvironmentOrchestrator,
-} from "../infra/local-project-runtime-environment";
-import {
-  DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator,
-} from "../infra/local-noworkspace-runtime-environment";
+import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../infra/local-project-runtime-environment";
+import { DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator } from "../infra/local-noworkspace-runtime-environment";
 import { DefaultOpencodeStepRunner } from "../infra/opencode-step-runner";
 import { createStepExecutionPlaneWorkerClient } from "../infra/worker-api-client";
 
 const DEFAULT_WORK_CONCURRENCY = 1;
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
+const DEFAULT_MAX_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_LEASE_DURATION_SECONDS = 30;
 
 export type ProcessProjectWorkOptions = {
@@ -40,6 +35,7 @@ export type ProcessProjectWorkOptions = {
   batchSize?: number | undefined;
   concurrency?: number | undefined;
   pollIntervalMs?: number | undefined;
+  maxPollIntervalMs?: number | undefined;
   leaseDurationSeconds?: number | undefined;
   workerId?: string | undefined;
   workItemId?: string | undefined;
@@ -50,17 +46,7 @@ export type ProcessProjectWorkOptions = {
   dest?: DestinationStream | undefined;
   /** Env vars read from .boboddy/.env in the user's local project directory. */
   localEnvVars?: Record<string, string> | undefined;
-  /**
-   * Optional user-facing presentation surface (spinners/status). Distinct from
-   * the structured pino logger driven by {@link dest}. When omitted, no
-   * human-facing output is rendered by the worker.
-   */
   reporter?: WorkReporter | undefined;
-  /**
-   * The CLI's resolved/overridden current local branch at invocation (see
-   * `resolveSourceBranch`). Only affects the FIRST step of each pipeline
-   * attempt claimed during this run; see `ProcessProjectWorkInput.sourceBranch`.
-   */
   sourceBranch?: string | null | undefined;
 };
 
@@ -70,8 +56,7 @@ export type ProcessProjectWorkDeps = {
   runtimeEnvironmentOrchestrator: StepExecutionRuntimeEnvironmentOrchestrator;
   /** Orchestrator for `no_workspace` steps (host OpenCode, no clone/container). */
   noWorkspaceRuntimeEnvironmentOrchestrator?:
-    | StepExecutionRuntimeEnvironmentOrchestrator
-    | undefined;
+    StepExecutionRuntimeEnvironmentOrchestrator | undefined;
   agentRunner: StepExecutionAgentRunner;
   /**
    * Override the artifact store. When omitted the store is resolved from the
@@ -90,7 +75,10 @@ function loadDefaultDeps(
   reporter?: WorkReporter,
 ): ProcessProjectWorkDeps {
   const logger = createLogger(
-    { name: "@boboddy/worker", level: process.env["BOBODDY_LOG_LEVEL"] ?? "info" },
+    {
+      name: "@boboddy/worker",
+      level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
+    },
     dest,
   );
   const workLogger = logger.child({ scope: "work" });
@@ -158,6 +146,21 @@ function resolvePollIntervalMs(value?: number): number {
   );
 }
 
+function resolveMaxPollIntervalMs(
+  value: number | undefined,
+  pollIntervalMs: number,
+): number {
+  const resolved = parsePositiveInt(
+    value ?? process.env["BOBODDY_WORK_MAX_POLL_INTERVAL_MS"],
+    DEFAULT_MAX_POLL_INTERVAL_MS,
+  );
+
+  // A caller-supplied cap smaller than the base interval would be a no-op
+  // backoff (or worse, invalid) rather than a way to disable it — clamp up to
+  // pollIntervalMs so "equal" is the documented way to opt out.
+  return Math.max(resolved, pollIntervalMs);
+}
+
 function resolveLeaseDurationSeconds(value?: number): number {
   return parsePositiveInt(
     value ?? process.env["BOBODDY_WORK_LEASE_DURATION_SECONDS"],
@@ -180,12 +183,17 @@ export async function runProjectWork(
   deps?: ProcessProjectWorkDeps,
 ): Promise<ProcessProjectWorkResult> {
   const resolvedDeps =
-    deps ?? loadDefaultDeps(options.dest, options.localEnvVars, options.reporter);
+    deps ??
+    loadDefaultDeps(options.dest, options.localEnvVars, options.reporter);
   const projectId = parseUuidV7(options.projectId);
   const baseUrl = resolveBoboddyBaseUrl(options.baseUrl);
   const workerClient = await resolvedDeps.createWorkerClient(baseUrl);
   const concurrency = resolveConcurrency(options.concurrency);
   const pollIntervalMs = resolvePollIntervalMs(options.pollIntervalMs);
+  const maxPollIntervalMs = resolveMaxPollIntervalMs(
+    options.maxPollIntervalMs,
+    pollIntervalMs,
+  );
   const leaseDurationSeconds = resolveLeaseDurationSeconds(
     options.leaseDurationSeconds,
   );
@@ -210,6 +218,7 @@ export async function runProjectWork(
       batchSize,
       concurrency,
       pollIntervalMs,
+      maxPollIntervalMs,
       leaseDurationSeconds,
       workItemId: options.workItemId,
       preserveRuntimeOnComplete: options.preserveRuntimeOnComplete,

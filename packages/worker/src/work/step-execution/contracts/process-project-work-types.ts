@@ -19,35 +19,14 @@ export type ProcessProjectWorkInput = {
   batchSize: number;
   concurrency: number;
   pollIntervalMs: number;
+  maxPollIntervalMs?: number | undefined;
   leaseDurationSeconds: number;
   workerId: string;
   workItemId?: string | undefined;
   preserveRuntimeOnComplete?: boolean | undefined;
   once?: boolean | undefined;
-  /**
-   * Max time to wait for the agent session to first report `busy`/`retry`
-   * before failing fast. Guards against a misconfigured agent/provider (e.g. an
-   * unreachable AI host) that would otherwise poll `running: false` until the
-   * caller's overall timeout. Defaults to {@link DEFAULT_SESSION_START_TIMEOUT_MS}
-   * when omitted.
-   */
   sessionStartTimeoutMs?: number | undefined;
-  /**
-   * Secret values ("Path A": the user's `.boboddy/.env` values) used to seed
-   * each claimed step's log masker so they are redacted from the shipped feed.
-   * These are opaque values, not a name→value map. The provider token(s)
-   * ("Path B") are registered later, from the runtime launch result.
-   */
   secretValues?: readonly string[] | undefined;
-  /**
-   * The user's resolved (or explicitly overridden) current local branch at
-   * `boboddy work` invocation (see `resolveSourceBranch`). Applied uniformly
-   * to every claim processed during this run, but only takes effect for the
-   * FIRST step of a pipeline attempt — later steps always chain off the
-   * predecessor's `workBranch` via the server-handed `baseWorkBranch`, which
-   * takes precedence over this value. `null`/`undefined` when not resolved
-   * (e.g. cwd isn't a git repo, or on a detached HEAD).
-   */
   sourceBranch?: string | null | undefined;
 };
 
@@ -437,8 +416,7 @@ export type ProcessProjectWorkDeps = {
    * declares a non-empty `healthChecks`.
    */
   runHealthChecks?:
-    | ((input: RunHealthChecksInput) => Promise<HealthCheckReport[]>)
-    | undefined;
+    ((input: RunHealthChecksInput) => Promise<HealthCheckReport[]>) | undefined;
   /**
    * Factory for the fake-AI harness a health-check-declaring step's forced
    * tool calls run through. Overridable for the same reason as

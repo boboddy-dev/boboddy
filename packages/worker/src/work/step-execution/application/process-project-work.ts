@@ -18,6 +18,30 @@ function createWorkTotals() {
   };
 }
 
+const POLL_BACKOFF_MULTIPLIER = 2;
+
+function resolveMaxPollIntervalMs(input: ProcessProjectWorkInput) {
+  return Math.max(
+    input.pollIntervalMs,
+    input.maxPollIntervalMs ?? input.pollIntervalMs,
+  );
+}
+
+function nextPollIntervalMs(
+  input: ProcessProjectWorkInput,
+  currentPollIntervalMs: number,
+  claimedCount: number,
+) {
+  if (claimedCount > 0) {
+    return input.pollIntervalMs;
+  }
+
+  return Math.min(
+    resolveMaxPollIntervalMs(input),
+    currentPollIntervalMs * POLL_BACKOFF_MULTIPLIER,
+  );
+}
+
 function getAvailableSlots(
   input: ProcessProjectWorkInput,
   activeJobCount: number,
@@ -124,6 +148,7 @@ function logWorkerStart(
     concurrency: input.concurrency,
     batchSize: input.batchSize,
     pollIntervalMs: input.pollIntervalMs,
+    maxPollIntervalMs: resolveMaxPollIntervalMs(input),
     leaseDurationSeconds: input.leaseDurationSeconds,
     workItemId: input.workItemId,
     preserveRuntimeOnComplete: input.preserveRuntimeOnComplete ?? false,
@@ -198,19 +223,20 @@ async function closeRunTracker(
 async function sleepBeforeNextPoll(
   input: ProcessProjectWorkInput,
   deps: ProcessProjectWorkDeps,
+  pollIntervalMs: number,
 ) {
   const logger = resolveProjectWorkLogger(deps);
 
   logger.log("worker", "Sleeping before next poll", {
     projectId: input.projectId,
     workerId: input.workerId,
-    pollIntervalMs: input.pollIntervalMs,
+    pollIntervalMs,
   });
   resolveProjectWorkReporter(deps).event({
     type: "worker:idle",
-    pollIntervalMs: input.pollIntervalMs,
+    pollIntervalMs,
   });
-  await deps.sleep(input.pollIntervalMs);
+  await deps.sleep(pollIntervalMs);
 }
 
 function shouldStopPolling(input: ProcessProjectWorkInput) {
@@ -253,6 +279,7 @@ async function runPollingLoop(
   activeJobs: Set<Promise<void>>,
 ) {
   const logger = resolveProjectWorkLogger(deps);
+  let currentPollIntervalMs = input.pollIntervalMs;
 
   for (;;) {
     if (getAvailableSlots(input, activeJobs.size) === 0) {
@@ -276,6 +303,12 @@ async function runPollingLoop(
       activeJobs,
     );
 
+    currentPollIntervalMs = nextPollIntervalMs(
+      input,
+      currentPollIntervalMs,
+      claims.length,
+    );
+
     if (shouldStopPolling(input)) {
       logger.log("worker", "Single-pass mode enabled; exiting poll loop", {
         projectId: input.projectId,
@@ -284,7 +317,7 @@ async function runPollingLoop(
       return;
     }
 
-    await sleepBeforeNextPoll(input, deps);
+    await sleepBeforeNextPoll(input, deps, currentPollIntervalMs);
   }
 }
 
