@@ -10,6 +10,7 @@ import dotenv from "dotenv";
 import { CoreError } from "@boboddy/worker";
 
 import { authCommand } from "./commands/auth";
+import { executionCommand } from "./commands/execution";
 import { helloCommand } from "./commands/hello";
 import { initCommand } from "./commands/init";
 import { reportBugCommand } from "./commands/report-bug";
@@ -55,6 +56,7 @@ export function createCli(argv: readonly string[]) {
       dotenv.config({ path: ".boboddy.env", override: false });
     })
     .command(authCommand)
+    .command(executionCommand)
     .command(helloCommand)
     .command(initCommand)
     .command(reportBugCommand)
