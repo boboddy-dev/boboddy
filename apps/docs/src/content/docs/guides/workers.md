@@ -112,4 +112,4 @@ boboddy runtime cleanup-networks --verbose
 
 ## Authentication
 
-Workers use credentials stored in `~/.boboddy.json`. If running in CI, set the `BOBODDY_BASE_URL` environment variable and ensure credentials are available (e.g., via a secret injected at `~/.boboddy.json`).
+Workers use credentials stored in `~/.boboddy/auth.jsonc`. If running in CI, set the `BOBODDY_BASE_URL` environment variable and ensure credentials are available (e.g., via a secret injected at `~/.boboddy/auth.jsonc`).

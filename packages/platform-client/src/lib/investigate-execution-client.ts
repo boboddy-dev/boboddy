@@ -7,6 +7,7 @@ import type {
   ReadStepExecutionLogsResult,
   StepExecution,
   StepExecutionLogArchive,
+  StepExecutionLogStream,
   WorkItem,
 } from "./api-types";
 
@@ -18,6 +19,20 @@ type ApiResult<TData> =
   | { data: undefined; error: ApiErrorBody };
 
 export type AuthHeaders = { Authorization: string };
+
+/**
+ * Writes an oversized rendered log's full text to some caller-owned
+ * location (decision 7 of
+ * `docs/plans/execution-log-tail-truncation-and-file-cache.md` — the
+ * `platform-client` package stays side-effect-free; only `apps/cli` supplies
+ * a real, disk-touching implementation). Resolves to the absolute path
+ * written, for inclusion in the truncation notice.
+ */
+export type LogArtifactWriter = (input: {
+  stepExecutionId: string;
+  requestedStream: StepExecutionLogStream | "all";
+  fullText: string;
+}) => Promise<string>;
 
 /**
  * The minimal slice of `ReturnType<typeof createBoboddyClient>`

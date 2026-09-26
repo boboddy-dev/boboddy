@@ -20,6 +20,7 @@ import {
 import type {
   AuthHeaders,
   InvestigateExecutionClient,
+  LogArtifactWriter,
 } from "./lib/investigate-execution-client";
 import { formatExecutionSummary } from "./format-execution-summary";
 import {
@@ -27,7 +28,7 @@ import {
   formatStepDetail,
   type StepArtifactEntry,
 } from "./format-step-detail";
-import { formatLogs } from "./format-logs";
+import { capLogBody, MAX_LOG_RENDER_CHARS, renderLogText } from "./format-logs";
 
 export type InvestigateExecutionOptions = {
   client: InvestigateExecutionClient;
@@ -45,6 +46,12 @@ export type InvestigateExecutionOptions = {
   /** List this step's artifacts with presigned download URLs (decision
    * 11). Defaults `false`. */
   artifacts?: boolean;
+  /** Writes the full log to a local artifact when the rendered output
+   * would exceed {@link MAX_LOG_RENDER_CHARS}, so the truncation notice can
+   * point to it. Only invoked when truncation actually happens (decision
+   * 6 — lazy); a rejection is swallowed and the output falls back to the
+   * path-less notice (decision 9). */
+  writeLogArtifact?: LogArtifactWriter;
 };
 
 function resolveAttempt(
@@ -89,6 +96,40 @@ function resolveDefaultStepKey(
   return touched?.stepKey ?? null;
 }
 
+/**
+ * Renders a {@link renderLogText} input to its final, capped string,
+ * writing the full text to `writeLogArtifact` first when (and only when —
+ * decision 6) it would otherwise be truncated. A rejecting writer is
+ * swallowed (decision 9): the caller still gets the path-less notice rather
+ * than a failed `execution view` call.
+ */
+async function renderAndCapLogs(
+  input: Parameters<typeof renderLogText>[0],
+  stepExecutionId: string,
+  requestedStream: StepExecutionLogStream | "all",
+  writeLogArtifact: LogArtifactWriter | undefined,
+): Promise<string> {
+  const fullText = renderLogText(input);
+
+  let filePath: string | undefined;
+  if (
+    fullText.length > MAX_LOG_RENDER_CHARS &&
+    writeLogArtifact !== undefined
+  ) {
+    try {
+      filePath = await writeLogArtifact({
+        stepExecutionId,
+        requestedStream,
+        fullText,
+      });
+    } catch {
+      filePath = undefined;
+    }
+  }
+
+  return capLogBody(fullText, MAX_LOG_RENDER_CHARS, { filePath });
+}
+
 async function fetchAndFormatLogs(
   client: InvestigateExecutionClient,
   headers: AuthHeaders,
@@ -96,6 +137,7 @@ async function fetchAndFormatLogs(
   stepExecutionId: string,
   stepExecution: StepExecution | null,
   requestedStream: StepExecutionLogStream | "all",
+  writeLogArtifact: LogArtifactWriter | undefined,
 ): Promise<string> {
   const isTerminal =
     stepExecution !== null && stepExecution.completedAt !== null;
@@ -116,12 +158,17 @@ async function fetchAndFormatLogs(
       return `Logs for step ${stepKey}: no log archive is available (not archived yet, or the object store cannot presign a URL).`;
     }
     const lines = await fetchArchiveLogLines(data.url);
-    return formatLogs({
-      stepKey,
-      lines: filterByStream(lines, requestedStream),
+    return renderAndCapLogs(
+      {
+        stepKey,
+        lines: filterByStream(lines, requestedStream),
+        requestedStream,
+        source: "archive",
+      },
+      stepExecutionId,
       requestedStream,
-      source: "archive",
-    });
+      writeLogArtifact,
+    );
   }
 
   const { data, error } = await client.stepExecutions.readStepExecutionLogs({
@@ -132,12 +179,17 @@ async function fetchAndFormatLogs(
   if (error !== undefined) {
     return `Logs for step ${stepKey}: could not load live logs: ${describeApiError(error)}`;
   }
-  return formatLogs({
-    stepKey,
-    lines: filterByStream(data.lines, requestedStream),
+  return renderAndCapLogs(
+    {
+      stepKey,
+      lines: filterByStream(data.lines, requestedStream),
+      requestedStream,
+      source: "live",
+    },
+    stepExecutionId,
     requestedStream,
-    source: "live",
-  });
+    writeLogArtifact,
+  );
 }
 
 async function fetchAndFormatArtifacts(
@@ -146,9 +198,11 @@ async function fetchAndFormatArtifacts(
   stepKey: string,
   stepExecutionId: string,
 ): Promise<string> {
-  const { data, error } = await client.stepExecutions.listStepExecutionArtifacts(
-    { path: { stepExecutionId }, headers },
-  );
+  const { data, error } =
+    await client.stepExecutions.listStepExecutionArtifacts({
+      path: { stepExecutionId },
+      headers,
+    });
   if (error !== undefined) {
     return `Artifacts for step ${stepKey}: could not list artifacts: ${describeApiError(error)}`;
   }
@@ -174,9 +228,7 @@ async function fetchAndFormatArtifacts(
       artifact,
       downloadUrl: result.data.url,
       note:
-        result.data.url === null
-          ? "object store cannot presign a URL"
-          : null,
+        result.data.url === null ? "object store cannot presign a URL" : null,
     });
   }
 
@@ -212,6 +264,7 @@ export async function investigateExecution(
     log = false,
     logStream = "all",
     artifacts = false,
+    writeLogArtifact,
   } = options;
 
   const execution = await fetchExecution(client, headers, executionId);
@@ -226,8 +279,7 @@ export async function investigateExecution(
     attempt.stepRuns,
   );
 
-  const needsStepContext =
-    explicitStepKey !== undefined || log || artifacts;
+  const needsStepContext = explicitStepKey !== undefined || log || artifacts;
   if (!needsStepContext) {
     return formatExecutionSummary({
       execution,
@@ -248,8 +300,7 @@ export async function investigateExecution(
 
   const stepItem = stepItems.find((item) => item.stepKey === resolvedStepKey);
   if (stepItem === undefined) {
-    const known =
-      stepItems.map((item) => item.stepKey).join(", ") || "(none)";
+    const known = stepItems.map((item) => item.stepKey).join(", ") || "(none)";
     throw new Error(
       `Step "${resolvedStepKey}" not found in pipeline "${pipelineDefinition.key}". Known steps: ${known}.`,
     );
@@ -281,6 +332,7 @@ export async function investigateExecution(
             stepExecutionId,
             stepExecution,
             logStream,
+            writeLogArtifact,
           ),
     );
   }

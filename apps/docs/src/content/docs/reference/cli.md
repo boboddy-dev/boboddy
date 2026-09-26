@@ -38,7 +38,7 @@ Manage authentication credentials.
 
 ### `boboddy auth login`
 
-Start a device-flow browser login. Opens your browser; credentials are saved to `~/.boboddy.json` on completion.
+Start a device-flow browser login. Opens your browser; credentials are saved to `~/.boboddy/auth.jsonc` on completion.
 
 ```bash
 boboddy auth login

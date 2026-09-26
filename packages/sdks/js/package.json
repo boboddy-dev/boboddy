@@ -35,7 +35,9 @@
     "test": "bun test test",
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "jsonc-parser": "^3.3.1"
+  },
   "peerDependencies": {
     "zod": ">=4.0.0"
   },

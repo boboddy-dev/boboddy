@@ -107,14 +107,14 @@ boboddy auth logout
 By default the CLI targets `http://127.0.0.1:3000`. Override that with
 `--base-url` or the `BOBODDY_BASE_URL` environment variable.
 
-Authenticated CLI credentials are stored in `~/.boboddy.json`.
+Authenticated CLI credentials are stored in `~/.boboddy/auth.jsonc`.
 
 ## Observability
 
 The CLI reports a small set of onboarding milestones (init started,
 requirements verified, signed in, project linked, designer launched, dry run
 passed, pipeline pushed, run queued) directly to PostHog. Each event is keyed
-to a random anonymous id persisted in `~/.boboddy.json` until you sign in, at
+to a random anonymous id persisted in `~/.boboddy/config.jsonc` until you sign in, at
 which point later events switch to your account id. `accessToken`, `email`,
 and `name` are never sent as event data.
 
@@ -125,7 +125,7 @@ boboddy telemetry enable    # opt back in
 ```
 
 `BOBODDY_TELEMETRY_DISABLED=1` opts out for a single invocation without
-touching `~/.boboddy.json`. `BOBODDY_TELEMETRY_DEBUG=1` prints every payload
+touching `~/.boboddy/config.jsonc`. `BOBODDY_TELEMETRY_DEBUG=1` prints every payload
 to stderr in addition to sending it. See the
 [Observability docs](https://boboddy-dev.github.io/boboddy/reference/observability/)
 for the full list of what's collected.

@@ -16,7 +16,9 @@ import type {
 } from "../../../../src/work/step-execution/contracts/process-project-work-types";
 import { buildTestZip } from "../../../support/build-test-zip";
 
-function createStartedExecution(workspacePath: string): StartedClaimedExecution {
+function createStartedExecution(
+  workspacePath: string,
+): StartedClaimedExecution {
   return {
     projectId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe001"),
     localRuntimeSessionId: parseUuidV7("01966a2c-9494-7db5-aa46-0f8f5cbbe002"),
@@ -87,6 +89,7 @@ function createDeps(config: {
   completeStepExecution: ReturnType<typeof vi.fn>;
   finalStepStatus: "succeeded" | "running";
   getSessionStatus: ProcessProjectWorkDeps["agentRunner"]["getSessionStatus"];
+  prune?: ReturnType<typeof vi.fn>;
 }): ProcessProjectWorkDeps {
   return {
     workerClient: {
@@ -110,7 +113,10 @@ function createDeps(config: {
       getSessionStatus: config.getSessionStatus,
       sendRetryPrompt: vi.fn(() => Promise.resolve(undefined)),
     },
-    artifactStore: { saveArtifact: config.saveArtifact },
+    artifactStore: {
+      saveArtifact: config.saveArtifact,
+      ...(config.prune ? { prune: config.prune } : {}),
+    },
     sleep: vi.fn(() => Promise.resolve(undefined)),
     logger: { debug: vi.fn(), log: vi.fn(), error: vi.fn() },
   };
@@ -191,7 +197,11 @@ describe("monitorStartedClaimedExecution artifacts", () => {
 
       // Core regression guard: artifacts are collected and logs flushed while
       // the step is still "running", i.e. before completeStepExecution.
-      expect(callOrder).toEqual(["saveArtifact", "flush", "completeStepExecution"]);
+      expect(callOrder).toEqual([
+        "saveArtifact",
+        "flush",
+        "completeStepExecution",
+      ]);
       // Idempotency: the artifact is collected exactly once.
       expect(saveArtifact).toHaveBeenCalledTimes(1);
       expect(saveArtifact).toHaveBeenCalledWith({
@@ -311,6 +321,100 @@ describe("monitorStartedClaimedExecution artifacts", () => {
       expect(tracker.markFailed).toHaveBeenCalledTimes(1);
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(tracker.markSucceeded).not.toHaveBeenCalled();
+    },
+  );
+
+  test.concurrent(
+    "prunes local artifacts once after saving, and a prune() rejection doesn't fail the step or block completion",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-monitor-artifact-prune-"),
+      );
+      const startedExecution = createStartedExecution(workspacePath);
+      const tracker = createTracker();
+      const input = createInput(startedExecution);
+
+      await writeCurrentExecutionInfoFile(workspacePath, {
+        stepExecutionId: startedExecution.stepExecutionId,
+        resultSchemaJson: resultSchema,
+      });
+
+      const stepArtifactsDir = path.join(
+        workspacePath,
+        ".boboddy",
+        "step-artifacts",
+      );
+
+      const callOrder: string[] = [];
+      const saveArtifact = vi.fn(() => {
+        callOrder.push("saveArtifact");
+        return Promise.resolve({ storeRef: "store-ref", sizeBytes: 1 });
+      });
+      const prune = vi.fn(() => {
+        callOrder.push("prune");
+        return Promise.reject(new Error("prune failed"));
+      });
+      const flush = vi.fn(() => {
+        callOrder.push("flush");
+        return Promise.resolve();
+      });
+      const completeStepExecution = vi.fn(() => {
+        callOrder.push("completeStepExecution");
+        return Promise.resolve(undefined);
+      });
+
+      let statusCall = 0;
+      const deps = createDeps({
+        callOrder,
+        saveArtifact,
+        completeStepExecution,
+        finalStepStatus: "succeeded",
+        prune,
+        getSessionStatus: vi.fn(async () => {
+          statusCall += 1;
+          if (statusCall === 1) {
+            return { running: true };
+          }
+          if (statusCall === 2) {
+            return { running: false };
+          }
+          await mkdir(stepArtifactsDir, { recursive: true });
+          await writeFile(
+            path.join(stepArtifactsDir, "trace.zip"),
+            buildTestZip(["trace.trace", "trace.network"]),
+          );
+          await writeFile(
+            buildFindingsSubmissionPath(workspacePath),
+            `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
+            "utf8",
+          );
+          return { running: false };
+        }),
+      });
+
+      await monitorStartedClaimedExecution(
+        input,
+        deps,
+        tracker,
+        startedExecution,
+        stopStub(),
+        { flush },
+      );
+
+      // Runs exactly once, after the artifact save, and a rejection doesn't
+      // stop completeStepExecution from running afterward.
+      expect(callOrder).toEqual([
+        "saveArtifact",
+        "prune",
+        "flush",
+        "completeStepExecution",
+      ]);
+      expect(prune).toHaveBeenCalledTimes(1);
+      expect(completeStepExecution).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(tracker.markSucceeded).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(tracker.markFailed).not.toHaveBeenCalled();
     },
   );
 });

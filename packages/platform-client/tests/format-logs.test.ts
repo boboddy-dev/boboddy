@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { formatLogs, MAX_LOG_RENDER_CHARS } from "../src/format-logs";
+import {
+  capLogBody,
+  formatLogs,
+  MAX_LOG_RENDER_CHARS,
+  renderLogText,
+} from "../src/format-logs";
 import type { LogLine } from "../src/lib/api-types";
 
 function line(overrides: Partial<LogLine>): LogLine {
@@ -121,7 +126,7 @@ describe("formatLogs", () => {
     expect(output).toContain("[conversation] not json");
   });
 
-  test("truncates output past the render cap with an explicit notice", () => {
+  test("truncates output past the render cap with an explicit notice, keeping the tail", () => {
     const longLines = Array.from({ length: 2_000 }, (_, index) =>
       line({
         seq: index,
@@ -137,9 +142,59 @@ describe("formatLogs", () => {
       source: "archive",
     });
 
-    expect(output.length).toBeLessThanOrEqual(
-      MAX_LOG_RENDER_CHARS + 100,
-    );
-    expect(output).toContain("[truncated,");
+    expect(output.length).toBeLessThanOrEqual(MAX_LOG_RENDER_CHARS + 300);
+    expect(output).toContain("[omitted");
+
+    // The tail survives — the last generated line is present...
+    expect(output).toContain("line number 1999");
+    // ...but the head of the body was dropped, not the tail.
+    expect(output).not.toContain("line number 0 ");
+
+    // No line is split mid-content: the shown tail's first content line
+    // must be one of the original rendered lines verbatim, immediately
+    // preceded by a newline (i.e. it starts at a line boundary).
+    const noticeEnd = output.indexOf("]\n\n") + 3;
+    const shownTail = output.slice(noticeEnd);
+    const firstShownLine = shownTail.split("\n")[0];
+    expect(firstShownLine).toMatch(/^\[info\] .* line number \d+ .*$/);
+    expect(output[noticeEnd - 1]).toBe("\n");
+  });
+
+  test("capLogBody leaves short text untouched", () => {
+    const short = "Logs for step investigate (complete)\n\nline one\nline two";
+    expect(capLogBody(short, MAX_LOG_RENDER_CHARS)).toBe(short);
+  });
+
+  test("capLogBody includes the file path in the notice when provided", () => {
+    const header = "Logs for step investigate (complete)\n\n";
+    const body = Array.from(
+      { length: 1_000 },
+      (_, index) => `line ${String(index)}`,
+    ).join("\n");
+    const rendered = header + body;
+
+    const withPath = capLogBody(rendered, 500, {
+      filePath: "/tmp/example.log",
+    });
+    expect(withPath).toContain("Full log saved to /tmp/example.log.");
+
+    const withoutPath = capLogBody(rendered, 500);
+    expect(withoutPath).not.toContain("Full log saved to");
+    expect(withoutPath).toContain("[omitted");
+  });
+
+  test("renderLogText/capLogBody are directly testable in isolation", () => {
+    const rendered = renderLogText({
+      stepKey: "investigate",
+      lines: [line({ seq: 1, content: "hello" })],
+      requestedStream: "all",
+      source: "live",
+    });
+    expect(rendered).toContain("Logs for step investigate");
+    expect(rendered.length).toBeLessThanOrEqual(MAX_LOG_RENDER_CHARS);
+
+    expect(capLogBody(rendered, MAX_LOG_RENDER_CHARS)).toBe(rendered);
+    const capped = capLogBody(rendered, 10);
+    expect(capped).toContain("[omitted");
   });
 });

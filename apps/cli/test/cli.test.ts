@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { concurrentTest, hasReporterLine } from "./utils";
@@ -281,11 +288,14 @@ describe("boboddy CLI", () => {
 
   test.concurrent("removes stored auth data on logout", () => {
     const fakeHome = mkdtempSync(resolve(tmpdir(), "boboddy-cli-"));
-    // The real auth file path is `~/.boboddy.json`; `~/.boboddy` is a legacy
-    // path and, as a file, collides with the `~/.boboddy/logs` log dir.
-    const authFile = resolve(fakeHome, ".boboddy.json");
+    // The real auth file path is `~/.boboddy/auth.jsonc` (`~/.boboddy` is now
+    // the shared directory for `auth.jsonc`, `config.jsonc`, `logs/`, etc.).
+    const boboddyDir = resolve(fakeHome, ".boboddy");
+    const authFile = resolve(boboddyDir, "auth.jsonc");
+    const configFile = resolve(boboddyDir, "config.jsonc");
 
     try {
+      mkdirSync(boboddyDir, { recursive: true });
       writeFileSync(
         authFile,
         `${JSON.stringify({
@@ -295,6 +305,14 @@ describe("boboddy CLI", () => {
               email: "user@example.com",
             },
           },
+        })}\n`,
+        "utf8",
+      );
+      writeFileSync(
+        configFile,
+        `${JSON.stringify({
+          telemetryDisabled: true,
+          artifacts: { localMaxBytes: 1024, localMaxAgeDays: 3 },
         })}\n`,
         "utf8",
       );
@@ -336,6 +354,14 @@ describe("boboddy CLI", () => {
           "Not signed in to https://example.com",
         ),
       ).toBe(true);
+
+      // `boboddy auth logout` only touches `auth.jsonc` — `config.jsonc`'s
+      // telemetry/artifact settings must survive untouched.
+      expect(existsSync(configFile)).toBe(true);
+      expect(JSON.parse(readFileSync(configFile, "utf8"))).toEqual({
+        telemetryDisabled: true,
+        artifacts: { localMaxBytes: 1024, localMaxAgeDays: 3 },
+      });
     } finally {
       rmSync(fakeHome, { recursive: true, force: true });
     }

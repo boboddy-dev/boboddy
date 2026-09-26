@@ -378,4 +378,13 @@ export async function collectStepArtifacts(
       });
     }
   }
+
+  try {
+    await deps.artifactStore.prune?.();
+  } catch (error) {
+    logger.error("worker", "Failed to prune local artifacts", {
+      stepExecutionId: startedExecution.stepExecutionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

@@ -39,6 +39,30 @@ type StudioSnapshotLike =
  * Plain `test()`, not `test.concurrent`: this compiles a real binary and
  * binds a real port, closer to the "real infrastructure" category
  * `run-pipeline-studio-server.test.ts` already uses plain `test()` for.
+ *
+ * Lives in `compiled-binary-tests/`, a sibling of `test/` — deliberately
+ * NOT named with a `test` prefix (see below) — because `apps/cli`'s
+ * `package.json` `test` script (`bun test test && bun test
+ * compiled-binary-tests`) runs this directory as its own `bun test` process,
+ * separately from the other ~360 tests under `test/`. That is not just
+ * organization: `Bun.build({ compile: true })`'s asset embedding is sensitive
+ * to what has already loaded earlier in the *same* `bun test` process.
+ * Sharing a process with the rest of the suite made this file fail
+ * non-deterministically with `Cannot find module './impl/format'`
+ * (jsonc-parser's internal, dynamically-`require`d module, pulled in
+ * transitively via `@boboddy/worker` → `@boboddy/sdk`) — reproduced locally
+ * only when this file ran in-process after `test/design-runtime.test.ts`
+ * specifically, never in isolation, and unaffected by `bun test --isolate`
+ * (that resets the JS global per file, not `Bun.build`'s own native
+ * resolver/asset cache, which is process-wide). See CI run 36171162578. A
+ * dedicated process for this directory sidesteps the caching bug entirely
+ * rather than chasing its exact trigger inside Bun.
+ *
+ * The directory name must NOT start with `test` (a `test-*` name was tried
+ * first): `bun test <arg>` matches paths by substring/prefix, not by path
+ * segment, so `bun test test` alone was still picking up a sibling
+ * `test-compiled-binary/` and running everything back in one process —
+ * silently defeating the isolation above with no error of its own.
  */
 
 const repoRoot = resolve(import.meta.dir, "../../..");

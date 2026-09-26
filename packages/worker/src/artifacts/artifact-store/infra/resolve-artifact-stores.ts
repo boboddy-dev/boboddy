@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import { getArtifactRetentionSettings } from "../../../auth/session/infra/config-storage";
 import { ConfigurationError } from "../../../lib/errors";
 import type { RemoteArtifactUploader } from "../../../work/step-execution/contracts/process-project-work-types";
 import type { ArtifactStore } from "../domain/artifact-store";
@@ -52,7 +53,7 @@ export function resolveArtifactStores(
 
   const stores: ArtifactStore[] = [];
   if (selection.includes("local")) {
-    stores.push(buildLocalStore(env, options));
+    stores.push(buildLocalStore(env, options, selection.includes("remote")));
   }
   if (selection.includes("remote")) {
     stores.push(buildRemoteStore(options));
@@ -99,7 +100,8 @@ function resolveSelection(env: Env): StoreKind[] {
 
 function buildLocalStore(
   env: Env,
-  options?: ResolveArtifactStoresOptions,
+  options: ResolveArtifactStoresOptions | undefined,
+  remoteAlsoSelected: boolean,
 ): LocalArtifactStore {
   const configuredDir = env["BOBODDY_ARTIFACT_LOCAL_DIR"]?.trim();
   const baseDir =
@@ -107,7 +109,19 @@ function buildLocalStore(
       ? configuredDir
       : (options?.defaultLocalDir ??
         path.join(os.homedir(), ".boboddy", "artifacts"));
-  return new LocalArtifactStore(baseDir);
+
+  // Local-only mode (`remote` not selected) means the local copy is the
+  // only copy — pruning stays off regardless of `config.jsonc`'s contents
+  // (decision 8), so `getArtifactRetentionSettings()` is deliberately never
+  // called on this path, both to skip the pointless work and to keep this
+  // mode from touching `~/.boboddy/config.jsonc` at all.
+  if (!remoteAlsoSelected) {
+    return new LocalArtifactStore(baseDir);
+  }
+
+  return new LocalArtifactStore(baseDir, {
+    retention: getArtifactRetentionSettings(),
+  });
 }
 
 function buildRemoteStore(

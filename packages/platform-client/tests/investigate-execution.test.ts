@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { investigateExecution } from "../src/investigate-execution";
-import type { InvestigateExecutionClient } from "../src/lib/investigate-execution-client";
-import type { ApiErrorBody } from "../src/lib/api-types";
+import type {
+  InvestigateExecutionClient,
+  LogArtifactWriter,
+} from "../src/lib/investigate-execution-client";
+import type { ApiErrorBody, LogLine } from "../src/lib/api-types";
 import {
   makeArtifact,
   makeArtifactDownloadUrl,
@@ -48,7 +51,10 @@ function buildFakeClient(): InvestigateExecutionClient {
           error: undefined,
         }),
       getStepExecutionLogArchive: () =>
-        Promise.resolve({ data: { url: null, sizeBytes: 0 }, error: undefined }),
+        Promise.resolve({
+          data: { url: null, sizeBytes: 0 },
+          error: undefined,
+        }),
       listStepExecutionArtifacts: () =>
         Promise.resolve({ data: [], error: undefined }),
       getArtifactDownloadUrl: () =>
@@ -62,6 +68,18 @@ function errorResult(error: ApiErrorBody): {
   error: ApiErrorBody;
 } {
   return { data: undefined, error };
+}
+
+/** Lines whose rendered form comfortably exceeds `MAX_LOG_RENDER_CHARS`
+ * (20,000 chars), to exercise the truncation-triggers-a-write path. */
+function makeOversizedLogLines(): LogLine[] {
+  return Array.from({ length: 2_000 }, (_, index) => ({
+    seq: index,
+    stream: "worker" as const,
+    ts: "2026-01-01T00:00:00.000Z",
+    content: `line number ${String(index)} `.repeat(5),
+    level: "info" as const,
+  }));
 }
 
 describe("investigateExecution", () => {
@@ -165,7 +183,9 @@ describe("investigateExecution", () => {
         executionId: makeExecution().id,
         step: "does-not-exist",
       }),
-    ).rejects.toThrow(/Step "does-not-exist" not found.*Known steps: investigate/);
+    ).rejects.toThrow(
+      /Step "does-not-exist" not found.*Known steps: investigate/,
+    );
   });
 
   test("execution not found (404): throws a distinct not-found error", () => {
@@ -214,8 +234,14 @@ describe("investigateExecution", () => {
 
   test("artifact expired (410): reports that one artifact expired without failing the rest", async () => {
     const client = buildFakeClient();
-    const expiring = makeArtifact({ id: "artifact-expired", relativeStorePath: "old.log" });
-    const healthy = makeArtifact({ id: "artifact-healthy", relativeStorePath: "fresh.log" });
+    const expiring = makeArtifact({
+      id: "artifact-expired",
+      relativeStorePath: "old.log",
+    });
+    const healthy = makeArtifact({
+      id: "artifact-healthy",
+      relativeStorePath: "fresh.log",
+    });
     client.stepExecutions.listStepExecutionArtifacts = () =>
       Promise.resolve({ data: [expiring, healthy], error: undefined });
     client.stepExecutions.getArtifactDownloadUrl = (options) => {
@@ -273,5 +299,109 @@ describe("investigateExecution", () => {
     });
 
     expect(output).toContain("Showing --log/--artifacts for step investigate");
+  });
+
+  test("--log writes the full text to writeLogArtifact when the render is truncated, and mentions its path", async () => {
+    const client = buildFakeClient();
+    client.stepExecutions.readStepExecutionLogs = () =>
+      Promise.resolve({
+        data: {
+          lines: makeOversizedLogLines(),
+          nextOffset: 2_000,
+          complete: false,
+        },
+        error: undefined,
+      });
+
+    const calls: Parameters<LogArtifactWriter>[0][] = [];
+    const writeLogArtifact: LogArtifactWriter = (input) => {
+      calls.push(input);
+      return Promise.resolve("/tmp/example-step-execution-all.log");
+    };
+
+    const output = await investigateExecution({
+      client,
+      headers,
+      executionId: makeExecution().id,
+      step: "investigate",
+      log: true,
+      writeLogArtifact,
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.stepExecutionId).toBe("step-exec-1");
+    expect(calls[0]?.requestedStream).toBe("all");
+    expect(calls[0]?.fullText).toContain("line number 1999");
+    expect(output).toContain(
+      "Full log saved to /tmp/example-step-execution-all.log.",
+    );
+  });
+
+  test("--log falls back to the path-less notice when writeLogArtifact rejects", async () => {
+    const client = buildFakeClient();
+    client.stepExecutions.readStepExecutionLogs = () =>
+      Promise.resolve({
+        data: {
+          lines: makeOversizedLogLines(),
+          nextOffset: 2_000,
+          complete: false,
+        },
+        error: undefined,
+      });
+
+    const writeLogArtifact: LogArtifactWriter = () =>
+      Promise.reject(new Error("disk full"));
+
+    const output = await investigateExecution({
+      client,
+      headers,
+      executionId: makeExecution().id,
+      step: "investigate",
+      log: true,
+      writeLogArtifact,
+    });
+
+    expect(output).toContain("[omitted");
+    expect(output).not.toContain("Full log saved to");
+  });
+
+  test("--log never calls writeLogArtifact when the render fits under the cap", async () => {
+    const client = buildFakeClient();
+    client.stepExecutions.readStepExecutionLogs = () =>
+      Promise.resolve({
+        data: {
+          lines: [
+            {
+              seq: 0,
+              stream: "worker",
+              ts: "2026-01-01T00:00:00.000Z",
+              content: "starting up",
+              level: "info",
+            },
+          ],
+          nextOffset: 1,
+          complete: false,
+        },
+        error: undefined,
+      });
+
+    let calledCount = 0;
+    const writeLogArtifact: LogArtifactWriter = () => {
+      calledCount++;
+      return Promise.resolve("/tmp/should-not-be-used.log");
+    };
+
+    const output = await investigateExecution({
+      client,
+      headers,
+      executionId: makeExecution().id,
+      step: "investigate",
+      log: true,
+      writeLogArtifact,
+    });
+
+    expect(calledCount).toBe(0);
+    expect(output).toContain("starting up");
+    expect(output).not.toContain("Full log saved to");
   });
 });

@@ -145,18 +145,12 @@ function renderStreamBlock(
   return [`== ${stream} ==`, ...body, ""];
 }
 
-function truncateToCap(text: string, cap: number): string {
-  if (text.length <= cap) return text;
-  const omitted = text.length - cap;
-  return `${text.slice(0, cap)}\n… [truncated, ${String(omitted)} more characters]`;
-}
-
 /**
- * Decision 10's `--log` output: all three streams by default (or the one
- * named by `--log-stream`), rendered in a human-readable parsed form rather
- * than raw JSONL, capped to {@link MAX_LOG_RENDER_CHARS}.
+ * Renders the full, uncapped log text for {@link formatLogs}'s input —
+ * everything past this point is presentation-layer capping
+ * ({@link capLogBody}), not rendering.
  */
-export function formatLogs(input: FormatLogsInput): string {
+export function renderLogText(input: FormatLogsInput): string {
   const { stepKey, lines, requestedStream, source } = input;
   const streamsToRender =
     requestedStream === "all" ? STREAM_ORDER : [requestedStream];
@@ -176,6 +170,67 @@ export function formatLogs(input: FormatLogsInput): string {
     body.push(...renderStreamBlock(stream, streamLines));
   }
 
-  const rendered = [...header, ...body].join("\n").trimEnd();
-  return truncateToCap(rendered, MAX_LOG_RENDER_CHARS);
+  return [...header, ...body].join("\n").trimEnd();
+}
+
+/**
+ * Splits a {@link renderLogText} result into its header block (the `Logs
+ * for step ...` line plus the blank line that always follows it) and
+ * everything after. Falls back to an empty header — capping the whole
+ * string as body — if that blank-line boundary isn't found, e.g. for text
+ * that didn't come from `renderLogText`.
+ */
+function splitHeaderAndBody(rendered: string): {
+  header: string;
+  body: string;
+} {
+  const separatorIndex = rendered.indexOf("\n\n");
+  if (separatorIndex === -1) return { header: "", body: rendered };
+  const headerEnd = separatorIndex + 2;
+  return {
+    header: rendered.slice(0, headerEnd),
+    body: rendered.slice(headerEnd),
+  };
+}
+
+/**
+ * Caps a rendered log to `cap` characters, per decisions 1-2 of
+ * `docs/plans/execution-log-tail-truncation-and-file-cache.md`: the header
+ * survives in full, the **tail** of the body is kept (errors cluster near
+ * the end), and the cut point snaps forward to the next line boundary so no
+ * line is shown partially.
+ */
+export function capLogBody(
+  rendered: string,
+  cap: number,
+  options?: { filePath?: string },
+): string {
+  if (rendered.length <= cap) return rendered;
+
+  const { header, body } = splitHeaderAndBody(rendered);
+  const noticeBudget = 200;
+  const tailBudget = Math.max(cap - header.length - noticeBudget, 0);
+  const naiveCut = Math.max(body.length - tailBudget, 0);
+  const cutAtLineStart = body.indexOf("\n", naiveCut) + 1 || naiveCut;
+  const fileNote =
+    options?.filePath !== undefined
+      ? ` Full log saved to ${options.filePath}.`
+      : "";
+
+  return (
+    header +
+    `… [omitted ${String(cutAtLineStart)} earlier characters — showing the ` +
+    `final ${String(body.length - cutAtLineStart)} characters, since ` +
+    `failures are usually near the end.${fileNote}]\n\n` +
+    body.slice(cutAtLineStart)
+  );
+}
+
+/**
+ * Decision 10's `--log` output: all three streams by default (or the one
+ * named by `--log-stream`), rendered in a human-readable parsed form rather
+ * than raw JSONL, capped to {@link MAX_LOG_RENDER_CHARS}.
+ */
+export function formatLogs(input: FormatLogsInput): string {
+  return capLogBody(renderLogText(input), MAX_LOG_RENDER_CHARS);
 }

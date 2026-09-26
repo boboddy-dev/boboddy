@@ -6,6 +6,7 @@ import {
 import { resolveBoboddyBaseUrl } from "@boboddy/worker";
 import { connectApi } from "../lib/cli-api-client";
 import { withReporter } from "../lib/command-output";
+import { createExecutionLogArtifactWriter } from "../lib/execution-log-cache";
 
 /**
  * Mirrors `@boboddy/platform-client`'s `StepExecutionLogStream` (imported as a
@@ -67,6 +68,7 @@ const runView = (args: ArgumentsCamelCase<ViewArguments>): Promise<void> =>
       log: args.log || args.logStream !== undefined,
       logStream: args.logStream,
       artifacts: args.artifacts,
+      writeLogArtifact: createExecutionLogArtifactWriter(),
     });
 
     process.stdout.write(`${output}\n`);

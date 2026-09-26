@@ -37,4 +37,18 @@ export class CompositeArtifactStore implements ArtifactStore {
     // Non-null: constructor guarantees at least one store, so at least one result.
     return results[0] as SaveArtifactResult;
   }
+
+  /**
+   * Fans out to every store's optional `prune`, individually caught so one
+   * store's rejection never blocks or fails another's — pruning is
+   * best-effort (decision 12), unlike `saveArtifact`'s all-or-nothing
+   * contract above. This method itself never throws.
+   */
+  async prune(): Promise<void> {
+    await Promise.all(
+      this.stores.map((store) =>
+        Promise.resolve(store.prune?.()).catch(() => {}),
+      ),
+    );
+  }
 }

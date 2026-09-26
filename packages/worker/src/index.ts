@@ -41,14 +41,21 @@ export { createCliAuthClient } from "./auth/session/infra/auth-client";
 export {
   deleteAuthProfile,
   getAuthFilePath,
-  getOrCreateAnonymousId,
-  isTelemetryDisabled,
   loadAuthFile,
   loadAuthProfile,
   saveAuthProfile,
-  setTelemetryDisabled,
 } from "./auth/session/infra/auth-storage";
+export {
+  getOrCreateAnonymousId,
+  isTelemetryDisabled,
+  setTelemetryDisabled,
+  getArtifactRetentionSettings,
+} from "./auth/session/infra/config-storage";
 export type { AuthFile, AuthProfile } from "./auth/session/domain/session";
+export type {
+  ConfigFile,
+  ArtifactRetentionSettings,
+} from "./auth/session/domain/session";
 export { fetchAuthenticatedSession } from "./auth/session/application/fetch-authenticated-session";
 export { loadAuthenticatedSession } from "./auth/session/application/load-authenticated-session";
 export { persistAuthenticatedSession } from "./auth/session/application/persist-authenticated-session";

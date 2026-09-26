@@ -12,7 +12,8 @@ via a separate identify call after you sign in, to connect your pre- and
 post-login events.
 
 Before you're signed in, events are keyed to a random id generated on first
-run and stored in `~/.boboddy.json` (alongside, not inside, your credentials).
+run and stored in `~/.boboddy/config.jsonc` (alongside, not inside, your
+credentials, which live in `~/.boboddy/auth.jsonc`).
 Once you sign in, later events switch to your account id, and PostHog links
 the two so the whole funnel counts toward you.
 
@@ -30,7 +31,7 @@ boboddy telemetry status
 
 ### `boboddy telemetry disable`
 
-Turn off observability reporting for every future invocation. Persisted in `~/.boboddy.json`.
+Turn off observability reporting for every future invocation. Persisted in `~/.boboddy/config.jsonc`.
 
 ```bash
 boboddy telemetry disable

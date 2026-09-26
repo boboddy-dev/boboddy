@@ -25,4 +25,11 @@ export type SaveArtifactResult = {
 
 export interface ArtifactStore {
   saveArtifact(input: SaveArtifactInput): Promise<SaveArtifactResult>;
+  /**
+   * Best-effort local disk cleanup, run periodically by callers that persist
+   * artifacts on disk. Optional: stores with no local footprint to bound
+   * (e.g. {@link RemoteArtifactStore}, whose retention is a separate,
+   * already-existing server-side policy) simply don't implement it.
+   */
+  prune?(): Promise<void>;
 }

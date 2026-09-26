@@ -28,7 +28,7 @@
     "link": "bun run script/link.ts",
     "link:local": "bun run build && bun link --global .",
     "publish:package": "bun run script/publish.ts",
-    "test": "bun test test",
+    "test": "bun test test --path-ignore-patterns=compiled-binary-tests/** && bun test compiled-binary-tests",
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {

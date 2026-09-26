@@ -13,6 +13,7 @@
     "src/**/*.ts",
     "script/**/*.ts",
     "test/**/*.ts",
+    "compiled-binary-tests/**/*.ts",
     "../../packages/worker/src/types/process-off-fallback.d.ts"
   ],
   "exclude": ["node_modules", "dist"]
