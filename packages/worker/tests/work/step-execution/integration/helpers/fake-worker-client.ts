@@ -200,4 +200,29 @@ export class FakeStepExecutionWorkerClient implements StepExecutionWorkerClient 
     this.recordedArtifacts.push({ ...input });
     return Promise.resolve();
   }
+
+  readonly recordedArtifactFailures: {
+    stepExecutionId: string;
+    claimToken: string;
+    relativeStorePath: string;
+    attemptedSizeBytes: number;
+    kind?: ArtifactKind | undefined;
+    errorCode: string;
+    errorMessage: string;
+    httpStatus?: number | undefined;
+  }[] = [];
+
+  recordArtifactFailure(input: {
+    stepExecutionId: string;
+    claimToken: string;
+    relativeStorePath: string;
+    attemptedSizeBytes: number;
+    kind?: ArtifactKind | undefined;
+    errorCode: string;
+    errorMessage: string;
+    httpStatus?: number | undefined;
+  }): Promise<void> {
+    this.recordedArtifactFailures.push({ ...input });
+    return Promise.resolve();
+  }
 }

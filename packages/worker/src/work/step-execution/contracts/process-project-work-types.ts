@@ -145,6 +145,23 @@ export type StepExecutionWorkerClient = {
     contentType?: string | undefined;
     kind: ArtifactKind;
   }): Promise<void>;
+  /**
+   * Best-effort telemetry for an artifact-save attempt that failed (storage
+   * quota, network error, etc.). Purely informational — callers must treat a
+   * failure to report as non-fatal (see `collectStepArtifacts`'s own
+   * try/catch around this call) since it must never mask the real save
+   * failure it is reporting.
+   */
+  recordArtifactFailure(input: {
+    stepExecutionId: string;
+    claimToken: string;
+    relativeStorePath: string;
+    attemptedSizeBytes: number;
+    kind?: ArtifactKind | undefined;
+    errorCode: string;
+    errorMessage: string;
+    httpStatus?: number | undefined;
+  }): Promise<void>;
 };
 
 /**

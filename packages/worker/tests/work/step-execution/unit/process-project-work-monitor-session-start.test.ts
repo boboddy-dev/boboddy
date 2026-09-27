@@ -97,6 +97,7 @@ describe("monitorStartedClaimedExecution session-start fail-fast", () => {
         getStepExecutionWorkerContext: vi.fn(),
         createArtifactUploadUrl: vi.fn(),
         recordArtifact: vi.fn(),
+        recordArtifactFailure: vi.fn(),
         appendStepExecutionLogs: vi.fn(() => Promise.resolve({ nextOffset: 0 })),
       },
       createRunTracker: vi.fn(),

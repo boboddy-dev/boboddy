@@ -78,6 +78,7 @@ function createDeps(
       getStepExecutionWorkerContext: vi.fn(),
       createArtifactUploadUrl: vi.fn(),
       recordArtifact: vi.fn(),
+      recordArtifactFailure: vi.fn(),
     },
     createRunTracker: vi.fn(),
     runtimeEnvironmentOrchestrator: {

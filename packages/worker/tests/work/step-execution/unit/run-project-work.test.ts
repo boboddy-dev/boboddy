@@ -94,6 +94,7 @@ function createWorkerClient(
       }),
     ),
     recordArtifact: vi.fn(() => Promise.resolve(undefined)),
+    recordArtifactFailure: vi.fn(() => Promise.resolve(undefined)),
     ...overrides,
   };
 }

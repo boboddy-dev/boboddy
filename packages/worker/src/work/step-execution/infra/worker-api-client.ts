@@ -162,5 +162,31 @@ export async function createStepExecutionPlaneWorkerClient(baseUrl: string) {
         { headers },
       );
     },
+    recordArtifactFailure: async (input: {
+      stepExecutionId: string;
+      claimToken: string;
+      relativeStorePath: string;
+      attemptedSizeBytes: number;
+      kind?: ArtifactKind | undefined;
+      errorCode: string;
+      errorMessage: string;
+      httpStatus?: number | undefined;
+    }) => {
+      await planeClient.recordArtifactFailure(
+        input.stepExecutionId,
+        {
+          claimToken: input.claimToken,
+          relativeStorePath: input.relativeStorePath,
+          attemptedSizeBytes: input.attemptedSizeBytes,
+          errorCode: input.errorCode,
+          errorMessage: input.errorMessage,
+          ...(input.kind === undefined ? {} : { kind: input.kind }),
+          ...(input.httpStatus === undefined
+            ? {}
+            : { httpStatus: input.httpStatus }),
+        },
+        { headers },
+      );
+    },
   } satisfies StepExecutionPlaneWorkerClient;
 }

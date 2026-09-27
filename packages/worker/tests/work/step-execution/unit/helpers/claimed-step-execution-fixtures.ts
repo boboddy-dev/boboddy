@@ -112,6 +112,7 @@ export function createWorkerClient(
     ),
     createArtifactUploadUrl: vi.fn(),
     recordArtifact: vi.fn(),
+    recordArtifactFailure: vi.fn(),
   };
 }
 

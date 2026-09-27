@@ -8,6 +8,7 @@ import type { resolveProjectWorkLogger } from "./process-project-work-logger";
 import type { ProcessProjectWorkDeps } from "../contracts/process-project-work-types";
 import { buildFindingsSubmissionPath } from "./process-project-work-findings";
 import { detectArtifactKind } from "../../../artifacts/artifact-store/domain/detect-artifact-kind";
+import { classifyArtifactSaveError } from "../../../artifacts/artifact-store/domain/classify-artifact-save-error";
 
 const execFileAsync = promisify(execFile);
 
@@ -376,6 +377,31 @@ export async function collectStepArtifacts(
         sourcePath,
         error: error instanceof Error ? error.message : String(error),
       });
+
+      try {
+        const classified = classifyArtifactSaveError(error);
+        await deps.workerClient.recordArtifactFailure({
+          stepExecutionId: startedExecution.stepExecutionId,
+          claimToken: startedExecution.claimToken,
+          relativeStorePath,
+          attemptedSizeBytes: fileStat.size,
+          kind,
+          errorCode: classified.errorCode,
+          errorMessage: classified.errorMessage,
+          ...(classified.httpStatus === null
+            ? {}
+            : { httpStatus: classified.httpStatus }),
+        });
+      } catch (reportingError) {
+        logger.error("worker", "Failed to report step artifact save failure", {
+          stepExecutionId: startedExecution.stepExecutionId,
+          relativeStorePath,
+          error:
+            reportingError instanceof Error
+              ? reportingError.message
+              : String(reportingError),
+        });
+      }
     }
   }
 

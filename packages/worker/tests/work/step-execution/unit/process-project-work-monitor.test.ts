@@ -95,7 +95,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "running" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
-          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(), recordArtifactFailure: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -173,7 +173,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "running" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
-          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(), recordArtifactFailure: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -275,7 +275,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "succeeded" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
-          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(), recordArtifactFailure: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),
@@ -375,7 +375,7 @@ describe("monitorStartedClaimedExecution", () => {
             Promise.resolve({ status: "succeeded" as const }),
           ),
           getStepExecutionWorkerContext: vi.fn(),
-          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(),
+          createArtifactUploadUrl: vi.fn(), recordArtifact: vi.fn(), recordArtifactFailure: vi.fn(),
           appendStepExecutionLogs: vi.fn(() =>
             Promise.resolve({ nextOffset: 0 }),
           ),

@@ -1,6 +1,7 @@
 import { createClient } from "./generated/client";
 import { StepExecutions } from "./generated/sdk.gen";
 import type {
+  PostApiStepExecutionsByStepExecutionIdArtifactFailuresData,
   PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData,
   PostApiStepExecutionsByStepExecutionIdArtifactsData,
 } from "./generated/types.gen";
@@ -10,6 +11,9 @@ type CreateArtifactUploadUrlInput =
 
 type RecordStepExecutionArtifactInput =
   PostApiStepExecutionsByStepExecutionIdArtifactsData["body"];
+
+type RecordArtifactFailureInput =
+  PostApiStepExecutionsByStepExecutionIdArtifactFailuresData["body"];
 
 type RequestOptions = {
   headers?: Record<string, unknown> | undefined;
@@ -144,6 +148,19 @@ const buildStepExecutionPlaneClient = (stepExecutions: StepExecutions) => {
       options?: RequestOptions,
     ) => {
       const result = await stepExecutions.recordStepExecutionArtifact({
+        path: { stepExecutionId },
+        body,
+        headers: options?.headers,
+      });
+      if (result.error) throw new Error(JSON.stringify(result.error));
+      return result.data;
+    },
+    recordArtifactFailure: async (
+      stepExecutionId: string,
+      body: RecordArtifactFailureInput,
+      options?: RequestOptions,
+    ) => {
+      const result = await stepExecutions.recordStepExecutionArtifactFailure({
         path: { stepExecutionId },
         body,
         headers: options?.headers,
