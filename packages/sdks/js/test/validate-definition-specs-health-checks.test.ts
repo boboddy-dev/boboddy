@@ -143,4 +143,74 @@ describe("validateDefinitionSpecs — health checks", () => {
       }),
     ).toEqual([]);
   });
+
+  test("accepts a step declaring only a kind: \"cli\" check", () => {
+    expect(
+      validateDefinitionSpecs({
+        pipelines: [],
+        steps: [
+          stepSpecWithOverrides("cli-step", {
+            healthChecksJson: [
+              {
+                kind: "cli",
+                command: ["gh", "--version"],
+                severity: "required",
+                timeoutMs: 15000,
+              },
+            ],
+          }),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  test("accepts a step declaring both a tool check and a cli check together", () => {
+    expect(
+      validateDefinitionSpecs({
+        pipelines: [],
+        steps: [
+          withMcp([
+            {
+              mcp: "playwright",
+              tool: "browser_navigate",
+              args: { url: "about:blank" },
+              severity: "required",
+              timeoutMs: 15000,
+            },
+            {
+              kind: "cli",
+              command: ["gh", "--version"],
+              severity: "required",
+              timeoutMs: 15000,
+            },
+          ]),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  test("a cli check's absence of mcp/tool never triggers the mcp-server or double-qualified checks", () => {
+    const issues = validateDefinitionSpecs({
+      pipelines: [],
+      steps: [
+        stepSpecWithOverrides("cli-only-step", {
+          healthChecksJson: [
+            {
+              kind: "cli",
+              command: ["gh", "--version"],
+              severity: "required",
+              timeoutMs: 15000,
+            },
+          ],
+        }),
+      ],
+    });
+    expect(
+      issues.some(
+        (issue) =>
+          issue.check === "health-check-mcp-server" ||
+          issue.check === "health-check-double-qualified",
+      ),
+    ).toBe(false);
+  });
 });

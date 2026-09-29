@@ -16,7 +16,8 @@ export type DefinitionValidationIssue = {
     | "health-check-double-qualified"
     | "unbound-required-input"
     | "binding-target-field"
-    | "binding-type-mismatch";
+    | "binding-type-mismatch"
+    | "split-branches-reconverge";
   /**
    * Whether this issue blocks a push. The 4 original checks are all
    * unconditionally `"error"`, matching their implicit all-blocking

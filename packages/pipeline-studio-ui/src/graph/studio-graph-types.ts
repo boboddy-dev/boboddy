@@ -64,8 +64,8 @@ export type StudioParallelBranchShape = {
  *   fields, declared output signals, and raw result schema.
  * - `"parallel"` — a `parallel` node's own branches, each independently
  *   resolved against its own `stepKey`.
- * - `"none"` — every other node kind (`cohortGate`/`choice`/`succeed`/
- *   `fail`), and the `"step"`/`"parallel"` cases when the node's
+ * - `"none"` — every other node kind (`cohortGate`/`choice`/`split`/
+ *   `succeed`/`fail`), and the `"step"`/`"parallel"` cases when the node's
  *   `stepKey` doesn't resolve against the `steps` batch passed to
  *   `translateSpecToGraph` (step not collected in this batch) — chosen
  *   over fabricating empty arrays, which would look like a real,

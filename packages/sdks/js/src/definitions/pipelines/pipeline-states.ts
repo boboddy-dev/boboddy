@@ -11,10 +11,10 @@ import type { AnyBinding } from "./bindings";
 import type { FanOutNodeInputCtx, NodeInputCtx } from "./node-input-ctx";
 
 /**
- * The 7 authoring state kinds. Every
- * kind besides `choice`/`succeed`/`fail` does its own work (a `step`) and
- * therefore declares exactly one authored `input`/`timeout`; `choice` and
- * `loop` are the only kinds with more than one possible exit.
+ * The 8 authoring state kinds. Every
+ * kind besides `choice`/`split`/`succeed`/`fail` does its own work (a `step`)
+ * and therefore declares exactly one authored `input`/`timeout`; `choice`,
+ * `loop`, and `split` are the only kinds with more than one possible exit.
  */
 
 /** `next: "otherStateKey"`, or a special cross-pipeline route target. */
@@ -92,6 +92,12 @@ export type LoopState = {
   onExhausted: string;
 };
 
+export type SplitState = {
+  kind: "split";
+  /** Every target starts its own independent chain — all fire, unconditionally. */
+  branches: string[];
+};
+
 export type SucceedState = { kind: "succeed" };
 export type FailState = { kind: "fail" };
 
@@ -101,6 +107,7 @@ export type PipelineState =
   | FanOutState
   | ParallelState
   | LoopState
+  | SplitState
   | SucceedState
   | FailState;
 

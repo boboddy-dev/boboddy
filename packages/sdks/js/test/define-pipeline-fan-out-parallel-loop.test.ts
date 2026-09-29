@@ -6,6 +6,7 @@ import type {
   FanOutNodeDefinitionSpec,
   LoopNodeDefinitionSpec,
   ParallelNodeDefinitionSpec,
+  SplitNodeDefinitionSpec,
 } from "../src/definitions/pipelines/define-pipeline";
 
 const analyzeStep = defineStep({
@@ -172,6 +173,61 @@ describe("definePipeline — loop", () => {
       toNodeKey: "escalate",
       discriminantJson: { loopExit: "onExhausted" },
     });
+  });
+});
+
+describe("definePipeline — split", () => {
+  test.concurrent("produces one node definition and one edge per branch", () => {
+    const spec = definePipeline({
+      key: "split-test",
+      startAt: "fork",
+      states: {
+        fork: { kind: "split", branches: ["notify", "record"] },
+        notify: { kind: "step", step: analyzeStep, next: "done" },
+        record: { kind: "step", step: reviewStep, next: "done" },
+        done: { kind: "succeed" },
+      },
+    });
+
+    const node = spec.nodeDefinitions.find(
+      (n): n is SplitNodeDefinitionSpec => n.nodeKey === "fork" && n.kind === "split",
+    );
+    expect(node?.branchNodeKeys).toEqual(["notify", "record"]);
+
+    expect(spec.dependencyEdges).toContainEqual({
+      fromNodeKey: "fork",
+      toNodeKey: "notify",
+    });
+    expect(spec.dependencyEdges).toContainEqual({
+      fromNodeKey: "fork",
+      toNodeKey: "record",
+    });
+  });
+
+  test.concurrent("requires at least two branches", () => {
+    expect(() =>
+      definePipeline({
+        key: "single-branch-split",
+        startAt: "fork",
+        states: {
+          fork: { kind: "split", branches: ["done"] },
+          done: { kind: "succeed" },
+        },
+      }),
+    ).toThrow(/requires at least two branches/);
+  });
+
+  test.concurrent("rejects a branch target that does not exist", () => {
+    expect(() =>
+      definePipeline({
+        key: "split-dangling",
+        startAt: "fork",
+        states: {
+          fork: { kind: "split", branches: ["nowhere", "done"] },
+          done: { kind: "succeed" },
+        },
+      }),
+    ).toThrow(/targets unknown state "nowhere"/);
   });
 });
 

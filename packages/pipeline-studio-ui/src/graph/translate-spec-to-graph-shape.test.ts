@@ -92,6 +92,19 @@ describe("translateSpecToGraph — shape", () => {
     expect(nodes[0]?.data.shape).toEqual({ kind: "none" });
   });
 
+  test("falls back to {kind: 'none'} for a split node, rather than matching the parallel branch", () => {
+    const split: NodeDefinitionSpec = {
+      nodeKey: "notifyAndRecord",
+      kind: "split",
+      branchNodeKeys: ["notify", "recordEvidence"],
+    };
+    const spec = pipeline([split], []);
+
+    const { nodes } = translateSpecToGraph(spec, [], [ANALYZE_STEP]);
+
+    expect(nodes[0]?.data.shape).toEqual({ kind: "none" });
+  });
+
   test("falls back to {kind: 'none'} when a working node's stepKey isn't in the steps batch", () => {
     const spec = pipeline([ANALYZE_BOUND], []);
 

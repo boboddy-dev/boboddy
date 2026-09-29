@@ -16,6 +16,7 @@ import {
   compileFanOutState,
   compileLoopState,
   compileParallelState,
+  compileSplitState,
   compileStepState,
   compileTerminalState,
   type CompileContext,
@@ -43,6 +44,7 @@ export type NodeDefinitionKind =
   | "choice"
   | "parallel"
   | "loop"
+  | "split"
   | "succeed"
   | "fail";
 
@@ -125,6 +127,13 @@ export type LoopNodeDefinitionSpec = StepTemplateFields & {
   untilConditionJson: SerializedCondition;
 };
 
+export type SplitNodeDefinitionSpec = {
+  nodeKey: string;
+  kind: "split";
+  /** Every one of these fires, unconditionally — no reconvergence in v1. */
+  branchNodeKeys: string[];
+};
+
 /** `succeed`/`fail` carry no fields of their own besides `nodeKey`/`kind`. */
 export type TerminalNodeDefinitionSpec = {
   nodeKey: string;
@@ -147,6 +156,7 @@ export type NodeDefinitionSpec =
   | ChoiceNodeDefinitionSpec
   | ParallelNodeDefinitionSpec
   | LoopNodeDefinitionSpec
+  | SplitNodeDefinitionSpec
   | TerminalNodeDefinitionSpec;
 
 /** The kinds that run a step template and therefore carry `StepTemplateFields`. */
@@ -247,7 +257,9 @@ export function definePipeline<TInput extends ZodType = z.ZodUnknown>(
               ? compileParallelState(stateKey, state, compileContext)
               : state.kind === "loop"
                 ? compileLoopState(stateKey, state, compileContext)
-                : compileTerminalState(stateKey, state.kind);
+                : state.kind === "split"
+                  ? compileSplitState(stateKey, state, compileContext)
+                  : compileTerminalState(stateKey, state.kind);
 
     nodeDefinitions.push(...compiled.nodeDefinitions);
     dependencyEdges.push(...compiled.edges);

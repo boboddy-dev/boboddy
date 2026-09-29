@@ -4,6 +4,7 @@ import {
   runHealthChecks,
 } from "../../../../src/work/step-execution/application/run-health-checks";
 import {
+  cliHealthCheck,
   healthCheck,
   installFakeAgent,
   restoreFetch,
@@ -27,6 +28,14 @@ describe("resolveHealthCheckToolId", () => {
     expect(resolveHealthCheckToolId(healthCheck({ tool: "greet" }))).toBe(
       "greet",
     );
+  });
+
+  test("joins a cli check's command for reporting, with no mcp-style qualification", () => {
+    expect(
+      resolveHealthCheckToolId(
+        cliHealthCheck({ command: ["gh", "--version"] }),
+      ),
+    ).toBe("gh --version");
   });
 });
 
@@ -81,6 +90,7 @@ describe("runHealthChecks — schema that fails to compile", () => {
           name: "uses-uncompilable-schema",
           resolvedId: "uses-uncompilable-schema",
           severity: "required",
+          kind: "tool",
           outcome: { kind: "passed" },
         },
       ]);

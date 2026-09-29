@@ -40,6 +40,7 @@ The agent is automatically given the step's input as default context — the ful
 | `result`          | `ZodType`                         | No       | Zod schema for the step's output                                                |
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result for pipeline advancement logic                |
 | `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configurations for tool-using agents                                 |
+| `healthChecks`    | `HealthCheck[]`                   | No       | Real tool calls forced against the environment before the agent is prompted     |
 | `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the generated config when this step runs           |
 | `features`        | `StepFeature[]`                   | No       | Built-in feature plugins that extend the result schema, signals, and prompt     |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are not executed; defaults to `"active"`                            |
@@ -214,6 +215,60 @@ If your project already has a `.opencode/opencode.json` (or `.jsonc`) or
 every `workspace` step automatically — you don't need to repeat it in
 `mcpServers`. Reserve a step's own `mcpServers` for servers that step needs
 and the project doesn't already provide.
+
+## Health checks
+
+Steps can declare `healthChecks` — real tool calls Boboddy forces against the launched environment (MCP servers, plugin tools, standalone tools) **before the agent is prompted**. A broken tool fails the step immediately instead of quietly wasting an agent turn discovering it.
+
+```typescript
+export const browserStep = defineStep({
+  key: "browser-repro",
+  name: "Browser Repro",
+  mcpServers: {
+    playwright: {
+      type: "local",
+      command: ["npx", "-y", "@playwright/mcp"],
+      enabled: true,
+    },
+  },
+  healthChecks: [
+    { mcp: "playwright", tool: "browser_navigate", args: { url: "about:blank" } },
+  ],
+  agentPrompt: "Reproduce the reported bug.",
+});
+```
+
+`tool` is a bare tool name when `mcp` names one of the step's own `mcpServers` keys (resolved to `${mcp}_${tool}` at runtime, matching OpenCode's MCP tool-naming convention); otherwise it's a flat plugin/standalone/built-in tool id.
+
+| Field         | Type                      | Required | Description                                                                          |
+| ------------- | ------------------------- | -------- | ------------------------------------------------------------------------------------- |
+| `tool`        | `string`                  | Yes      | Tool name to call. Bare name when `mcp` is set, otherwise a flat tool id              |
+| `mcp`         | `string`                  | No       | One of the step's declared `mcpServers` keys                                          |
+| `name`        | `string`                  | No       | Human-readable label shown in logs/UI. Defaults to the resolved tool id               |
+| `args`        | `Record<string, unknown>` | No       | Arguments passed to the tool call                                                     |
+| `severity`    | `"required" \| "warn"`    | No       | `"required"` (default) fails the step immediately if the check fails; `"warn"` is advisory — reported but never fails the step |
+| `timeoutMs`   | `number`                  | No       | How long to wait for the forced call before failing it as a timeout. Defaults to `15000` |
+| `serialGroup` | `string`                  | No       | Checks sharing the same value run one at a time, in declaration order. See [Running checks in parallel](#running-checks-in-parallel) |
+
+### Running checks in parallel
+
+By default, every declared check runs in its own parallel lane — a step with several health checks isn't slowed down by running them one after another. `required` checks all run before any `warn` check, and the first `required` failure stops every check that hasn't started yet (a check already in flight still finishes and reports its real outcome).
+
+Give two or more checks the same `serialGroup` value to force them to run one at a time, in declaration order, when they contend over the same underlying resource — e.g. two checks against the same database connection:
+
+```typescript
+healthChecks: [
+  { mcp: "postgres", tool: "list_schemas", serialGroup: "db" },
+  { mcp: "postgres", tool: "list_tables", serialGroup: "db" },
+  { mcp: "playwright", tool: "browser_navigate", args: { url: "about:blank" } },
+],
+```
+
+The two `postgres` checks run serially against each other, while the `playwright` check — no `serialGroup` — runs concurrently with them.
+
+:::caution
+No secrets in `args`. Health check arguments are persisted in the database, returned by the API, and rendered in the UI, with no interpolation mechanism. Put a secret in the MCP server's `environment`/`headers` instead, referenced as `{env:VAR}` — see [Secrets](#secrets).
+:::
 
 ## Plugins
 

@@ -15,6 +15,7 @@ describe("computeDryRunOk", () => {
     name: "browser_navigate",
     resolvedId: "browser_navigate",
     severity: "required",
+    kind: "tool",
     outcome: { kind: "passed" },
   };
 

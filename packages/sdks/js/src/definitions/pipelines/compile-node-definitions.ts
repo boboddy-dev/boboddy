@@ -32,6 +32,7 @@ import type {
   FanOutState,
   LoopState,
   ParallelState,
+  SplitState,
   StepState,
 } from "./pipeline-states";
 
@@ -296,6 +297,32 @@ export function compileLoopState(
         discriminantJson: { loopExit: "onExhausted" },
       },
     ],
+  };
+}
+
+export function compileSplitState(
+  stateKey: string,
+  state: SplitState,
+  ctx: CompileContext,
+): CompiledState {
+  if (state.branches.length < 2) {
+    throw new Error(
+      `Pipeline "${ctx.pipelineKey}": split state "${stateKey}" requires at least two branches`,
+    );
+  }
+
+  for (const branch of state.branches) {
+    assertTargetExists(ctx, stateKey, branch);
+  }
+
+  return {
+    nodeDefinitions: [
+      { nodeKey: stateKey, kind: "split", branchNodeKeys: state.branches },
+    ],
+    edges: state.branches.map((branch) => ({
+      fromNodeKey: stateKey,
+      toNodeKey: branch,
+    })),
   };
 }
 

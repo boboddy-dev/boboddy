@@ -213,3 +213,43 @@ export function tryComputeDominators(
 
   return dom;
 }
+
+/**
+ * Every node key reachable from `entryNodeKey` by following `dependencyEdges`
+ * forward, including `entryNodeKey` itself. A plain directed closure — unlike
+ * `tryComputeTopoRanks`/`tryComputeDominators` above, this needs no cycle
+ * detection (a BFS terminates on its own `visited` set even if the graph
+ * loops back on itself) and no malformed-edge guard, so it never returns
+ * `null`: a reachability question always has an answer, even for a
+ * hand-edited/malformed spec.
+ *
+ * Used by `validate-definition-specs.ts`'s `checkSplitBranchesDontReconverge`
+ * to compute each `split` branch's own downstream footprint — a purely
+ * structural question ("what can this branch ever reach"), so no `split`
+ * (or any other kind) special-casing belongs here.
+ */
+export function computeReachableNodeKeys(
+  dependencyEdges: readonly DependencyEdgeSpec[],
+  entryNodeKey: string,
+): Set<string> {
+  const outgoing = new Map<string, string[]>();
+  for (const edge of dependencyEdges) {
+    const targets = outgoing.get(edge.fromNodeKey);
+    if (targets) targets.push(edge.toNodeKey);
+    else outgoing.set(edge.fromNodeKey, [edge.toNodeKey]);
+  }
+
+  const reachable = new Set<string>([entryNodeKey]);
+  const queue: string[] = [entryNodeKey];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === undefined) break;
+    for (const next of outgoing.get(current) ?? []) {
+      if (reachable.has(next)) continue;
+      reachable.add(next);
+      queue.push(next);
+    }
+  }
+
+  return reachable;
+}

@@ -1484,14 +1484,24 @@ export type GetApiStepDefinitionsResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -1560,14 +1570,24 @@ export type PostApiStepDefinitionsData = {
         } | unknown;
         opencodePluginJson?: Array<string | Array<unknown>> | unknown;
         healthChecksJson?: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -1753,14 +1773,24 @@ export type PostApiStepDefinitionsResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -1829,14 +1859,24 @@ export type PutApiStepDefinitionsData = {
         } | unknown;
         opencodePluginJson?: Array<string | Array<unknown>> | unknown;
         healthChecksJson?: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -1990,14 +2030,24 @@ export type PutApiStepDefinitionsResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -2164,14 +2214,24 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -2338,14 +2398,24 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
@@ -3158,14 +3228,24 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
             } | unknown;
             opencodePluginJson: Array<string | Array<unknown>> | unknown;
             healthChecksJson: Array<{
+                name?: string;
+                severity: 'required' | 'warn';
+                timeoutMs: number;
+                serialGroup?: string;
+                kind: string;
                 tool: string;
                 mcp?: string;
-                name?: string;
                 args?: {
                     [key: string]: unknown;
                 };
+            } | {
+                name?: string;
                 severity: 'required' | 'warn';
                 timeoutMs: number;
+                serialGroup?: string;
+                kind: string;
+                command: Array<string>;
+                expectExitCode: number;
             }> | unknown;
         };
         agentPrompt: {
@@ -5130,7 +5210,7 @@ export type PostApiPipelineDefinitionsData = {
         }>;
         nodeDefinitions?: Array<{
             key: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             name: string;
             stepDefinitionId?: string | unknown;
             stepDefinitionVersion?: number | unknown;
@@ -5370,7 +5450,7 @@ export type PostApiPipelineDefinitionsResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5582,7 +5662,7 @@ export type PutApiPipelineDefinitionsData = {
         }>;
         nodeDefinitions?: Array<{
             key: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             name: string;
             stepDefinitionId?: string | unknown;
             stepDefinitionVersion?: number | unknown;
@@ -5774,7 +5854,7 @@ export type PutApiPipelineDefinitionsResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -5994,7 +6074,7 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6214,7 +6294,7 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveResponses = 
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6485,7 +6565,7 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -6721,7 +6801,7 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -7218,6 +7298,10 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
         } | {
             nodeKey: string;
             kind: string;
+            branchNodeKeys: Array<string>;
+        } | {
+            nodeKey: string;
+            kind: string;
         } | {
             nodeKey: string;
             kind: string;
@@ -7330,7 +7414,7 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsResponses = {
         stepDefinitions: Array<{
             id: string;
             pipelineDefinitionId: string;
-            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+            kind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
             stepDefinitionId: string;
             stepDefinitionVersion: number;
             key: string;
@@ -7717,7 +7801,7 @@ export type PostApiPipelineExecutionsResponses = {
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -7906,7 +7990,7 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartResponses = {
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -8095,7 +8179,7 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -8285,7 +8369,7 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -8481,7 +8565,7 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -8677,7 +8761,7 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -8870,7 +8954,7 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -9062,7 +9146,7 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses = {
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -9251,7 +9335,7 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses = {
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -9546,7 +9630,7 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdResponses = {
                 stepDefinitionVersion: number | unknown;
                 stepKey: string;
                 position: number;
-                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                 branchIndex: number | unknown;
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -9736,7 +9820,7 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses = 
                     stepDefinitionVersion: number | unknown;
                     stepKey: string;
                     position: number;
-                    nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail';
+                    nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
                     branchIndex: number | unknown;
                     branchKey: string | unknown;
                     status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
@@ -14435,14 +14519,24 @@ export type GetApiStepDefinitionTemplatesResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
@@ -14590,14 +14684,24 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         signalExtractorDefinitions: Array<{
             key: string;
@@ -14807,14 +14911,24 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
         } | unknown;
         opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
+            name?: string;
+            severity: 'required' | 'warn';
+            timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
             tool: string;
             mcp?: string;
-            name?: string;
             args?: {
                 [key: string]: unknown;
             };
+        } | {
+            name?: string;
             severity: 'required' | 'warn';
             timeoutMs: number;
+            serialGroup?: string;
+            kind: string;
+            command: Array<string>;
+            expectExitCode: number;
         }> | unknown;
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{

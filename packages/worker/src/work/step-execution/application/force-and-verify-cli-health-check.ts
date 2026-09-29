@@ -17,85 +17,95 @@ import {
 import { logWork, logWorkError } from "./work-logger";
 
 /**
- * Forces a single MCP tool call through a REAL OpenCode session and reports
- * whether it actually succeeded, using the production fake-LLM server
- * promoted in #107. This is the verification step behind the dry-run "health
- * check" feature: completing the MCP handshake only proves a server started,
- * not that any of its tools actually work — this proves the latter.
+ * Forces a single `bash` tool call through a REAL OpenCode session and reports
+ * whether the command it ran actually exited with the expected code — the
+ * `"cli"`-kind counterpart to `forceAndVerifyMcpHealthCheck`, sharing its
+ * session lifecycle (create → force call → poll → delete) and its
+ * `fakeAiServer`/marker-based concurrency plumbing (see that file's top
+ * comment for why `configure()` is not enough on its own when several checks
+ * share one `FakeAiServer` instance).
  *
- * Assumes {@link ForceAndVerifyMcpHealthCheckInput.fakeAiServer} is a single,
- * already-started instance the caller owns; starting/stopping it (and reusing
- * it across multiple health checks in one dry run) is the caller's
- * responsibility.
- *
- * IMPORTANT — this function does NOT redirect the agent's LLM provider at
- * anything. It assumes the OpenCode agent process at `agentBaseUrl` was
- * *launched* with the synthetic fake provider already baked into its
- * config, via the runtime environment's `fakeAiProviderOverride` ->
- * `buildFakeProviderConfig` -> `buildOpencodeContext`'s
- * `providerOverride` plumbing (see `../infra/fake-ai/fake-provider-config.ts`
- * and the two runtime-environment orchestrators). That is a deliberate
- * change from an earlier approach: this function used to PATCH `/config`
- * (and set an `/auth` credential) on the already-running agent immediately
- * before forcing the health check prompt, then revert both in a `finally`
- * block. That was proven to have ZERO live effect (see #109) — OpenCode reads
- * provider config once at process startup and does not react to `config.update`
- * calls on a running agent, so the "fake" provider override was silently
- * ignored and the health check prompt was actually going to whatever provider
- * the agent booted with. Do not reintroduce a call-time `/config` or `/auth`
- * PATCH here; it is a proven dead end. If a future health check needs a
- * *different* fake-provider target than the one the agent launched with, the
- * only way to make that live is to relaunch the agent with a new
- * `fakeAiProviderOverride`, not to patch the running one.
+ * The one substantive difference from the MCP verifier: OpenCode's `bash`
+ * tool call always "completes" whether the command it ran succeeded or not
+ * (a missing binary is just a non-zero exit code baked into its result, not a
+ * tool-level error) — so unlike the MCP verifier, `status === "completed"` is
+ * NOT sufficient here. This function reads the real exit code back out of the
+ * tool result and compares it against `expectExitCode`; see the Phase-1
+ * finding below for exactly where that lives.
  */
 
+/**
+ * A completed `bash` tool call's `ToolPart.state.metadata` is an untyped
+ * `{[key:string]: unknown}` bag per `@opencode-ai/sdk`'s generated types, but
+ * its REAL runtime shape — confirmed both from OpenCode's own bash-tool
+ * source (`packages/core/src/tool/bash.ts` in the opencode repo) and from
+ * live session data captured on disk (`~/.local/share/opencode/opencode.db`,
+ * `part` table) at v1.18.x — is:
+ *   { exit: number; output: string; truncated: boolean }
+ * `output` is stdout+stderr COMBINED (the tool runs with
+ * `combineOutput: true`); there is no separate stdout/stderr field. A
+ * command that doesn't exist (e.g. exit 127) still reaches
+ * `status: "completed"` with `exit: 127` in metadata — the bug this
+ * verifier exists to fix. A genuine timeout sets `metadata.timeout: true`
+ * and omits `exit`. Read `exit` defensively (it's still `unknown` at the
+ * type level) rather than trusting `status === "completed"` alone.
+ */
+function readBashExitCode(metadata: {
+  [key: string]: unknown;
+}): number | undefined {
+  const exit = metadata["exit"];
+  return typeof exit === "number" ? exit : undefined;
+}
+
+function readBashOutput(
+  metadata: { [key: string]: unknown },
+  fallback: string,
+): string {
+  const output = metadata["output"];
+  return typeof output === "string" ? output : fallback;
+}
+
+const BASH_TOOL_ID = "bash";
 const DEFAULT_HEALTH_CHECK_TIMEOUT_MS = 30_000;
 const DEFAULT_HEALTH_CHECK_POLL_INTERVAL_MS = 500;
+const MAX_OUTPUT_DETAIL_CHARS = 2000;
 
 /** Max attempts for the session.create call. */
 const SESSION_CREATE_MAX_ATTEMPTS = 3;
 const SESSION_CREATE_BACKOFF_BASE_MS = 200;
 
-/**
- * The qualified `{tool, args}` call to force, with `tool` already qualified as
- * `${serverName}_${toolName}` per OpenCode's MCP tool naming when the caller's
- * check names an `mcp` server, or used verbatim for a flat plugin/standalone
- * tool id.
- */
-export type McpHealthCheckCall = {
-  tool: string;
-  args: Record<string, unknown>;
-};
-
-export type ForceAndVerifyMcpHealthCheckInput = {
+export type ForceAndVerifyCliHealthCheckInput = {
   agentBaseUrl: string;
   workspaceFolder: string;
-  /** The qualified `{tool, args}` call to force. */
-  healthCheck: McpHealthCheckCall;
+  /** The command tokens to run, e.g. `["gh", "--version"]` — joined with a single space before being handed to the `bash` tool's single `command` string argument. */
+  command: string[];
+  /** The exit code that counts as a pass. */
+  expectExitCode: number;
   /** Already started; this function only calls `.configure()` on it. */
   fakeAiServer: FakeAiServer;
-  /** The agent whose MCP tools are enabled. Defaults to `STEP_EXECUTION_AGENT` ("build"). */
+  /** The agent whose tools are enabled. Defaults to `STEP_EXECUTION_AGENT` ("build"). */
   agent?: string | undefined;
-  /** Fixed timeout for the whole forced call. Defaults to 30s per the ticket. */
+  /** Fixed timeout for the whole forced call. Defaults to 30s, matching the MCP verifier. */
   timeoutMs?: number | undefined;
   /** Poll interval while waiting for the tool result. Defaults to 500ms. */
   pollIntervalMs?: number | undefined;
 };
 
-export type McpHealthCheckVerification =
+export type CliHealthCheckVerification =
   | { passed: true }
   | {
       passed: false;
       /**
-       * `tool-error` — the MCP tool call itself failed (the underlying MCP
-       * error is in `detail`). `timeout` — it never resolved within the
-       * timeout. `session-error` — something went wrong orchestrating the
-       * OpenCode session itself (not the MCP server's fault); this covers both
-       * a thrown client error and an assistant message whose turn failed at
-       * the provider level (e.g. `ProviderAuthError`), which would otherwise
-       * masquerade as a `timeout`.
+       * `nonzero-exit` — the command ran and completed, but its exit code
+       * didn't match `expectExitCode` (this is the bug this verifier exists
+       * to catch — see the file comment). `tool-error` — the `bash` tool
+       * call itself failed at the tool-invocation level (bad workdir,
+       * permission denied — same bucket as the MCP verifier's `tool-error`).
+       * `timeout` — it never resolved within the timeout. `session-error` —
+       * something went wrong orchestrating the OpenCode session itself, not
+       * the command's fault.
        */
-      reason: "tool-error" | "timeout" | "session-error";
+      reason: "nonzero-exit" | "tool-error" | "timeout" | "session-error";
       detail: string;
     };
 
@@ -117,6 +127,13 @@ function createClient(agentBaseUrl: string, workspaceFolder: string) {
   });
 }
 
+function truncateForDetail(output: string): string {
+  if (output.length <= MAX_OUTPUT_DETAIL_CHARS) {
+    return output;
+  }
+  return `${output.slice(0, MAX_OUTPUT_DETAIL_CHARS)}... (truncated)`;
+}
+
 async function createHealthCheckSession(
   client: ReturnType<typeof createClient>,
   title: string,
@@ -135,7 +152,7 @@ async function createHealthCheckSession(
       lastError = error;
       const willRetry = attempt < SESSION_CREATE_MAX_ATTEMPTS;
       logWorkError(
-        "mcp-health-check",
+        "cli-health-check",
         "OpenCode session.create attempt failed",
         {
           agentBaseUrl,
@@ -163,7 +180,7 @@ async function abortHealthCheckSession(
     await client.session.abort({ path: { id: sessionId } });
   } catch (error) {
     logWorkError(
-      "mcp-health-check",
+      "cli-health-check",
       "Failed to abort a timed-out health check session",
       {
         agentBaseUrl,
@@ -183,7 +200,7 @@ async function deleteHealthCheckSession(
     await client.session.delete({ path: { id: sessionId } });
   } catch (error) {
     logWorkError(
-      "mcp-health-check",
+      "cli-health-check",
       "Failed to delete the health check session",
       {
         agentBaseUrl,
@@ -194,13 +211,12 @@ async function deleteHealthCheckSession(
   }
 }
 
-function findQualifiedToolPart(
+function findBashToolPart(
   messages: Array<{ info: Message; parts: Part[] }>,
-  qualifiedTool: string,
 ): ToolPart | undefined {
   for (const message of messages) {
     for (const part of message.parts) {
-      if (part.type === "tool" && part.tool === qualifiedTool) {
+      if (part.type === "tool" && part.tool === BASH_TOOL_ID) {
         return part;
       }
     }
@@ -212,11 +228,9 @@ type AssistantMessageError = NonNullable<AssistantMessage["error"]>;
 
 /**
  * Renders an assistant-message error for a human reading the dry-run report.
- *
- * Two SDK footguns are handled explicitly here rather than by reading
- * `error.data.message` blindly:
- *  - `MessageOutputLengthError.data` is an open record with no `message`.
- *  - `ApiError`'s discriminant literal is `"APIError"`, not `"ApiError"`.
+ * Mirrors `force-and-verify-mcp-health-check.ts`'s `describeAssistantMessageError`
+ * — see that file for why the two SDK footguns (`MessageOutputLengthError`'s
+ * shape, `APIError`'s discriminant literal) are handled explicitly.
  */
 function describeAssistantMessageError(error: AssistantMessageError): string {
   switch (error.name) {
@@ -255,15 +269,15 @@ function findAssistantMessageError(
 async function pollForHealthCheckResult(input: {
   client: ReturnType<typeof createClient>;
   sessionId: string;
-  qualifiedTool: string;
+  expectExitCode: number;
   timeoutMs: number;
   pollIntervalMs: number;
   agentBaseUrl: string;
-}): Promise<McpHealthCheckVerification> {
+}): Promise<CliHealthCheckVerification> {
   const {
     client,
     sessionId,
-    qualifiedTool,
+    expectExitCode,
     timeoutMs,
     pollIntervalMs,
     agentBaseUrl,
@@ -277,12 +291,28 @@ async function pollForHealthCheckResult(input: {
       });
       const messages = response.data ?? [];
 
-      // The tool part is checked FIRST: if the call reached "completed" the
-      // health check passed, even if a later turn errored.
-      const toolPart = findQualifiedToolPart(messages, qualifiedTool);
+      // The tool part is checked FIRST: a "completed" bash call is only a
+      // pass if its exit code also matches — see the Phase-1 finding above.
+      const toolPart = findBashToolPart(messages);
       if (toolPart) {
         if (toolPart.state.status === "completed") {
-          return { passed: true };
+          const exitCode = readBashExitCode(toolPart.state.metadata);
+          if (exitCode === expectExitCode) {
+            return { passed: true };
+          }
+          const output = readBashOutput(
+            toolPart.state.metadata,
+            toolPart.state.output,
+          );
+          const actualDescription =
+            exitCode === undefined
+              ? "unknown (missing from tool metadata)"
+              : String(exitCode);
+          return {
+            passed: false,
+            reason: "nonzero-exit",
+            detail: `Command exited with ${actualDescription}, expected ${String(expectExitCode)}. Output: ${truncateForDetail(output)}`,
+          };
         }
         if (toolPart.state.status === "error") {
           return {
@@ -294,19 +324,18 @@ async function pollForHealthCheckResult(input: {
         // "pending" / "running" — fall through to the session-error check.
       }
 
-      // No usable tool result yet. If the session itself failed at the provider
-      // level, say so now instead of waiting out the timeout and blaming the
-      // MCP server.
+      // No usable tool result yet. If the session itself failed at the
+      // provider level, say so now instead of waiting out the timeout and
+      // blaming the command.
       const assistantError = findAssistantMessageError(messages);
       if (assistantError) {
         const detail = describeAssistantMessageError(assistantError);
         logWorkError(
-          "mcp-health-check",
+          "cli-health-check",
           "The health check OpenCode session failed at the assistant-message level",
           {
             agentBaseUrl,
             sessionId,
-            tool: qualifiedTool,
             error: detail,
           },
         );
@@ -314,7 +343,7 @@ async function pollForHealthCheckResult(input: {
       }
     } catch (error) {
       logWorkError(
-        "mcp-health-check",
+        "cli-health-check",
         "Failed to read session messages while polling for the health check result",
         {
           agentBaseUrl,
@@ -338,39 +367,44 @@ async function pollForHealthCheckResult(input: {
   }
 }
 
-export async function forceAndVerifyMcpHealthCheck(
-  input: ForceAndVerifyMcpHealthCheckInput,
-): Promise<McpHealthCheckVerification> {
-  const { agentBaseUrl, workspaceFolder, healthCheck, fakeAiServer } = input;
+export async function forceAndVerifyCliHealthCheck(
+  input: ForceAndVerifyCliHealthCheckInput,
+): Promise<CliHealthCheckVerification> {
+  const {
+    agentBaseUrl,
+    workspaceFolder,
+    command,
+    expectExitCode,
+    fakeAiServer,
+  } = input;
   const client = createClient(agentBaseUrl, workspaceFolder);
   const timeoutMs = input.timeoutMs ?? DEFAULT_HEALTH_CHECK_TIMEOUT_MS;
   const pollIntervalMs =
     input.pollIntervalMs ?? DEFAULT_HEALTH_CHECK_POLL_INTERVAL_MS;
   const agent = input.agent ?? STEP_EXECUTION_AGENT;
+  const joinedCommand = command.join(" ");
+  const toolArgs = { command: joinedCommand };
 
-  logWork("mcp-health-check", "Forcing MCP health check tool call", {
+  logWork("cli-health-check", "Forcing cli health check bash call", {
     agentBaseUrl,
-    tool: healthCheck.tool,
+    command: joinedCommand,
   });
 
   let sessionId: string | undefined;
 
   try {
-    // `runHealthChecks` (worker) may run several checks concurrently against
-    // this same `fakeAiServer` instance (parallel lanes, one per
-    // `serialGroup`/ungrouped check — see `run-health-checks.ts`), so the
-    // forced tool/args are embedded directly in the prompt text via
-    // `buildForcedToolCallPrompt` rather than relied on from `configure()`:
-    // that keeps each request self-describing instead of racing other
-    // in-flight checks over `fakeAiServer`'s shared mutable
-    // `forcedToolCall` field. `configure()` is still called too, purely as a
-    // fallback for the (non-concurrent) case an older `FakeAiServer` build
-    // doesn't parse the marker — see `fake-ai-server.ts`.
-    fakeAiServer.configure(healthCheck.tool, healthCheck.args);
+    // Mirrors `forceAndVerifyMcpHealthCheck`'s reasoning: several checks can
+    // run concurrently against this same `fakeAiServer` instance (parallel
+    // lanes — see `run-health-checks.ts`), so the forced tool/args are
+    // embedded directly in the prompt text via `buildForcedToolCallPrompt`
+    // rather than relied on from `configure()`. `configure()` is still called
+    // too, purely as a fallback for the (non-concurrent) case an older
+    // `FakeAiServer` build doesn't parse the marker.
+    fakeAiServer.configure(BASH_TOOL_ID, toolArgs);
 
     sessionId = await createHealthCheckSession(
       client,
-      `boboddy-mcp-health-check:${healthCheck.tool}`,
+      `boboddy-cli-health-check:${joinedCommand}`,
       agentBaseUrl,
     );
 
@@ -382,10 +416,7 @@ export async function forceAndVerifyMcpHealthCheck(
         parts: [
           {
             type: "text",
-            text: buildForcedToolCallPrompt(
-              healthCheck.tool,
-              healthCheck.args,
-            ),
+            text: buildForcedToolCallPrompt(BASH_TOOL_ID, toolArgs),
           },
         ],
       },
@@ -394,7 +425,7 @@ export async function forceAndVerifyMcpHealthCheck(
     return await pollForHealthCheckResult({
       client,
       sessionId,
-      qualifiedTool: healthCheck.tool,
+      expectExitCode,
       timeoutMs,
       pollIntervalMs,
       agentBaseUrl,
@@ -402,11 +433,11 @@ export async function forceAndVerifyMcpHealthCheck(
   } catch (error) {
     const detail = errorMessage(error);
     logWorkError(
-      "mcp-health-check",
-      "Failed to force-and-verify the MCP health check tool call",
+      "cli-health-check",
+      "Failed to force-and-verify the cli health check bash call",
       {
         agentBaseUrl,
-        tool: healthCheck.tool,
+        command: joinedCommand,
         error: detail,
       },
     );

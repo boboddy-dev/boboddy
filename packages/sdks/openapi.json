@@ -4953,48 +4953,115 @@
                       {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "tool": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "mcp": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "args": {
+                          "oneOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "default": "tool",
+                                  "type": "string",
+                                  "const": "tool"
+                                },
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "tool"
+                              ],
+                              "additionalProperties": false
                             },
-                            "severity": {
-                              "default": "required",
-                              "type": "string",
-                              "enum": [
-                                "required",
-                                "warn"
-                              ]
-                            },
-                            "timeoutMs": {
-                              "default": 15000,
-                              "type": "integer",
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "cli"
+                                },
+                                "command": {
+                                  "minItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "expectExitCode": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "command",
+                                "expectExitCode"
+                              ],
+                              "additionalProperties": false
                             }
-                          },
-                          "required": [
-                            "tool",
-                            "severity",
-                            "timeoutMs"
-                          ],
-                          "additionalProperties": false
+                          ]
                         }
                       },
                       {
@@ -5359,48 +5426,115 @@
                       {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "tool": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "mcp": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "args": {
+                          "oneOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "default": "tool",
+                                  "type": "string",
+                                  "const": "tool"
+                                },
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "tool"
+                              ],
+                              "additionalProperties": false
                             },
-                            "severity": {
-                              "default": "required",
-                              "type": "string",
-                              "enum": [
-                                "required",
-                                "warn"
-                              ]
-                            },
-                            "timeoutMs": {
-                              "default": 15000,
-                              "type": "integer",
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "cli"
+                                },
+                                "command": {
+                                  "minItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "expectExitCode": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "command",
+                                "expectExitCode"
+                              ],
+                              "additionalProperties": false
                             }
-                          },
-                          "required": [
-                            "tool",
-                            "severity",
-                            "timeoutMs"
-                          ],
-                          "additionalProperties": false
+                          ]
                         }
                       },
                       {
@@ -5765,48 +5899,115 @@
                       {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "tool": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "mcp": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "args": {
+                          "oneOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "default": "tool",
+                                  "type": "string",
+                                  "const": "tool"
+                                },
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "tool"
+                              ],
+                              "additionalProperties": false
                             },
-                            "severity": {
-                              "default": "required",
-                              "type": "string",
-                              "enum": [
-                                "required",
-                                "warn"
-                              ]
-                            },
-                            "timeoutMs": {
-                              "default": 15000,
-                              "type": "integer",
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "cli"
+                                },
+                                "command": {
+                                  "minItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "expectExitCode": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "command",
+                                "expectExitCode"
+                              ],
+                              "additionalProperties": false
                             }
-                          },
-                          "required": [
-                            "tool",
-                            "severity",
-                            "timeoutMs"
-                          ],
-                          "additionalProperties": false
+                          ]
                         }
                       },
                       {
@@ -6180,48 +6381,115 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "mcp": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "args": {
+                            "oneOf": [
+                              {
                                 "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "default": "tool",
+                                    "type": "string",
+                                    "const": "tool"
+                                  },
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
                                 },
-                                "additionalProperties": {}
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "tool"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "default": "required",
-                                "type": "string",
-                                "enum": [
-                                  "required",
-                                  "warn"
-                                ]
-                              },
-                              "timeoutMs": {
-                                "default": 15000,
-                                "type": "integer",
-                                "exclusiveMinimum": 0,
-                                "maximum": 9007199254740991
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "cli"
+                                  },
+                                  "command": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "expectExitCode": {
+                                    "default": 0,
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "command",
+                                  "expectExitCode"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "tool",
-                              "severity",
-                              "timeoutMs"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {
@@ -7076,48 +7344,115 @@
                           {
                             "type": "array",
                             "items": {
-                              "type": "object",
-                              "properties": {
-                                "tool": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "mcp": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "name": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "args": {
+                              "oneOf": [
+                                {
                                   "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "severity": {
+                                      "default": "required",
+                                      "type": "string",
+                                      "enum": [
+                                        "required",
+                                        "warn"
+                                      ]
+                                    },
+                                    "timeoutMs": {
+                                      "default": 15000,
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "serialGroup": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "kind": {
+                                      "default": "tool",
+                                      "type": "string",
+                                      "const": "tool"
+                                    },
+                                    "tool": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "mcp": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "args": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
                                   },
-                                  "additionalProperties": {}
+                                  "required": [
+                                    "severity",
+                                    "timeoutMs",
+                                    "kind",
+                                    "tool"
+                                  ],
+                                  "additionalProperties": false
                                 },
-                                "severity": {
-                                  "default": "required",
-                                  "type": "string",
-                                  "enum": [
-                                    "required",
-                                    "warn"
-                                  ]
-                                },
-                                "timeoutMs": {
-                                  "default": 15000,
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "severity": {
+                                      "default": "required",
+                                      "type": "string",
+                                      "enum": [
+                                        "required",
+                                        "warn"
+                                      ]
+                                    },
+                                    "timeoutMs": {
+                                      "default": 15000,
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "serialGroup": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "cli"
+                                    },
+                                    "command": {
+                                      "minItems": 1,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "expectExitCode": {
+                                      "default": 0,
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "severity",
+                                    "timeoutMs",
+                                    "kind",
+                                    "command",
+                                    "expectExitCode"
+                                  ],
+                                  "additionalProperties": false
                                 }
-                              },
-                              "required": [
-                                "tool",
-                                "severity",
-                                "timeoutMs"
-                              ],
-                              "additionalProperties": false
+                              ]
                             }
                           },
                           {
@@ -7774,48 +8109,115 @@
                       {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "tool": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "mcp": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "args": {
+                          "oneOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "default": "tool",
+                                  "type": "string",
+                                  "const": "tool"
+                                },
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "tool"
+                              ],
+                              "additionalProperties": false
                             },
-                            "severity": {
-                              "default": "required",
-                              "type": "string",
-                              "enum": [
-                                "required",
-                                "warn"
-                              ]
-                            },
-                            "timeoutMs": {
-                              "default": 15000,
-                              "type": "integer",
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "cli"
+                                },
+                                "command": {
+                                  "minItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "expectExitCode": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "command",
+                                "expectExitCode"
+                              ],
+                              "additionalProperties": false
                             }
-                          },
-                          "required": [
-                            "tool",
-                            "severity",
-                            "timeoutMs"
-                          ],
-                          "additionalProperties": false
+                          ]
                         }
                       },
                       {
@@ -8180,48 +8582,115 @@
                       {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "tool": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "mcp": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "args": {
+                          "oneOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "default": "tool",
+                                  "type": "string",
+                                  "const": "tool"
+                                },
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "tool"
+                              ],
+                              "additionalProperties": false
                             },
-                            "severity": {
-                              "default": "required",
-                              "type": "string",
-                              "enum": [
-                                "required",
-                                "warn"
-                              ]
-                            },
-                            "timeoutMs": {
-                              "default": 15000,
-                              "type": "integer",
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "cli"
+                                },
+                                "command": {
+                                  "minItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "expectExitCode": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "command",
+                                "expectExitCode"
+                              ],
+                              "additionalProperties": false
                             }
-                          },
-                          "required": [
-                            "tool",
-                            "severity",
-                            "timeoutMs"
-                          ],
-                          "additionalProperties": false
+                          ]
                         }
                       },
                       {
@@ -8586,48 +9055,115 @@
                       {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "tool": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "mcp": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "args": {
+                          "oneOf": [
+                            {
                               "type": "object",
-                              "propertyNames": {
-                                "type": "string"
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "default": "tool",
+                                  "type": "string",
+                                  "const": "tool"
+                                },
+                                "tool": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "mcp": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "args": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {}
+                                }
                               },
-                              "additionalProperties": {}
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "tool"
+                              ],
+                              "additionalProperties": false
                             },
-                            "severity": {
-                              "default": "required",
-                              "type": "string",
-                              "enum": [
-                                "required",
-                                "warn"
-                              ]
-                            },
-                            "timeoutMs": {
-                              "default": 15000,
-                              "type": "integer",
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "severity": {
+                                  "default": "required",
+                                  "type": "string",
+                                  "enum": [
+                                    "required",
+                                    "warn"
+                                  ]
+                                },
+                                "timeoutMs": {
+                                  "default": 15000,
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "serialGroup": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "const": "cli"
+                                },
+                                "command": {
+                                  "minItems": 1,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "expectExitCode": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "severity",
+                                "timeoutMs",
+                                "kind",
+                                "command",
+                                "expectExitCode"
+                              ],
+                              "additionalProperties": false
                             }
-                          },
-                          "required": [
-                            "tool",
-                            "severity",
-                            "timeoutMs"
-                          ],
-                          "additionalProperties": false
+                          ]
                         }
                       },
                       {
@@ -9001,48 +9537,115 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "mcp": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "args": {
+                            "oneOf": [
+                              {
                                 "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "default": "tool",
+                                    "type": "string",
+                                    "const": "tool"
+                                  },
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
                                 },
-                                "additionalProperties": {}
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "tool"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "default": "required",
-                                "type": "string",
-                                "enum": [
-                                  "required",
-                                  "warn"
-                                ]
-                              },
-                              "timeoutMs": {
-                                "default": 15000,
-                                "type": "integer",
-                                "exclusiveMinimum": 0,
-                                "maximum": 9007199254740991
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "cli"
+                                  },
+                                  "command": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "expectExitCode": {
+                                    "default": 0,
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "command",
+                                  "expectExitCode"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "tool",
-                              "severity",
-                              "timeoutMs"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {
@@ -9775,48 +10378,115 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "mcp": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "args": {
+                            "oneOf": [
+                              {
                                 "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "default": "tool",
+                                    "type": "string",
+                                    "const": "tool"
+                                  },
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
                                 },
-                                "additionalProperties": {}
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "tool"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "default": "required",
-                                "type": "string",
-                                "enum": [
-                                  "required",
-                                  "warn"
-                                ]
-                              },
-                              "timeoutMs": {
-                                "default": 15000,
-                                "type": "integer",
-                                "exclusiveMinimum": 0,
-                                "maximum": 9007199254740991
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "cli"
+                                  },
+                                  "command": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "expectExitCode": {
+                                    "default": 0,
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "command",
+                                  "expectExitCode"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "tool",
-                              "severity",
-                              "timeoutMs"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {
@@ -10549,48 +11219,115 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "mcp": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "args": {
+                            "oneOf": [
+                              {
                                 "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "default": "tool",
+                                    "type": "string",
+                                    "const": "tool"
+                                  },
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
                                 },
-                                "additionalProperties": {}
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "tool"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "default": "required",
-                                "type": "string",
-                                "enum": [
-                                  "required",
-                                  "warn"
-                                ]
-                              },
-                              "timeoutMs": {
-                                "default": 15000,
-                                "type": "integer",
-                                "exclusiveMinimum": 0,
-                                "maximum": 9007199254740991
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "cli"
+                                  },
+                                  "command": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "expectExitCode": {
+                                    "default": 0,
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "command",
+                                  "expectExitCode"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "tool",
-                              "severity",
-                              "timeoutMs"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {
@@ -14538,48 +15275,115 @@
                             {
                               "type": "array",
                               "items": {
-                                "type": "object",
-                                "properties": {
-                                  "tool": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "mcp": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "name": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "args": {
+                                "oneOf": [
+                                  {
                                     "type": "object",
-                                    "propertyNames": {
-                                      "type": "string"
+                                    "properties": {
+                                      "name": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "severity": {
+                                        "default": "required",
+                                        "type": "string",
+                                        "enum": [
+                                          "required",
+                                          "warn"
+                                        ]
+                                      },
+                                      "timeoutMs": {
+                                        "default": 15000,
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "serialGroup": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "kind": {
+                                        "default": "tool",
+                                        "type": "string",
+                                        "const": "tool"
+                                      },
+                                      "tool": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "mcp": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "args": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {}
+                                      }
                                     },
-                                    "additionalProperties": {}
+                                    "required": [
+                                      "severity",
+                                      "timeoutMs",
+                                      "kind",
+                                      "tool"
+                                    ],
+                                    "additionalProperties": false
                                   },
-                                  "severity": {
-                                    "default": "required",
-                                    "type": "string",
-                                    "enum": [
-                                      "required",
-                                      "warn"
-                                    ]
-                                  },
-                                  "timeoutMs": {
-                                    "default": 15000,
-                                    "type": "integer",
-                                    "exclusiveMinimum": 0,
-                                    "maximum": 9007199254740991
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "severity": {
+                                        "default": "required",
+                                        "type": "string",
+                                        "enum": [
+                                          "required",
+                                          "warn"
+                                        ]
+                                      },
+                                      "timeoutMs": {
+                                        "default": 15000,
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "serialGroup": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "const": "cli"
+                                      },
+                                      "command": {
+                                        "minItems": 1,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "expectExitCode": {
+                                        "default": 0,
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "severity",
+                                      "timeoutMs",
+                                      "kind",
+                                      "command",
+                                      "expectExitCode"
+                                    ],
+                                    "additionalProperties": false
                                   }
-                                },
-                                "required": [
-                                  "tool",
-                                  "severity",
-                                  "timeoutMs"
-                                ],
-                                "additionalProperties": false
+                                ]
                               }
                             },
                             {
@@ -23192,7 +23996,8 @@
                             "parallel",
                             "loop",
                             "succeed",
-                            "fail"
+                            "fail",
+                            "split"
                           ]
                         },
                         "name": {
@@ -24103,7 +24908,8 @@
                             "parallel",
                             "loop",
                             "succeed",
-                            "fail"
+                            "fail",
+                            "split"
                           ]
                         },
                         "name": {
@@ -25014,7 +25820,8 @@
                             "parallel",
                             "loop",
                             "succeed",
-                            "fail"
+                            "fail",
+                            "split"
                           ]
                         },
                         "name": {
@@ -25559,7 +26366,8 @@
                               "parallel",
                               "loop",
                               "succeed",
-                              "fail"
+                              "fail",
+                              "split"
                             ]
                           },
                           "stepDefinitionId": {
@@ -26917,7 +27725,8 @@
                             "parallel",
                             "loop",
                             "succeed",
-                            "fail"
+                            "fail",
+                            "split"
                           ]
                         },
                         "name": {
@@ -27828,7 +28637,8 @@
                             "parallel",
                             "loop",
                             "succeed",
-                            "fail"
+                            "fail",
+                            "split"
                           ]
                         },
                         "name": {
@@ -28739,7 +29549,8 @@
                             "parallel",
                             "loop",
                             "succeed",
-                            "fail"
+                            "fail",
+                            "split"
                           ]
                         },
                         "name": {
@@ -29284,7 +30095,8 @@
                               "parallel",
                               "loop",
                               "succeed",
-                              "fail"
+                              "fail",
+                              "split"
                             ]
                           },
                           "stepDefinitionId": {
@@ -30100,7 +30912,8 @@
                               "parallel",
                               "loop",
                               "succeed",
-                              "fail"
+                              "fail",
+                              "split"
                             ]
                           },
                           "stepDefinitionId": {
@@ -30977,7 +31790,8 @@
                               "parallel",
                               "loop",
                               "succeed",
-                              "fail"
+                              "fail",
+                              "split"
                             ]
                           },
                           "stepDefinitionId": {
@@ -32194,7 +33008,8 @@
                               "parallel",
                               "loop",
                               "succeed",
-                              "fail"
+                              "fail",
+                              "split"
                             ]
                           },
                           "stepDefinitionId": {
@@ -33071,7 +33886,8 @@
                               "parallel",
                               "loop",
                               "succeed",
-                              "fail"
+                              "fail",
+                              "split"
                             ]
                           },
                           "stepDefinitionId": {
@@ -35497,6 +36313,33 @@
                               },
                               "kind": {
                                 "type": "string",
+                                "const": "split"
+                              },
+                              "branchNodeKeys": {
+                                "minItems": 2,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              }
+                            },
+                            "required": [
+                              "nodeKey",
+                              "kind",
+                              "branchNodeKeys"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nodeKey": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
                                 "const": "succeed"
                               }
                             },
@@ -36054,7 +36897,8 @@
                                 "parallel",
                                 "loop",
                                 "succeed",
-                                "fail"
+                                "fail",
+                                "split"
                               ]
                             },
                             "stepDefinitionId": {
@@ -37051,7 +37895,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -38691,7 +39536,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -39692,7 +40538,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -40701,7 +41548,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -41871,7 +42719,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -42981,7 +43830,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -44055,7 +44905,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -45121,7 +45972,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -46122,7 +46974,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -47531,7 +48384,8 @@
                                     "parallel",
                                     "loop",
                                     "succeed",
-                                    "fail"
+                                    "fail",
+                                    "split"
                                   ]
                                 },
                                 "branchIndex": {
@@ -48537,7 +49391,8 @@
                                           "parallel",
                                           "loop",
                                           "succeed",
-                                          "fail"
+                                          "fail",
+                                          "split"
                                         ]
                                       },
                                       "branchIndex": {
@@ -68470,48 +69325,115 @@
                           {
                             "type": "array",
                             "items": {
-                              "type": "object",
-                              "properties": {
-                                "tool": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "mcp": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "name": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "args": {
+                              "oneOf": [
+                                {
                                   "type": "object",
-                                  "propertyNames": {
-                                    "type": "string"
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "severity": {
+                                      "default": "required",
+                                      "type": "string",
+                                      "enum": [
+                                        "required",
+                                        "warn"
+                                      ]
+                                    },
+                                    "timeoutMs": {
+                                      "default": 15000,
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "serialGroup": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "kind": {
+                                      "default": "tool",
+                                      "type": "string",
+                                      "const": "tool"
+                                    },
+                                    "tool": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "mcp": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "args": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    }
                                   },
-                                  "additionalProperties": {}
+                                  "required": [
+                                    "severity",
+                                    "timeoutMs",
+                                    "kind",
+                                    "tool"
+                                  ],
+                                  "additionalProperties": false
                                 },
-                                "severity": {
-                                  "default": "required",
-                                  "type": "string",
-                                  "enum": [
-                                    "required",
-                                    "warn"
-                                  ]
-                                },
-                                "timeoutMs": {
-                                  "default": 15000,
-                                  "type": "integer",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "severity": {
+                                      "default": "required",
+                                      "type": "string",
+                                      "enum": [
+                                        "required",
+                                        "warn"
+                                      ]
+                                    },
+                                    "timeoutMs": {
+                                      "default": 15000,
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "serialGroup": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "cli"
+                                    },
+                                    "command": {
+                                      "minItems": 1,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "expectExitCode": {
+                                      "default": 0,
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "severity",
+                                    "timeoutMs",
+                                    "kind",
+                                    "command",
+                                    "expectExitCode"
+                                  ],
+                                  "additionalProperties": false
                                 }
-                              },
-                              "required": [
-                                "tool",
-                                "severity",
-                                "timeoutMs"
-                              ],
-                              "additionalProperties": false
+                              ]
                             }
                           },
                           {
@@ -69046,48 +69968,115 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "mcp": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "args": {
+                            "oneOf": [
+                              {
                                 "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "default": "tool",
+                                    "type": "string",
+                                    "const": "tool"
+                                  },
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
                                 },
-                                "additionalProperties": {}
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "tool"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "default": "required",
-                                "type": "string",
-                                "enum": [
-                                  "required",
-                                  "warn"
-                                ]
-                              },
-                              "timeoutMs": {
-                                "default": 15000,
-                                "type": "integer",
-                                "exclusiveMinimum": 0,
-                                "maximum": 9007199254740991
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "cli"
+                                  },
+                                  "command": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "expectExitCode": {
+                                    "default": 0,
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "command",
+                                  "expectExitCode"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "tool",
-                              "severity",
-                              "timeoutMs"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {
@@ -69889,48 +70878,115 @@
                         {
                           "type": "array",
                           "items": {
-                            "type": "object",
-                            "properties": {
-                              "tool": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "mcp": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "args": {
+                            "oneOf": [
+                              {
                                 "type": "object",
-                                "propertyNames": {
-                                  "type": "string"
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "default": "tool",
+                                    "type": "string",
+                                    "const": "tool"
+                                  },
+                                  "tool": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "mcp": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "args": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
                                 },
-                                "additionalProperties": {}
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "tool"
+                                ],
+                                "additionalProperties": false
                               },
-                              "severity": {
-                                "default": "required",
-                                "type": "string",
-                                "enum": [
-                                  "required",
-                                  "warn"
-                                ]
-                              },
-                              "timeoutMs": {
-                                "default": 15000,
-                                "type": "integer",
-                                "exclusiveMinimum": 0,
-                                "maximum": 9007199254740991
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "severity": {
+                                    "default": "required",
+                                    "type": "string",
+                                    "enum": [
+                                      "required",
+                                      "warn"
+                                    ]
+                                  },
+                                  "timeoutMs": {
+                                    "default": 15000,
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "serialGroup": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "cli"
+                                  },
+                                  "command": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    }
+                                  },
+                                  "expectExitCode": {
+                                    "default": 0,
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "severity",
+                                  "timeoutMs",
+                                  "kind",
+                                  "command",
+                                  "expectExitCode"
+                                ],
+                                "additionalProperties": false
                               }
-                            },
-                            "required": [
-                              "tool",
-                              "severity",
-                              "timeoutMs"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         {

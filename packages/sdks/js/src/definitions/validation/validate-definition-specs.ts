@@ -12,6 +12,7 @@
 // push, and every message is written to be actionable on its own.
 
 import {
+  computeReachableNodeKeys,
   tryComputeDominators,
   tryOrderNodeDefinitionsByTopoRank,
 } from "../pipelines/chain-graph";
@@ -108,6 +109,17 @@ function checkHealthChecks(
     const mcpServerKeySet = new Set(mcpServerKeys);
 
     checks.forEach((check, index) => {
+      // A cli check has no `tool`/`mcp` to validate against — Zod already
+      // enforces a non-empty `command` at the schema layer for real
+      // pushes, so there is nothing left for this check to do. Its label
+      // (were it needed for a future message here) would read
+      // `check.name ?? check.command.join(" ")`, mirroring the same
+      // "joined command stands in for the tool id" convention used by
+      // `resolveHealthCheckToolId` (`packages/worker`) and the dry-run
+      // reporter, for consistency — though this file has no direct
+      // dependency on either.
+      if (check.kind === "cli") return;
+
       const label = check.name ?? check.tool;
       const where = `Step "${step.key}" health check #${String(index + 1)} ("${label}")`;
 
@@ -421,6 +433,63 @@ function checkSignalBindings(
   return issues;
 }
 
+// ─── Check 5: split branches never reconverge ─────────────────────────────────
+
+/**
+ * For every `split` node, no two of its sibling branches may ever reach the
+ * same downstream node — directly or several hops apart. There's no join to
+ * safely absorb an accidental reconvergence (`split` v1 has none by design);
+ * without this check, two branches converging would push successfully and
+ * only raw-throw a Postgres unique-constraint violation at runtime, the
+ * first time it actually happened.
+ */
+function checkSplitBranchesDontReconverge(
+  pipelines: readonly PipelineDefinitionSpec[],
+): DefinitionValidationIssue[] {
+  const issues: DefinitionValidationIssue[] = [];
+
+  for (const pipeline of pipelines) {
+    for (const node of pipeline.nodeDefinitions) {
+      if (node.kind !== "split") continue;
+
+      const reachableByBranch = node.branchNodeKeys.map((branchNodeKey) => ({
+        branchNodeKey,
+        reachable: computeReachableNodeKeys(
+          pipeline.dependencyEdges,
+          branchNodeKey,
+        ),
+      }));
+
+      for (let left = 0; left < reachableByBranch.length; left += 1) {
+        for (let right = left + 1; right < reachableByBranch.length; right += 1) {
+          const leftBranch = reachableByBranch[left];
+          const rightBranch = reachableByBranch[right];
+          if (!leftBranch || !rightBranch) continue;
+
+          for (const sharedNodeKey of leftBranch.reachable) {
+            if (!rightBranch.reachable.has(sharedNodeKey)) continue;
+            issues.push({
+              check: "split-branches-reconverge",
+              severity: "error",
+              pipelineKey: pipeline.key,
+              nodeKey: node.nodeKey,
+              targetNodeKey: sharedNodeKey,
+              message:
+                `Pipeline "${pipeline.key}" split "${node.nodeKey}": branches ` +
+                `"${leftBranch.branchNodeKey}" and "${rightBranch.branchNodeKey}" ` +
+                `both reach node "${sharedNodeKey}". Split branches must each run ` +
+                `independently to their own terminal state — reconverging ` +
+                `branches (directly or several steps downstream) is not supported.`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
 // ─── Entry points ─────────────────────────────────────────────────────────────
 
 /**
@@ -443,6 +512,7 @@ export function validateDefinitionSpecs(
     ...checkHealthChecks(specs.steps),
     ...checkRouteTargets(specs.pipelines, options.knownPipelineKeys ?? []),
     ...checkSignalBindings(specs.pipelines, stepsByKey),
+    ...checkSplitBranchesDontReconverge(specs.pipelines),
     ...checkUnboundRequiredInputs(specs.pipelines, stepsByKey),
     ...checkBindingTargetFields(specs.pipelines, stepsByKey),
     ...checkBindingTypeCompatibility(specs.pipelines, stepsByKey),

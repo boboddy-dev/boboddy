@@ -7,6 +7,7 @@
  */
 export {
   FakeAiServer,
+  buildForcedToolCallPrompt,
   type FakeAiServerOptions,
   type FakeAiForcedToolCall,
 } from "./fake-ai-server";

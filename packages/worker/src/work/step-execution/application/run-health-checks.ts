@@ -32,17 +32,25 @@ import {
   FAKE_MODEL_ID,
   FAKE_PROVIDER_ID,
 } from "../infra/fake-ai/fake-provider-config";
+import { forceAndVerifyCliHealthCheck } from "./force-and-verify-cli-health-check";
 import { forceAndVerifyMcpHealthCheck } from "./force-and-verify-mcp-health-check";
 import { pollMcpStatus } from "./poll-mcp-status";
 import { logWork, logWorkError } from "./work-logger";
 
 /**
- * Resolve a declared health check to the flat tool id OpenCode calls it by:
- * `${mcp}_${tool}` when `mcp` is set, matching OpenCode's MCP tool-naming
- * convention, or `tool` verbatim otherwise — plugin tools, standalone tools,
- * and built-ins already share one flat namespace, so no qualifier applies.
+ * Resolve a declared health check to the id shown in reports: `${mcp}_${tool}`
+ * when a `"tool"` check's `mcp` is set, matching OpenCode's MCP tool-naming
+ * convention; `tool` verbatim otherwise — plugin tools, standalone tools, and
+ * built-ins already share one flat namespace, so no qualifier applies. A
+ * `"cli"` check has no OpenCode-side tool id to resolve to (it always runs
+ * through the fixed `bash` built-in — see `force-and-verify-cli-health-check.ts`),
+ * so its declared `command`, joined with spaces, stands in for reporting
+ * purposes instead.
  */
 export function resolveHealthCheckToolId(check: HealthCheck): string {
+  if (check.kind === "cli") {
+    return check.command.join(" ");
+  }
   return check.mcp ? `${check.mcp}_${check.tool}` : check.tool;
 }
 
@@ -55,7 +63,8 @@ export type HealthCheckOutcome =
         | "invalid-args"
         | "tool-error"
         | "timeout"
-        | "session-error";
+        | "session-error"
+        | "nonzero-exit";
       detail: string;
       /** Only set for `not-registered`: every id OpenCode does know about. */
       availableIds?: string[];
@@ -71,6 +80,8 @@ export type HealthCheckReport = {
   name: string;
   resolvedId: string;
   severity: HealthCheckSeverity;
+  /** The declared check's `kind` — carried through so reporting (`apps/cli`'s dry-run output) can render `"tool"` and `"cli"` checks differently. */
+  kind: HealthCheck["kind"];
   outcome: HealthCheckOutcome;
 };
 
@@ -211,6 +222,16 @@ function isSchemaObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
 }
 
+/**
+ * `"tool"`-kind checks fast-fail against OpenCode's tool enumeration and
+ * validate `args` against the tool's own schema before ever forcing a call —
+ * see the file comment for why an `mcp`-qualified check skips both. `"cli"`
+ * checks have nothing to enumerate or validate against: the `bash` tool is a
+ * fixed OpenCode built-in (decision ledger #3 in the plan — no new
+ * exec-in-container primitive), so there is no id to resolve and no
+ * per-command argument schema to check `command`/`expectExitCode` against.
+ * They go straight to `forceAndVerifyCliHealthCheck`.
+ */
 async function runOneCheck(input: {
   check: HealthCheck;
   resolvedId: string;
@@ -227,47 +248,70 @@ async function runOneCheck(input: {
     workspaceFolder,
     fakeAiServer,
   } = input;
-  const args = check.args ?? {};
 
-  if (!check.mcp) {
-    const registeredIds = await enumeration.ids();
-    if (!registeredIds.has(resolvedId)) {
-      return {
-        kind: "failed",
-        reason: "not-registered",
-        detail: `Tool "${resolvedId}" is not registered in this environment.`,
-        availableIds: [...registeredIds].sort(),
-      };
+  switch (check.kind) {
+    case "cli": {
+      const verification = await forceAndVerifyCliHealthCheck({
+        agentBaseUrl,
+        workspaceFolder,
+        command: check.command,
+        expectExitCode: check.expectExitCode,
+        fakeAiServer,
+        timeoutMs: check.timeoutMs,
+      });
+
+      return verification.passed
+        ? { kind: "passed" }
+        : {
+            kind: "failed",
+            reason: verification.reason,
+            detail: verification.detail,
+          };
     }
+    case "tool": {
+      const args = check.args ?? {};
 
-    const schema = await enumeration.schemaFor(resolvedId);
-    if (isSchemaObject(schema)) {
-      const validation = validateArgs(schema, args);
-      if (validation.kind === "invalid") {
-        return {
-          kind: "failed",
-          reason: "invalid-args",
-          detail: validation.detail,
-        };
+      if (!check.mcp) {
+        const registeredIds = await enumeration.ids();
+        if (!registeredIds.has(resolvedId)) {
+          return {
+            kind: "failed",
+            reason: "not-registered",
+            detail: `Tool "${resolvedId}" is not registered in this environment.`,
+            availableIds: [...registeredIds].sort(),
+          };
+        }
+
+        const schema = await enumeration.schemaFor(resolvedId);
+        if (isSchemaObject(schema)) {
+          const validation = validateArgs(schema, args);
+          if (validation.kind === "invalid") {
+            return {
+              kind: "failed",
+              reason: "invalid-args",
+              detail: validation.detail,
+            };
+          }
+        }
       }
+
+      const verification = await forceAndVerifyMcpHealthCheck({
+        agentBaseUrl,
+        workspaceFolder,
+        healthCheck: { tool: resolvedId, args },
+        fakeAiServer,
+        timeoutMs: check.timeoutMs,
+      });
+
+      return verification.passed
+        ? { kind: "passed" }
+        : {
+            kind: "failed",
+            reason: verification.reason,
+            detail: verification.detail,
+          };
     }
   }
-
-  const verification = await forceAndVerifyMcpHealthCheck({
-    agentBaseUrl,
-    workspaceFolder,
-    healthCheck: { tool: resolvedId, args },
-    fakeAiServer,
-    timeoutMs: check.timeoutMs,
-  });
-
-  return verification.passed
-    ? { kind: "passed" }
-    : {
-        kind: "failed",
-        reason: verification.reason,
-        detail: verification.detail,
-      };
 }
 
 /** Narrows {@link HealthCheckOutcome} to just the `failed` variant. */
@@ -319,8 +363,106 @@ function buildReport(
     name: check.name ?? resolvedId,
     resolvedId,
     severity: check.severity,
+    kind: check.kind,
     outcome,
   };
+}
+
+type IndexedCheck = { check: HealthCheck; index: number };
+
+/**
+ * Shared across every lane in a single phase (see {@link runPhase}): once any
+ * lane's check fails as `required`, every OTHER lane checks this before
+ * starting its own next check. This is a best-effort abort, not a hard stop —
+ * a check already in flight when the flag flips is not cancelled and its real
+ * outcome (pass or fail) is kept; only checks that haven't started yet get
+ * `skipped`. Trading determinism for speed here is deliberate: with several
+ * lanes genuinely running in parallel, there is no single well-defined
+ * "everything after the failure" to abort atomically the way the old fully
+ * sequential runner could.
+ */
+type AbortFlag = { aborted: boolean };
+
+/**
+ * Runs one lane — checks that share a `serialGroup` (or a single ungrouped
+ * check) — strictly one at a time, in declaration order, honouring `abort`
+ * before starting each one. Lanes themselves run concurrently with each
+ * other; see {@link runPhase}.
+ */
+async function runLane(
+  lane: IndexedCheck[],
+  context: {
+    enumeration: ToolEnumeration;
+    agentBaseUrl: string;
+    workspaceFolder: string;
+    fakeAiServer: FakeAiServer;
+  },
+  abort: AbortFlag,
+  reportByIndex: Map<number, HealthCheckReport>,
+): Promise<void> {
+  for (const { check, index } of lane) {
+    const resolvedId = resolveHealthCheckToolId(check);
+    if (abort.aborted) {
+      reportByIndex.set(
+        index,
+        buildReport(check, resolvedId, { kind: "skipped" }),
+      );
+      continue;
+    }
+    const outcome = await runOneCheck({
+      check,
+      resolvedId,
+      ...context,
+    });
+    reportByIndex.set(index, buildReport(check, resolvedId, outcome));
+    if (outcome.kind === "failed" && check.severity === "required") {
+      abort.aborted = true;
+    }
+  }
+}
+
+/**
+ * Groups `entries` into lanes — checks sharing a `serialGroup` value become
+ * one lane (run sequentially, in declaration order, relative to each other);
+ * every ungrouped check gets its own single-check lane — then runs every
+ * lane concurrently. Used once per severity phase (see {@link
+ * runHealthChecks}), never across phases: `required` and `warn` are already
+ * separated by a full `await` barrier, so a `serialGroup` shared between a
+ * `required` and a `warn` check is naturally never a concurrency concern.
+ */
+async function runPhase(
+  entries: IndexedCheck[],
+  context: {
+    enumeration: ToolEnumeration;
+    agentBaseUrl: string;
+    workspaceFolder: string;
+    fakeAiServer: FakeAiServer;
+  },
+  abort: AbortFlag,
+  reportByIndex: Map<number, HealthCheckReport>,
+): Promise<void> {
+  const groups = new Map<string, IndexedCheck[]>();
+  const lanes: IndexedCheck[][] = [];
+
+  for (const entry of entries) {
+    const key = entry.check.serialGroup;
+    if (key === undefined) {
+      lanes.push([entry]);
+      continue;
+    }
+    const group = groups.get(key);
+    if (group) {
+      group.push(entry);
+    } else {
+      const newGroup = [entry];
+      groups.set(key, newGroup);
+      lanes.push(newGroup);
+    }
+  }
+
+  await Promise.all(
+    lanes.map((lane) => runLane(lane, context, abort, reportByIndex)),
+  );
 }
 
 /**
@@ -328,12 +470,23 @@ function buildReport(
  * reports an outcome for each one, returned in the same order as
  * `input.healthChecks`.
  *
- * `required` checks run first, in declaration order; the first failure
- * aborts everything after it — every remaining `required` check AND every
- * `warn` check report `skipped`, since they were never attempted. If every
- * `required` check passes, `warn` checks then run, also in declaration
- * order; a `warn` failure never aborts anything else, since `warn` exists
+ * Two phases run in strict order: every `required` check, then every `warn`
+ * check — a `warn` failure never aborts anything, since `warn` exists
  * precisely to be advisory (see `healthCheckSeverityValues`).
+ *
+ * Within a phase, checks run in PARALLEL by default: each check is its own
+ * lane. Set `serialGroup` on checks that contend over the same underlying
+ * resource (a shared database, a browser that can't run two sessions at
+ * once, etc.) — checks sharing a `serialGroup` value form one lane and run
+ * one at a time, in declaration order, while still running concurrently with
+ * every other lane. See {@link runPhase}/{@link runLane}.
+ *
+ * A `required` failure sets a shared abort flag every lane checks before
+ * starting its next check; this is best-effort, not a hard stop — see {@link
+ * AbortFlag}. If the `required` phase ends with the flag set, the entire
+ * `warn` phase is skipped without attempting a single check (that part IS
+ * deterministic: phases are separated by a full `await`, so nothing in the
+ * `warn` phase has started yet when this decision is made).
  */
 export async function runHealthChecks(
   input: RunHealthChecksInput,
@@ -371,50 +524,11 @@ export async function runHealthChecks(
   const warn = indexed.filter(({ check }) => check.severity === "warn");
 
   const reportByIndex = new Map<number, HealthCheckReport>();
-  let aborted = false;
+  const abort: AbortFlag = { aborted: false };
+  const context = { enumeration, agentBaseUrl, workspaceFolder, fakeAiServer };
 
-  for (const { check, index } of required) {
-    const resolvedId = resolveHealthCheckToolId(check);
-    if (aborted) {
-      reportByIndex.set(
-        index,
-        buildReport(check, resolvedId, { kind: "skipped" }),
-      );
-      continue;
-    }
-    const outcome = await runOneCheck({
-      check,
-      resolvedId,
-      enumeration,
-      agentBaseUrl,
-      workspaceFolder,
-      fakeAiServer,
-    });
-    reportByIndex.set(index, buildReport(check, resolvedId, outcome));
-    if (outcome.kind === "failed") {
-      aborted = true;
-    }
-  }
-
-  for (const { check, index } of warn) {
-    const resolvedId = resolveHealthCheckToolId(check);
-    if (aborted) {
-      reportByIndex.set(
-        index,
-        buildReport(check, resolvedId, { kind: "skipped" }),
-      );
-      continue;
-    }
-    const outcome = await runOneCheck({
-      check,
-      resolvedId,
-      enumeration,
-      agentBaseUrl,
-      workspaceFolder,
-      fakeAiServer,
-    });
-    reportByIndex.set(index, buildReport(check, resolvedId, outcome));
-  }
+  await runPhase(required, context, abort, reportByIndex);
+  await runPhase(warn, context, abort, reportByIndex);
 
   return healthChecks.map((_, index) => {
     const report = reportByIndex.get(index);

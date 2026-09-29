@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import type { HealthCheck } from "@boboddy/sdk/health-checks";
+import type { HealthCheck, ToolHealthCheck } from "@boboddy/sdk/health-checks";
 import { startProcessClaimedExecution } from "../../../../src/work/step-execution/application/process-claimed-step-execution";
 import { HealthCheckFailedError } from "../../../../src/work/step-execution/application/health-check-failed-error";
 import type { HealthCheckReport } from "../../../../src/work/step-execution/application/run-health-checks";
@@ -48,8 +48,9 @@ describe("startProcessClaimedExecution declared health checks", () => {
     return { fakeAiServer, start, stop };
   }
 
-  function healthCheck(overrides: Partial<HealthCheck> = {}): HealthCheck {
+  function healthCheck(overrides: Partial<ToolHealthCheck> = {}): HealthCheck {
     return {
+      kind: "tool",
       tool: "greet",
       severity: "required",
       timeoutMs: 15_000,
@@ -64,6 +65,7 @@ describe("startProcessClaimedExecution declared health checks", () => {
       name: "greet",
       resolvedId: "greet",
       severity: "required",
+      kind: "tool",
       outcome: { kind: "passed" },
       ...overrides,
     };

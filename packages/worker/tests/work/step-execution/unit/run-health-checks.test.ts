@@ -55,6 +55,7 @@ describe("runHealthChecks", () => {
           name: "greet",
           resolvedId: "greet",
           severity: "required",
+          kind: "tool",
           outcome: { kind: "passed" },
         },
       ]);
@@ -181,43 +182,9 @@ describe("runHealthChecks", () => {
     }
   });
 
-  test("runs required checks in order and aborts every check after the first required failure", async () => {
-    const fakeAiServer = await startedFakeAiServer();
-    try {
-      installFakeAgent({
-        toolStates: {
-          fixture_pass_a: { status: "completed" },
-          fixture_fail_b: {
-            status: "error",
-            error: "b is broken",
-          },
-          fixture_pass_c: { status: "completed" },
-          fixture_pass_d: { status: "completed" },
-        },
-      });
-
-      const result = await runHealthChecks({
-        agentBaseUrl: "http://127.0.0.1:4096",
-        workspaceFolder: "/workspaces/repo",
-        healthChecks: [
-          healthCheck({ mcp: "fixture", tool: "pass_a", severity: "required" }),
-          healthCheck({ mcp: "fixture", tool: "fail_b", severity: "required" }),
-          healthCheck({ mcp: "fixture", tool: "pass_c", severity: "required" }),
-          healthCheck({ mcp: "fixture", tool: "pass_d", severity: "warn" }),
-        ],
-        fakeAiServer,
-      });
-
-      expect(result.map((report) => report.outcome)).toEqual([
-        { kind: "passed" },
-        { kind: "failed", reason: "tool-error", detail: "b is broken" },
-        { kind: "skipped" },
-        { kind: "skipped" },
-      ]);
-    } finally {
-      await fakeAiServer.stop();
-    }
-  });
+  // Parallel-lane and `serialGroup` behavior lives in
+  // `run-health-checks-concurrency.test.ts` (split out to keep this file
+  // under the repo's `max-lines` limit).
 
   test("runs warn checks after all required checks pass, and a warn failure doesn't skip later warn checks", async () => {
     const fakeAiServer = await startedFakeAiServer();

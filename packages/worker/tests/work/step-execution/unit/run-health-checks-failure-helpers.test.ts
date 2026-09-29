@@ -16,6 +16,7 @@ describe("findFailedRequiredHealthCheck", () => {
       name: "greet",
       resolvedId: "greet",
       severity: "required",
+      kind: "tool",
       outcome: { kind: "passed" },
       ...overrides,
     };
@@ -67,6 +68,7 @@ describe("describeFailedHealthCheck", () => {
       name: "Browser reachable",
       resolvedId: "browser_navigate",
       severity: "required",
+      kind: "tool",
       outcome: { kind: "failed", reason: "tool-error", detail: "connection refused" },
     };
 
@@ -88,6 +90,7 @@ describe("describeFailedHealthCheck", () => {
       name: "greet",
       resolvedId: "greet",
       severity: "required",
+      kind: "tool",
       outcome: {
         kind: "failed",
         reason: "not-registered",

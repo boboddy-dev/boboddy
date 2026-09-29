@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  computeReachableNodeKeys,
   tryComputeDominators,
   tryComputeTopoRanks,
   tryOrderNodeDefinitionsByTopoRank,
@@ -199,5 +200,41 @@ describe("tryComputeDominators", () => {
     const dominators = tryComputeDominators(nodes, edges, "a");
 
     expect(dominators?.has("island")).toBe(false);
+  });
+});
+
+describe("computeReachableNodeKeys", () => {
+  test.concurrent("includes the entry node itself", () => {
+    const reachable = computeReachableNodeKeys([], "a");
+    expect(reachable).toEqual(new Set(["a"]));
+  });
+
+  test.concurrent("walks a chain forward", () => {
+    const edges = [edge("a", "b"), edge("b", "c")];
+    expect(computeReachableNodeKeys(edges, "a")).toEqual(
+      new Set(["a", "b", "c"]),
+    );
+  });
+
+  test.concurrent("collects every branch of a fork", () => {
+    const edges = [
+      edge("fork", "left"),
+      edge("fork", "right"),
+      edge("left", "leftDone"),
+      edge("right", "rightDone"),
+    ];
+    expect(computeReachableNodeKeys(edges, "fork")).toEqual(
+      new Set(["fork", "left", "right", "leftDone", "rightDone"]),
+    );
+  });
+
+  test.concurrent("does not include nodes upstream or off to the side", () => {
+    const edges = [edge("a", "b"), edge("b", "c"), edge("z", "c")];
+    expect(computeReachableNodeKeys(edges, "b")).toEqual(new Set(["b", "c"]));
+  });
+
+  test.concurrent("terminates on a cycle instead of looping forever", () => {
+    const edges = [edge("a", "b"), edge("b", "a")];
+    expect(computeReachableNodeKeys(edges, "a")).toEqual(new Set(["a", "b"]));
   });
 });

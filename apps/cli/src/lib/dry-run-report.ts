@@ -5,6 +5,18 @@ import type { BaseReporter } from "./reporter-types";
  * The line plus the reporter method to render it with — a single exhaustive
  * switch over {@link HealthCheckReport.outcome}'s `kind`, so adding a new
  * outcome kind can't update the text and the severity out of lockstep.
+ *
+ * The label itself is NOT kind-aware: both `"tool"` and `"cli"` checks share
+ * `Health check "<name>" (<resolvedId>)`. `resolvedId` already differs in
+ * shape between the two (a bare tool id like `browser_navigate` vs. a joined
+ * command like `gh --version`), which is enough signal on its own — a
+ * distinguishing prefix (e.g. `CLI check "..."`) was considered and rejected
+ * as unnecessary visual noise. `"nonzero-exit"` (the cli-specific failure
+ * reason) needs no special case either: it falls through the existing
+ * generic `"failed"` rendering below, whose `[${outcome.reason}] —
+ * ${outcome.detail}` already reads fine for it, since the cli verifier's
+ * `detail` string for that reason is already a complete human-readable
+ * explanation.
  */
 function describeHealthCheckOutcome(report: HealthCheckReport): {
   line: string;

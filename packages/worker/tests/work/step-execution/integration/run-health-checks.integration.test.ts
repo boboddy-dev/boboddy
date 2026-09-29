@@ -27,7 +27,7 @@
  */
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { HealthCheck } from "@boboddy/sdk/health-checks";
+import type { HealthCheck, ToolHealthCheck } from "@boboddy/sdk/health-checks";
 import { runHealthChecks } from "../../../../src/work/step-execution/application/run-health-checks";
 import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import { FakeAiServer } from "../../../../src/work/step-execution/infra/fake-ai/fake-ai-server";
@@ -51,9 +51,10 @@ const FIXTURE_SERVER_PATH = path.join(
 );
 
 function buildCheck(
-  overrides: Partial<HealthCheck> & { tool: string },
+  overrides: Partial<ToolHealthCheck> & { tool: string },
 ): HealthCheck {
   return {
+    kind: "tool",
     mcp: undefined,
     name: undefined,
     args: {},
@@ -63,7 +64,7 @@ function buildCheck(
   };
 }
 
-function echoCheck(overrides: Partial<HealthCheck> = {}): HealthCheck {
+function echoCheck(overrides: Partial<ToolHealthCheck> = {}): HealthCheck {
   return buildCheck({
     mcp: "fixture",
     tool: "echo",
@@ -72,7 +73,7 @@ function echoCheck(overrides: Partial<HealthCheck> = {}): HealthCheck {
   });
 }
 
-function boomCheck(overrides: Partial<HealthCheck> = {}): HealthCheck {
+function boomCheck(overrides: Partial<ToolHealthCheck> = {}): HealthCheck {
   return buildCheck({ mcp: "fixture", tool: "boom", ...overrides });
 }
 
@@ -154,6 +155,7 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
           name: "fixture_echo",
           resolvedId: "fixture_echo",
           severity: "required",
+          kind: "tool",
           outcome: { kind: "passed" },
         },
       ]);

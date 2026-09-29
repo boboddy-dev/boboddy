@@ -44,6 +44,7 @@ function healthCheckReport(
     name: overrides.name ?? "browser_navigate",
     resolvedId: overrides.resolvedId ?? "browser_navigate",
     severity: overrides.severity ?? "required",
+    kind: overrides.kind ?? "tool",
     outcome: overrides.outcome,
   };
 }
@@ -163,6 +164,96 @@ describe("renderDryRunReport", () => {
   test("reports 'Health checks: none declared' when the step declares none", () => {
     const lines = render({});
     expect(lines).toContain("info:Health checks: none declared");
+  });
+
+  test("renders a passed cli health check as success", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "gh --version",
+          resolvedId: "gh --version",
+          kind: "cli",
+          outcome: { kind: "passed" },
+        }),
+      ],
+    });
+
+    expect(lines).toContain(
+      'success:Health check "gh --version" (gh --version): passed',
+    );
+  });
+
+  test("renders a failed cli health check with a nonzero-exit reason and detail", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "gh --version",
+          resolvedId: "gh --version",
+          kind: "cli",
+          outcome: {
+            kind: "failed",
+            reason: "nonzero-exit",
+            detail:
+              "Command exited with 127, expected 0. Output: bash: gh: command not found",
+          },
+        }),
+      ],
+    });
+
+    expect(lines).toContain(
+      'error:Health check "gh --version" (gh --version): failed [nonzero-exit] — ' +
+        "Command exited with 127, expected 0. Output: bash: gh: command not found",
+    );
+  });
+
+  test("renders a skipped cli health check as a warning", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "gh --version",
+          resolvedId: "gh --version",
+          kind: "cli",
+          outcome: { kind: "skipped" },
+        }),
+      ],
+    });
+
+    expect(lines).toContain(
+      'warn:Health check "gh --version" (gh --version): skipped — an ' +
+        "earlier required health check failed first",
+    );
+  });
+
+  test("renders a mixed tool + cli report with both formats coexisting legibly", () => {
+    const lines = render({
+      healthChecks: [
+        healthCheckReport({
+          name: "browser_navigate",
+          resolvedId: "browser_navigate",
+          kind: "tool",
+          outcome: { kind: "passed" },
+        }),
+        healthCheckReport({
+          name: "gh --version",
+          resolvedId: "gh --version",
+          kind: "cli",
+          outcome: {
+            kind: "failed",
+            reason: "nonzero-exit",
+            detail: "Command exited with 127, expected 0. Output: not found",
+          },
+        }),
+      ],
+    });
+
+    expect(lines).toEqual([
+      "info:Scope: global-only — no step MCP overrides injected",
+      "success:Provider credentials: resolved",
+      "info:MCP servers: none configured",
+      'success:Health check "browser_navigate" (browser_navigate): passed',
+      'error:Health check "gh --version" (gh --version): failed [nonzero-exit] — ' +
+        "Command exited with 127, expected 0. Output: not found",
+    ]);
   });
 });
 

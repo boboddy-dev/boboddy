@@ -88,7 +88,7 @@ This pushes steps first, then pipelines, in a single command.
 
 ## States
 
-Seven state kinds cover every pipeline shape. `step` and `choice` cover most pipelines; the rest exist for fan-out, concurrency, and repetition.
+Eight state kinds cover every pipeline shape. `step` and `choice` cover most pipelines; the rest exist for fan-out, concurrency, repetition, and forking.
 
 | Kind | What it does | Exits |
 | --- | --- | --- |
@@ -97,6 +97,7 @@ Seven state kinds cover every pipeline shape. `step` and `choice` cover most pip
 | `fanOut` | Runs one step once per item in an array signal | `next`, after the whole cohort resolves |
 | `parallel` | Runs several named, single-step branches concurrently | `next`, after every branch is terminal |
 | `loop` | Repeats one step until a condition matches or an iteration cap is hit | `next` (matched) or `onExhausted` (cap hit) |
+| `split` | Forks into every named branch, unconditionally — no join, no reconvergence | `branches`, all firing at once |
 | `succeed` | Terminal — this run finished successfully | none |
 | `fail` | Terminal — this run finished unsuccessfully | none |
 
@@ -385,6 +386,39 @@ routeBySeverity: {
 ```
 
 Every `choices[].next` and `default` must name another state **in the same pipeline** — a `choice` cannot route to a different pipeline, and it cannot block, directly.
+
+## Split: unconditional fork
+
+A `split` state forks into every named branch at once — unlike `choice`, there's no condition and no single winner. Each branch is an ordinary, independent chain of states (any kind, any depth) that runs to its own terminal state; there's no `next` on the `split` itself and no join back into a shared continuation. Reach for it when one step's output needs to kick off more than one independent thing — for example, firing a notification and recording evidence off the same review step, where the notification is a dead end but evidence-recording needs to keep going into the rest of the pipeline:
+
+```typescript
+reviewComplete: {
+  kind: "split",
+  branches: ["notifyChannel", "recordEvidence"],
+},
+notifyChannel: {
+  kind: "step",
+  step: notifyStep,
+  input: (ctx) => ({ channel: ctx.workItem.field("Channel") }),
+  next: "notified",
+},
+notified: { kind: "succeed" },
+recordEvidence: {
+  kind: "step",
+  step: recordEvidenceStep,
+  input: (ctx) => ({ reviewOutcome: ctx.output("review") }),
+  next: "done",
+},
+done: { kind: "succeed" },
+```
+
+| Field      | Type       | Required | Description                                                                 |
+| ---------- | ---------- | -------- | ------------------------------------------------------------------------------ |
+| `branches` | `string[]` | Yes      | Every target state key; each starts its own independent chain. At least two required |
+
+The pipeline run only completes once every branch — recursively, through any nested `split`s — reaches its own `succeed`/`fail`; no chain is cancelled early just because a sibling finished first. If any branch fails, the whole run is reported failed, even if a faster sibling branch already succeeded.
+
+No two branches may reconverge on the same state, directly or several hops downstream — push validates this and rejects the definition, since `split` has no join to safely absorb it.
 
 ## Routing to another pipeline
 

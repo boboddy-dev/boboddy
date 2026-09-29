@@ -70,6 +70,7 @@ Return a summary and quality score.
 | `result`          | `ZodType`                         | No       | Output payload schema                                                     |
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result                                         |
 | `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configs for tool-using agents                                  |
+| `healthChecks`    | `HealthCheck[]`                   | No       | Real tool calls forced against the environment before the agent is prompted. See [Health checks](/boboddy/guides/steps/#health-checks) |
 | `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the step's execution config                  |
 | `features`        | `StepFeature[]`                   | No       | Built-in feature plugins (e.g. `Features.notifications()`)                |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are skipped by workers                                        |
@@ -155,6 +156,24 @@ type McpEnabledOverride = { enabled: boolean };
 See [MCP servers](/boboddy/guides/steps/#mcp-servers) for examples, and
 [Secrets](/boboddy/guides/steps/#secrets) for how `{env:VAR}` resolves and
 where the real values live.
+
+### `healthChecks`
+
+```typescript
+type HealthCheck = {
+  tool: string;
+  mcp?: string; // one of the step's declared mcpServers keys
+  name?: string; // defaults to the resolved tool id
+  args?: Record<string, unknown>;
+  severity?: "required" | "warn"; // default: "required"
+  timeoutMs?: number; // default: 15000
+  serialGroup?: string; // checks sharing a value run serially, in declaration order
+};
+```
+
+Every check runs in parallel by default, each in its own lane. Give two or more checks the same `serialGroup` to force them to run one at a time, in declaration order, against each other — while still running concurrently with every other check/group. `required` checks all run before any `warn` check; the first `required` failure stops every check that hasn't started yet, but one already in flight still finishes and reports its real outcome.
+
+See [Health checks](/boboddy/guides/steps/#health-checks) for a full example and the no-secrets-in-`args` guidance.
 
 ### `plugins`
 
@@ -316,6 +335,7 @@ A discriminated union on `kind`, keyed by each state's own map key (there is no 
 | `fanOut` | `{ kind: "fanOut", step, over, maxConcurrency?, input?, timeout?, advanceEach, advanceAll, next }` |
 | `parallel` | `{ kind: "parallel", branches: Record<string, { step, input?, timeout? }>, advanceAll?, next }` |
 | `loop` | `{ kind: "loop", step, maxIterations, input?, timeout?, until, next, onExhausted }` |
+| `split` | `{ kind: "split", branches: string[] }` |
 | `succeed` | `{ kind: "succeed" }` |
 | `fail` | `{ kind: "fail" }` |
 

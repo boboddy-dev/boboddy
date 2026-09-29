@@ -100,6 +100,19 @@ describe("defineStep — healthChecks", () => {
     });
     expect(spec.healthChecksJson).toBeNull();
   });
+
+  test("accepts a kind: \"cli\" check and passes it through unchanged", () => {
+    const spec = defineStep({
+      key: "my-step",
+      name: "My Step",
+      agentPrompt: "Do the work.",
+      healthChecks: [{ kind: "cli", command: ["gh", "--version"] }],
+    });
+
+    expect(spec.healthChecksJson).toEqual([
+      { kind: "cli", command: ["gh", "--version"] },
+    ]);
+  });
 });
 
 describe("defineStep — signals", () => {

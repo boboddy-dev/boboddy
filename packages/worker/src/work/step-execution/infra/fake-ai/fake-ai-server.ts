@@ -6,17 +6,38 @@
  *
  * This is the SINGLE source of truth for the fake AI provider. It is used both
  * by the worker/e2e test suites (which never call a real AI provider) and by
- * the dry-run health-check feature, which forces an arbitrary MCP tool call
- * through a real OpenCode session to verify it actually works.
+ * the dry-run/real-execution health-check feature, which forces an arbitrary
+ * MCP tool call through a real OpenCode session to verify it actually works.
  *
- * The tool forced on the first turn — and the exact arguments it is called
- * with — are explicit parameters passed to {@link FakeAiServer.configure};
- * this server never infers the tool from the request's `tools` array.
+ * The tool forced on a given turn — and the exact arguments it is called
+ * with — is resolved per-request in two ways, tried in order:
+ *   1. {@link parseForcedToolCallFromMessages}: if the conversation's last
+ *      user message was built by {@link buildForcedToolCallPrompt}, the
+ *      tool/args are read back out of its embedded marker. This is what makes
+ *      concurrent forced calls against a single shared `FakeAiServer` safe —
+ *      each request is entirely self-describing, so nothing depends on
+ *      request arrival order.
+ *   2. Falling back to whatever {@link FakeAiServer.configure} last set. This
+ *      exists for every OTHER caller (the regular step-execution agent's
+ *      real work, worker/e2e test fixtures) that scripts a single forced tool
+ *      call per `FakeAiServer` instance up front and never runs more than one
+ *      forced turn concurrently against it — `configure()` remains the right
+ *      tool for that case.
+ *
+ * Health checks (#119/#122) are the one caller that can have several forced
+ * calls in flight at once against the same server instance (parallel
+ * `runHealthChecks` lanes all share one `FakeAiServer` for the whole step —
+ * see `run-health-checks.ts`), which is why they always go through path (1).
+ * Do not reintroduce a "call `configure()` then immediately prompt" pattern
+ * for anything that might run concurrently with another forced call: the
+ * `forcedToolCall` field it sets is shared, mutable, per-instance state, and
+ * a second `configure()` call can race ahead of the first request that was
+ * meant to read it.
  *
  * On each `POST /messages` or `/v1/messages`:
  *   - If the conversation already contains a `tool_result` block, returns an
  *     `end_turn` text response so OpenCode closes the session.
- *   - Otherwise, returns a streaming `tool_use` call for the configured tool
+ *   - Otherwise, returns a streaming `tool_use` call for the resolved tool
  *     name and arguments.
  *
  * Point OpenCode at this server with, for provider id `<id>`:
@@ -31,8 +52,10 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
+import { parseForcedToolCallFromMessages } from "./forced-tool-call-marker";
+export { buildForcedToolCallPrompt } from "./forced-tool-call-marker";
 
-type MessageContentBlock = { type: string };
+type MessageContentBlock = { type: string; text?: string };
 
 type AnthropicMessage = {
   role: "user" | "assistant";
@@ -338,12 +361,12 @@ export class FakeAiServer {
     url: string,
     method: string,
     parsed: AnthropicRequest,
+    resolvedToolName: string,
   ): void {
     if (!this.verbose) {
       return;
     }
 
-    const { toolName } = this.forcedToolCall;
     const lastMessage = parsed.messages.at(-1);
 
     this.log(
@@ -351,7 +374,7 @@ export class FakeAiServer {
         parsed.stream !== false,
       )} messages=${String(parsed.messages.length)} toolCount=${String(
         parsed.tools?.length ?? 0,
-      )} hasToolResult=${String(hasToolResult(parsed.messages))} forcedTool=${toolName}`,
+      )} hasToolResult=${String(hasToolResult(parsed.messages))} forcedTool=${resolvedToolName}`,
     );
     if (parsed.tools?.length) {
       this.log(
@@ -403,10 +426,12 @@ export class FakeAiServer {
         return;
       }
 
-      this.logRequest(url, method, parsed);
+      const { toolName, toolArgs } =
+        parseForcedToolCallFromMessages(parsed.messages) ??
+        this.forcedToolCall;
+      this.logRequest(url, method, parsed, toolName);
 
       const hasStream = parsed.stream !== false;
-      const { toolName, toolArgs } = this.forcedToolCall;
       const announcementText = `Forcing tool call: ${toolName}(${JSON.stringify(toolArgs)})`;
 
       if (hasStream) {
