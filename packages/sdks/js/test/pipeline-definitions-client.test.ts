@@ -303,7 +303,11 @@ describe("createPipelineDefinitionsClient", () => {
 
       expect(captured).toHaveLength(1);
       const body = captured[0]?.body as {
-        nodeDefinitions: Array<{ key: string; kind: string; configJson: unknown }>;
+        nodeDefinitions: Array<{
+          key: string;
+          kind: string;
+          configJson: unknown;
+        }>;
       };
       const fanOutNode = body.nodeDefinitions.find((n) => n.key === "review");
       const gateNode = body.nodeDefinitions.find(
@@ -314,6 +318,53 @@ describe("createPipelineDefinitionsClient", () => {
         overSignalKey: "reviewer_count",
       });
       expect(gateNode?.kind).toBe("cohortGate");
+    });
+
+    test("sends a split node's branchNodeKeys via configJson", async () => {
+      const { mockFetch, captured } = createMockFetch([
+        { status: 200, body: { id: "pipeline-id" } },
+      ]);
+      const prev = globalThis.fetch;
+      globalThis.fetch = mockFetch;
+
+      const spec = makeSpec({
+        nodeDefinitions: [
+          {
+            nodeKey: "fork",
+            kind: "split",
+            branchNodeKeys: ["notify", "record"],
+          },
+          { nodeKey: "notify", kind: "succeed" },
+          { nodeKey: "record", kind: "succeed" },
+        ],
+        dependencyEdges: [
+          { fromNodeKey: "fork", toNodeKey: "notify" },
+          { fromNodeKey: "fork", toNodeKey: "record" },
+        ],
+      });
+
+      try {
+        const client = createPipelineDefinitionsClient(BASE_URL);
+        await client.upsertFromSpec("proj-1", spec, [], {
+          headers: AUTH_HEADER,
+        });
+      } finally {
+        globalThis.fetch = prev;
+      }
+
+      expect(captured).toHaveLength(1);
+      const body = captured[0]?.body as {
+        nodeDefinitions: Array<{
+          key: string;
+          kind: string;
+          configJson: unknown;
+        }>;
+      };
+      const splitNode = body.nodeDefinitions.find((n) => n.key === "fork");
+      expect(splitNode?.kind).toBe("split");
+      expect(splitNode?.configJson).toEqual({
+        branchNodeKeys: ["notify", "record"],
+      });
     });
 
     test("omits inputBindingsJson/timeoutSeconds for terminal succeed/fail nodes", async () => {
