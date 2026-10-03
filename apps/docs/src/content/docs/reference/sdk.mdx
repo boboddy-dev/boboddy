@@ -74,7 +74,7 @@ Return a summary and quality score.
 | `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the step's execution config                  |
 | `features`        | `StepFeature[]`                   | No       | Built-in feature plugins (e.g. `Features.notifications()`)                |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are skipped by workers                                        |
-| `executionMode`   | `"workspace" \| "no_workspace"`   | No       | `"no_workspace"` runs the agent without cloning your repo or a dev container; defaults to `"workspace"`. See [Execution mode](/boboddy/guides/steps/#execution-mode) |
+| `environment`     | `{ runtime?: RuntimeSpec; vars?: ({ input }) => Record<string, string \| EnvEntry>; repo?: RepoSpec \| (({ input, result }) => RepoSpec) }` | No | Where the step runs, which environment variables it gets, and what it does to your repository; declare before `agentPrompt`. See [`Runtime`](#runtime), [`Env`](#env) and [`Repo`](#repo) |
 
 ### `agentPrompt`
 
@@ -101,7 +101,7 @@ Save traces to ${boboddy.artifactsDir}trace.zip.
 | Scope     | Example                   | Source                                                   |
 | --------- | ------------------------- | -------------------------------------------------------- |
 | `input`   | `${input.title}`          | Step execution input bound through the pipeline          |
-| `env`     | `${env.BASE_URL}`         | Any defined environment variable available to the worker |
+| `env`     | `${env.BASE_URL}`         | The worker's environment (`.boboddy/.env` over `process.env`); with declared [`environment.vars`](#env), only its non-secret keys |
 | `boboddy` | `${boboddy.artifactsDir}` | Boboddy-provided runtime values                          |
 
 At runtime these become `{{input.title}}`, `{{env.BASE_URL}}`, and `{{boboddy.artifactsDir}}` inside the stored prompt template.
@@ -111,6 +111,179 @@ Boboddy currently provides:
 - `boboddy.artifactsDir` for files that should be uploaded as step artifacts.
 
 Legacy raw prompt tokens such as `{{title}}` and `{{stepArtifactsDir}}` still resolve, but new steps should prefer the scoped form.
+
+### `Runtime`
+
+`Runtime` builds the `environment.runtime` value: where the step runs. It is exported from `@boboddy/sdk`. Omit `runtime` for the default, `Runtime.devcontainer()`.
+
+```typescript
+import { defineStep, Runtime } from "@boboddy/sdk";
+
+defineStep({
+  key: "build-frontend",
+  name: "Build Frontend",
+  environment: {
+    runtime: Runtime.devcontainer({
+      config: ".devcontainer/frontend/devcontainer.json",
+    }),
+  },
+  agentPrompt: "Build the frontend.",
+});
+
+defineStep({
+  key: "summarize",
+  name: "Summarize",
+  environment: { runtime: Runtime.host() },
+  agentPrompt: "Summarize the provided text.",
+});
+```
+
+```typescript
+type RuntimeSpec = DevcontainerRuntimeSpec | HostRuntimeSpec;
+
+Runtime.devcontainer(opts?: {
+  config?: string; // full repo-relative path to devcontainer.json or .devcontainer.json
+}): DevcontainerRuntimeSpec;
+
+Runtime.host(): HostRuntimeSpec;
+```
+
+| Constructor              | Behaviour                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `Runtime.devcontainer()` | Clones the repository and runs the step in its devcontainer. Without `config`, the worker uses `.devcontainer/devcontainer.json`, then `devcontainer.json`. |
+| `Runtime.host()`         | No clone, no container: the step runs on the worker host in an empty temporary directory. Takes no options.                    |
+
+`config` rules, enforced by `Runtime.devcontainer` (which throws), by definition validation at push, by the server (`422`), and by the worker:
+
+- The base name must be `devcontainer.json` or `.devcontainer.json`.
+- Repo-relative: no leading `/`, no drive letter, no backslashes, no `..` segment. A leading `./` is stripped. At most 255 characters.
+- There is no fallback search. If the file is missing on the branch the step is based on, the step fails with ``Devcontainer config "<path>" not found in the cloned repository (branch "<branch>")``. The work branch of the nearest earlier step that produced one can change the config a later step finds (see [Base branch](/boboddy/guides/workers/#base-branch)).
+
+`codeStep()` accepts the same `environment`, but `Runtime.host()` is a type error there and is rejected by validation: a code step runs repo code and needs a workspace. The container a code step's `config` selects must provide a JavaScript runtime for the runner script.
+
+The wire form is derived from `runtime`: `executionMode` (`"workspace"` for the devcontainer runtime, `"no_workspace"` for host) and `devcontainerConfigPath` (`config`, or `null`). The path schema is `devcontainerConfigPathSchema` from `@boboddy/sdk/devcontainer-config-path`.
+
+See [Environment](/boboddy/guides/steps/#environment) and [Multiple configs](/boboddy/guides/devcontainer/#multiple-configs) for the guides.
+
+### `Env`
+
+`environment.vars` is a function of `{ input }`, run once at definition time, returning a record of variable name to an `EnvEntry`. Declare `environment` **before** `agentPrompt` so the keys are typed into the prompt's `env`, which is then strict (declared, non-secret keys only). `Env` is exported from `@boboddy/sdk`.
+
+```typescript
+import { defineStep, Env } from "@boboddy/sdk";
+import { z } from "zod";
+
+defineStep({
+  key: "account-investigation",
+  name: "Account Investigation",
+  additionalInput: z.object({ tenant: z.string() }),
+  environment: {
+    vars: ({ input }) => ({
+      WAREHOUSE_URL: "https://warehouse.internal",
+      TENANT_API_KEY: Env.value({ value: `${input.tenant}-key`, secret: true }),
+      WAREHOUSE_TOKEN: Env.inherit({ secret: true }),
+      LOG_LEVEL: Env.inherit({ optional: true, default: "info" }),
+    }),
+  },
+  agentPrompt: ({ env }) => `Query ${env.WAREHOUSE_URL}.`,
+});
+```
+
+```typescript
+type EnvEntry = string | EnvValue | EnvInherit;
+
+Env.value(opts: {
+  value: string;               // literal or {{input.…}} template; stored in plaintext
+  secret?: boolean;            // mask in logs; requires an {{input.…}} token in `value`
+  unsafeAllowStatic?: boolean; // allow a static value on a credential-looking name; never serialized
+}): EnvValue;
+
+Env.inherit(opts?: {
+  from?: string;               // worker variable to read; defaults to the key
+  secret?: boolean;            // mask in logs; cannot be combined with `default`
+  optional?: boolean;          // omit instead of failing when the worker has no value
+  default?: string;            // used when the worker has no value; stored in plaintext
+}): EnvInherit;
+```
+
+`Env.inherit` reads from the worker (`.boboddy/.env`, then `process.env`), not from the devcontainer's `containerEnv`. A bare string and `Env.value` are stored in the definition in plaintext; `inherit` stores only the name (and `default`). See the [forms table](/boboddy/guides/steps/#the-three-forms) for what is stored and masked.
+
+`secret: true` together with `default` is a type error. Optional entries without a `default` are typed `string | undefined` in the prompt. The key must match `/^[A-Z_][A-Z0-9_]*$/`; `BOBODDY_*`, `HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `OPENCODE_CONFIG_CONTENT`, and `npm_config_cache` are reserved, and `inherit` cannot read `BOBODDY_*` worker variables. A step may declare at most 64 variables of at most 4096 characters each.
+
+Defining a step throws on a static secret, and on a bare static string whose key matches `/SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE/i`. The wire shape is `envJson`, validated by `envVarsSchema` from `@boboddy/sdk/env-vars`.
+
+See [Environment variables](/boboddy/guides/steps/#environment-variables) for precedence, per-runtime behaviour, and caveats.
+
+### `Repo`
+
+`Repo` builds the `environment.repo` value: what the worker does with the repository clone. It is exported from `@boboddy/sdk`. Omit `repo` for the runtime's default.
+
+```typescript
+import { defineStep, Repo } from "@boboddy/sdk";
+import { z } from "zod";
+
+defineStep({
+  key: "triage",
+  name: "Triage",
+  environment: { repo: Repo.readOnly() },
+  agentPrompt: "Find the code behind this report.",
+});
+
+defineStep({
+  key: "implement",
+  name: "Implement",
+  result: z.object({ summary: z.string() }),
+  environment: {
+    repo: ({ result }) =>
+      Repo.readWrite({
+        message: `fix: ${result.summary}`,
+        onPushFailure: "warn",
+      }),
+  },
+  agentPrompt: "Fix the reported bug.",
+});
+```
+
+```typescript
+type RepoSpec = NoneRepoSpec | ReadOnlyRepoSpec | ReadWriteRepoSpec;
+
+Repo.readWrite(opts?: {
+  message?: string;                  // {{input.…}} / {{result.…}} tokens; one line, at most 500 characters
+  onPushFailure?: "fail" | "warn";   // defaults to "fail"
+}): ReadWriteRepoSpec;
+
+Repo.readOnly(): ReadOnlyRepoSpec;
+
+Repo.none(): NoneRepoSpec;
+```
+
+| Constructor         | Behaviour                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Repo.readWrite()`  | Creates a work branch, then commits and pushes it when the step succeeds. The default for `Runtime.devcontainer()`.                        |
+| `Repo.readOnly()`   | Clones and checks out the base branch. No work branch, no commit, no push, and no `workBranch` reported. A policy, not a sandbox: edits stay in the workspace and are discarded. |
+| `Repo.none()`       | No repository: no clone, branch, commit or push. The default for `Runtime.host()`.                                                          |
+
+Which `repo` each runtime accepts:
+
+| Runtime                  | `readWrite` | `readOnly` | `none` | Default     |
+| ------------------------ | ----------- | ---------- | ------ | ----------- |
+| `Runtime.devcontainer()` | Yes         | Yes        | No     | `readWrite` |
+| `Runtime.host()`         | No          | No         | Yes    | `none`      |
+
+A pair the runtime rejects is a type error where TypeScript can express it, and otherwise a validation error at definition time, at push, and from the server (`422`). `codeStep()` accepts `repo` with the same rules.
+
+`repo` can be a function of `{ input, result }`, run once at definition time against the same proxies `agentPrompt` uses, so a template literal built from them becomes a `{{result.…}}` or `{{input.…}}` token that the worker renders. Start the string with a prefix (`` `fix: ${result.summary}` ``): a bare `` `${result.summary}` `` trips a lint rule. A static `message` string with the tokens written out works too.
+
+`message` rules:
+
+- Only `input` and `result` tokens are allowed. `{{env.…}}` is rejected so environment values cannot reach git history.
+- The rendered subject has whitespace collapsed and control characters stripped, is truncated to 200 characters, and falls back to `boboddy: step <stepExecutionId>` when empty.
+
+`onPushFailure` defaults to `"fail"`: a failed push of the work branch or of a submodule fails the step. `"warn"` logs the failure and lets the step finish, but the step reports no work branch, so later steps do not build on it. See [Work branches](/boboddy/guides/workers/#commit-message-and-push-failures) for the behavior change and its consequences.
+
+The wire form is a nested `repo` object, `{ mode: "none" | "readOnly" | "readWrite", message?, onPushFailure? }`. The SDK emits it only when the author wrote a `repo`; the server resolves an omitted one to the runtime's default and stores it fully resolved (`message` is `null` for the default). The schemas are `repoConfigInputSchema` and `repoConfigSchema`, with `resolveRepoConfig`, from `@boboddy/sdk/repo-config`.
+
+See [Repo access](/boboddy/guides/steps/#repo-access) for the guide.
 
 ### `Signal`
 
@@ -279,6 +452,7 @@ export const sumScores = codeStep({
 | `resultSchema` | `ZodType`                                         | No       | Zod schema for `fn`'s return value                                   |
 | `signals`      | `CodeStepSignalSpec[]`                            | No       | Values to extract from the result; unlike `defineStep`, `type` is required (not inferred) |
 | `features`     | `AnyStepFeature[]`                                | No       | Feature plugins from `Features`; only each feature's result extension and signals apply (no prompt on a code step) |
+| `environment`  | `{ runtime?: DevcontainerRuntimeSpec; vars?: ({ input }) => Record<string, string \| EnvEntry>; repo?: DevcontainerRepoSpec \| (({ input, result }) => DevcontainerRepoSpec) }` | No | `runtime` is `Runtime.devcontainer({ config? })` (default); `Runtime.host()` is not supported. `vars` are environment variables for the runner process, read by `fn` through `process.env`. `repo` is `Repo.readWrite()` (default) or `Repo.readOnly()`. See [`Runtime`](#runtime), [`Env`](#env) and [`Repo`](#repo) |
 | `status`       | `"draft" \| "active"`                             | No       | Draft steps are not executed; defaults to `"active"`                |
 
 `CodeStepSignalSpec` is `{ sourcePath, key?, type: "string" | "number" | "boolean" | "object" | "array", required?, availableWhenResultStatusIn? }`.

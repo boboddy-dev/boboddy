@@ -1,4 +1,8 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, test } from "bun:test";
+import type { EnvVarSpec } from "@boboddy/sdk/env-vars";
+import { resolveRepoConfig } from "@boboddy/sdk/repo-config";
 import {
   generateStepsFileContent,
   type StepDefContract,
@@ -13,11 +17,14 @@ function makeStep(overrides: Partial<StepDefContract> = {}): StepDefContract {
     version: 1,
     status: "active",
     executionMode: "workspace",
+    devcontainerConfigPath: null,
+    repo: resolveRepoConfig(overrides.executionMode ?? "workspace"),
     inputSchemaJson: null,
     resultSchemaJson: null,
     opencodeMcpJson: null,
     opencodePluginJson: null,
     healthChecksJson: null,
+    envJson: null,
     signalExtractorDefinitions: [],
     ...overrides,
   };
@@ -133,19 +140,273 @@ describe("generateStepsFileContent", () => {
     expect(emptyContent).not.toContain("healthChecks:");
   });
 
-  test("emits executionMode: \"no_workspace\" when set", () => {
-    const content = generateStepsFileContent([
-      makeStep({ executionMode: "no_workspace" }),
-    ]);
+  test("omits env and the Env import when envJson is null or empty", () => {
+    for (const envJson of [null, []]) {
+      const content = generateStepsFileContent([makeStep({ envJson })]);
 
-    expect(content).toContain('executionMode: "no_workspace"');
+      expect(content).not.toContain("environment:");
+      expect(content).toContain(
+        'import { defineStep } from "@boboddy/sdk/definitions/steps";',
+      );
+    }
   });
 
-  test("omits executionMode when it is the default \"workspace\"", () => {
+  test("emits plain values as bare strings and imports Env only when a helper is used", () => {
     const content = generateStepsFileContent([
-      makeStep({ executionMode: "workspace" }),
+      makeStep({
+        envJson: [
+          {
+            name: "WAREHOUSE_URL",
+            source: "value",
+            value: "https://warehouse.internal",
+            secret: false,
+          },
+        ],
+      }),
     ]);
 
-    expect(content).not.toContain("executionMode:");
+    expect(content).toContain(
+      'vars: () => ({\n      WAREHOUSE_URL: "https://warehouse.internal",\n    })',
+    );
+    expect(content).not.toContain("Env.");
+    expect(content).toContain(
+      'import { defineStep } from "@boboddy/sdk/definitions/steps";',
+    );
+  });
+
+  test("emits input templates as template literals and destructures input only then", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        envJson: [
+          {
+            name: "ACCOUNT_ID",
+            source: "value",
+            value: "{{input.accountId}}",
+            secret: false,
+          },
+          {
+            name: "TENANT_URL",
+            source: "value",
+            value: "https://{{input.tenant}}.example.com",
+            secret: false,
+          },
+        ],
+      }),
+    ]);
+
+    expect(content).toContain("vars: ({ input }) => ({");
+    expect(content).toContain("ACCOUNT_ID: `${input.accountId}`,");
+    expect(content).toContain(
+      "TENANT_URL: `https://${input.tenant}.example.com`,",
+    );
+  });
+
+  test("leaves non-input tokens in an env template as literal text", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        envJson: [
+          {
+            name: "NOTE",
+            source: "value",
+            value: "{{env.OTHER}} for {{input.id}}",
+            secret: false,
+          },
+        ],
+      }),
+    ]);
+
+    expect(content).toContain("NOTE: `{{env.OTHER}} for ${input.id}`,");
+  });
+
+  test("emits secret values and inherit entries through Env, spelling out only non-default options", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        envJson: [
+          {
+            name: "TENANT_API_KEY",
+            source: "value",
+            value: "{{input.tenant}}-key",
+            secret: true,
+          },
+          {
+            name: "WAREHOUSE_TOKEN",
+            source: "inherit",
+            from: "WAREHOUSE_TOKEN",
+            secret: true,
+            optional: false,
+          },
+          {
+            name: "DB_PASSWORD",
+            source: "inherit",
+            from: "STAGING_DB_PASSWORD",
+            secret: true,
+            optional: false,
+          },
+          {
+            name: "LOG_LEVEL",
+            source: "inherit",
+            from: "LOG_LEVEL",
+            secret: false,
+            optional: true,
+            default: "info",
+          },
+          {
+            name: "SENTRY_DSN",
+            source: "inherit",
+            from: "SENTRY_DSN",
+            secret: false,
+            optional: false,
+          },
+        ],
+      }),
+    ]);
+
+    expect(content).toContain(
+      "TENANT_API_KEY: Env.value({ value: `${input.tenant}-key`, secret: true }),",
+    );
+    expect(content).toContain("WAREHOUSE_TOKEN: Env.inherit({ secret: true }),");
+    expect(content).toContain(
+      'DB_PASSWORD: Env.inherit({ from: "STAGING_DB_PASSWORD", secret: true }),',
+    );
+    expect(content).toContain(
+      'LOG_LEVEL: Env.inherit({ optional: true, default: "info" }),',
+    );
+    expect(content).toContain("SENTRY_DSN: Env.inherit(),");
+    expect(content).toContain(
+      'import { defineStep, Env } from "@boboddy/sdk/definitions/steps";',
+    );
+  });
+
+  test("emits unsafeAllowStatic for a static value on a secret-looking name", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        envJson: [
+          {
+            name: "PUBLIC_API_KEY",
+            source: "value",
+            value: "pk_live_123",
+            secret: false,
+          },
+          {
+            name: "TOKEN_URL",
+            source: "value",
+            value: "{{input.tenant}}/token",
+            secret: false,
+          },
+        ],
+      }),
+    ]);
+
+    expect(content).toContain(
+      'PUBLIC_API_KEY: Env.value({ value: "pk_live_123", unsafeAllowStatic: true }),',
+    );
+    expect(content).toContain("TOKEN_URL: `${input.tenant}/token`,");
+  });
+
+  test("declares environment before agentPrompt so its keys are inferred into the prompt", () => {
+    const content = generateStepsFileContent([
+      makeStep({
+        prompt: "Query {{env.WAREHOUSE_URL}}.",
+        envJson: [
+          {
+            name: "WAREHOUSE_URL",
+            source: "value",
+            value: "https://warehouse.internal",
+            secret: false,
+          },
+        ],
+      }),
+    ]);
+
+    expect(content.indexOf("environment: {")).toBeGreaterThan(-1);
+    expect(content.indexOf("environment: {")).toBeLessThan(
+      content.indexOf("agentPrompt:"),
+    );
+  });
+
+  test("a generated steps file loads through defineStep and round-trips envJson", async () => {
+    const envJson: EnvVarSpec[] = [
+      {
+        name: "WAREHOUSE_URL",
+        source: "value",
+        value: "https://warehouse.internal",
+        secret: false,
+      },
+      {
+        name: "ACCOUNT_ID",
+        source: "value",
+        value: "{{input.accountId}}",
+        secret: false,
+      },
+      {
+        name: "PUBLIC_API_KEY",
+        source: "value",
+        value: "pk_live_123",
+        secret: false,
+      },
+      {
+        name: "TENANT_API_KEY",
+        source: "value",
+        value: "{{input.tenant}}-key",
+        secret: true,
+      },
+      {
+        name: "WAREHOUSE_TOKEN",
+        source: "inherit",
+        from: "WAREHOUSE_TOKEN",
+        secret: true,
+        optional: false,
+      },
+      {
+        name: "DB_PASSWORD",
+        source: "inherit",
+        from: "STAGING_DB_PASSWORD",
+        secret: true,
+        optional: false,
+      },
+      {
+        name: "LOG_LEVEL",
+        source: "inherit",
+        from: "LOG_LEVEL",
+        secret: false,
+        optional: true,
+        default: "info",
+      },
+      {
+        name: "SENTRY_DSN",
+        source: "inherit",
+        from: "SENTRY_DSN",
+        secret: false,
+        optional: false,
+      },
+    ];
+    const content = generateStepsFileContent([
+      makeStep({
+        key: "account-investigation",
+        prompt: "Query {{env.WAREHOUSE_URL}} for {{input.accountId}}.",
+        inputSchemaJson: {
+          type: "object",
+          properties: {
+            accountId: { type: "string" },
+            tenant: { type: "string" },
+          },
+          required: ["accountId", "tenant"],
+        },
+        envJson,
+      }),
+    ]);
+
+    const dir = await mkdtemp(path.join(import.meta.dir, ".roundtrip-"));
+    try {
+      const file = path.join(dir, "steps.ts");
+      await writeFile(file, content, "utf-8");
+      const loaded = (await import(file)) as {
+        accountInvestigation: { envJson: EnvVarSpec[] | null };
+      };
+
+      expect(loaded.accountInvestigation.envJson).toEqual(envJson);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -200,16 +200,11 @@ export async function runProjectWork(
   const batchSize = parsePositiveInt(options.batchSize, concurrency);
   const workerId = resolveWorkerId(projectId, options.workerId);
 
+  // .boboddy/.env (localEnvVars) overrides the ambient .env / process env.
+  const workerEnv = { ...process.env, ...(options.localEnvVars ?? {}) };
   const artifactStore =
     resolvedDeps.artifactStore ??
-    resolveArtifactStores(
-      {
-        ...process.env,
-        // .boboddy/.env (localEnvVars) overrides the ambient .env / process env.
-        ...(options.localEnvVars ?? {}),
-      },
-      { remoteUploader: workerClient },
-    );
+    resolveArtifactStores(workerEnv, { remoteUploader: workerClient });
 
   return await processProjectWorkInCore(
     {
@@ -228,6 +223,7 @@ export async function runProjectWork(
       // (Path A) so injected secrets are redacted from the shipped feed.
       secretValues: Object.values(options.localEnvVars ?? {}),
       sourceBranch: options.sourceBranch,
+      workerEnv,
     },
     {
       workerClient,

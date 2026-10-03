@@ -57,10 +57,16 @@ export function createWorkerContext(
       kind: "user_defined",
       entrypointJson: null,
       executionMode: resolvedExecutionMode,
+      devcontainerConfigPath: null,
+      repo:
+        resolvedExecutionMode === "no_workspace"
+          ? { mode: "none" }
+          : { mode: "readWrite", message: null, onPushFailure: "fail" },
       resultSchemaJson: { type: "object" },
       opencodeMcpJson: null,
       opencodePluginJson: null,
       healthChecksJson: resolvedHealthChecksJson,
+      envJson: null,
       ...stepDefinitionOverrides,
     },
     agentPrompt: {
@@ -77,11 +83,13 @@ export function createCodeStepWorkerContext(
     sourceFile: ".boboddy/pipeline-builder/review-file-step.ts",
     exportName: "reviewFileStep",
   },
+  envJson: StepExecutionWorkerContext["stepDefinition"]["envJson"] = null,
 ): StepExecutionWorkerContext {
   return createWorkerContext("workspace", null, {
     kind: "code",
     prompt: null,
     entrypointJson,
+    envJson,
   });
 }
 

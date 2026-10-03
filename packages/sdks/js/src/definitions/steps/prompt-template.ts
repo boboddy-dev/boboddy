@@ -8,9 +8,12 @@ export type PromptInputProxy<T> = {
   [K in keyof T]-?: PromptInputProxy<NonNullable<T[K]>>;
 } & string;
 
-export type PromptTemplateContext<TInput> = {
+export type PromptTemplateContext<
+  TInput,
+  TPromptEnv = PromptInputProxy<Record<string, string | undefined>>,
+> = {
   input: PromptInputProxy<TInput>;
-  env: PromptInputProxy<Record<string, string | undefined>>;
+  env: TPromptEnv;
   boboddy: {
     artifactsDir: string;
   };
@@ -38,10 +41,11 @@ export function createPromptInputProxy<T>(
 
 export function createPromptTemplateContext<
   TInput,
->(): PromptTemplateContext<TInput> {
+  TPromptEnv = PromptInputProxy<Record<string, string | undefined>>,
+>(): PromptTemplateContext<TInput, TPromptEnv> {
   return {
     input: createPromptInputProxy(["input"]),
-    env: createPromptInputProxy(["env"]),
+    env: createPromptInputProxy(["env"]) as unknown as TPromptEnv,
     boboddy: {
       artifactsDir: createPromptInputProxy([
         "boboddy",

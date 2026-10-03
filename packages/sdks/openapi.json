@@ -5069,6 +5069,158 @@
                       }
                     ]
                   },
+                  "envJson": {
+                    "anyOf": [
+                      {
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "value"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "value",
+                                "secret"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "inherit"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "optional": {
+                                  "type": "boolean"
+                                },
+                                "default": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "from",
+                                "secret",
+                                "optional"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devcontainerConfigPath": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readOnly"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readWrite"
+                          },
+                          "message": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "onPushFailure": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -5542,6 +5694,158 @@
                       }
                     ]
                   },
+                  "envJson": {
+                    "anyOf": [
+                      {
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "value"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "value",
+                                "secret"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "inherit"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "optional": {
+                                  "type": "boolean"
+                                },
+                                "default": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "from",
+                                "secret",
+                                "optional"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devcontainerConfigPath": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readOnly"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readWrite"
+                          },
+                          "message": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "onPushFailure": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -6012,6 +6316,158 @@
                       },
                       {
                         "type": "null"
+                      }
+                    ]
+                  },
+                  "envJson": {
+                    "anyOf": [
+                      {
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "value"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "value",
+                                "secret"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "inherit"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "optional": {
+                                  "type": "boolean"
+                                },
+                                "default": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "from",
+                                "secret",
+                                "optional"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devcontainerConfigPath": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readOnly"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readWrite"
+                          },
+                          "message": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "onPushFailure": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -6497,6 +6953,151 @@
                         }
                       ]
                     },
+                    "envJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "value"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "value",
+                                  "secret"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "inherit"
+                                  },
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  },
+                                  "optional": {
+                                    "type": "boolean"
+                                  },
+                                  "default": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "from",
+                                  "secret",
+                                  "optional"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "devcontainerConfigPath": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "repo": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "none"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readOnly"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readWrite"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "onPushFailure": {
+                              "type": "string",
+                              "enum": [
+                                "fail",
+                                "warn"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "message",
+                            "onPushFailure"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -6600,6 +7201,9 @@
                     "opencodeMcpJson",
                     "opencodePluginJson",
                     "healthChecksJson",
+                    "envJson",
+                    "devcontainerConfigPath",
+                    "repo",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -7460,6 +8064,151 @@
                           }
                         ]
                       },
+                      "envJson": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "const": "value"
+                                    },
+                                    "value": {
+                                      "type": "string"
+                                    },
+                                    "secret": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "source",
+                                    "value",
+                                    "secret"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "const": "inherit"
+                                    },
+                                    "from": {
+                                      "type": "string"
+                                    },
+                                    "secret": {
+                                      "type": "boolean"
+                                    },
+                                    "optional": {
+                                      "type": "boolean"
+                                    },
+                                    "default": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "source",
+                                    "from",
+                                    "secret",
+                                    "optional"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "devcontainerConfigPath": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 255
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "repo": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "const": "none"
+                              }
+                            },
+                            "required": [
+                              "mode"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "const": "readOnly"
+                              }
+                            },
+                            "required": [
+                              "mode"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "const": "readWrite"
+                              },
+                              "message": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 500
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "onPushFailure": {
+                                "type": "string",
+                                "enum": [
+                                  "fail",
+                                  "warn"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "message",
+                              "onPushFailure"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
                       "status": {
                         "type": "string",
                         "enum": [
@@ -7563,6 +8312,9 @@
                       "opencodeMcpJson",
                       "opencodePluginJson",
                       "healthChecksJson",
+                      "envJson",
+                      "devcontainerConfigPath",
+                      "repo",
                       "status",
                       "signalExtractorDefinitions",
                       "createdAt",
@@ -8225,6 +8977,158 @@
                       }
                     ]
                   },
+                  "envJson": {
+                    "anyOf": [
+                      {
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "value"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "value",
+                                "secret"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "inherit"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "optional": {
+                                  "type": "boolean"
+                                },
+                                "default": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "from",
+                                "secret",
+                                "optional"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devcontainerConfigPath": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readOnly"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readWrite"
+                          },
+                          "message": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "onPushFailure": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -8698,6 +9602,158 @@
                       }
                     ]
                   },
+                  "envJson": {
+                    "anyOf": [
+                      {
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "value"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "value",
+                                "secret"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "inherit"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "optional": {
+                                  "type": "boolean"
+                                },
+                                "default": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "from",
+                                "secret",
+                                "optional"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devcontainerConfigPath": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readOnly"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readWrite"
+                          },
+                          "message": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "onPushFailure": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -9168,6 +10224,158 @@
                       },
                       {
                         "type": "null"
+                      }
+                    ]
+                  },
+                  "envJson": {
+                    "anyOf": [
+                      {
+                        "maxItems": 64,
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "value"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "value",
+                                "secret"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "const": "inherit"
+                                },
+                                "from": {
+                                  "type": "string",
+                                  "maxLength": 128,
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "secret": {
+                                  "type": "boolean"
+                                },
+                                "optional": {
+                                  "type": "boolean"
+                                },
+                                "default": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "source",
+                                "from",
+                                "secret",
+                                "optional"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devcontainerConfigPath": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "none"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readOnly"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "mode": {
+                            "type": "string",
+                            "const": "readWrite"
+                          },
+                          "message": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "onPushFailure": {
+                            "type": "string",
+                            "enum": [
+                              "fail",
+                              "warn"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -9653,6 +10861,151 @@
                         }
                       ]
                     },
+                    "envJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "value"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "value",
+                                  "secret"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "inherit"
+                                  },
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  },
+                                  "optional": {
+                                    "type": "boolean"
+                                  },
+                                  "default": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "from",
+                                  "secret",
+                                  "optional"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "devcontainerConfigPath": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "repo": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "none"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readOnly"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readWrite"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "onPushFailure": {
+                              "type": "string",
+                              "enum": [
+                                "fail",
+                                "warn"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "message",
+                            "onPushFailure"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -9756,6 +11109,9 @@
                     "opencodeMcpJson",
                     "opencodePluginJson",
                     "healthChecksJson",
+                    "envJson",
+                    "devcontainerConfigPath",
+                    "repo",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -10494,6 +11850,151 @@
                         }
                       ]
                     },
+                    "envJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "value"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "value",
+                                  "secret"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "inherit"
+                                  },
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  },
+                                  "optional": {
+                                    "type": "boolean"
+                                  },
+                                  "default": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "from",
+                                  "secret",
+                                  "optional"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "devcontainerConfigPath": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "repo": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "none"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readOnly"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readWrite"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "onPushFailure": {
+                              "type": "string",
+                              "enum": [
+                                "fail",
+                                "warn"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "message",
+                            "onPushFailure"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -10597,6 +12098,9 @@
                     "opencodeMcpJson",
                     "opencodePluginJson",
                     "healthChecksJson",
+                    "envJson",
+                    "devcontainerConfigPath",
+                    "repo",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -11335,6 +12839,151 @@
                         }
                       ]
                     },
+                    "envJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "value"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "value",
+                                  "secret"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "inherit"
+                                  },
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  },
+                                  "optional": {
+                                    "type": "boolean"
+                                  },
+                                  "default": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "from",
+                                  "secret",
+                                  "optional"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "devcontainerConfigPath": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "repo": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "none"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readOnly"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readWrite"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "onPushFailure": {
+                              "type": "string",
+                              "enum": [
+                                "fail",
+                                "warn"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "message",
+                            "onPushFailure"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -11438,6 +13087,9 @@
                     "opencodeMcpJson",
                     "opencodePluginJson",
                     "healthChecksJson",
+                    "envJson",
+                    "devcontainerConfigPath",
+                    "repo",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",
@@ -15390,6 +17042,151 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "envJson": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                        "const": "value"
+                                      },
+                                      "value": {
+                                        "type": "string"
+                                      },
+                                      "secret": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "source",
+                                      "value",
+                                      "secret"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                        "const": "inherit"
+                                      },
+                                      "from": {
+                                        "type": "string"
+                                      },
+                                      "secret": {
+                                        "type": "boolean"
+                                      },
+                                      "optional": {
+                                        "type": "boolean"
+                                      },
+                                      "default": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "name",
+                                      "source",
+                                      "from",
+                                      "secret",
+                                      "optional"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "devcontainerConfigPath": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 255
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "repo": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "const": "none"
+                                }
+                              },
+                              "required": [
+                                "mode"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "const": "readOnly"
+                                }
+                              },
+                              "required": [
+                                "mode"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "const": "readWrite"
+                                },
+                                "message": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 500
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "onPushFailure": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fail",
+                                    "warn"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "message",
+                                "onPushFailure"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -15403,7 +17200,10 @@
                         "resultSchemaJson",
                         "opencodeMcpJson",
                         "opencodePluginJson",
-                        "healthChecksJson"
+                        "healthChecksJson",
+                        "envJson",
+                        "devcontainerConfigPath",
+                        "repo"
                       ],
                       "additionalProperties": false
                     },
@@ -70994,6 +72794,151 @@
                         }
                       ]
                     },
+                    "envJson": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "value"
+                                  },
+                                  "value": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "value",
+                                  "secret"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "const": "inherit"
+                                  },
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "secret": {
+                                    "type": "boolean"
+                                  },
+                                  "optional": {
+                                    "type": "boolean"
+                                  },
+                                  "default": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "source",
+                                  "from",
+                                  "secret",
+                                  "optional"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "devcontainerConfigPath": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 255
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "repo": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "none"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readOnly"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "const": "readWrite"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "onPushFailure": {
+                              "type": "string",
+                              "enum": [
+                                "fail",
+                                "warn"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "message",
+                            "onPushFailure"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -71097,6 +73042,9 @@
                     "opencodeMcpJson",
                     "opencodePluginJson",
                     "healthChecksJson",
+                    "envJson",
+                    "devcontainerConfigPath",
+                    "repo",
                     "status",
                     "signalExtractorDefinitions",
                     "createdAt",

@@ -64,10 +64,13 @@ function createWorkerClient(
           kind: "user_defined",
           entrypointJson: null,
           executionMode: "workspace",
+          devcontainerConfigPath: null,
+          repo: { mode: "readWrite", message: null, onPushFailure: "fail" },
           resultSchemaJson: { type: "object" },
           opencodeMcpJson: null,
           opencodePluginJson: null,
           healthChecksJson: null,
+          envJson: null,
         },
         agentPrompt: {
           sessionTitle: "Demo Step",

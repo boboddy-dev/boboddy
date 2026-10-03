@@ -37,6 +37,7 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
   function buildDeps(input: {
     entrypointJson: { sourceFile: string; exportName: string };
     runCodeStepCommand: ProcessProjectWorkDeps["runCodeStepCommand"];
+    envJson?: Parameters<typeof createCodeStepWorkerContext>[1];
   }): {
     deps: ProcessProjectWorkDeps;
     tracker: ReturnType<typeof createRunTracker>;
@@ -62,7 +63,9 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
 
     const workerClient = createWorkerClient();
     workerClient.getStepExecutionWorkerContext = vi.fn(() =>
-      Promise.resolve(createCodeStepWorkerContext(input.entrypointJson)),
+      Promise.resolve(
+        createCodeStepWorkerContext(input.entrypointJson, input.envJson),
+      ),
     );
 
     const tracker = createRunTracker();
@@ -140,6 +143,63 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
       expect.objectContaining({
         agentSessionId: `code-step:${stepExecutionId}`,
       }),
+    );
+  });
+
+  test("hands the resolved step env to the command runner, outside the shell command", async () => {
+    workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "boboddy-code-step-branch-env-"),
+    );
+
+    const runCodeStepCommand = vi.fn<RunCodeStepCommand>(() =>
+      Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }),
+    );
+    const { deps, tracker, launch } = buildDeps({
+      entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+      runCodeStepCommand,
+      envJson: [
+        {
+          name: "ACCOUNT_ID",
+          source: "value",
+          value: "{{input.title}}-acct",
+          secret: false,
+        },
+        {
+          name: "WAREHOUSE_TOKEN",
+          source: "inherit",
+          from: "WAREHOUSE_TOKEN",
+          secret: true,
+          optional: false,
+        },
+      ],
+    });
+
+    await startProcessClaimedExecution(
+      {
+        projectId,
+        requestedByUserId,
+        claim: {
+          stepExecution: { id: stepExecutionId },
+          claimToken: "claim-token",
+        },
+        leaseDurationSeconds: 30,
+        workerEnv: { WAREHOUSE_TOKEN: "wh-token-value" },
+      },
+      deps,
+      deps.workerClient,
+      tracker,
+    );
+
+    const expectedEnv = {
+      ACCOUNT_ID: "Checkout bug-acct",
+      WAREHOUSE_TOKEN: "wh-token-value",
+    };
+    expect(runCodeStepCommand.mock.calls[0]?.[0].env).toEqual(expectedEnv);
+    expect(runCodeStepCommand.mock.calls[0]?.[0].shellCommand).not.toContain(
+      "wh-token-value",
+    );
+    expect(launch).toHaveBeenCalledWith(
+      expect.objectContaining({ stepEnv: expectedEnv }),
     );
   });
 

@@ -55,11 +55,24 @@ type ParsedBindMount = {
 export class TestcontainersDevcontainerLauncher
   implements DevcontainerLauncher
 {
+  /** Config paths handed to `launch`, so tests can assert which config ran. */
+  readonly launchedConfigPaths: string[] = [];
+
   constructor(private readonly registry: ContainerRegistry) {}
 
   async resolveConfigPath(
     input: ResolveDevcontainerConfigInput,
   ): Promise<string> {
+    if (typeof input.configPath === "string") {
+      try {
+        await access(path.join(input.workspacePath, input.configPath));
+      } catch {
+        throw new Error(
+          `Devcontainer config "${input.configPath}" not found in the cloned repository`,
+        );
+      }
+      return input.configPath;
+    }
     for (const candidate of DEVCONTAINER_CONFIG_CANDIDATES) {
       try {
         await access(path.join(input.workspacePath, candidate));
@@ -77,6 +90,7 @@ export class TestcontainersDevcontainerLauncher
   async launch(
     input: LaunchDevcontainerInput,
   ): Promise<LaunchDevcontainerResult> {
+    this.launchedConfigPaths.push(input.devcontainerConfigPath);
     const config = await this.readConfig(
       path.join(input.workspacePath, input.devcontainerConfigPath),
     );

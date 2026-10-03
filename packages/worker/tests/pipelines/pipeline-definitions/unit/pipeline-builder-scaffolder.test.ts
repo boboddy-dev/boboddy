@@ -349,7 +349,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       }
     });
 
-    test("starter pipeline steps run in no_workspace mode so the quickstart needs no devcontainer", () => {
+    test("starter pipeline steps use the host runtime so the quickstart needs no devcontainer", () => {
       const dir = makeTempDir();
       try {
         scaffoldPipelineBuilderDirectory(dir, "0.0.0");
@@ -357,10 +357,14 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           join(dir, STARTER_PIPELINE_FILENAME),
           "utf-8",
         );
-        const noWorkspaceCount = (
-          content.match(/executionMode: "no_workspace"/g) ?? []
+        const hostRuntimeCount = (
+          content.match(/environment: \{ runtime: Runtime\.host\(\) \}/g) ?? []
         ).length;
-        expect(noWorkspaceCount).toBe(2);
+        expect(hostRuntimeCount).toBe(2);
+        expect(content).toContain(
+          'import { defineStep, Runtime } from "@boboddy/sdk/definitions/steps";',
+        );
+        expect(content).not.toContain("executionMode");
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

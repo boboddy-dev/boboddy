@@ -50,6 +50,12 @@ export type HostStartInput = {
    */
   providerEnv: Record<string, string>;
   /**
+   * The step's resolved environment variables (`resolveStepEnv`), spread over
+   * the spawn env after {@link providerEnv}. May carry secrets: log key names
+   * only.
+   */
+  stepEnv?: Readonly<Record<string, string>> | undefined;
+  /**
    * Boboddy's override config as a JSON string. Passed as
    * `OPENCODE_CONFIG_CONTENT` (precedence level #6 — inline).
    */
@@ -101,6 +107,7 @@ export class HostOpencodeBootstrap {
       // relative to it.
       BOBODDY_WORKSPACE_FOLDER: input.workspaceFolder,
       ...input.providerEnv,
+      ...input.stepEnv,
     };
 
     logWork("runtime", "Starting host OpenCode", {
@@ -109,6 +116,7 @@ export class HostOpencodeBootstrap {
       workspaceFolder: input.workspaceFolder,
       agentLogPath,
       providerEnvKeys: Object.keys(input.providerEnv).sort(),
+      stepEnvKeys: Object.keys(input.stepEnv ?? {}).sort(),
     });
 
     // Redirect stdout + stderr to the host log file so the monitor can tail it.

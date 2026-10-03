@@ -143,6 +143,28 @@ describe("DefaultLocalProjectRuntimeEnvironmentOrchestrator.launch (single-conta
     expect(() => { JSON.parse(start?.opencodeConfigContent ?? ""); }).not.toThrow();
   });
 
+  test("hands the step env to the in-container OpenCode start, alongside the provider env", async () => {
+    const log: CallLog = [];
+    const deps = buildDeps(log);
+    const orchestrator = new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
+      undefined,
+      {},
+      deps,
+    );
+
+    await orchestrator.launch({
+      ...buildLaunchInput(),
+      stepEnv: { ACCOUNT_ID: "acct-1", WAREHOUSE_TOKEN: "wh-token-value" },
+    });
+
+    const start = deps.opencodeBootstrap.startInputs[0];
+    expect(start?.stepEnv).toEqual({
+      ACCOUNT_ID: "acct-1",
+      WAREHOUSE_TOKEN: "wh-token-value",
+    });
+    expect(start?.providerEnv["BOBODDY_TEST_TOKEN"]).toBe("secret-token");
+  });
+
   test("prepareAgentHome is called AFTER launchDevcontainer but BEFORE startOpencode", async () => {
     const log: CallLog = [];
     const deps = buildDeps(log);

@@ -24,6 +24,9 @@ import {
 import type { SerializedBinding } from "../pipelines/bindings";
 import type { StepDefinitionSpec } from "../steps/define-step";
 import { resolveSourcePath, type JsonSchemaNode } from "./json-schema-paths";
+import { checkEnv } from "./validate-env";
+import { checkRepo } from "./validate-repo";
+import { checkRuntime } from "./validate-runtime";
 import {
   checkBindingTargetFields,
   checkBindingTypeCompatibility,
@@ -155,9 +158,7 @@ function checkHealthChecks(
 
 // ─── Check 3: route outcomes name a pipeline that exists ─────────────────────
 
-function routeTargets(
-  node: NodeDefinitionSpec,
-): string[] {
+function routeTargets(node: NodeDefinitionSpec): string[] {
   // Only `step` nodes carry an `advancementPolicyDefinition` at all —
   // nothing to check on any other kind. A hand-edited/generated spec (this
   // validator's whole reason to exist — see the file's top comment) may
@@ -197,7 +198,8 @@ function checkRouteTargets(
   for (const pipeline of pipelines) {
     for (const node of pipeline.nodeDefinitions) {
       const stepLabel =
-        (isWorkingNodeDefinition(node) ? node.stepKey : undefined) ?? node.nodeKey;
+        (isWorkingNodeDefinition(node) ? node.stepKey : undefined) ??
+        node.nodeKey;
       for (const target of routeTargets(node)) {
         if (known.has(target)) continue;
         issues.push({
@@ -275,7 +277,11 @@ function bindingSource(binding: SerializedBinding): {
   readonly kind: "signal" | "output" | "signals_list";
 } | null {
   if (binding.source === "step_signal") {
-    return { nodeKey: binding.stepKey, signalKey: binding.signalKey, kind: "signal" };
+    return {
+      nodeKey: binding.stepKey,
+      signalKey: binding.signalKey,
+      kind: "signal",
+    };
   }
   if (binding.source === "step_output") {
     return { nodeKey: binding.stepKey, signalKey: null, kind: "output" };
@@ -300,7 +306,9 @@ function declaredSignalKeys(
   const specs = stepKey ? stepsByKey.get(stepKey) : undefined;
   const computedSignalDefinitions =
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- hand-edited/generated spec may claim `kind: "step"` without setting the field; see file header
-    (producerNode.kind === "step" ? producerNode.computedSignalDefinitions : []) ?? [];
+    (producerNode.kind === "step"
+      ? producerNode.computedSignalDefinitions
+      : []) ?? [];
   const keys = new Set<string>();
   for (const spec of specs ?? []) {
     for (const signal of spec.signalExtractorDefinitions) keys.add(signal.key);
@@ -461,7 +469,11 @@ function checkSplitBranchesDontReconverge(
       }));
 
       for (let left = 0; left < reachableByBranch.length; left += 1) {
-        for (let right = left + 1; right < reachableByBranch.length; right += 1) {
+        for (
+          let right = left + 1;
+          right < reachableByBranch.length;
+          right += 1
+        ) {
           const leftBranch = reachableByBranch[left];
           const rightBranch = reachableByBranch[right];
           if (!leftBranch || !rightBranch) continue;
@@ -510,6 +522,9 @@ export function validateDefinitionSpecs(
   return [
     ...checkSignalSourcePaths(specs.steps),
     ...checkHealthChecks(specs.steps),
+    ...checkEnv(specs.steps),
+    ...checkRuntime(specs.steps),
+    ...checkRepo(specs.steps),
     ...checkRouteTargets(specs.pipelines, options.knownPipelineKeys ?? []),
     ...checkSignalBindings(specs.pipelines, stepsByKey),
     ...checkSplitBranchesDontReconverge(specs.pipelines),

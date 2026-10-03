@@ -2,6 +2,7 @@ import { mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { buildOpencodeContext } from "@boboddy/opencode-plugin";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import {
   removeFindingsSubmissionFile,
   writeCurrentExecutionInfoFile,
@@ -99,6 +100,17 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
      * never sets this field, so it launches unaffected exactly as before.
      */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s `stepEnv`. */
+    stepEnv?: Readonly<Record<string, string>> | undefined;
+    /** Accepted for contract parity; a no-workspace step has no devcontainer. */
+    devcontainerConfigPath?: string | null | undefined;
+    /**
+     * Accepted for contract parity. A no-workspace step never clones, which is
+     * exactly repo mode `none`, so there is nothing to act on.
+     */
+    repo: RepoConfig;
+    /** Accepted for contract parity; there is no commit to render. */
+    stepInputJson?: unknown;
   }): Promise<StepExecutionRuntimeEnvironment> {
     const reporter = input.reporter ?? noopReporter;
     const stepExecutionId =
@@ -213,6 +225,7 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
         workspaceFolder: workspacePath,
         sessionAgentHomeDir,
         providerEnv: materialized.env,
+        stepEnv: input.stepEnv,
         opencodeConfigContent,
       });
       hostPid = started.pid;

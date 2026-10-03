@@ -35,6 +35,7 @@ import { access, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import { DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator } from "../../../../src/work/step-execution/infra/local-noworkspace-runtime-environment";
 import {
@@ -175,7 +176,9 @@ describe("DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator.launch (host, no
   function launchInput() {
     const sessionId = createUuidV7();
     createdSessionIds.push(sessionId);
+    const repo: RepoConfig = { mode: "none" };
     return {
+      repo,
       sessionId,
       projectId: createUuidV7(),
       requestedByUserId: createUuidV7(),
@@ -251,6 +254,26 @@ describe("DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator.launch (host, no
     }).not.toThrow();
     // The materialized provider token is surfaced as a secret for log masking.
     expect(env.secretValues).toContain("secret-token");
+
+    await env.cleanup();
+  });
+
+  test("hands the step env to the host OpenCode start, alongside the provider env", async () => {
+    const deps = buildDeps();
+    const orchestrator =
+      new DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator(undefined, deps);
+
+    const env = await orchestrator.launch({
+      ...launchInput(),
+      stepEnv: { ACCOUNT_ID: "acct-1", WAREHOUSE_TOKEN: "wh-token-value" },
+    });
+
+    const start = deps.hostOpencodeBootstrap.startInputs[0];
+    expect(start?.stepEnv).toEqual({
+      ACCOUNT_ID: "acct-1",
+      WAREHOUSE_TOKEN: "wh-token-value",
+    });
+    expect(start?.providerEnv["BOBODDY_TEST_TOKEN"]).toBe("secret-token");
 
     await env.cleanup();
   });

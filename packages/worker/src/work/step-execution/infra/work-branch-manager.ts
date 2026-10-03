@@ -1,7 +1,15 @@
 import type { GitCommitPushService } from "../../../runtime/runtime-service/application/git-commit-push-service";
 import type { SubmoduleService } from "../../../runtime/runtime-service/application/submodule-service";
 import { sanitizeGitRefFragment } from "../../../runtime/runtime-service/domain/git-ref-name";
+import type { RepoOnPushFailure } from "@boboddy/sdk/repo-config";
+import type { AnyJsonValue } from "../../../common/contracts/json";
+import { startStopwatch } from "../../../lib/elapsed";
 import { logWork } from "../application/work-logger";
+import type {
+  CommitAndPushWorkBranchResult,
+  ProjectWorkLogger,
+} from "../contracts/process-project-work-types";
+import { renderCommitMessage } from "./work-branch-commit-message";
 
 /**
  * Repo-relative Boboddy runtime files that must NEVER be committed to a work
@@ -70,6 +78,8 @@ export type PrepareWorkBranchInput = {
   stepExecutionId: string;
   /** Optional prefix from the repo config; defaults to `boboddy`. */
   branchPrefix?: string | null | undefined;
+  /** Receives the info-level timing line, so it ships in the step log. */
+  logger?: ProjectWorkLogger | undefined;
 };
 
 export type PreparedWorkBranch = {
@@ -78,26 +88,42 @@ export type PreparedWorkBranch = {
 };
 
 /**
- * Determine the base for the work branch and create it right after clone:
+ * Put the workspace on the step's base branch right after clone and return it:
  *  - `baseWorkBranch` set (later step, or first step with a configured base):
- *    `checkoutBase` then branch off it. A checkout failure propagates and fails
- *    the step — the requested base branch must exist and be fetchable.
- *  - otherwise: branch off the resolved (cloned default) branch.
+ *    `checkoutBase`. A checkout failure propagates and fails the step — the
+ *    requested base branch must exist and be fetchable.
+ *  - otherwise: nothing to check out; the workspace is already on the resolved
+ *    (cloned default) branch, which is the base.
+ *
+ * Runs alone for `readOnly` steps and dry runs, which create no work branch.
+ */
+export async function checkoutBaseBranch(
+  input: Pick<
+    PrepareWorkBranchInput,
+    | "gitCommitPushService"
+    | "workspacePath"
+    | "resolvedBranch"
+    | "baseWorkBranch"
+  >,
+): Promise<string> {
+  if (!input.baseWorkBranch) return input.resolvedBranch;
+
+  await input.gitCommitPushService.checkoutBase({
+    workspacePath: input.workspacePath,
+    baseWorkBranch: input.baseWorkBranch,
+  });
+  return input.baseWorkBranch;
+}
+
+/**
+ * Check out the base (see {@link checkoutBaseBranch}) and create the step's
+ * work branch off it.
  */
 export async function prepareWorkBranch(
   input: PrepareWorkBranchInput,
 ): Promise<PreparedWorkBranch> {
-  let createdFromBranch: string;
-
-  if (input.baseWorkBranch) {
-    await input.gitCommitPushService.checkoutBase({
-      workspacePath: input.workspacePath,
-      baseWorkBranch: input.baseWorkBranch,
-    });
-    createdFromBranch = input.baseWorkBranch;
-  } else {
-    createdFromBranch = input.resolvedBranch;
-  }
+  const elapsed = startStopwatch();
+  const createdFromBranch = await checkoutBaseBranch(input);
 
   const workBranch = buildWorkBranchName({
     stepKey: input.stepKey,
@@ -115,6 +141,7 @@ export async function prepareWorkBranch(
     workBranch,
     createdFromBranch,
   });
+  input.logger?.log("runtime", `work branch prepared in ${elapsed()}`);
 
   return { workBranch, createdFromBranch };
 }
@@ -131,10 +158,40 @@ type SubmoduleProcessingResult = {
 };
 
 /**
+ * Raised when a work branch (or a submodule's copy of it) cannot be pushed and
+ * the step's `onPushFailure` is `"fail"`. The message names the branch and
+ * carries the underlying git error.
+ */
+export class WorkBranchPushError extends Error {
+  readonly workBranch: string;
+  readonly submodulePath: string | null;
+
+  constructor(input: {
+    workBranch: string;
+    submodulePath?: string | undefined;
+    cause: unknown;
+  }) {
+    const reason =
+      input.cause instanceof Error ? input.cause.message : String(input.cause);
+    const target = input.submodulePath
+      ? `submodule "${input.submodulePath}" work branch "${input.workBranch}"`
+      : `work branch "${input.workBranch}"`;
+    super(`Failed to push ${target}: ${reason}`, {
+      cause: input.cause,
+    });
+    this.name = "WorkBranchPushError";
+    this.workBranch = input.workBranch;
+    this.submodulePath = input.submodulePath ?? null;
+  }
+}
+
+/**
  * For each initialized submodule that HAS changes: lazily create the same work
  * branch, commit, and push to the submodule's own `origin`. Push success →
- * gitlink recordable; push failure → log-and-continue and DO NOT record the
- * gitlink. Uninitialized submodules are skipped (never branched/committed).
+ * gitlink recordable. Push failure → throws a {@link WorkBranchPushError} under
+ * `onPushFailure: "fail"`; under `"warn"` it logs, continues, and DOES NOT
+ * record the gitlink. Uninitialized submodules are skipped (never
+ * branched/committed).
  */
 async function processSubmodules(input: {
   gitCommitPushService: GitCommitPushService;
@@ -142,6 +199,7 @@ async function processSubmodules(input: {
   workspacePath: string;
   workBranch: string;
   message: string;
+  onPushFailure: RepoOnPushFailure;
 }): Promise<SubmoduleProcessingResult> {
   const submodules = await input.submoduleService.detectSubmodules({
     workspacePath: input.workspacePath,
@@ -183,8 +241,13 @@ async function processSubmodules(input: {
         workBranch: input.workBranch,
       });
     } catch (error) {
-      // Locked decision: submodule push failure does NOT fail the step, and its
-      // gitlink must NOT be recorded by the superproject (dangling pointer).
+      if (input.onPushFailure === "fail") {
+        throw new WorkBranchPushError({
+          workBranch: input.workBranch,
+          submodulePath: submodule.path,
+          cause: error,
+        });
+      }
       failedSubmodulePaths.push(submodule.path);
       logWork("runtime", "Failed to push submodule work branch (continuing)", {
         submodulePath: submodule.path,
@@ -203,10 +266,27 @@ async function processSubmodules(input: {
 
 /**
  * Build the closure that commits the agent's changes to the work branch and
- * pushes it. Submodules with changes are branched/committed/pushed FIRST so
- * successfully-pushed gitlinks can be recorded by the superproject commit;
- * failed ones are excluded to avoid dangling pointers. Commit "nothing to
- * commit" is a success. Push failures are logged but NOT propagated.
+ * pushes it, for `readWrite` steps. Submodules with changes are
+ * branched/committed/pushed FIRST so successfully-pushed gitlinks can be
+ * recorded by the superproject commit. Commit "nothing to commit" is a success.
+ *
+ * The commit message (superproject and submodules alike) is `message` rendered
+ * against the step's input and the submitted `result`, or `boboddy: step <id>`;
+ * see {@link renderCommitMessage}.
+ *
+ * Push-failure policy, set by `onPushFailure` (default `"fail"`):
+ *  - `"fail"`: a failed push of the work branch or of a submodule throws a
+ *    {@link WorkBranchPushError} naming the branch, which fails the step. A
+ *    green step whose work was never pushed is worse than a red one.
+ *  - `"warn"`: the failure is logged and the step carries on. A failed
+ *    submodule's gitlink is still excluded from the superproject commit so it
+ *    never records an unreachable SHA.
+ *
+ * The closure resolves `{ pushed }`, which is `false` only when the
+ * superproject work branch push failed under `"warn"`: the branch is then not
+ * on the remote, so the caller must not report it as the step's work branch. A
+ * failed submodule push does not clear `pushed`, because the superproject
+ * branch (minus that gitlink) is still on the remote and usable as a base.
  */
 export function buildCommitAndPushWorkBranch(input: {
   gitCommitPushService: GitCommitPushService;
@@ -214,22 +294,38 @@ export function buildCommitAndPushWorkBranch(input: {
   workspacePath: string;
   workBranch: string;
   stepExecutionId: string;
-}): () => Promise<void> {
-  return async () => {
-    const message = `boboddy: step ${input.stepExecutionId}`;
+  /** Commit message template; null or omitted means the default message. */
+  message?: string | null | undefined;
+  /** The step's additional input, the `{{input.…}}` token source. */
+  inputJson?: unknown;
+  onPushFailure?: RepoOnPushFailure | undefined;
+  /**
+   * Extra repo-relative paths to keep out of the commit, beyond
+   * {@link WORK_BRANCH_EXCLUDE_PATHS}: the devcontainer config the worker
+   * patched before launch, which may live anywhere in the repo.
+   */
+  extraExcludePaths?: readonly string[] | undefined;
+}): (ctx: { result: AnyJsonValue }) => Promise<CommitAndPushWorkBranchResult> {
+  const onPushFailure = input.onPushFailure ?? "fail";
 
-    // Process submodules FIRST so their pushed SHAs are reachable before the
-    // superproject records the moved gitlinks.
+  return async ({ result }) => {
+    const message = renderCommitMessage({
+      template: input.message ?? null,
+      stepExecutionId: input.stepExecutionId,
+      inputJson: input.inputJson,
+      result,
+    });
+
     const submoduleResult = await processSubmodules({
       gitCommitPushService: input.gitCommitPushService,
       submoduleService: input.submoduleService,
       workspacePath: input.workspacePath,
       workBranch: input.workBranch,
       message,
+      onPushFailure,
     });
 
     logWork("runtime", "Submodule work-branch summary", {
-      // Every changed submodule reuses this same superproject work-branch name.
       workBranch: input.workBranch,
       detected: submoduleResult.detected,
       changed:
@@ -239,15 +335,15 @@ export function buildCommitAndPushWorkBranch(input: {
       failed: submoduleResult.failedSubmodulePaths,
     });
 
-    // Exclude the gitlinks of submodules whose push FAILED so the superproject
-    // commit never records an unreachable SHA. Reuses the same pathspec-exclude
-    // mechanism as the Boboddy runtime files.
     const { committed } = await input.gitCommitPushService.commitAll({
       workspacePath: input.workspacePath,
       message,
       excludePaths: [
-        ...WORK_BRANCH_EXCLUDE_PATHS,
-        ...submoduleResult.failedSubmodulePaths,
+        ...new Set([
+          ...WORK_BRANCH_EXCLUDE_PATHS,
+          ...(input.extraExcludePaths ?? []),
+          ...submoduleResult.failedSubmodulePaths,
+        ]),
       ],
     });
     logWork("runtime", "Committed work branch changes", {
@@ -264,12 +360,19 @@ export function buildCommitAndPushWorkBranch(input: {
       logWork("runtime", "Pushed work branch", {
         workBranch: input.workBranch,
       });
+      return { pushed: true };
     } catch (error) {
-      // Locked decision: push failure does NOT fail the step.
+      if (onPushFailure === "fail") {
+        throw new WorkBranchPushError({
+          workBranch: input.workBranch,
+          cause: error,
+        });
+      }
       logWork("runtime", "Failed to push work branch (continuing)", {
         workBranch: input.workBranch,
         error: error instanceof Error ? error.message : String(error),
       });
+      return { pushed: false };
     }
   };
 }

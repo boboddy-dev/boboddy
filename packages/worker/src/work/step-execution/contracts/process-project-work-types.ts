@@ -1,4 +1,6 @@
 import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
+import type { AnyJsonValue } from "../../../common/contracts/json";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
 import type { RunCodeStepCommand } from "../application/execute-code-step";
@@ -28,6 +30,12 @@ export type ProcessProjectWorkInput = {
   sessionStartTimeoutMs?: number | undefined;
   secretValues?: readonly string[] | undefined;
   sourceBranch?: string | null | undefined;
+  /**
+   * The worker host's environment: `.boboddy/.env` over `process.env`. The
+   * source `Env.inherit` entries and prompt `{{env.X}}` tokens resolve from.
+   * Defaults to `process.env` when omitted.
+   */
+  workerEnv?: Readonly<Record<string, string | undefined>> | undefined;
 };
 
 /**
@@ -100,7 +108,8 @@ export type StepExecutionWorkerClient = {
     /**
      * The `boboddy/...` branch the agent committed to, and the branch it was
      * created off of. Sent as dedicated fields (NOT inside `resultJson`). Null
-     * for runs without a step key (e.g. no_workspace) or nothing was committed.
+     * for runs without a step key (e.g. no_workspace) or when pushing the work
+     * branch failed under `onPushFailure: "warn"`.
      */
     workBranch: string | null;
     createdFromBranch: string | null;
@@ -173,6 +182,13 @@ export type RemoteArtifactUploader = Pick<
   "createArtifactUploadUrl" | "recordArtifact"
 >;
 
+/**
+ * Outcome of committing and pushing a step's work branch. `pushed` is `false`
+ * when the push failed and `onPushFailure` is `"warn"`, so the branch is not on
+ * the remote and must not be reported as the step's work branch.
+ */
+export type CommitAndPushWorkBranchResult = { pushed: boolean };
+
 export type StepExecutionRuntimeEnvironment = {
   workspacePath: string;
   /**
@@ -201,10 +217,16 @@ export type StepExecutionRuntimeEnvironment = {
   /**
    * Commit the agent's changes to {@link workBranch} and push it. Invoked while
    * the workspace still exists and the step is still `running` (before cleanup /
-   * completion). Absent when there is no work branch (feature off / no_workspace).
-   * Implementations must not throw on push failure (findings remain valid).
+   * completion). Absent when there is no work branch (`readOnly` / `none` repo
+   * modes, no_workspace, or no step key). `result` is the validated findings the
+   * agent submitted, rendered into the commit message. Throws when the push
+   * fails and the step's `onPushFailure` is `"fail"`, which fails the step.
    */
-  commitAndPushWorkBranch?: (() => Promise<void>) | undefined;
+  commitAndPushWorkBranch?:
+    | ((ctx: {
+        result: AnyJsonValue;
+      }) => Promise<CommitAndPushWorkBranchResult>)
+    | undefined;
   devcontainerConfigPath: string;
   /**
    * Single runtime container id. With the single-container model OpenCode runs
@@ -285,6 +307,38 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
      * never sets this field, so it launches unaffected exactly as before.
      */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
+    /**
+     * The step's resolved environment variables (`resolveStepEnv`), injected
+     * into the OpenCode process: `docker exec -e` in the container, the spawn
+     * env on the host. Values are never logged; only the key names are.
+     */
+    stepEnv?: Readonly<Record<string, string>> | undefined;
+    /**
+     * The step's requested devcontainer config (repo-relative path), launched
+     * with no fallback; the launch fails before the container starts if it is
+     * missing. Null or absent auto-detects the canonical config. Ignored by the
+     * no-workspace orchestrator.
+     */
+    devcontainerConfigPath?: string | null | undefined;
+    /**
+     * The step's resolved repository access. `readOnly` checks out the base but
+     * creates no work branch and never commits or pushes; `readWrite` creates the
+     * work branch and commits and pushes per its `message` / `onPushFailure`.
+     * `none` is for steps with no clone: the no-workspace orchestrator accepts it
+     * and the workspace orchestrator rejects it.
+     */
+    repo: RepoConfig;
+    /**
+     * The step execution's additional input, the `{{input.…}}` source of a
+     * `readWrite` commit message template.
+     */
+    stepInputJson?: unknown;
+    /**
+     * Receives timing lines for the clone (mirror refresh, local clone,
+     * fallback) and the work-branch preparation at info level. Set from the
+     * step's tee logger so they reach the shipped step log.
+     */
+    logger?: ProjectWorkLogger | undefined;
   }): Promise<StepExecutionRuntimeEnvironment>;
 };
 

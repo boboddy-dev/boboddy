@@ -27,6 +27,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createUuidV7 } from "../../../common/contracts/uuid-v7";
+import { buildDockerEnvFlags } from "../../../runtime/runtime-service/infra/docker-env-flags";
 import { buildFindingsSubmissionPath } from "./process-project-work-findings";
 import { shQuote } from "./process-project-work-monitor-helpers";
 
@@ -55,6 +56,13 @@ export type ExecuteCodeStepInput = {
   };
   entrypointJson: CodeStepEntrypoint;
   inputJson: unknown;
+  /**
+   * The step's resolved environment variables (`resolveStepEnv`), visible to
+   * the entrypoint through `process.env`. May carry secrets: they travel as
+   * `docker exec -e` argv / the `execFile` env option and never enter
+   * `shellCommand`.
+   */
+  stepEnv?: Readonly<Record<string, string>> | undefined;
 };
 
 export type RunCodeStepCommandResult = {
@@ -72,15 +80,30 @@ export type RunCodeStepCommandResult = {
 export type RunCodeStepCommand = (input: {
   runtimeContainerId: string | null;
   shellCommand: string;
+  /** Extra environment for the runner process; see {@link ExecuteCodeStepInput.stepEnv}. */
+  env?: Readonly<Record<string, string>> | undefined;
 }) => Promise<RunCodeStepCommandResult>;
 
+function redactEnvValues(
+  text: string,
+  env: Readonly<Record<string, string>> | undefined,
+): string {
+  return Object.values(env ?? {}).reduce(
+    (redacted, value) =>
+      value.length > 0 ? redacted.replaceAll(value, "***") : redacted,
+    text,
+  );
+}
+
 /**
- * Default command runner: `docker exec <containerId> sh -lc "<cmd>"` for
- * workspace mode, a plain `sh -lc "<cmd>"` on the host for `no_workspace`
- * mode. Normalizes a non-zero exit into a result rather than throwing, since
- * `execFile` throws on non-zero exit but still carries `stdout`/`stderr` on
- * the thrown error — the same shape callers need to build a clear error
- * message either way.
+ * Default command runner: `docker exec [-e K=V ...] <containerId> sh -lc
+ * "<cmd>"` for workspace mode, a plain `sh -lc "<cmd>"` on the host (with
+ * `env` merged over `process.env`) for `no_workspace` mode. Normalizes a
+ * non-zero exit into a result rather than throwing, since `execFile` throws on
+ * non-zero exit but still carries `stdout`/`stderr` on the thrown error — the
+ * same shape callers need to build a clear error message either way. The
+ * thrown error's own message embeds the `docker exec -e K=V` argv, so `env`
+ * values are redacted from it before it can reach a failure payload.
  */
 export const defaultRunCodeStepCommand: RunCodeStepCommand = async (
   input,
@@ -90,11 +113,24 @@ export const defaultRunCodeStepCommand: RunCodeStepCommand = async (
       ? (["sh", ["-lc", input.shellCommand]] as const)
       : ([
           "docker",
-          ["exec", input.runtimeContainerId, "sh", "-lc", input.shellCommand],
+          [
+            "exec",
+            ...buildDockerEnvFlags(input.env ?? {}),
+            input.runtimeContainerId,
+            "sh",
+            "-lc",
+            input.shellCommand,
+          ],
         ] as const);
+  const hostEnv =
+    input.runtimeContainerId === null && input.env
+      ? { ...process.env, ...input.env }
+      : undefined;
 
   try {
-    const { stdout, stderr } = await execFileAsync(executable, [...args]);
+    const { stdout, stderr } = await execFileAsync(executable, [...args], {
+      ...(hostEnv ? { env: hostEnv } : {}),
+    });
     return { exitCode: 0, stdout, stderr };
   } catch (error) {
     const execError = error as {
@@ -106,7 +142,8 @@ export const defaultRunCodeStepCommand: RunCodeStepCommand = async (
     return {
       exitCode: typeof execError.code === "number" ? execError.code : 1,
       stdout: execError.stdout ?? "",
-      stderr: execError.stderr || execError.message,
+      stderr:
+        execError.stderr || redactEnvValues(execError.message, input.env),
     };
   }
 };
@@ -302,6 +339,7 @@ export async function executeCodeStep(
     const result = await runCommand({
       runtimeContainerId: input.environment.runtimeContainerId,
       shellCommand,
+      env: input.stepEnv,
     });
 
     if (result.exitCode !== 0) {

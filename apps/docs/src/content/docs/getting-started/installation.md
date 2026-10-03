@@ -20,7 +20,7 @@ pipeline run, you need:
 You do **not** need OpenCode installed. Boboddy downloads and pins its own
 runtime the first time it's needed — a one-time ~100 MB download.
 
-To run steps in **`workspace` mode** (agents that clone and work inside your
+To run steps on **`Runtime.devcontainer()`**, the default (agents that clone and work inside your
 repository), you additionally need:
 
 - **Docker** — used to build the per-execution dev container.
@@ -29,10 +29,10 @@ repository), you additionally need:
   [Setting up a Dev Container](/boboddy/guides/devcontainer/) to write one by hand.
 
 :::note
-Steps in **`no_workspace` mode** (like the ones in the starter pipeline) run
+Steps that use **`Runtime.host()`** (like the ones in the starter pipeline) run
 directly on the host and need neither Docker nor a dev container — that's what
 keeps a first pipeline run container-free until a step actually needs your
-repository. See [Execution mode](/boboddy/guides/steps/#execution-mode).
+repository. See [Runtime](/boboddy/guides/steps/#runtime).
 :::
 
 ## Install the CLI

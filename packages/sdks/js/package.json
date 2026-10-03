@@ -16,6 +16,9 @@
     "./opencode-mcp": "./src/opencode-mcp.ts",
     "./opencode-plugin": "./src/opencode-plugin.ts",
     "./health-checks": "./src/health-checks.ts",
+    "./env-vars": "./src/env-vars.ts",
+    "./devcontainer-config-path": "./src/devcontainer-config-path.ts",
+    "./repo-config": "./src/repo-config.ts",
     "./jsonc": "./src/jsonc.ts",
     "./boboddy-config-parser": "./src/boboddy-config-parser.ts"
   },

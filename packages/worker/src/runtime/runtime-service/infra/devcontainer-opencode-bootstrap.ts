@@ -7,6 +7,7 @@ import {
   logWorkError,
 } from "../../../work/step-execution/application/work-logger";
 import type { DevcontainerBindMount } from "./devcontainer-mount-injection";
+import { buildDockerEnvFlags } from "./docker-env-flags";
 import {
   patchDevcontainerAppPort,
   patchDevcontainerMounts,
@@ -145,6 +146,12 @@ export type StartInput = {
    * etc.) — produced by the RuntimeConfigMaterializer.
    */
   providerEnv: Record<string, string>;
+  /**
+   * The step's resolved environment variables (`resolveStepEnv`), appended as
+   * `-e` flags after {@link providerEnv}. May carry secrets: log key names
+   * only.
+   */
+  stepEnv?: Readonly<Record<string, string>> | undefined;
   /**
    * Boboddy's override config as a JSON string. Passed to the in-container
    * OpenCode as `OPENCODE_CONFIG_CONTENT` (precedence level #6 — inline),
@@ -399,9 +406,10 @@ export class DevcontainerOpencodeBootstrap {
       "-e",
       `BOBODDY_WORKSPACE_FOLDER=${input.workspaceFolder}`,
     ];
-    for (const [key, value] of Object.entries(input.providerEnv)) {
-      envFlags.push("-e", `${key}=${value}`);
-    }
+    envFlags.push(
+      ...buildDockerEnvFlags(input.providerEnv),
+      ...buildDockerEnvFlags(input.stepEnv ?? {}),
+    );
 
     const serveCommand =
       // Ensure the overlay HOME base + log dir exist so a missing overlay HOME
@@ -419,6 +427,7 @@ export class DevcontainerOpencodeBootstrap {
       launchWrapperPath: input.launchWrapperPath,
       workspaceFolder: input.workspaceFolder,
       providerEnvKeys: Object.keys(input.providerEnv).sort(),
+      stepEnvKeys: Object.keys(input.stepEnv ?? {}).sort(),
     });
 
     await execFileAsync("docker", [

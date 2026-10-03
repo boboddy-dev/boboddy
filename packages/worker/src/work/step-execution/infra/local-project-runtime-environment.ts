@@ -1,6 +1,6 @@
 import path from "node:path";
-import os from "node:os";
 import { buildOpencodeContext } from "@boboddy/opencode-plugin";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import {
   removeFindingsSubmissionFile,
   writeCurrentExecutionInfoFile,
@@ -9,41 +9,28 @@ import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp"
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 import type { UuidV7 } from "../../../common/contracts/uuid-v7";
 import type {
+  ProjectWorkLogger,
   StepExecutionRuntimeEnvironment,
   StepExecutionRuntimeEnvironmentOrchestrator,
 } from "../contracts/process-project-work-types";
-import type { DevcontainerLauncher } from "../../../runtime/runtime-service/application/devcontainer-launcher";
-import type { GitCloneService } from "../../../runtime/runtime-service/application/git-clone-service";
-import type { GitCommitPushService } from "../../../runtime/runtime-service/application/git-commit-push-service";
-import type { SubmoduleService } from "../../../runtime/runtime-service/application/submodule-service";
-import type { WorkspaceManager } from "../../../runtime/runtime-service/application/workspace-manager";
-import { DevcontainerCliLauncher } from "../../../runtime/runtime-service/infra/devcontainer-cli-launcher";
-import { GitCliCloneService } from "../../../runtime/runtime-service/infra/git-cli-clone-service";
-import { GitCliCommitPushService } from "../../../runtime/runtime-service/infra/git-cli-commit-push-service";
-import { GitCliSubmoduleService } from "../../../runtime/runtime-service/infra/git-cli-submodule-service";
-import { LocalWorkspaceManager } from "../../../runtime/runtime-service/infra/local-workspace-manager";
-import { loadProjectConfig } from "../../../project/project-config/infra/fs-project-config-repo";
-import { resolveConfiguredBaseWorkBranch } from "../application/process-claimed-step-execution-helpers";
-import { OpencodeRuntimePayloadProvisioner } from "../../../runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
-import { DevcontainerOpencodeBootstrap } from "../../../runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
+import { startStopwatch } from "../../../lib/elapsed";
 import { logWork } from "../application/work-logger";
 import { noopLogger, type Logger } from "@boboddy/observability/logging/host";
 import { noopReporter, type WorkReporter } from "../contracts/work-reporter";
-import type { ProviderAccessResolver } from "../contracts/agent-runtime/provider-access-resolver";
-import type { RuntimeConfigMaterializer } from "../contracts/agent-runtime/runtime-config-materializer";
-import { DirectProviderAccessResolver } from "./provider-access/direct-provider-access-resolver";
-import { SessionRuntimeConfigMaterializer } from "./provider-access/session-runtime-config-materializer";
 import {
   cleanupEnvironment,
   inspectContainerHealthStatus,
   patchDevcontainerEnv,
+  resolveDevcontainerConfig,
   resolveDevcontainerWorkspaceFolder,
 } from "./local-project-runtime-environment-helpers";
-import {
-  buildCommitAndPushWorkBranch,
-  prepareWorkBranch,
-} from "./work-branch-manager";
+import { setUpLaunchBranches } from "./launch-branch-setup";
+import { buildCommitAndPushWorkBranch } from "./work-branch-manager";
 import { buildFakeProviderConfig } from "./fake-ai";
+import {
+  buildLocalProjectRuntimeDeps,
+  type LocalProjectRuntimeEnvironmentDeps,
+} from "./local-project-runtime-environment-deps";
 
 export type LocalProjectRuntimeEnvironment = StepExecutionRuntimeEnvironment;
 
@@ -63,31 +50,10 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
   constructor(
     private readonly logger: Logger = noopLogger,
     private readonly localEnvVars: Record<string, string> = {},
-    private readonly deps: {
-      workspaceManager: WorkspaceManager;
-      gitCloneService: GitCloneService;
-      gitCommitPushService: GitCommitPushService;
-      submoduleService: SubmoduleService;
-      devcontainerLauncher: DevcontainerLauncher;
-      // Boboddy-managed OpenCode runtime payload + in-devcontainer bootstrap +
-      // provider-access resolution/materialization.
-      payloadProvisioner: OpencodeRuntimePayloadProvisioner;
-      opencodeBootstrap: DevcontainerOpencodeBootstrap;
-      providerAccessResolver: ProviderAccessResolver;
-      runtimeConfigMaterializer: RuntimeConfigMaterializer;
-    } = {
-      workspaceManager: new LocalWorkspaceManager(),
-      gitCloneService: new GitCliCloneService(logger),
-      gitCommitPushService: new GitCliCommitPushService(logger),
-      submoduleService: new GitCliSubmoduleService(logger),
-      devcontainerLauncher: new DevcontainerCliLauncher(),
-      payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
-      opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
-      providerAccessResolver: new DirectProviderAccessResolver({ logger }),
-      runtimeConfigMaterializer: new SessionRuntimeConfigMaterializer({
-        outputBaseDir: path.join(os.tmpdir(), "boboddy-provider-config"),
-      }),
-    },
+    private readonly deps: LocalProjectRuntimeEnvironmentDeps = buildLocalProjectRuntimeDeps(
+      logger,
+      localEnvVars,
+    ),
   ) {}
 
   async launch(input: {
@@ -137,7 +103,26 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
      * never sets this field, so it launches unaffected exactly as before.
      */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s `stepEnv`. */
+    stepEnv?: Readonly<Record<string, string>> | undefined;
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s `devcontainerConfigPath`. */
+    devcontainerConfigPath?: string | null | undefined;
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s `repo`. */
+    repo: RepoConfig;
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s `stepInputJson`. */
+    stepInputJson?: unknown;
+    /**
+     * Receives the clone and work-branch timing lines at info level. Wired to
+     * the step's tee logger so they ship in the durable log feed.
+     */
+    logger?: ProjectWorkLogger | undefined;
   }): Promise<LocalProjectRuntimeEnvironment> {
+    if (input.repo.mode === "none") {
+      throw new Error(
+        'A workspace step cannot use repo mode "none": it clones the repository ' +
+          "to read its devcontainer config. Use readOnly or readWrite.",
+      );
+    }
     const reporter = input.reporter ?? noopReporter;
     const stepExecutionId =
       input.stepExecutionId ?? input.currentExecutionInfo.stepExecutionId;
@@ -166,62 +151,34 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       });
 
       reporter.event({ type: "step:runtime-cloning", stepExecutionId });
+      const elapsedClone = startStopwatch();
       const cloneResult = await this.deps.gitCloneService.cloneRepository({
         gitUrl: input.gitUrl,
         workspacePath,
+        logger: input.logger,
       });
+      input.logger?.log("runtime", `repository cloned in ${elapsedClone()}`);
       logWork("runtime", "Repository cloned into workspace", {
         sessionId: input.sessionId,
         workspacePath,
         resolvedBranch: cloneResult.resolvedBranch,
       });
 
-      // Step 1b: Determine the base and create the work branch off it right
-      // after clone. Work-branch creation is skipped (fields null) only when
-      // there is no step key — but the base-branch checkout below still runs
-      // in that case (e.g. a dry run) so the devcontainer config resolved
-      // later reflects the right branch.
-      let workBranch: string | null = null;
-      let createdFromBranch: string | null = null;
-      if (input.stepKey) {
-        // The repo is cloned, so its `.boboddy/boboddy.jsonc` is on disk. Read
-        // the optional `branchPrefix` from it; a missing/invalid value falls
-        // back to the default `boboddy` prefix inside prepareWorkBranch.
-        const projectConfig = await loadProjectConfig(workspacePath);
-        // Resolve the base branch this step is created off of. Precedence:
-        //   1. server-handed baseWorkBranch (predecessor step's work branch,
-        //      later steps only) — always wins, untouched by sourceBranch.
-        //   2. sourceBranch (the CLI's resolved/overridden current branch at
-        //      `boboddy work` invocation) — first step only.
-        //   3. repo-local configured base (env over jsonc) — first step only.
-        //   4. null => create off the cloned default branch.
-        const baseWorkBranch =
-          input.baseWorkBranch ??
-          input.sourceBranch ??
-          resolveConfiguredBaseWorkBranch({
-            localEnvVars: this.localEnvVars,
-            configuredBaseWorkBranch: projectConfig?.baseWorkBranch ?? null,
-          });
-        const prepared = await prepareWorkBranch({
+      // Step 1b: Check out the base and, for a readWrite step, create the work
+      // branch off it right after clone.
+      const { workBranch, createdFromBranch, devcontainerLookupBranch } =
+        await setUpLaunchBranches({
           gitCommitPushService: this.deps.gitCommitPushService,
           workspacePath,
           resolvedBranch: cloneResult.resolvedBranch,
-          baseWorkBranch,
+          repo: input.repo,
           stepKey: input.stepKey,
           stepExecutionId: input.currentExecutionInfo.stepExecutionId,
-          branchPrefix: projectConfig?.branchPrefix ?? null,
+          baseWorkBranch: input.baseWorkBranch,
+          sourceBranch: input.sourceBranch,
+          localEnvVars: this.localEnvVars,
+          logger: input.logger,
         });
-        workBranch = prepared.workBranch;
-        createdFromBranch = prepared.createdFromBranch;
-      } else if (!input.baseWorkBranch && input.sourceBranch) {
-        // No step key (e.g. a dry-run rehearsal): still check out the CLI's
-        // resolved source branch so the devcontainer config below reflects it,
-        // even though there is no work branch to create.
-        await this.deps.gitCommitPushService.checkoutBase({
-          workspacePath,
-          baseWorkBranch: input.sourceBranch,
-        });
-      }
 
       const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(
         workspacePath,
@@ -241,10 +198,12 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
       await removeFindingsSubmissionFile(workspacePath);
 
       // Step 2: Resolve the cloned devcontainer config + its workspace folder.
-      const devcontainerConfigPath =
-        await this.deps.devcontainerLauncher.resolveConfigPath({
-          workspacePath,
-        });
+      const devcontainerConfigPath = await resolveDevcontainerConfig({
+        devcontainerLauncher: this.deps.devcontainerLauncher,
+        workspacePath,
+        requestedConfigPath: input.devcontainerConfigPath,
+        lookupBranch: devcontainerLookupBranch,
+      });
       const devcontainerWorkspaceFolder =
         await resolveDevcontainerWorkspaceFolder({
           workspacePath,
@@ -360,6 +319,9 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         requestedByUserId: input.requestedByUserId,
         workspacePath,
         devcontainerConfigPath,
+        ...(this.deps.gitCacheDir
+          ? { hostEnv: { BOBODDY_GIT_CACHE_DIR: this.deps.gitCacheDir } }
+          : {}),
         onProgress: ({ kind, phase, level }) => {
           // Presentation: rolling live window in the terminal.
           reporter.event({
@@ -436,6 +398,7 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         hostPort: mountPlan.hostPort,
         launchWrapperPath: payload.containerLaunchWrapperPath,
         providerEnv: materialized.env,
+        stepEnv: input.stepEnv,
         opencodeConfigContent,
       });
       opencodeStarted = true;
@@ -470,15 +433,20 @@ export class DefaultLocalProjectRuntimeEnvironmentOrchestrator implements LocalP
         resolvedBranch: cloneResult.resolvedBranch,
         workBranch,
         createdFromBranch,
-        commitAndPushWorkBranch: capturedWorkBranch
-          ? buildCommitAndPushWorkBranch({
-              gitCommitPushService: this.deps.gitCommitPushService,
-              submoduleService: this.deps.submoduleService,
-              workspacePath: capturedWorkspacePath,
-              workBranch: capturedWorkBranch,
-              stepExecutionId: input.currentExecutionInfo.stepExecutionId,
-            })
-          : undefined,
+        commitAndPushWorkBranch:
+          capturedWorkBranch && input.repo.mode === "readWrite"
+            ? buildCommitAndPushWorkBranch({
+                gitCommitPushService: this.deps.gitCommitPushService,
+                submoduleService: this.deps.submoduleService,
+                workspacePath: capturedWorkspacePath,
+                workBranch: capturedWorkBranch,
+                stepExecutionId: input.currentExecutionInfo.stepExecutionId,
+                message: input.repo.message,
+                inputJson: input.stepInputJson,
+                onPushFailure: input.repo.onPushFailure,
+                extraExcludePaths: [devcontainerConfigPath],
+              })
+            : undefined,
         devcontainerConfigPath,
         // Single runtime container id: the devcontainer, which also hosts
         // OpenCode.

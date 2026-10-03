@@ -3,6 +3,13 @@ import type { AnyJsonObject } from "../../../common/contracts/json";
 
 export type ResolveDevcontainerConfigInput = {
   workspacePath: string;
+  /**
+   * The step's explicitly requested config: a repo-relative path to a
+   * `devcontainer.json`. When set, that exact file is used with no fallback
+   * search, and resolution fails if it is invalid or missing. When null or
+   * absent, the launcher auto-detects the canonical config.
+   */
+  configPath?: string | null | undefined;
 };
 
 /**
@@ -39,6 +46,13 @@ export type LaunchDevcontainerInput = {
   requestedByUserId: UuidV7;
   workspacePath: string;
   devcontainerConfigPath: string;
+  /**
+   * Extra environment variables for the devcontainer CLI process itself,
+   * merged over `process.env`. This is the host-side environment that lifecycle
+   * commands such as `initializeCommand` run in, unlike `containerEnv`, which
+   * only reaches the container.
+   */
+  hostEnv?: Readonly<Record<string, string>> | undefined;
   /**
    * Optional callback invoked as the CLI streams progress. Lets the caller
    * update a spinner/log with the current phase. Best-effort and non-fatal:

@@ -23,7 +23,13 @@ const CLONE_LOW_SPEED_TIME_SECONDS = 60;
 const CLONE_LOW_SPEED_LIMIT_BYTES_PER_SEC = 1000;
 const CLONE_TIMEOUT_MS = 10 * 60_000;
 
-async function resolveBranchName(workspacePath: string): Promise<string> {
+/**
+ * Resolves the branch a fresh clone has checked out. Shared with the cached
+ * clone so both report the same `resolvedBranch` for the same repository.
+ */
+export async function resolveBranchName(
+  workspacePath: string,
+): Promise<string> {
   const commands = [
     ["-C", workspacePath, "branch", "--show-current"],
     ["-C", workspacePath, "symbolic-ref", "--quiet", "--short", "HEAD"],

@@ -57,6 +57,8 @@ export async function launchRuntimeEnvironment(
       | undefined;
     /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s field of the same name. */
     fakeAiProviderOverride?: { baseUrl: string } | undefined;
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s field of the same name. */
+    stepEnv?: Readonly<Record<string, string>> | undefined;
   },
 ) {
   const orchestrator = resolveRuntimeEnvironmentOrchestrator(
@@ -90,5 +92,11 @@ export async function launchRuntimeEnvironment(
     stepExecutionId: input.stepExecutionId,
     onDevcontainerLogLine: input.onDevcontainerLogLine,
     fakeAiProviderOverride: input.fakeAiProviderOverride,
+    stepEnv: input.stepEnv,
+    devcontainerConfigPath:
+      input.workerContext.stepDefinition.devcontainerConfigPath,
+    repo: input.workerContext.stepDefinition.repo,
+    stepInputJson: input.workerContext.stepExecution.inputJson,
+    logger: deps.logger,
   });
 }

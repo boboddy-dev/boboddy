@@ -188,10 +188,10 @@ node_modules/
 
 // The starter template doubles as the tutorial: a complete two-step pipeline
 // showing every core concept (steps, schemas, signals, bindings, states) in
-// the file users will edit anyway. Both steps run in "no_workspace" mode so
+// the file users will edit anyway. Both steps run on the host runtime so
 // the pipeline executes end to end without Docker or a devcontainer.
 export const STARTER_PIPELINE_FILE = `import { z } from "zod";
-import { defineStep } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Runtime } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Your first Boboddy pipeline: two AI steps connected by a signal.
@@ -200,7 +200,7 @@ import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 //                    │
 //                    └──(confidence < 7)──▶ blocked for human review
 //
-// Both steps run in "no_workspace" mode, so this pipeline executes without a
+// Both steps run on the host runtime, so this pipeline executes without a
 // devcontainer, Docker, or a cloned repository.
 //
 // Try it end to end:
@@ -216,10 +216,11 @@ export const triageStep = defineStep({
   name: "Triage",
   description: "Diagnose a work item and rate confidence in the diagnosis.",
 
-  // "no_workspace" steps run without cloning your repository — ideal for
-  // analysis and planning. Switch to "workspace" (the default) when the agent
-  // needs your code; that requires a .devcontainer in your repo.
-  executionMode: "no_workspace",
+  // Runtime.host() runs the step without cloning your repository — ideal for
+  // analysis and planning. Drop the runtime (the default is
+  // Runtime.devcontainer()) when the agent needs your code; that requires a
+  // .devcontainer in your repo.
+  environment: { runtime: Runtime.host() },
 
   // The step's full input JSON is shown to the agent automatically.
   // Interpolating a field (like \${input.title} below) is optional and only
@@ -264,7 +265,7 @@ export const writeFixPlanStep = defineStep({
   key: "write-fix-plan",
   name: "Write Fix Plan",
   description: "Turn a triage summary into a concrete, actionable fix plan.",
-  executionMode: "no_workspace",
+  environment: { runtime: Runtime.host() },
   agentPrompt:
     "Using the triage summary in your input, write a short, concrete " +
     "step-by-step plan to fix the issue.",

@@ -167,5 +167,5 @@ export async function runClosure(
     workBranch,
     stepExecutionId: "step-exec-1",
   });
-  await closure();
+  await closure({ result: {} });
 }

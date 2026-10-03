@@ -8,6 +8,7 @@ import type {
   StepDefinitionSpec,
   TypedStepDefinitionSpec,
 } from "./define-step";
+import { compileEnvironment, type CodeStepEnvironment } from "./runtime";
 import type { AnyStepFeature, FeatureSignalKeys } from "./step-features";
 
 /**
@@ -53,7 +54,10 @@ export type DefineCodeStepInput<
    * `$boboddy_notifications_v1` field (e.g. via `Notify.inApp(...)`)
    * without a type error.
    */
-  fn: CodeStepFn<TInput["_output"], EffectiveResult<TResult["_output"], TFeatures>>;
+  fn: CodeStepFn<
+    TInput["_output"],
+    EffectiveResult<TResult["_output"], TFeatures>
+  >;
   inputSchema?: TInput;
   resultSchema?: TResult;
   signals?: readonly CodeStepSignalSpec[];
@@ -63,6 +67,21 @@ export type DefineCodeStepInput<
    * to on a `kind: "code"` step).
    */
   features?: TFeatures;
+  /**
+   * Where the step's runner executes (`runtime`) and the environment variables
+   * it receives (`vars`). The function reads the variables back through
+   * `process.env`; unlike `defineStep()`, there is no typed `env` argument to
+   * `fn`. The container the runtime selects must provide a JS runtime for the
+   * runner script.
+   *
+   * `Runtime.host()` is not supported: a code step runs repo code, so it needs
+   * a workspace, and the host runtime has none. It is a type error here and
+   * `validateDefinitionSpecs` rejects it for hand-built specs.
+   *
+   * `repo` follows the same rules as for `defineStep()`; `result` is typed from
+   * `resultSchema`.
+   */
+  environment?: CodeStepEnvironment<TInput["_output"], TResult["_output"]>;
   status?: "draft" | "active";
 };
 
@@ -105,6 +124,9 @@ export function codeStep<
 
   const featureSignals = features.flatMap((f) => f._signals);
 
+  const { executionMode, devcontainerConfigPath, envJson, repo } =
+    compileEnvironment(config.environment, { stepKey: config.key });
+
   const spec: StepDefinitionSpec = {
     key: config.key,
     name: config.name,
@@ -112,6 +134,8 @@ export function codeStep<
     version: config.version ?? 1,
     kind: "code",
     status: config.status ?? "active",
+    executionMode,
+    devcontainerConfigPath,
     prompt: null,
     inputSchemaJson: config.inputSchema
       ? toJSONSchema(config.inputSchema as unknown as $ZodType)
@@ -138,6 +162,8 @@ export function codeStep<
     opencodeMcpJson: null,
     opencodePluginJson: null,
     healthChecksJson: null,
+    envJson,
+    ...(repo !== undefined ? { repo } : {}),
     entrypoint: { fn: config.fn },
   };
 

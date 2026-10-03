@@ -3,6 +3,7 @@ import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AnyJsonValue } from "../../../common/contracts/json";
 import type {
+  CommitAndPushWorkBranchResult,
   ProcessProjectWorkDeps,
   StartedClaimedExecution,
 } from "../contracts/process-project-work-types";
@@ -10,10 +11,8 @@ import type {
 const STEP_FINDINGS_SUBMISSION_RELATIVE_PATH =
   ".boboddy/step-findings-submission.json";
 const CURRENT_EXECUTION_DIRECTORY_RELATIVE_PATH = ".boboddy/current-execution";
-const CURRENT_EXECUTION_INFO_RELATIVE_PATH =
-  `${CURRENT_EXECUTION_DIRECTORY_RELATIVE_PATH}/execution.json`;
-const CURRENT_EXECUTION_GITIGNORE_RELATIVE_PATH =
-  `${CURRENT_EXECUTION_DIRECTORY_RELATIVE_PATH}/.gitignore`;
+const CURRENT_EXECUTION_INFO_RELATIVE_PATH = `${CURRENT_EXECUTION_DIRECTORY_RELATIVE_PATH}/execution.json`;
+const CURRENT_EXECUTION_GITIGNORE_RELATIVE_PATH = `${CURRENT_EXECUTION_DIRECTORY_RELATIVE_PATH}/.gitignore`;
 const CURRENT_EXECUTION_GITIGNORE_CONTENT = "*\n.*\n!.gitignore\n";
 
 export type CurrentExecutionInfo = {
@@ -178,12 +177,22 @@ export type TryPersistAgentFindingsOptions = {
    * (which transitions the step out of "running"). Used to collect step
    * artifacts while the artifact API still accepts uploads for a running step.
    *
+   * Receives the validated `findingsJson`, which the work-branch commit renders
+   * into its message.
+   *
    * The callback owns its own best-effort/error-swallowing semantics; this
    * function calls it directly and does not wrap it, so a thrown error here
    * WILL propagate and abort completion. `collectStepArtifacts` is non-throwing
-   * by design, so in normal operation this never aborts completion.
+   * by design; a failed work-branch push under `onPushFailure: "fail"` throws
+   * on purpose, which fails the step instead of completing it.
+   *
+   * May resolve the work-branch push outcome. `{ pushed: false }` (a failed
+   * push under `"warn"`) makes completion report no `workBranch`; resolving
+   * nothing means no push was attempted.
    */
-  onBeforeComplete?: () => Promise<void>;
+  onBeforeComplete?: (ctx: {
+    findingsJson: AnyJsonValue;
+  }) => Promise<CommitAndPushWorkBranchResult | undefined>;
 };
 
 export async function tryPersistAgentFindings(
@@ -203,7 +212,9 @@ export async function tryPersistAgentFindings(
     startedExecution.environment.workspacePath,
   );
 
-  if (currentExecutionInfo.stepExecutionId !== startedExecution.stepExecutionId) {
+  if (
+    currentExecutionInfo.stepExecutionId !== startedExecution.stepExecutionId
+  ) {
     throw new Error(
       `Current execution metadata stepExecutionId ${currentExecutionInfo.stepExecutionId} does not match running step execution ${startedExecution.stepExecutionId}`,
     );
@@ -222,7 +233,8 @@ export async function tryPersistAgentFindings(
   // Collect artifacts (best-effort) while the step is still "running", i.e.
   // before completion transitions it out of "running" and the artifact API
   // starts rejecting uploads with STEP_EXECUTION_OWNERSHIP_CONFLICT.
-  await options?.onBeforeComplete?.();
+  const beforeComplete = await options?.onBeforeComplete?.({ findingsJson });
+  const pushFailed = beforeComplete?.pushed === false;
 
   await deps.workerClient.completeStepExecution({
     stepExecutionId: startedExecution.stepExecutionId,
@@ -230,9 +242,11 @@ export async function tryPersistAgentFindings(
     resultJson: findingsJson,
     errorJson: null,
     // Dedicated fields (NOT inside resultJson): the work branch the agent
-    // committed to and the branch it was created off of. Null for
-    // no_workspace runs or runs without a step key.
-    workBranch: startedExecution.environment.workBranch,
+    // committed to and the branch it was created off of. The work branch is
+    // null for no_workspace runs, runs without a step key, and when its push
+    // failed under onPushFailure "warn" (the next step would otherwise be
+    // handed a base that is not on the remote).
+    workBranch: pushFailed ? null : startedExecution.environment.workBranch,
     createdFromBranch: startedExecution.environment.createdFromBranch,
   });
 

@@ -94,6 +94,7 @@ export function scheduleClaimedStepExecutionJob(
           claim,
           leaseDurationSeconds: input.leaseDurationSeconds,
           sourceBranch: input.sourceBranch,
+          workerEnv: input.workerEnv,
         },
         streamingDeps,
         deps.workerClient,

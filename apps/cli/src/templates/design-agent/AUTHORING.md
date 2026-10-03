@@ -25,7 +25,7 @@ Imports:
 
 ```ts
 import { z } from "zod";
-import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Env, Features, Runtime } from "@boboddy/sdk/definitions/steps";
 import {
   definePipeline,
   defaultPipelineAssignment,
@@ -40,7 +40,7 @@ result, and the signals lifted out of that result.
 
 ```ts
 import { z } from "zod";
-import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Env, Features, Runtime } from "@boboddy/sdk/definitions/steps";
 
 export const investigate = defineStep({
   key: "investigate", // stable identity; never reuse for a different job
@@ -48,7 +48,10 @@ export const investigate = defineStep({
   description: "Find the root cause from logs and data.",
   status: "active",
   version: 1, // optional, defaults to 1; bump for a breaking redefinition
-  executionMode: "no_workspace", // "workspace" (default) | "no_workspace"
+  environment: {
+    runtime: Runtime.host(), // default: Runtime.devcontainer()
+    vars: () => ({ READONLY_DB_URL: Env.inherit() }),
+  },
 
   agentPrompt: ({ input, env }) => `
 Investigate the reported problem, scoped to ${input.accountRef}.
@@ -105,9 +108,30 @@ The read-only database is at ${env.READONLY_DB_URL}.
 - **`features`** — `Features.notifications()` adds the `$boboddy_notifications_v1`
   result field, the matching prompt section, and the signal. Use it instead of
   hand-writing a notification schema.
-- **`executionMode`** — `"workspace"` (default) clones the repo and runs inside the
-  project devcontainer. `"no_workspace"` runs with no repo and no Docker; use it
-  for classification, scoring, and any investigation that only needs MCP tools.
+- **`environment`** — `{ runtime?, vars?, repo? }`, how the step runs. Declare `vars`
+  before `agentPrompt` so its keys are typed into the prompt's `env`.
+  - `runtime`: `Runtime.devcontainer()` (default) clones the repo and runs inside
+    the project devcontainer. `Runtime.devcontainer({ config: ".devcontainer/alt/devcontainer.json" })`
+    launches that repo-relative file instead (full path, basename
+    `devcontainer.json`; there is no fallback if it is missing).
+    `Runtime.host()` runs with no repo and no Docker; use it for classification,
+    scoring, and any investigation that only needs MCP tools.
+  - `vars`: `({ input }) => ({ NAME: value })`, the env vars injected into the
+    step. A plain string is a value, `Env.inherit()` reads the worker's own
+    variable of that name, and `Env.value({ value, secret: true })` marks a
+    secret. Never write a secret value into a step file.
+  - `repo`: what the step does to the repository, from the `Repo` export of
+    `@boboddy/sdk/definitions/steps`. A devcontainer step defaults to
+    `Repo.readWrite()` (work branch, commit and push when the step succeeds; a
+    failed push fails the step). `Repo.readOnly()` still clones and checks out the
+    base but creates no branch, commits and pushes nothing; use it for analysis,
+    triage and review steps that only read code. `Repo.readWrite({ message,
+    onPushFailure })` sets the commit message and, with `onPushFailure: "warn"`,
+    lets a failed push be logged instead of failing the step. A message may
+    use `input` and `result`, so it is a function:
+    `repo: ({ result }) => Repo.readWrite({ message: \`fix: ${result.summary}\` })`.
+    `Runtime.host()` has no clone, so it takes only `Repo.none()`, which is its
+    default and never needs writing. Omit `repo` unless a step needs one of these.
 - **`mcpServers`** — per-step MCP servers **beyond what the project already
   configures**. Check `.opencode/opencode.json` / `.opencode/opencode.jsonc`
   and `.opencode/tools/` at the repository root first (phase 1 of the
@@ -542,10 +566,10 @@ the prompt to name this repository's test framework and conventions explicitly.
 
 **Choose when** reachability = a read-only database, warehouse, log store, or
 observability MCP — and the report is about wrong, missing, or stale data rather
-than broken code paths. `executionMode: "no_workspace"`, because no repository
+than broken code paths. `Runtime.host()`, because no repository
 is needed to run queries.
 
-Shape: `investigate (no_workspace, data MCP)` → blocks unless
+Shape: `investigate (host runtime, data MCP)` → blocks unless
 `confidence >= 0.8 && identifiedRequiredChanges == true`.
 
 Note the split between `suspectedRootCause` (a theory) and
@@ -557,9 +581,9 @@ the queries with one the user actually has. To hand the fix off, replace the
 ### D. Triage / intake quality scoring
 
 **Choose when** reachability = nothing. Needs no repo, no app, no data — only
-the work item's title and description. `executionMode: "no_workspace"`.
+the work item's title and description. `Runtime.host()`.
 
-Shape: `score (no_workspace)` → blocks unless the average of the sub-scores
+Shape: `score (host runtime)` → blocks unless the average of the sub-scores
 clears the bar.
 
 Independent dimensions are scored separately and combined with
@@ -573,7 +597,7 @@ reports should contain.
 **Choose when** two or more target pipelines already exist. A router with one
 target is pointless — build the target first.
 
-Shape: `classify (no_workspace)` → blocks unless confident → a `choice` state
+Shape: `classify (host runtime)` → blocks unless confident → a `choice` state
 picks one of the target pipelines by the classified `routeKey` → a tiny
 `dispatch` state per target that does no real work of its own, whose only job
 is to carry that target's `next: { routeToPipeline: ... }` (a `choice` branch

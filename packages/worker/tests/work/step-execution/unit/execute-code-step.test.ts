@@ -23,6 +23,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  defaultRunCodeStepCommand,
   executeCodeStep,
   type RunCodeStepCommand,
 } from "../../../../src/work/step-execution/application/execute-code-step";
@@ -115,6 +116,63 @@ describe("executeCodeStep", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.runtimeContainerId).toBeNull();
+  });
+
+  test("passes stepEnv to the command runner as env, never inside the shell command", async () => {
+    const calls: Array<Parameters<RunCodeStepCommand>[0]> = [];
+    const runCommand: RunCodeStepCommand = (input) => {
+      calls.push(input);
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    };
+
+    for (const runtimeContainerId of ["container-123", null]) {
+      await executeCodeStep(
+        {
+          environment: {
+            workspacePath,
+            workspaceFolder: "/workspaces/repo",
+            runtimeContainerId,
+          },
+          entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+          inputJson: null,
+          stepEnv: { ACCOUNT_ID: "acct-1", WAREHOUSE_TOKEN: "wh-token-value" },
+        },
+        { runCommand },
+      );
+    }
+
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.env).toEqual({
+        ACCOUNT_ID: "acct-1",
+        WAREHOUSE_TOKEN: "wh-token-value",
+      });
+      expect(call.shellCommand).not.toContain("wh-token-value");
+      expect(call.shellCommand).not.toContain("acct-1");
+    }
+  });
+
+  test("omits env when the step declares none", async () => {
+    const calls: Array<Parameters<RunCodeStepCommand>[0]> = [];
+    const runCommand: RunCodeStepCommand = (input) => {
+      calls.push(input);
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    };
+
+    await executeCodeStep(
+      {
+        environment: {
+          workspacePath,
+          workspaceFolder: workspacePath,
+          runtimeContainerId: null,
+        },
+        entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+        inputJson: null,
+      },
+      { runCommand },
+    );
+
+    expect(calls[0]?.env).toBeUndefined();
   });
 
   test("writes the runner script + input file to the host workspace path before dispatch, and removes them after success", async () => {
@@ -280,5 +338,32 @@ describe("executeCodeStep", () => {
       path.join(workspacePath, ".boboddy", "tmp"),
     );
     expect(remainingTmpEntries).toHaveLength(0);
+  });
+});
+
+describe("defaultRunCodeStepCommand", () => {
+  test("exposes env to a host process, merged over the worker's own env", async () => {
+    process.env["STEP_ENV_AMBIENT_PROBE"] = "from-worker";
+    try {
+      const result = await defaultRunCodeStepCommand({
+        runtimeContainerId: null,
+        shellCommand: 'printf "%s|%s" "$STEP_ENV_PROBE" "$STEP_ENV_AMBIENT_PROBE"',
+        env: { STEP_ENV_PROBE: "from-step" },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("from-step|from-worker");
+    } finally {
+      delete process.env["STEP_ENV_AMBIENT_PROBE"];
+    }
+  });
+
+  test("leaves the host env untouched when no env is given", async () => {
+    const result = await defaultRunCodeStepCommand({
+      runtimeContainerId: null,
+      shellCommand: 'printf "%s" "${STEP_ENV_PROBE:-unset}"',
+    });
+
+    expect(result.stdout).toBe("unset");
   });
 });

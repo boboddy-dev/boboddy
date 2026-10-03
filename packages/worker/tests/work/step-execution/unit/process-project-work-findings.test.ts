@@ -2,6 +2,8 @@ import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test, vi } from "bun:test";
+import type { AnyJsonValue } from "../../../../src/common/contracts/json";
+import { captureRejection } from "../../../support/capture-rejection";
 import { parseUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import {
   buildCurrentExecutionInfoPath,
@@ -11,16 +13,21 @@ import {
   writeCurrentExecutionInfoFile,
 } from "../../../../src/work/step-execution/application/process-project-work-findings";
 import type {
+  CommitAndPushWorkBranchResult,
   ProcessProjectWorkDeps,
   StartedClaimedExecution,
 } from "../../../../src/work/step-execution/contracts/process-project-work-types";
+
+type CommitAndPushWorkBranch = (ctx: {
+  result: AnyJsonValue;
+}) => Promise<CommitAndPushWorkBranchResult>;
 
 function createStartedExecution(
   workspacePath: string,
   overrides?: {
     workBranch?: string | null;
     createdFromBranch?: string | null;
-    commitAndPushWorkBranch?: (() => Promise<void>) | undefined;
+    commitAndPushWorkBranch?: CommitAndPushWorkBranch | undefined;
   },
 ): StartedClaimedExecution {
   const started = createBaseStartedExecution(workspacePath);
@@ -61,6 +68,26 @@ function createBaseStartedExecution(
       cleanup: () => Promise.resolve(),
     },
   };
+}
+
+async function writeSummarySubmission(
+  startedExecution: StartedClaimedExecution,
+) {
+  const { workspacePath } = startedExecution.environment;
+  await writeCurrentExecutionInfoFile(workspacePath, {
+    stepExecutionId: startedExecution.stepExecutionId,
+    resultSchemaJson: {
+      type: "object",
+      required: ["summary"],
+      additionalProperties: false,
+      properties: { summary: { type: "string" } },
+    },
+  });
+  await writeFile(
+    buildFindingsSubmissionPath(workspacePath),
+    `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function createDeps(
@@ -145,16 +172,19 @@ describe("processProjectWork findings persistence", () => {
         path.join(os.tmpdir(), "boboddy-current-execution-"),
       );
 
-      const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(workspacePath, {
-        stepExecutionId: "step-execution-id",
-        resultSchemaJson: {
-          type: "object",
-          required: ["summary"],
-          properties: {
-            summary: { type: "string" },
+      const currentExecutionInfoPath = await writeCurrentExecutionInfoFile(
+        workspacePath,
+        {
+          stepExecutionId: "step-execution-id",
+          resultSchemaJson: {
+            type: "object",
+            required: ["summary"],
+            properties: {
+              summary: { type: "string" },
+            },
           },
         },
-      });
+      );
 
       expect(currentExecutionInfoPath).toBe(
         buildCurrentExecutionInfoPath(workspacePath),
@@ -273,9 +303,9 @@ describe("processProjectWork findings persistence", () => {
         path.join(os.tmpdir(), "boboddy-findings-branch-"),
       );
       const order: string[] = [];
-      const commitAndPushWorkBranch = vi.fn(() => {
+      const commitAndPushWorkBranch = vi.fn<CommitAndPushWorkBranch>(() => {
         order.push("commitAndPush");
-        return Promise.resolve();
+        return Promise.resolve({ pushed: true });
       });
       const startedExecution = createStartedExecution(workspacePath, {
         workBranch: "boboddy/step-abc",
@@ -286,29 +316,16 @@ describe("processProjectWork findings persistence", () => {
         order.push("complete");
         return Promise.resolve(undefined);
       });
-
-      await writeCurrentExecutionInfoFile(workspacePath, {
-        stepExecutionId: startedExecution.stepExecutionId,
-        resultSchemaJson: {
-          type: "object",
-          required: ["summary"],
-          additionalProperties: false,
-          properties: { summary: { type: "string" } },
-        },
-      });
-      await writeFile(
-        buildFindingsSubmissionPath(workspacePath),
-        `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
-        "utf8",
-      );
+      await writeSummarySubmission(startedExecution);
 
       const result = await tryPersistAgentFindings(
         createDeps(completeStepExecution),
         startedExecution,
         {
-          onBeforeComplete: async () => {
-            await startedExecution.environment.commitAndPushWorkBranch?.();
-          },
+          onBeforeComplete: ({ findingsJson }) =>
+            startedExecution.environment.commitAndPushWorkBranch?.({
+              result: findingsJson,
+            }) ?? Promise.resolve(undefined),
         },
       );
 
@@ -317,6 +334,9 @@ describe("processProjectWork findings persistence", () => {
       // still "running" — i.e. strictly before completion.
       expect(order).toEqual(["commitAndPush", "complete"]);
       expect(commitAndPushWorkBranch).toHaveBeenCalledTimes(1);
+      expect(commitAndPushWorkBranch).toHaveBeenCalledWith({
+        result: { summary: "done" },
+      });
       expect(completeStepExecution).toHaveBeenCalledWith({
         stepExecutionId: startedExecution.stepExecutionId,
         claimToken: startedExecution.claimToken,
@@ -329,48 +349,78 @@ describe("processProjectWork findings persistence", () => {
   );
 
   test.concurrent(
-    "push failure does not fail the step: the swallowing commit/push closure still completes",
+    "reports a null workBranch (keeping createdFromBranch) when the push failed under onPushFailure warn",
+    async () => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-findings-push-warn-"),
+      );
+      const commitAndPushWorkBranch = vi.fn<CommitAndPushWorkBranch>(() =>
+        Promise.resolve({ pushed: false }),
+      );
+      const startedExecution = createStartedExecution(workspacePath, {
+        workBranch: "boboddy/step-warn",
+        createdFromBranch: "main",
+        commitAndPushWorkBranch,
+      });
+      const completeStepExecution = vi.fn(() => Promise.resolve(undefined));
+      await writeSummarySubmission(startedExecution);
+
+      const result = await tryPersistAgentFindings(
+        createDeps(completeStepExecution),
+        startedExecution,
+        {
+          onBeforeComplete: ({ findingsJson }) =>
+            startedExecution.environment.commitAndPushWorkBranch?.({
+              result: findingsJson,
+            }) ?? Promise.resolve(undefined),
+        },
+      );
+
+      expect(result).toBe("submitted");
+      expect(completeStepExecution).toHaveBeenCalledWith({
+        stepExecutionId: startedExecution.stepExecutionId,
+        claimToken: startedExecution.claimToken,
+        resultJson: { summary: "done" },
+        errorJson: null,
+        workBranch: null,
+        createdFromBranch: "main",
+      });
+    },
+  );
+
+  test.concurrent(
+    "a throwing commit/push closure (push failure under onPushFailure fail) aborts completion",
     async () => {
       const workspacePath = await mkdtemp(
         path.join(os.tmpdir(), "boboddy-findings-push-fail-"),
       );
-      // The production closure swallows push failures; simulate that contract
-      // here — a closure that internally handled a failed push and resolves.
-      const commitAndPushWorkBranch = vi.fn(() => Promise.resolve());
+      const commitAndPushWorkBranch = vi.fn<CommitAndPushWorkBranch>(() =>
+        Promise.reject(new Error("Failed to push work branch")),
+      );
       const startedExecution = createStartedExecution(workspacePath, {
         workBranch: "boboddy/step-xyz",
         createdFromBranch: "main",
         commitAndPushWorkBranch,
       });
       const completeStepExecution = vi.fn(() => Promise.resolve(undefined));
+      await writeSummarySubmission(startedExecution);
 
-      await writeCurrentExecutionInfoFile(workspacePath, {
-        stepExecutionId: startedExecution.stepExecutionId,
-        resultSchemaJson: {
-          type: "object",
-          required: ["summary"],
-          additionalProperties: false,
-          properties: { summary: { type: "string" } },
-        },
-      });
-      await writeFile(
-        buildFindingsSubmissionPath(workspacePath),
-        `${JSON.stringify({ findingsJson: { summary: "done" } }, null, 2)}\n`,
-        "utf8",
-      );
-
-      const result = await tryPersistAgentFindings(
-        createDeps(completeStepExecution),
-        startedExecution,
-        {
-          onBeforeComplete: async () => {
-            await startedExecution.environment.commitAndPushWorkBranch?.();
+      const failure = await captureRejection(
+        tryPersistAgentFindings(
+          createDeps(completeStepExecution),
+          startedExecution,
+          {
+            onBeforeComplete: async ({ findingsJson }) => {
+              await startedExecution.environment.commitAndPushWorkBranch?.({
+                result: findingsJson,
+              });
+            },
           },
-        },
+        ),
       );
 
-      expect(result).toBe("submitted");
-      expect(completeStepExecution).toHaveBeenCalledTimes(1);
+      expect(failure.message).toContain("Failed to push work branch");
+      expect(completeStepExecution).not.toHaveBeenCalled();
     },
   );
 });

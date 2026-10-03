@@ -93,13 +93,36 @@ export class GitCliCommitPushService implements GitCommitPushService {
     }
   }
 
+  /**
+   * Checks out an existing base branch. The fetch is skipped when the clone
+   * already holds `refs/remotes/origin/<branch>` (the workspace is seconds old,
+   * so the ref is as fresh as a fetch); a missing ref falls back to the fetch.
+   */
   async checkoutBase(input: CheckoutBaseInput): Promise<void> {
-    await this.git(input.workspacePath, [
-      "fetch",
-      "origin",
-      input.baseWorkBranch,
-    ]);
+    if (!(await this.hasRemoteTrackingRef(input))) {
+      await this.git(input.workspacePath, [
+        "fetch",
+        "origin",
+        input.baseWorkBranch,
+      ]);
+    }
     await this.git(input.workspacePath, ["checkout", input.baseWorkBranch]);
+  }
+
+  private async hasRemoteTrackingRef(
+    input: CheckoutBaseInput,
+  ): Promise<boolean> {
+    try {
+      await this.git(input.workspacePath, [
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        `refs/remotes/origin/${input.baseWorkBranch}`,
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async createBranch(input: CreateBranchInput): Promise<void> {
@@ -206,8 +229,9 @@ export class GitCliCommitPushService implements GitCommitPushService {
 
   async pushSubmodule(input: PushSubmoduleInput): Promise<void> {
     const subPath = path.join(input.workspacePath, input.submodulePath);
-    // Intentionally NOT wrapped: the orchestrator applies log-and-continue and
-    // decides whether the superproject may record this submodule's gitlink.
+    // Intentionally NOT wrapped: the orchestrator applies the step's
+    // `onPushFailure` policy and decides whether the superproject may record
+    // this submodule's gitlink.
     await this.git(subPath, [
       "push",
       "--set-upstream",

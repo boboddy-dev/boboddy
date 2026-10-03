@@ -206,6 +206,87 @@ describe("GitCliCommitPushService", () => {
   );
 
   test.concurrent(
+    "commitAll excludes and restores a custom devcontainer config path that is tracked+modified",
+    async () => {
+      const { root, workspace } = await setupFixture();
+      const customConfig = ".devcontainer/alt/devcontainer.json";
+      try {
+        await writeRepoFile(workspace, customConfig, "original\n");
+        await git(workspace, ["add", "-A"]);
+        await git(workspace, [
+          "commit",
+          "--no-gpg-sign",
+          "-m",
+          "track alt devcontainer config",
+        ]);
+        await service.createBranch({
+          workspacePath: workspace,
+          branchName: "boboddy/step-alt",
+        });
+
+        await writeRepoFile(workspace, customConfig, "PATCHED BY WORKER\n");
+        await writeRepoFile(workspace, "src/alt.ts", "export const a = 1;\n");
+
+        const result = await service.commitAll({
+          workspacePath: workspace,
+          message: "boboddy: step alt",
+          excludePaths: [...WORK_BRANCH_EXCLUDE_PATHS, customConfig],
+        });
+        expect(result.committed).toBe(true);
+
+        const committedFiles = await git(workspace, [
+          "show",
+          "--name-only",
+          "--pretty=format:",
+          "HEAD",
+        ]);
+        expect(committedFiles).toContain("src/alt.ts");
+        expect(committedFiles).not.toContain(customConfig);
+        expect(await git(workspace, ["status", "--porcelain"])).toBe("");
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test.concurrent(
+    "commitAll tolerates excluded paths that are untracked or do not exist",
+    async () => {
+      const { root, workspace } = await setupFixture();
+      try {
+        await service.createBranch({
+          workspacePath: workspace,
+          branchName: "boboddy/step-missing",
+        });
+        await writeRepoFile(workspace, "src/real.ts", "export const r = 1;\n");
+        await writeRepoFile(workspace, "devcontainer.json", "untracked\n");
+
+        const result = await service.commitAll({
+          workspacePath: workspace,
+          message: "boboddy: step missing",
+          excludePaths: [
+            ...WORK_BRANCH_EXCLUDE_PATHS,
+            "devcontainer.json",
+            ".devcontainer/never-existed/devcontainer.json",
+          ],
+        });
+        expect(result.committed).toBe(true);
+
+        const committedFiles = await git(workspace, [
+          "show",
+          "--name-only",
+          "--pretty=format:",
+          "HEAD",
+        ]);
+        expect(committedFiles).toContain("src/real.ts");
+        expect(committedFiles).not.toContain("devcontainer.json");
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test.concurrent(
     "commitAll returns committed:false when there is nothing to commit",
     async () => {
       const { root, workspace } = await setupFixture();

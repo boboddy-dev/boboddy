@@ -14,7 +14,6 @@ export const reproduceInBrowser = defineStep({
   name: "Reproduce In Browser",
   description: "Drive the deployed app until the reported bug is observed.",
   status: "active",
-  executionMode: "workspace",
 
   mcpServers: {
     browser: {
@@ -104,7 +103,6 @@ export const writeFailingTest = defineStep({
   name: "Write Failing Test",
   description: "Encode the confirmed reproduction as a test that fails.",
   status: "active",
-  executionMode: "workspace",
 
   agentPrompt: ({ input }) => `
 A previous step reproduced this bug in a browser. Encode it as an automated test
@@ -160,7 +158,6 @@ export const implementFix = defineStep({
   name: "Implement Fix",
   description: "Make the failing test pass without weakening it.",
   status: "active",
-  executionMode: "workspace",
 
   agentPrompt: ({ input }) => `
 Make the failing test pass by fixing the underlying defect.

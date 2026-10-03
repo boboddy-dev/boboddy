@@ -112,12 +112,12 @@ browser to create a project. ~10 minutes.
    `default-pipeline-assignment.ts` so incoming work items route to it.
    Because the designer only proposes what your environment can actually
    support, a repo with no dev container gets a pipeline built entirely from
-   **`no_workspace`** steps: the agent works on the host in a scratch
+   **`Runtime.host()`** steps: the agent works on the host in a scratch
    directory instead of cloning your repo, so nothing here needs Docker. If a
    step does need your code, the agent writes a `.devcontainer/devcontainer.json`
    for you first — see [Setting up a Dev Container](/boboddy/guides/devcontainer/)
-   if you'd rather write one by hand, or [Execution mode](/boboddy/guides/steps/#execution-mode)
-   for the `workspace`/`no_workspace` distinction.
+   if you'd rather write one by hand, or [Runtime](/boboddy/guides/steps/#runtime)
+   for the devcontainer/host distinction.
 
    Finally, the agent typechecks the definitions and runs `boboddy pipelines push`.
 
@@ -245,7 +245,7 @@ Run `npm run typecheck` (or the bun/pnpm/yarn equivalent) inside
 ## Where to go next
 
 - [Defining Steps](/boboddy/guides/steps/) — inputs, results, signals, and
-  execution modes.
+  the step environment (runtime and variables).
 - [Building Pipelines](/boboddy/guides/pipelines/) — `definePipeline()`, state
   kinds, and input bindings.
 - [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) — advancement

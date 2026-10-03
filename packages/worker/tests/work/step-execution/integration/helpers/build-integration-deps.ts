@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { createLogger } from "@boboddy/observability/logging/host";
 import type { ArtifactStore } from "../../../../../src/artifacts/artifact-store/domain/artifact-store";
 import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../../../../../src/work/step-execution/infra/local-project-runtime-environment";
@@ -7,6 +9,10 @@ import { DefaultOpencodeStepRunner } from "../../../../../src/work/step-executio
 import { SqliteLocalRuntimeSessionStore } from "../../../../../src/work/step-execution/infra/sqlite-local-runtime-session-store";
 import { LocalWorkspaceManager } from "../../../../../src/runtime/runtime-service/infra/local-workspace-manager";
 import { GitCliCommitPushService } from "../../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
+import type {
+  CommitAllInput,
+  CommitAllResult,
+} from "../../../../../src/runtime/runtime-service/application/git-commit-push-service";
 import { GitCliSubmoduleService } from "../../../../../src/runtime/runtime-service/infra/git-cli-submodule-service";
 import { OpencodeRuntimePayloadProvisioner } from "../../../../../src/runtime/runtime-service/infra/opencode-runtime-payload-provisioner";
 import { DevcontainerOpencodeBootstrap } from "../../../../../src/runtime/runtime-service/infra/devcontainer-opencode-bootstrap";
@@ -14,6 +20,7 @@ import { DirectProviderAccessResolver } from "../../../../../src/work/step-execu
 import { SessionRuntimeConfigMaterializer } from "../../../../../src/work/step-execution/infra/provider-access/session-runtime-config-materializer";
 import os from "node:os";
 import type { ProcessProjectWorkDeps } from "../../../../../src/work/step-execution/application/run-project-work";
+import { FakeGitRemote } from "./fake-git-remote";
 import {
   FakeGitCloneService,
   type CloneRepositoryInput,
@@ -22,6 +29,8 @@ import {
 import type { FakeStepExecutionWorkerClient } from "./fake-worker-client";
 import { ContainerRegistry } from "./containers/container-registry";
 import { TestcontainersDevcontainerLauncher } from "./containers/testcontainers-devcontainer-launcher";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Make an Error under `details.error` visible in pino output. Pino's default
@@ -52,7 +61,36 @@ export type ArtifactSeed = {
 export type IntegrationDeps = {
   deps: ProcessProjectWorkDeps;
   containerRegistry: ContainerRegistry;
+  devcontainerLauncher: TestcontainersDevcontainerLauncher;
+  gitCommitPushService: RecordingGitCommitPushService;
+  /** The local bare repo every clone's `origin` points at. */
+  remote: FakeGitRemote;
 };
+
+/**
+ * The production git service that also records the files each work-branch
+ * commit contains, read right after `commitAll` (the workspace is removed once
+ * the step finishes, so a test cannot inspect it afterwards).
+ */
+export class RecordingGitCommitPushService extends GitCliCommitPushService {
+  readonly committedFiles: string[][] = [];
+
+  override async commitAll(input: CommitAllInput): Promise<CommitAllResult> {
+    const result = await super.commitAll(input);
+    if (result.committed) {
+      const { stdout } = await execFileAsync("git", [
+        "-C",
+        input.workspacePath,
+        "show",
+        "--name-only",
+        "--pretty=format:",
+        "HEAD",
+      ]);
+      this.committedFiles.push(stdout.split("\n").filter(Boolean));
+    }
+    return result;
+  }
+}
 
 /**
  * A FakeGitCloneService wrapper that seeds artifact files into
@@ -66,8 +104,11 @@ export type IntegrationDeps = {
 class SeedingGitCloneService {
   private readonly inner: FakeGitCloneService;
 
-  constructor(private readonly seeds: ArtifactSeed[]) {
-    this.inner = new FakeGitCloneService();
+  constructor(
+    private readonly seeds: ArtifactSeed[],
+    remote: FakeGitRemote,
+  ) {
+    this.inner = new FakeGitCloneService(undefined, remote);
   }
 
   async cloneRepository(
@@ -140,6 +181,8 @@ export function buildIntegrationDeps(input: {
    * files without touching the real user-facing artifact directory.
    */
   artifactStore?: ArtifactStore | undefined;
+  /** Make the remote refuse the work-branch push (an unwritable remote). */
+  rejectRemotePushes?: boolean | undefined;
 }): IntegrationDeps {
   // Even when not running verbose, keep error-level logging on. The job and
   // monitor failure paths log through this injected logger; silencing it
@@ -152,11 +195,21 @@ export function buildIntegrationDeps(input: {
   });
 
   const containerRegistry = new ContainerRegistry();
+  const gitCommitPushService = new RecordingGitCommitPushService(logger);
+
+  const remote = new FakeGitRemote({
+    rejectPushes: input.rejectRemotePushes ?? false,
+  });
+  containerRegistry.registerTeardown(() => remote.dispose());
 
   const gitCloneService =
     input.seedArtifacts && input.seedArtifacts.length > 0
-      ? new SeedingGitCloneService(input.seedArtifacts)
-      : new FakeGitCloneService();
+      ? new SeedingGitCloneService(input.seedArtifacts, remote)
+      : new FakeGitCloneService(undefined, remote);
+
+  const devcontainerLauncher = new TestcontainersDevcontainerLauncher(
+    containerRegistry,
+  );
 
   const orchestrator = new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
     logger.child({ scope: "runtime-environment-orchestrator" }),
@@ -164,11 +217,9 @@ export function buildIntegrationDeps(input: {
     {
       workspaceManager: new LocalWorkspaceManager(),
       gitCloneService,
-      gitCommitPushService: new GitCliCommitPushService(logger),
+      gitCommitPushService,
       submoduleService: new GitCliSubmoduleService(logger),
-      devcontainerLauncher: new TestcontainersDevcontainerLauncher(
-        containerRegistry,
-      ),
+      devcontainerLauncher,
       payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
       opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
       providerAccessResolver: new DirectProviderAccessResolver(),
@@ -207,5 +258,11 @@ export function buildIntegrationDeps(input: {
     },
   };
 
-  return { deps, containerRegistry };
+  return {
+    deps,
+    containerRegistry,
+    devcontainerLauncher,
+    gitCommitPushService,
+    remote,
+  };
 }

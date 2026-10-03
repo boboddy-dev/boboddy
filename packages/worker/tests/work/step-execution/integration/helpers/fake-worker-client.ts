@@ -12,14 +12,17 @@ import type {
 import { createUuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import type { WorkScenario } from "./scenario";
 
-export type CompleteStepExecutionCall = {
+export type FailStepExecutionCall = {
   stepExecutionId: UuidV7;
   claimToken: string;
   resultJson: unknown;
   errorJson: unknown;
 };
 
-export type FailStepExecutionCall = CompleteStepExecutionCall;
+export type CompleteStepExecutionCall = FailStepExecutionCall & {
+  workBranch: string | null;
+  createdFromBranch: string | null;
+};
 
 export type HeartbeatStepExecutionCall = {
   stepExecutionId: UuidV7;
@@ -119,6 +122,8 @@ export class FakeStepExecutionWorkerClient implements StepExecutionWorkerClient 
     claimToken: string;
     resultJson: unknown;
     errorJson: unknown;
+    workBranch: string | null;
+    createdFromBranch: string | null;
   }): Promise<void> {
     this.completeCalls.push({ ...input });
     this.terminalStatusByStep.set(input.stepExecutionId, "succeeded");

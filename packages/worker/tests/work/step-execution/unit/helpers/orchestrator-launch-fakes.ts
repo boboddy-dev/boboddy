@@ -7,6 +7,7 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import { createUuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import { DirectProviderAccessResolver } from "../../../../../src/work/step-execution/infra/provider-access/direct-provider-access-resolver";
 import { SessionRuntimeConfigMaterializer } from "../../../../../src/work/step-execution/infra/provider-access/session-runtime-config-materializer";
@@ -25,6 +26,7 @@ import type { OpencodeRuntimePayloadLocation } from "../../../../../src/runtime/
 import type {
   DevcontainerLauncher,
   LaunchDevcontainerInput,
+  ResolveDevcontainerConfigInput,
   LaunchDevcontainerResult,
 } from "../../../../../src/runtime/runtime-service/application/devcontainer-launcher";
 import type {
@@ -33,6 +35,8 @@ import type {
   GitCloneService,
 } from "../../../../../src/runtime/runtime-service/application/git-clone-service";
 import type {
+  CommitAllInput,
+  CommitSubmoduleInput,
   CommitSubmoduleResult,
   GitCommitPushService,
 } from "../../../../../src/runtime/runtime-service/application/git-commit-push-service";
@@ -121,6 +125,9 @@ export class FakeGitCommitPushService implements GitCommitPushService {
   checkoutBaseCalls: string[] = [];
   createBranchCalls: string[] = [];
   commitAllCalls: number = 0;
+  commitAllExcludePaths: (readonly string[])[] = [];
+  commitAllMessages: string[] = [];
+  submoduleCommitMessages: string[] = [];
   pushCalls: string[] = [];
   constructor(private readonly log?: CallLog) {}
   checkoutBase(input: { baseWorkBranch: string }): Promise<void> {
@@ -133,8 +140,10 @@ export class FakeGitCommitPushService implements GitCommitPushService {
     this.createBranchCalls.push(input.branchName);
     return Promise.resolve();
   }
-  commitAll(): Promise<{ committed: boolean }> {
+  commitAll(input: CommitAllInput): Promise<{ committed: boolean }> {
     this.commitAllCalls += 1;
+    this.commitAllExcludePaths.push(input.excludePaths);
+    this.commitAllMessages.push(input.message);
     return Promise.resolve({ committed: false });
   }
   push(input: { branchName: string }): Promise<void> {
@@ -144,7 +153,10 @@ export class FakeGitCommitPushService implements GitCommitPushService {
   submoduleHasChanges(): Promise<boolean> {
     return Promise.resolve(false);
   }
-  commitInSubmodule(): Promise<CommitSubmoduleResult> {
+  commitInSubmodule(
+    input: CommitSubmoduleInput,
+  ): Promise<CommitSubmoduleResult> {
+    this.submoduleCommitMessages.push(input.message);
     return Promise.resolve({ committed: false, branchCreated: true });
   }
   pushSubmodule(): Promise<void> {
@@ -167,11 +179,13 @@ export class FakeSubmoduleService implements SubmoduleService {
 
 export class FakeDevcontainerLauncher implements DevcontainerLauncher {
   launchInputs: LaunchDevcontainerInput[] = [];
+  resolveConfigInputs: ResolveDevcontainerConfigInput[] = [];
   stopCalls: string[] = [];
   constructor(private readonly log: CallLog) {}
-  resolveConfigPath(): Promise<string> {
+  resolveConfigPath(input: ResolveDevcontainerConfigInput): Promise<string> {
     this.log.push("resolveConfigPath");
-    return Promise.resolve(DEVCONTAINER_CONFIG_PATH);
+    this.resolveConfigInputs.push(input);
+    return Promise.resolve(input.configPath ?? DEVCONTAINER_CONFIG_PATH);
   }
   launch(input: LaunchDevcontainerInput): Promise<LaunchDevcontainerResult> {
     this.log.push("launchDevcontainer");
@@ -213,7 +227,11 @@ export class FakePayloadProvisioner extends OpencodeRuntimePayloadProvisioner {
  */
 export class FakeOpencodeBootstrap extends DevcontainerOpencodeBootstrap {
   planMountsCalls: PlanMountsInput[] = [];
-  patchConfigInputs: { mounts: number; hostPort: number }[] = [];
+  patchConfigInputs: {
+    devcontainerConfigPath: string;
+    mounts: number;
+    hostPort: number;
+  }[] = [];
   prepareAgentHomeCalls: PrepareAgentHomeInput[] = [];
   startInputs: StartInput[] = [];
   stopCalls: string[] = [];
@@ -243,6 +261,7 @@ export class FakeOpencodeBootstrap extends DevcontainerOpencodeBootstrap {
   }): Promise<void> {
     this.log.push("patchMounts");
     this.patchConfigInputs.push({
+      devcontainerConfigPath: input.devcontainerConfigPath,
       mounts: input.mounts.length,
       hostPort: input.hostPort,
     });
@@ -326,9 +345,16 @@ export function buildOrchestratorFakeDeps(input: {
   };
 }
 
+export const DEFAULT_WORKSPACE_REPO: RepoConfig = {
+  mode: "readWrite",
+  message: null,
+  onPushFailure: "fail",
+};
+
 /** A representative `workspace`-mode launch input. */
 export function buildLaunchInput() {
   return {
+    repo: DEFAULT_WORKSPACE_REPO,
     sessionId: createUuidV7(),
     projectId: createUuidV7(),
     requestedByUserId: createUuidV7(),

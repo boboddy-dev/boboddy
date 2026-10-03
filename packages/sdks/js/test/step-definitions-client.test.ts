@@ -153,6 +153,35 @@ describe("createStepDefinitionsClient.upsertFromSpec", () => {
     }
   });
 
+  test("serializes envJson into the request body", async () => {
+    const { mockFetch, captured } = createMockFetch([
+      { status: 200, body: { id: "step-id" } },
+    ]);
+    const prev = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+    try {
+      const client = createStepDefinitionsClient(BASE_URL);
+      const envJson = [
+        {
+          name: "WAREHOUSE_TOKEN",
+          source: "inherit",
+          from: "WAREHOUSE_TOKEN",
+          secret: true,
+          optional: false,
+        },
+      ] as const;
+      await client.upsertFromSpec(
+        "proj-1",
+        makeSpec({ envJson: [...envJson] }),
+        { headers: AUTH_HEADER },
+      );
+
+      expect(captured[0]?.body).toMatchObject({ envJson });
+    } finally {
+      globalThis.fetch = prev;
+    }
+  });
+
   test("throws when the server returns an error status", async () => {
     const { mockFetch } = createMockFetch([
       { status: 422, body: { title: "Invalid spec" } },

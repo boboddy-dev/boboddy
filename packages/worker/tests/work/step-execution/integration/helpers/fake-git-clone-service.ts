@@ -3,6 +3,7 @@ import { cp } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import type { FakeGitRemote } from "./fake-git-remote";
 import type {
   CloneRepositoryInput,
   CloneRepositoryResult,
@@ -24,10 +25,15 @@ const DEFAULT_BRANCH = "main";
  * Test double for the production GitCliCloneService. Instead of cloning over
  * the network, it copies the bundled dummy repo fixture into the workspace and
  * initializes a real local git repo (so resolveBranchName and any downstream
- * git expectations are satisfied). No network access required.
+ * git expectations are satisfied). No network access required. When given a
+ * {@link FakeGitRemote}, the clone's `origin` points at that local bare repo so
+ * the work-branch push is real.
  */
 export class FakeGitCloneService implements GitCloneService {
-  constructor(private readonly sourceRepoDir: string = DUMMY_REPO_DIR) {}
+  constructor(
+    private readonly sourceRepoDir: string = DUMMY_REPO_DIR,
+    private readonly remote?: FakeGitRemote,
+  ) {}
 
   async cloneRepository(
     input: CloneRepositoryInput,
@@ -57,6 +63,8 @@ export class FakeGitCloneService implements GitCloneService {
       "-m",
       "Initial dummy commit",
     ]);
+
+    await this.remote?.attach(input.workspacePath);
 
     return { resolvedBranch: DEFAULT_BRANCH };
   }

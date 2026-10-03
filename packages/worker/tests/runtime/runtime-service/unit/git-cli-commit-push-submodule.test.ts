@@ -307,7 +307,7 @@ describe("GitCliCommitPushService submodule methods", () => {
             workBranch: "boboddy/uninit",
             stepExecutionId: "step-exec-uninit",
           });
-          await closure();
+          await closure({ result: {} });
 
           // The uninitialized submodule dir has no `.git`, so it was never branched
           // or committed (a `git -C <sub>` would resolve up to the superproject repo,
@@ -337,7 +337,7 @@ describe("GitCliCommitPushService submodule methods", () => {
     );
 
     test.concurrent(
-      "submodule push FAILURE → step succeeds, failed gitlink excluded, sibling recorded",
+      "submodule push FAILURE under warn → step succeeds, failed gitlink excluded, sibling recorded",
       async () => {
         const { root, superRemote } = await setupFixture();
         try {
@@ -382,11 +382,12 @@ describe("GitCliCommitPushService submodule methods", () => {
             workspacePath: ws,
             workBranch: "boboddy/mixed",
             stepExecutionId: "step-exec-mixed",
+            onPushFailure: "warn",
           });
-          // Must not throw despite the failed submodule push.
+          // Under "warn" a failed submodule push must not throw.
           let threw = false;
           try {
-            await closure();
+            await closure({ result: {} });
           } catch {
             threw = true;
           }
@@ -436,7 +437,7 @@ describe("GitCliCommitPushService submodule methods", () => {
             workBranch: "boboddy/plain",
             stepExecutionId: "step-exec-plain",
           });
-          await closure();
+          await closure({ result: {} });
 
           expect(
             await git(plain, [

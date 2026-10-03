@@ -1503,6 +1503,29 @@ export type GetApiStepDefinitionsResponses = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath: string | unknown;
+        repo: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message: string | unknown;
+            onPushFailure: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1589,6 +1612,29 @@ export type PostApiStepDefinitionsData = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson?: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath?: string | unknown;
+        repo?: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message?: string | unknown;
+            onPushFailure?: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -1792,6 +1838,29 @@ export type PostApiStepDefinitionsResponses = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath: string | unknown;
+        repo: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message: string | unknown;
+            onPushFailure: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -1878,6 +1947,29 @@ export type PutApiStepDefinitionsData = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson?: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath?: string | unknown;
+        repo?: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message?: string | unknown;
+            onPushFailure?: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             key: string;
@@ -2049,6 +2141,29 @@ export type PutApiStepDefinitionsResponses = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath: string | unknown;
+        repo: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message: string | unknown;
+            onPushFailure: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -2233,6 +2348,29 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath: string | unknown;
+        repo: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message: string | unknown;
+            onPushFailure: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -2417,6 +2555,29 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath: string | unknown;
+        repo: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message: string | unknown;
+            onPushFailure: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;
@@ -3247,6 +3408,29 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                 command: Array<string>;
                 expectExitCode: number;
             }> | unknown;
+            envJson: Array<{
+                name: string;
+                source: string;
+                value: string;
+                secret: boolean;
+            } | {
+                name: string;
+                source: string;
+                from: string;
+                secret: boolean;
+                optional: boolean;
+                default?: string;
+            }> | unknown;
+            devcontainerConfigPath: string | unknown;
+            repo: {
+                mode: string;
+            } | {
+                mode: string;
+            } | {
+                mode: string;
+                message: string | unknown;
+                onPushFailure: 'fail' | 'warn';
+            };
         };
         agentPrompt: {
             sessionTitle: string;
@@ -14930,6 +15114,29 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             command: Array<string>;
             expectExitCode: number;
         }> | unknown;
+        envJson: Array<{
+            name: string;
+            source: string;
+            value: string;
+            secret: boolean;
+        } | {
+            name: string;
+            source: string;
+            from: string;
+            secret: boolean;
+            optional: boolean;
+            default?: string;
+        }> | unknown;
+        devcontainerConfigPath: string | unknown;
+        repo: {
+            mode: string;
+        } | {
+            mode: string;
+        } | {
+            mode: string;
+            message: string | unknown;
+            onPushFailure: 'fail' | 'warn';
+        };
         status: 'draft' | 'active' | 'archived';
         signalExtractorDefinitions: Array<{
             id: string;

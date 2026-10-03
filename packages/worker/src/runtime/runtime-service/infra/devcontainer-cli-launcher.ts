@@ -17,6 +17,7 @@ import type {
   LaunchDevcontainerResult,
   ResolveDevcontainerConfigInput,
 } from "../application/devcontainer-launcher";
+import { resolveRequestedDevcontainerConfig } from "./resolve-requested-devcontainer-config";
 
 /**
  * The devcontainer CLI's numeric `LogLevel` values (from @devcontainers/cli
@@ -251,6 +252,7 @@ function cleanRawPayload(value: string): string {
 async function runDevcontainerCli(
   args: string[],
   onProgress?: (progress: DevcontainerLaunchProgress) => void,
+  hostEnv?: Readonly<Record<string, string>>,
 ): Promise<string> {
   const cliScriptPath = resolveDevcontainerCliScriptPath();
   const [command, ...commandArgs] = buildDevcontainerCliCommand(
@@ -263,7 +265,7 @@ async function runDevcontainerCli(
     // execute the script passed as argv[1] rather than its own bundled
     // entrypoint.
     const child = spawn(command, commandArgs, {
-      env: { ...process.env, BUN_BE_BUN: "1" },
+      env: { ...process.env, ...hostEnv, BUN_BE_BUN: "1" },
     });
 
     const stdoutChunks: string[] = [];
@@ -375,6 +377,13 @@ export class DevcontainerCliLauncher implements DevcontainerLauncher {
   async resolveConfigPath(
     input: ResolveDevcontainerConfigInput,
   ): Promise<string> {
+    if (typeof input.configPath === "string") {
+      return await resolveRequestedDevcontainerConfig({
+        workspacePath: input.workspacePath,
+        configPath: input.configPath,
+      });
+    }
+
     for (const candidate of DEVCONTAINER_CONFIG_CANDIDATES) {
       try {
         await access(path.join(input.workspacePath, candidate));
@@ -417,6 +426,7 @@ export class DevcontainerCliLauncher implements DevcontainerLauncher {
           "json",
         ],
         input.onProgress,
+        input.hostEnv,
       );
 
       logWorkDebug("runtime", "Devcontainer CLI output", {

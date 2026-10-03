@@ -17,6 +17,7 @@ const execFileAsync = promisify(execFile);
 export class ContainerRegistry {
   private readonly started = new Map<string, StartedTestContainer>();
   private readonly rawContainerIds = new Set<string>();
+  private readonly teardowns: (() => Promise<void>)[] = [];
 
   register(container: StartedTestContainer): void {
     this.started.set(container.getId(), container);
@@ -25,6 +26,11 @@ export class ContainerRegistry {
   /** Track a container created directly via `docker` (e.g. the AI container). */
   registerContainerId(containerId: string): void {
     this.rawContainerIds.add(containerId);
+  }
+
+  /** Run `teardown` when {@link stopAll} runs, for non-container test resources. */
+  registerTeardown(teardown: () => Promise<void>): void {
+    this.teardowns.push(teardown);
   }
 
   get(containerId: string): StartedTestContainer | undefined {
@@ -51,7 +57,9 @@ export class ContainerRegistry {
     this.started.clear();
     const rawIds = [...this.rawContainerIds];
     this.rawContainerIds.clear();
+    const teardowns = this.teardowns.splice(0);
     await Promise.allSettled([
+      ...teardowns.map((teardown) => teardown()),
       ...containers.map((container) =>
         container.stop({ remove: true }).catch(() => undefined),
       ),

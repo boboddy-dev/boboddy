@@ -127,6 +127,7 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
         projectId: createUuidV7(),
         requestedByUserId: createUuidV7(),
         gitUrl: "unused-for-no_workspace",
+        repo: { mode: "none" },
         opencodeMcpJson: {
           fixture: {
             type: "local",
@@ -177,14 +178,24 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
       }
 
       // required checks run in declaration order; the first failure aborts
-      // everything after it, including a later `warn` check.
+      // everything after it, including a later `warn` check. `serialGroup`
+      // pins "first"/"second"/"third" to one lane — required checks run in
+      // PARALLEL lanes by default (see `run-health-checks.ts`), so without a
+      // shared group "third" would start concurrently with "second" instead
+      // of waiting to observe its failure.
       const orderedWithAbort = await runHealthChecks({
         agentBaseUrl: environment.agentBaseUrl,
         workspaceFolder: environment.workspaceFolder,
         healthChecks: [
-          echoCheck({ name: "first (passes)" }),
-          boomCheck({ name: "second (fails, aborts the rest)" }),
-          echoCheck({ name: "third (required, never reached)" }),
+          echoCheck({ name: "first (passes)", serialGroup: "ordered" }),
+          boomCheck({
+            name: "second (fails, aborts the rest)",
+            serialGroup: "ordered",
+          }),
+          echoCheck({
+            name: "third (required, never reached)",
+            serialGroup: "ordered",
+          }),
           echoCheck({ name: "fourth (warn, never reached)", severity: "warn" }),
         ],
         fakeAiServer,

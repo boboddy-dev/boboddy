@@ -16,9 +16,17 @@ export function buildContainerStepArtifactsDir(workspaceFolder: string): string 
   return path.posix.join(workspaceFolder, STEP_ARTIFACTS_RELATIVE_DIR);
 }
 
+/**
+ * Builds the context a step's prompt template renders against. `env` is the
+ * worker environment, exposed as `{{env.X}}` for steps that declare no `env`.
+ * When `promptEnv` is given (the step declared `env`), it REPLACES the worker
+ * environment: only declared, non-secret variables are renderable, so a prompt
+ * can neither read an undeclared worker variable nor a declared secret.
+ */
 export function buildPromptRenderContext(input: {
   inputJson: unknown;
-  env: NodeJS.ProcessEnv;
+  env: Readonly<Record<string, string | undefined>>;
+  promptEnv?: Readonly<Record<string, string>> | undefined;
   artifactsDir: string;
 }): Record<string, unknown> {
   const rootInput =
@@ -28,11 +36,13 @@ export function buildPromptRenderContext(input: {
       ? input.inputJson
       : {};
 
-  const definedEnv = Object.fromEntries(
-    Object.entries(input.env).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined,
-    ),
-  );
+  const definedEnv =
+    input.promptEnv ??
+    Object.fromEntries(
+      Object.entries(input.env).filter(
+        (entry): entry is [string, string] => entry[1] !== undefined,
+      ),
+    );
 
   return {
     ...rootInput,

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Features, Runtime } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype E — router in front of other pipelines.
-// classify (no_workspace) → block unless confident → a `choice` state picks
+// classify (host runtime) → block unless confident → a `choice` state picks
 // one of the target pipelines by `routeKey`.
 //
 // A `choice` branch can only target another state in THIS pipeline — it
@@ -26,7 +26,7 @@ export const classifyWorkItem = defineStep({
   name: "Classify Work Item",
   description: "Choose which pipeline should handle this work item.",
   status: "active",
-  executionMode: "no_workspace",
+  environment: { runtime: Runtime.host() },
 
   agentPrompt: `
 Choose exactly one pipeline to handle this work item, using only its title and
@@ -71,14 +71,14 @@ report. Name the words in the report that decided it.
 
 // The forwarder used by every `toX` dispatch state below. It does no real
 // work — it exists only so each dispatch state has a `step` to carry its own
-// `next: { routeToPipeline }` — so it stays `no_workspace` and asks nothing
+// `next: { routeToPipeline }` — so it stays on `Runtime.host()` and asks nothing
 // of the model.
 export const dispatch = defineStep({
   key: "dispatch",
   name: "Dispatch",
   description: "No-op forwarder: exists only to carry a route target.",
   status: "active",
-  executionMode: "no_workspace",
+  environment: { runtime: Runtime.host() },
   agentPrompt: "Acknowledge the routing decision. No action is required.",
 });
 

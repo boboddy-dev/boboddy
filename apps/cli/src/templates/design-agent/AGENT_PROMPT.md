@@ -230,8 +230,9 @@ pipeline that pushes today beats a five-step pipeline that never gets finished.
 Skip this phase if phase 1 found a devcontainer. Otherwise author one now, before
 you write any pipeline file.
 
-Every workspace step runs inside the container this file describes — it is the
-only runtime a pipeline gets. Without one, what you are about to write will
+Every workspace step runs inside the container this file describes (unless the
+step selects another config with `Runtime.devcontainer({ config })`) — it is the
+default runtime a pipeline gets. Without one, what you are about to write will
 typecheck, push, and then fail to run a single step.
 
 Tell the user what you are doing and why in one line, then write
@@ -300,6 +301,12 @@ the reference) needs one:
 
 Say what you added to `.env.example` and why in phase 10, by variable name —
 do not leave the user to discover it by opening the file.
+
+A workspace step that only reads code (triage, analysis, review) should say so
+with `environment: { repo: Repo.readOnly() }`: it still gets the clone, but no
+work branch, commit or push, so the remote does not collect empty branches. Leave
+`repo` off every step that edits code; the default commits and pushes its work,
+and a failed push fails the step.
 
 Use `status: "active"`. Gate on `block` rather than `continue` wherever you are
 unsure; a parked work item is recoverable, a bad cascade is not.

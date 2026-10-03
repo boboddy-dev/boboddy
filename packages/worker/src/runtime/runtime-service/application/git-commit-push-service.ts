@@ -64,9 +64,9 @@ export type PushSubmoduleInput = {
  * the agent's changes excluding Boboddy runtime files, and push the branch.
  *
  * Submodule methods mirror the superproject ones but operate with the
- * submodule's own working tree as cwd, against its own `origin`. Push policy
- * (log-and-continue) and gitlink handling are decided by the orchestrator, so
- * `pushSubmodule` intentionally lets errors propagate.
+ * submodule's own working tree as cwd, against its own `origin`. The push-failure
+ * policy (`onPushFailure`) and gitlink handling are decided by the orchestrator,
+ * so `pushSubmodule` intentionally lets errors propagate.
  *
  * Split into single-purpose methods mirroring {@link GitCloneService}.
  */

@@ -216,13 +216,19 @@ export async function monitorStartedClaimedExecution(
             // Collect artifacts while the step is still "running" — before
             // completeStepExecution transitions it out of "running" and the
             // artifact API starts rejecting uploads. Latched so it runs once.
-            onBeforeComplete: async () => {
+            onBeforeComplete: async ({ findingsJson }) => {
               // Commit the agent's changes to the work branch and push it while
               // the workspace still exists and the step is still "running".
-              // No-op when there is no work branch (e.g. no_workspace runs);
-              // push failures are swallowed inside the closure and never fail
-              // the step.
-              await startedExecution.environment.commitAndPushWorkBranch?.();
+              // No-op when there is no work branch (readOnly, no_workspace).
+              // A failed push throws under the step's `onPushFailure: "fail"`
+              // (the default), which lands in the catch below and fails the
+              // step; under "warn" the closure logs and resolves
+              // `{ pushed: false }`, which completion turns into a null
+              // workBranch.
+              const pushOutcome =
+                await startedExecution.environment.commitAndPushWorkBranch?.({
+                  result: findingsJson,
+                });
               if (!hasCollectedArtifacts) {
                 await collectStepArtifacts(deps, startedExecution, logger);
                 hasCollectedArtifacts = true;
@@ -232,6 +238,7 @@ export async function monitorStartedClaimedExecution(
                 // rejects — and the caller's finally logStream.stop() runs too late.
                 await logStream.flush();
               }
+              return pushOutcome;
             },
           });
 
@@ -262,8 +269,7 @@ export async function monitorStartedClaimedExecution(
             workspacePath: startedExecution.environment.workspacePath,
             opencodeLogDirectory:
               startedExecution.environment.opencodeLogDirectory,
-            runtimeContainerId:
-              startedExecution.environment.runtimeContainerId,
+            runtimeContainerId: startedExecution.environment.runtimeContainerId,
           });
           logger.log(
             "worker",

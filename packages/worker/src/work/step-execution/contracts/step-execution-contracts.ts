@@ -1,4 +1,6 @@
+import type { EnvVarSpec } from "@boboddy/sdk/env-vars";
 import type { HealthCheck } from "@boboddy/sdk/health-checks";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
 
@@ -79,6 +81,19 @@ export type StepExecutionWorkerContextContract = {
      * and no container. Surfaced by the API (Phase 3).
      */
     executionMode: "workspace" | "no_workspace";
+    /**
+     * Repo-relative path of the devcontainer config this `workspace` step
+     * launches (see `Runtime.devcontainer({ config })`). `null` auto-detects the
+     * canonical config. Never set for `no_workspace` steps.
+     */
+    devcontainerConfigPath: string | null;
+    /**
+     * The step's resolved repository access (see `Repo` in the SDK). Never
+     * null: the server resolves the runtime's default when a definition is
+     * written. `no_workspace` steps are always `none`; `workspace` steps are
+     * `readOnly` or `readWrite`.
+     */
+    repo: RepoConfig;
     resultSchemaJson: Record<string, unknown> | null;
     opencodeMcpJson: OpenCodeMcpServers | null;
     opencodePluginJson: OpenCodePlugins | null;
@@ -89,6 +104,13 @@ export type StepExecutionWorkerContextContract = {
      * starts, no synthetic provider is registered, launch is unchanged.
      */
     healthChecksJson: HealthCheck[] | null;
+    /**
+     * The step's declared environment variables (see `defineStep`'s `env`
+     * field). `null` means none declared. Resolved once per run by
+     * `resolveStepEnv` into the variables injected into the agent (or code
+     * step) process.
+     */
+    envJson: EnvVarSpec[] | null;
   };
   agentPrompt: {
     sessionTitle: string;

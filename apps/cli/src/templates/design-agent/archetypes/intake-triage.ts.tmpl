@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Features, Runtime } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule, Computed } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype D — triage / intake quality scoring.
-// score (no_workspace) → block unless the average of the sub-scores clears
+// score (host runtime) → block unless the average of the sub-scores clears
 // the bar. Needs nothing but the work item's title and description, bound on
 // every step automatically.
 
@@ -12,7 +12,7 @@ export const scoreIntakeQuality = defineStep({
   name: "Score Intake Quality",
   description: "Rate whether a report contains enough detail to act on.",
   status: "active",
-  executionMode: "no_workspace",
+  environment: { runtime: Runtime.host() },
 
   agentPrompt: `
 Rate how actionable this report is. You have only its title and description — you

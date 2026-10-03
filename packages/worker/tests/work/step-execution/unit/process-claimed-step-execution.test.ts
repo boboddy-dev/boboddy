@@ -2,6 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "bun:test";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import { startProcessClaimedExecution } from "../../../../src/work/step-execution/application/process-claimed-step-execution";
 import type {
   ProcessProjectWorkDeps,
@@ -340,4 +341,74 @@ describe("startProcessClaimedExecution runtime orchestrator routing", () => {
     );
     expect(workspaceOrchestrator.launch).not.toHaveBeenCalled();
   });
+
+  test.each([[".devcontainer/alt/devcontainer.json"], [null]])(
+    "passes the step's devcontainerConfigPath (%p) to the workspace launch",
+    async (devcontainerConfigPath) => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-routing-config-"),
+      );
+      const workspaceOrchestrator = createRecordingOrchestrator(workspacePath);
+      const workerClient = createWorkerClient("workspace");
+      workerClient.getStepExecutionWorkerContext = vi.fn(() =>
+        Promise.resolve(
+          createWorkerContext("workspace", null, { devcontainerConfigPath }),
+        ),
+      );
+      const deps = createRoutingDeps({ workerClient, workspaceOrchestrator });
+
+      await runClaim(deps);
+
+      expect(workspaceOrchestrator.launch).toHaveBeenCalledWith(
+        expect.objectContaining({ devcontainerConfigPath }),
+      );
+    },
+  );
+
+  test.each<[RepoConfig, "workspace" | "no_workspace"]>([
+    [{ mode: "readOnly" }, "workspace"],
+    [{ mode: "readWrite", message: null, onPushFailure: "fail" }, "workspace"],
+    [
+      {
+        mode: "readWrite",
+        message: "fix: {{result.summary}}",
+        onPushFailure: "warn",
+      },
+      "workspace",
+    ],
+    [{ mode: "none" }, "no_workspace"],
+  ])(
+    "hands the step's resolved repo (%p) to the %s launch unchanged, with the step input",
+    async (repo, executionMode) => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-routing-repo-"),
+      );
+      const orchestrator = createRecordingOrchestrator(workspacePath);
+      const unusedOrchestrator = createRecordingOrchestrator(workspacePath);
+      const workerClient = createWorkerClient(executionMode);
+      workerClient.getStepExecutionWorkerContext = vi.fn(() =>
+        Promise.resolve(createWorkerContext(executionMode, null, { repo })),
+      );
+      const deps =
+        executionMode === "workspace"
+          ? createRoutingDeps({
+              workerClient,
+              workspaceOrchestrator: orchestrator,
+            })
+          : createRoutingDeps({
+              workerClient,
+              workspaceOrchestrator: unusedOrchestrator,
+              noWorkspaceOrchestrator: orchestrator,
+            });
+
+      await runClaim(deps);
+
+      expect(orchestrator.launch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          repo,
+          stepInputJson: { title: "Checkout bug" },
+        }),
+      );
+    },
+  );
 });

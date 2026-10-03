@@ -8,7 +8,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
+import { captureRejection } from "../../../support/capture-rejection";
 import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../../../../src/work/step-execution/infra/local-project-runtime-environment";
+import { WorkBranchPushError } from "../../../../src/work/step-execution/infra/work-branch-manager";
 import {
   buildLaunchInput,
   buildOrchestratorFakeDeps,
@@ -137,12 +139,35 @@ describe("branch-per-step launch", () => {
     });
 
     expect(env.commitAndPushWorkBranch).toBeDefined();
-    await env.commitAndPushWorkBranch?.();
+    await env.commitAndPushWorkBranch?.({ result: {} });
     expect(commitPush.commitAllCalls).toBe(1);
     expect(commitPush.pushCalls).toEqual([`boboddy/impl-${stepExecutionId}`]);
   });
 
-  test("push failure inside the closure does not throw (step still succeeds)", async () => {
+  test("push failure inside the closure throws by default (the step fails)", async () => {
+    const log: CallLog = [];
+    const commitPush = new FakeGitCommitPushService(log);
+    commitPush.push = () => Promise.reject(new Error("remote rejected"));
+    const orchestrator = orchestratorFor(buildDeps(log, commitPush));
+
+    const stepExecutionId = createUuidV7();
+    const env = await orchestrator.launch({
+      ...buildLaunchInput(),
+      stepKey: "impl",
+      currentExecutionInfo: { stepExecutionId, resultSchemaJson: null },
+    });
+
+    const commitAndPush = env.commitAndPushWorkBranch;
+    expect(commitAndPush).toBeDefined();
+    const failure = await captureRejection(
+      commitAndPush?.({ result: {} }) ?? Promise.resolve(),
+    );
+    expect(failure).toBeInstanceOf(WorkBranchPushError);
+    expect(failure.message).toContain(`boboddy/impl-${stepExecutionId}`);
+    expect(failure.message).toContain("remote rejected");
+  });
+
+  test('push failure inside the closure is swallowed under onPushFailure "warn"', async () => {
     const log: CallLog = [];
     const commitPush = new FakeGitCommitPushService(log);
     commitPush.push = () => Promise.reject(new Error("remote rejected"));
@@ -150,20 +175,12 @@ describe("branch-per-step launch", () => {
 
     const env = await orchestrator.launch({
       ...buildLaunchInput(),
+      repo: { mode: "readWrite", message: null, onPushFailure: "warn" },
       stepKey: "impl",
     });
 
-    // The closure swallows push failures per the locked failure policy.
-    const commitAndPush = env.commitAndPushWorkBranch;
-    expect(commitAndPush).toBeDefined();
-    let threw = false;
-    try {
-      await commitAndPush?.();
-    } catch {
-      threw = true;
-    }
-    expect(threw).toBe(false);
-    expect(commitPush.pushCalls).toEqual([]);
+    await env.commitAndPushWorkBranch?.({ result: {} });
+    expect(commitPush.commitAllCalls).toBe(1);
   });
 
   test("no work branch fields are set when no step key is provided", async () => {

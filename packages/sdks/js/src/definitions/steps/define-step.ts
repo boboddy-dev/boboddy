@@ -14,8 +14,15 @@ import {
 // with `../pipelines/define-pipeline.ts` (which itself `import type`s
 // `StepDefinitionSpec`/`TypedStepDefinitionSpec` from this file) — both
 // directions are erased at compile time.
-import type { LiteralBinding, WorkItemBinding } from "../pipelines/define-pipeline";
+import type {
+  LiteralBinding,
+  WorkItemBinding,
+} from "../pipelines/define-pipeline";
 import type { HealthChecksInput } from "../../health-checks";
+import type { EnvVarsInput } from "../../env-vars";
+import type { RepoConfigInput } from "../../repo-config";
+import type { EnvRecord, PromptEnvContext } from "./env";
+import { compileEnvironment, type StepEnvironment } from "./runtime";
 
 /**
  * Resolves the Zod schema node at a dot-notation path within a ZodObject schema.
@@ -206,13 +213,27 @@ export type StepSignalSpec = {
 export type DefineStepInput<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
+  TEnv extends EnvRecord = EnvRecord,
 > = {
   key: string;
   name: string;
   description?: string | null;
   version?: number;
+  /**
+   * Where the step runs (`runtime`), its environment variables (`vars`) and what
+   * it may do to the repository (`repo`). Declare it before `agentPrompt` so
+   * `TEnv` is inferred from `vars` into the prompt's `env`, which is then
+   * strict: only declared, non-secret keys.
+   */
+  environment?: StepEnvironment<TInput["_output"], TEnv, TResult["_output"]>;
   agentPrompt:
-    string | ((context: PromptTemplateContext<TInput["_output"]>) => string);
+    | string
+    | ((
+        context: PromptTemplateContext<
+          TInput["_output"],
+          PromptEnvContext<TEnv>
+        >,
+      ) => string);
   additionalInput?: TInput;
   result?: TResult;
   signals?: SignalSpecInput<TResult["_output"]>[];
@@ -221,7 +242,6 @@ export type DefineStepInput<
   plugins?: OpenCodePlugins | null;
   healthChecks?: HealthChecksInput | null;
   status?: "draft" | "active";
-  executionMode?: "workspace" | "no_workspace";
 };
 
 /**
@@ -261,6 +281,16 @@ export type StepDefinitionSpec = {
   kind: "user_defined" | "code";
   status: "draft" | "active" | "archived";
   executionMode?: "workspace" | "no_workspace";
+  /**
+   * Repo-relative path of the devcontainer config to launch; `null` or omitted
+   * means auto-detect. Only valid with `executionMode: "workspace"`.
+   */
+  devcontainerConfigPath?: string | null;
+  /**
+   * Repository access. Omitted means the runtime's default (`readWrite` for
+   * `workspace`, `none` for `no_workspace`), which the server resolves.
+   */
+  repo?: RepoConfigInput;
   prompt: string | null;
   inputSchemaJson: Record<string, unknown> | null;
   resultSchemaJson: Record<string, unknown> | null;
@@ -274,6 +304,7 @@ export type StepDefinitionSpec = {
   opencodeMcpJson: OpenCodeMcpServers | null;
   opencodePluginJson: OpenCodePlugins | null;
   healthChecksJson: HealthChecksInput | null;
+  envJson?: EnvVarsInput | null;
   /**
    * `kind === "code"` only, and only *before* collection —
    * `collect-definitions.ts` resolves this live `fn` reference down to
@@ -384,8 +415,12 @@ export function defineStep<
   const TSignals extends ReadonlyArray<{ sourcePath: string; key?: string }> =
     never[],
   const TFeatures extends ReadonlyArray<AnyStepFeature> = never[],
+  TEnv extends EnvRecord = EnvRecord,
 >(
-  config: Omit<DefineStepInput<TInput, TResult>, "signals" | "features"> & {
+  config: Omit<
+    DefineStepInput<TInput, TResult, TEnv>,
+    "signals" | "features"
+  > & {
     signals?: TSignals & readonly SignalSpecInput<TResult["_output"]>[];
     features?: TFeatures;
   },
@@ -409,7 +444,12 @@ export function defineStep<
 
   const basePrompt =
     typeof config.agentPrompt === "function"
-      ? config.agentPrompt(createPromptTemplateContext<TInput["_output"]>())
+      ? config.agentPrompt(
+          createPromptTemplateContext<
+            TInput["_output"],
+            PromptEnvContext<TEnv>
+          >(),
+        )
       : config.agentPrompt;
 
   // Append each feature's prompt addition.
@@ -425,6 +465,9 @@ export function defineStep<
   // Collect user-defined signals, then append feature signals.
   const featureSignals = features.flatMap((f) => f._signals);
 
+  const { executionMode, devcontainerConfigPath, envJson, repo } =
+    compileEnvironment(config.environment, { stepKey: config.key });
+
   const spec: StepDefinitionSpec = {
     key: config.key,
     name: config.name,
@@ -432,7 +475,8 @@ export function defineStep<
     version: config.version ?? 1,
     kind: "user_defined",
     status: config.status ?? "active",
-    executionMode: config.executionMode,
+    executionMode,
+    devcontainerConfigPath,
     prompt: effectivePrompt,
     inputSchemaJson: config.additionalInput
       ? toJSONSchema(config.additionalInput as unknown as $ZodType)
@@ -472,6 +516,8 @@ export function defineStep<
     opencodeMcpJson: config.mcpServers ?? null,
     opencodePluginJson: config.plugins ?? null,
     healthChecksJson: config.healthChecks ?? null,
+    envJson,
+    ...(repo !== undefined ? { repo } : {}),
   };
   return spec as TypedStepDefinitionSpec<
     TInput["_output"],

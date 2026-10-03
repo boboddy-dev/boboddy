@@ -1,3 +1,4 @@
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import type { UuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import type { StepExecutionWorkerContextContract } from "../../../../../src/work/step-execution/contracts/step-execution-contracts";
 
@@ -41,6 +42,14 @@ export function buildSingleStepScenario(input: {
   prompt?: string;
   resultSchemaJson?: Record<string, unknown> | null;
   findings: unknown;
+  /** Repo-relative devcontainer config the step selects; `null` auto-detects. */
+  devcontainerConfigPath?: string | null;
+  /** The step's resolved repo access; defaults to a read-write step. */
+  repo?: RepoConfig;
+  /** The step execution's additional input (the `{{input.…}}` token source). */
+  inputJson?: unknown;
+  /** When set, the step is `kind: "code"` and runs this entrypoint instead of prompting. */
+  codeEntrypoint?: { sourceFile: string; exportName: string };
 }): WorkScenario {
   const resultSchemaJson =
     input.resultSchemaJson === undefined
@@ -59,21 +68,30 @@ export function buildSingleStepScenario(input: {
     stepExecution: {
       id: input.stepExecutionId,
       status: "running",
-      inputJson: null,
+      inputJson: input.inputJson ?? null,
       executionTimeoutSeconds: 300,
     },
     stepDefinition: {
       id: input.stepDefinitionId,
       key: "integration-step",
       name: "Integration Step",
-      prompt: input.prompt ?? "Complete the integration step.",
-      kind: "user_defined",
-      entrypointJson: null,
+      prompt: input.codeEntrypoint
+        ? null
+        : (input.prompt ?? "Complete the integration step."),
+      kind: input.codeEntrypoint ? "code" : "user_defined",
+      entrypointJson: input.codeEntrypoint ?? null,
       executionMode: "workspace",
+      devcontainerConfigPath: input.devcontainerConfigPath ?? null,
+      repo: input.repo ?? {
+        mode: "readWrite",
+        message: null,
+        onPushFailure: "fail",
+      },
       resultSchemaJson,
       opencodeMcpJson: null,
       opencodePluginJson: null,
       healthChecksJson: null,
+      envJson: null,
     },
     agentPrompt: {
       sessionTitle: "Integration Step",

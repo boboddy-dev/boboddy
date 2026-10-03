@@ -10,6 +10,34 @@ import { logWork } from "../application/work-logger";
 export const execFileAsync = promisify(execFile);
 
 /**
+ * Resolve the devcontainer config to launch. When the step requested one
+ * explicitly, a failure is rethrown naming the branch the clone was checked out
+ * on (the launcher only knows the workspace and path), so the step fails before
+ * the container launch with the path and the branch it was looked up on.
+ */
+export async function resolveDevcontainerConfig(input: {
+  devcontainerLauncher: DevcontainerLauncher;
+  workspacePath: string;
+  requestedConfigPath: string | null | undefined;
+  lookupBranch: string;
+}): Promise<string> {
+  try {
+    return await input.devcontainerLauncher.resolveConfigPath({
+      workspacePath: input.workspacePath,
+      configPath: input.requestedConfigPath,
+    });
+  } catch (error) {
+    if (typeof input.requestedConfigPath !== "string") {
+      throw error;
+    }
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`${reason} (branch "${input.lookupBranch}")`, {
+      cause: error,
+    });
+  }
+}
+
+/**
  * Resolve the devcontainer's own `workspaceFolder` from its (cloned) config, if
  * one is declared. Returns `null` when the config omits it (the CLI then mounts
  * at `/workspaces/<basename>`). With the single-container model, OpenCode runs

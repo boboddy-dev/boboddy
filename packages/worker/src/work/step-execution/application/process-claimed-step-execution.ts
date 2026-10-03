@@ -4,6 +4,7 @@ import { renderPromptTemplate } from "@boboddy/sdk/definitions/steps";
 import type { HealthCheck } from "@boboddy/sdk/health-checks";
 import { createUuidV7, type UuidV7 } from "../../../common/contracts/uuid-v7";
 import { executeCodeStep } from "./execute-code-step";
+import { resolveStepEnv } from "./resolve-step-env";
 import {
   buildContainerStepArtifactsDir,
   buildPromptRenderContext,
@@ -66,6 +67,8 @@ export async function startProcessClaimedExecution(
     leaseDurationSeconds: number;
     /** See `ProcessProjectWorkInput.sourceBranch`. */
     sourceBranch?: string | null | undefined;
+    /** See `ProcessProjectWorkInput.workerEnv`. */
+    workerEnv?: Readonly<Record<string, string | undefined>> | undefined;
   },
   deps: ProcessProjectWorkDeps,
   client: StepExecutionWorkerClient,
@@ -123,6 +126,16 @@ export async function startProcessClaimedExecution(
       promptLength: workerContext.agentPrompt.promptText.length,
     });
 
+    // Resolved before anything launches so a missing required variable fails
+    // fast, and its secrets are masked before any runtime log can echo them.
+    const workerEnv = input.workerEnv ?? process.env;
+    const { stepEnv, promptEnv, secretValues } = resolveStepEnv({
+      envJson: workerContext.stepDefinition.envJson,
+      inputJson: workerContext.stepExecution.inputJson,
+      workerEnv,
+    });
+    logStream?.registerSecretValues(secretValues);
+
     // `kind === "code"` steps are plain functions instead of LLM prompts: they
     // never declare health checks (no prompting harness to gate), skip prompt
     // rendering entirely, and run `executeCodeStep` instead of
@@ -166,6 +179,7 @@ export async function startProcessClaimedExecution(
         ? (line, level) => { logStream.shipDevcontainerLogLine(line, level); }
         : undefined,
       fakeAiProviderOverride: harness.fakeAiProviderOverride,
+      stepEnv,
     });
     cleanup = async () => {
       await environment.cleanup();
@@ -275,6 +289,7 @@ export async function startProcessClaimedExecution(
           },
           entrypointJson,
           inputJson: workerContext.stepExecution.inputJson,
+          stepEnv,
         },
         { runCommand: deps.runCodeStepCommand },
       );
@@ -327,7 +342,10 @@ export async function startProcessClaimedExecution(
       workerContext.stepDefinition.prompt,
       buildPromptRenderContext({
         inputJson: workerContext.stepExecution.inputJson,
-        env: process.env,
+        env: workerEnv,
+        promptEnv: workerContext.stepDefinition.envJson?.length
+          ? promptEnv
+          : undefined,
         artifactsDir: `${containerStepArtifactsDir}/`,
       }),
     );

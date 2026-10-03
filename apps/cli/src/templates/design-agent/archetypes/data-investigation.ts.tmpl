@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { defineStep, Features } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Features, Runtime } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
 // Archetype C — read-only data / state investigation.
-// investigate (no_workspace + data MCP) → block unless confident. No
+// investigate (host runtime + data MCP) → block unless confident. No
 // repository is cloned, so there is no Docker and no devcontainer
 // requirement.
 // Replace the MCP server and the work-item field that scopes the queries.
@@ -13,7 +13,7 @@ export const investigateData = defineStep({
   name: "Investigate Data",
   description: "Explain wrong, missing or stale data from read-only sources.",
   status: "active",
-  executionMode: "no_workspace",
+  environment: { runtime: Runtime.host() },
 
   mcpServers: {
     warehouse: {

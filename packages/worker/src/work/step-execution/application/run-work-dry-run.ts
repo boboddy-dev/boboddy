@@ -1,6 +1,8 @@
 import type { DestinationStream } from "pino";
 import { createBoboddyClient } from "@boboddy/sdk";
+import type { EnvVarSpec } from "@boboddy/sdk/env-vars";
 import type { HealthCheck } from "@boboddy/sdk/health-checks";
+import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import { createUuidV7, parseUuidV7 } from "../../../common/contracts/uuid-v7";
 import type { OpenCodeMcpServers } from "../../../common/contracts/opencode-mcp";
 import type { OpenCodePlugins } from "../../../common/contracts/opencode-plugin";
@@ -24,6 +26,7 @@ import {
 } from "./run-work-dry-run-health-checks";
 import { runHealthChecks, type HealthCheckReport } from "./run-health-checks";
 import { computeDryRunOk } from "./compute-dry-run-ok";
+import { resolveStepEnv } from "./resolve-step-env";
 
 export type { McpHandshakeReport } from "./run-work-dry-run-health-checks";
 export type {
@@ -38,6 +41,7 @@ export type WorkDryRunScope =
       stepDefinitionKey: string;
       stepDefinitionName: string;
       executionMode: "workspace" | "no_workspace";
+      devcontainerConfigPath: string | null;
     }
   | { kind: "global-only" };
 
@@ -99,11 +103,17 @@ type StepDefinitionForDryRun = {
   key: string;
   name: string;
   executionMode: "workspace" | "no_workspace";
+  devcontainerConfigPath: string | null;
+  repo: RepoConfig;
   resultSchemaJson: Record<string, unknown> | null;
   opencodeMcpJson: OpenCodeMcpServers | null;
   opencodePluginJson: OpenCodePlugins | null;
   healthChecksJson: HealthCheck[] | null;
+  envJson: EnvVarSpec[] | null;
 };
+
+/** A global-only dry run has no step, so it commits nothing: read-only. */
+const DRY_RUN_GLOBAL_REPO: RepoConfig = { mode: "readOnly" };
 
 function buildAuthHeaders(accessToken: string) {
   return { Authorization: `Bearer ${accessToken}` };
@@ -142,10 +152,13 @@ async function fetchStepDefinition(
         key: string;
         name: string;
         executionMode?: "workspace" | "no_workspace";
+        devcontainerConfigPath?: string | null;
+        repo: RepoConfig;
         resultSchemaJson: Record<string, unknown> | null;
         opencodeMcpJson: OpenCodeMcpServers | null;
         opencodePluginJson: OpenCodePlugins | null;
         healthChecksJson: HealthCheck[] | null;
+        envJson: EnvVarSpec[] | null;
       }
     | undefined;
   if (!data) {
@@ -158,10 +171,13 @@ async function fetchStepDefinition(
     key: data.key,
     name: data.name,
     executionMode: data.executionMode ?? "workspace",
+    devcontainerConfigPath: data.devcontainerConfigPath ?? null,
+    repo: data.repo,
     resultSchemaJson: data.resultSchemaJson,
     opencodeMcpJson: data.opencodeMcpJson,
     opencodePluginJson: data.opencodePluginJson,
     healthChecksJson: data.healthChecksJson,
+    envJson: data.envJson,
   };
 }
 
@@ -209,6 +225,7 @@ export async function runWorkDryRun(
         stepDefinitionKey: stepDefinition.key,
         stepDefinitionName: stepDefinition.name,
         executionMode: stepDefinition.executionMode,
+        devcontainerConfigPath: stepDefinition.devcontainerConfigPath,
       }
     : { kind: "global-only" };
 
@@ -279,6 +296,13 @@ export async function runWorkDryRun(
           fakeAiServer,
           isNoWorkspace,
         }),
+        stepEnv: resolveStepEnv({
+          envJson: stepDefinition?.envJson ?? null,
+          inputJson: null,
+          workerEnv: { ...process.env, ...options.localEnvVars },
+        }).stepEnv,
+        devcontainerConfigPath: stepDefinition?.devcontainerConfigPath ?? null,
+        repo: stepDefinition?.repo ?? DRY_RUN_GLOBAL_REPO,
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);

@@ -107,6 +107,7 @@ describe.skipIf(!integrationEnabled)(
           projectId: createUuidV7(),
           requestedByUserId: createUuidV7(),
           gitUrl: "unused-for-no_workspace",
+          repo: { mode: "none" },
           opencodeMcpJson: {
             fixture: {
               type: "local",
