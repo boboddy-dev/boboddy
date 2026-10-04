@@ -1,5 +1,9 @@
 import type { EnvVarsInput } from "../../env-vars";
 import { devcontainerConfigPathSchema } from "../../devcontainer-config-path";
+import {
+  MANAGED_RUNTIME_IDS,
+  type ManagedRuntimeId,
+} from "../../managed-runtimes";
 import type { RepoConfigInput } from "../../repo-config";
 import { normalizeEnv, type EnvFn, type EnvRecord } from "./env";
 import {
@@ -13,10 +17,10 @@ import {
 /**
  * Authoring helpers for a step's `environment` option, and the definition-time
  * compilation that turns it into the wire fields `executionMode`,
- * `devcontainerConfigPath`, `envJson` and `repo`.
+ * `managedRuntime`, `devcontainerConfigPath`, `envJson` and `repo`.
  */
 
-/** Where a step runs. Build one with `Runtime.devcontainer()` or `Runtime.host()`. */
+/** Where a step runs. Build one with `Runtime.devcontainer()`, `Runtime.host()` or `Runtime.managed.<id>()`. */
 export type DevcontainerRuntimeSpec = {
   readonly kind: "devcontainer";
   readonly config?: string;
@@ -24,7 +28,19 @@ export type DevcontainerRuntimeSpec = {
 
 export type HostRuntimeSpec = { readonly kind: "host" };
 
-export type RuntimeSpec = DevcontainerRuntimeSpec | HostRuntimeSpec;
+/**
+ * A worker-supplied container (image, config and dependency install owned by
+ * the worker). Build one with `Runtime.managed.<id>()`. `codeStep` only.
+ */
+export type ManagedRuntimeSpec<
+  TId extends ManagedRuntimeId = ManagedRuntimeId,
+> = {
+  readonly kind: "managed";
+  readonly id: TId;
+};
+
+export type RuntimeSpec =
+  DevcontainerRuntimeSpec | HostRuntimeSpec | ManagedRuntimeSpec;
 
 /**
  * How a step runs: its `runtime`, its environment `vars` and its `repo` access.
@@ -55,12 +71,16 @@ export type StepEnvironment<
     };
 
 /**
- * `codeStep`'s environment: `StepEnvironment`'s devcontainer variant only. A
- * code step runs repo code, which needs a clone, and the host runtime has none.
+ * `codeStep`'s environment: `StepEnvironment`'s devcontainer variant plus
+ * managed runtimes. A code step runs repo code, which needs a clone, and the
+ * host runtime has none.
  */
 export type CodeStepEnvironment<TInput, TResult = unknown> = {
-  /** Defaults to `Runtime.devcontainer()`. `Runtime.host()` is not supported. */
-  runtime?: DevcontainerRuntimeSpec;
+  /**
+   * Defaults to `Runtime.managed.bun1()`. `Runtime.devcontainer()` opts into the
+   * project's own container. `Runtime.host()` is not supported.
+   */
+  runtime?: DevcontainerRuntimeSpec | ManagedRuntimeSpec;
   vars?: EnvFn<TInput>;
   /** Defaults to `Repo.readWrite()`. */
   repo?: RepoField<TInput, TResult, DevcontainerRepoSpec>;
@@ -76,7 +96,23 @@ export type DevcontainerRuntimeOpts = {
   readonly config?: string;
 };
 
+export type ManagedRuntimeFactories = {
+  readonly [K in ManagedRuntimeId]: () => ManagedRuntimeSpec<K>;
+};
+
+const managedRuntimeFactories = Object.fromEntries(
+  MANAGED_RUNTIME_IDS.map((id) => [id, () => ({ kind: "managed", id })]),
+) as ManagedRuntimeFactories;
+
 export const Runtime = {
+  /**
+   * Worker-supplied containers for `codeStep`, one factory per identifier, for
+   * example `Runtime.managed.bun1()`. The worker owns the image and installs the
+   * pipeline-builder dependencies; the repo holds nothing. An unknown identifier
+   * is a type error. Not supported for `defineStep`.
+   */
+  managed: managedRuntimeFactories,
+
   /**
    * Runs the step in the repository's devcontainer. Without `config` the worker
    * searches for `.devcontainer/devcontainer.json`, then `devcontainer.json`.
@@ -106,9 +142,15 @@ export const Runtime = {
 export type CompiledEnvironment = {
   executionMode: "workspace" | "no_workspace";
   devcontainerConfigPath: string | null;
+  managedRuntime: ManagedRuntimeId | null;
   envJson: EnvVarsInput | null;
   /** `undefined` when the author wrote no `repo`; the server resolves the default. */
   repo: RepoConfigInput | undefined;
+};
+
+export type CompileEnvironmentContext = CompileRepoContext & {
+  /** Used when the environment declares no `runtime`. `codeStep` passes the default managed runtime. */
+  readonly defaultRuntime?: ManagedRuntimeSpec;
 };
 
 /**
@@ -118,14 +160,19 @@ export type CompiledEnvironment = {
  * rules.
  */
 export function compileEnvironment<TInput, TEnv extends EnvRecord, TResult>(
-  environment: StepEnvironment<TInput, TEnv, TResult> | undefined,
-  ctx: CompileRepoContext = {},
+  environment:
+    | StepEnvironment<TInput, TEnv, TResult>
+    | CodeStepEnvironment<TInput, TResult>
+    | undefined,
+  ctx: CompileEnvironmentContext = {},
 ): CompiledEnvironment {
-  const runtime = environment?.runtime;
+  const runtime: RuntimeSpec | undefined =
+    environment?.runtime ?? ctx.defaultRuntime;
   return {
     executionMode: runtime?.kind === "host" ? "no_workspace" : "workspace",
     devcontainerConfigPath:
       runtime?.kind === "devcontainer" ? (runtime.config ?? null) : null,
+    managedRuntime: runtime?.kind === "managed" ? runtime.id : null,
     envJson: normalizeEnv(environment?.vars),
     repo: compileRepo(environment?.repo, runtime, ctx),
   };

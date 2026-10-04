@@ -198,7 +198,9 @@ describe("DefaultLocalProjectRuntimeEnvironmentOrchestrator.launch (single-conta
     const env = await orchestrator.launch(buildLaunchInput());
 
     expect(env.runtimeContainerId).toBe(FAKE_DEVCONTAINER_ID);
-    expect(env.agentBaseUrl).toBe(`http://127.0.0.1:${String(FAKE_HOST_PORT)}`);
+    expect(env.agent?.baseUrl).toBe(
+      `http://127.0.0.1:${String(FAKE_HOST_PORT)}`,
+    );
     // No AI image is pulled; the field surfaces the pinned runtime version.
     expect(env.aiImage).toBe(`opencode-runtime@${FAKE_PAYLOAD_VERSION}`);
     // No session network in the single-container model.

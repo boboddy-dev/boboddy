@@ -15,6 +15,10 @@ import {
   tryPersistAgentFindings,
 } from "./process-project-work-findings";
 import {
+  buildCodeStepMissingFindingsError,
+  resolveMonitorAgentContext,
+} from "./process-project-work-monitor-agent";
+import {
   captureMissingFindingsDiagnostics,
   collectStepArtifacts,
   handleMissingFindings,
@@ -33,7 +37,7 @@ export function isExpectedStepOutputFailure(error: unknown): boolean {
 async function markMonitorSucceeded(
   tracker: StepExecutionRunTracker,
   localRuntimeSessionId: string,
-  agentSessionId: string,
+  agentSessionId: string | null,
 ): Promise<void> {
   await tracker.markSucceeded({
     id: localRuntimeSessionId,
@@ -130,6 +134,8 @@ export async function monitorStartedClaimedExecution(
   };
 
   try {
+    const agentContext = resolveMonitorAgentContext(startedExecution);
+
     for (;;) {
       const healthSnapshot =
         await startedExecution.environment.checkContainerHealth?.();
@@ -179,11 +185,14 @@ export async function monitorStartedClaimedExecution(
         return;
       }
 
-      const sessionStatus = await deps.agentRunner.getSessionStatus({
-        agentBaseUrl: startedExecution.environment.agentBaseUrl,
-        workspaceFolder: startedExecution.environment.workspaceFolder,
-        sessionId: startedExecution.agentSessionId,
-      });
+      const sessionStatus =
+        agentContext.mode === "agent"
+          ? await deps.agentRunner.getSessionStatus({
+              agentBaseUrl: agentContext.agent.baseUrl,
+              workspaceFolder: startedExecution.environment.workspaceFolder,
+              sessionId: agentContext.agentSessionId,
+            })
+          : { running: false, providerError: undefined };
 
       // Surface upstream AI-provider errors (e.g. OpenAI `server_error`) as a
       // distinct signal. Throttle to once per attempt so a long retry storm
@@ -252,7 +261,12 @@ export async function monitorStartedClaimedExecution(
       // submission" path before the agent has even begun working. Findings are
       // still checked above so a run that completes between two polls (without
       // ever being observed as busy) is finalized rather than waited on forever.
-      if (submissionResult === "missing" && !hasObservedSessionRunning) {
+      if (
+        submissionResult === "missing" &&
+        agentContext.mode === "agent" &&
+        !hasObservedSessionRunning
+      ) {
+        const { agent, agentSessionId } = agentContext;
         // Fail fast if the session never starts within the configured window.
         // Without this cap a broken agent/provider connection (e.g. the
         // in-container agent cannot reach the AI host) would keep reporting
@@ -267,8 +281,7 @@ export async function monitorStartedClaimedExecution(
           // surfacing an opaque timeout.
           const startupDiagnostics = await captureMissingFindingsDiagnostics({
             workspacePath: startedExecution.environment.workspacePath,
-            opencodeLogDirectory:
-              startedExecution.environment.opencodeLogDirectory,
+            opencodeLogDirectory: agent.logDirectory,
             runtimeContainerId: startedExecution.environment.runtimeContainerId,
           });
           logger.log(
@@ -280,18 +293,18 @@ export async function monitorStartedClaimedExecution(
               stepExecutionId: startedExecution.stepExecutionId,
               localRuntimeSessionId: startedExecution.localRuntimeSessionId,
               agentSessionId: startedExecution.agentSessionId,
-              agentBaseUrl: startedExecution.environment.agentBaseUrl,
+              agentBaseUrl: agent.baseUrl,
               opencodeLogs: startupDiagnostics.opencodeLogs,
               findingsFile: startupDiagnostics.findingsFile,
               currentExecutionFile: startupDiagnostics.currentExecutionFile,
             },
           );
           throw new Error(
-            `Agent session ${startedExecution.agentSessionId} never started ` +
+            `Agent session ${agentSessionId} never started ` +
               `(no busy/retry status observed within ${String(
                 sessionStartTimeoutMs,
               )}ms). Check agent/AI provider connectivity. ` +
-              `OpenCode base URL: ${startedExecution.environment.agentBaseUrl}`,
+              `OpenCode base URL: ${agent.baseUrl}`,
           );
         }
         logger.log("worker", "Waiting for agent session to start", {
@@ -323,6 +336,11 @@ export async function monitorStartedClaimedExecution(
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
         });
       } else {
+        if (agentContext.mode === "none") {
+          throw buildCodeStepMissingFindingsError(
+            startedExecution.environment.workspacePath,
+          );
+        }
         const action = await handleMissingFindings(
           deps,
           startedExecution,
@@ -336,11 +354,10 @@ export async function monitorStartedClaimedExecution(
           continue;
         }
         throw buildMissingFindingsError({
-          agentBaseUrl: startedExecution.environment.agentBaseUrl,
+          agentBaseUrl: agentContext.agent.baseUrl,
           workspacePath: startedExecution.environment.workspacePath,
-          opencodeLogDirectory:
-            startedExecution.environment.opencodeLogDirectory,
-          agentSessionId: startedExecution.agentSessionId,
+          opencodeLogDirectory: agentContext.agent.logDirectory,
+          agentSessionId: agentContext.agentSessionId,
         });
       }
     }
@@ -355,12 +372,12 @@ export async function monitorStartedClaimedExecution(
           stepExecutionId: startedExecution.stepExecutionId,
           localRuntimeSessionId: startedExecution.localRuntimeSessionId,
           agentSessionId: startedExecution.agentSessionId,
-          agentBaseUrl: startedExecution.environment.agentBaseUrl,
+          agentBaseUrl: startedExecution.environment.agent?.baseUrl ?? null,
           findingsPath: buildFindingsSubmissionPath(
             startedExecution.environment.workspacePath,
           ),
           opencodeLogDirectory:
-            startedExecution.environment.opencodeLogDirectory,
+            startedExecution.environment.agent?.logDirectory ?? null,
           errorMessage: error instanceof Error ? error.message : String(error),
         },
       );

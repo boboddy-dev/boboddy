@@ -12,6 +12,10 @@ import {
   WORK_BRANCH_EXCLUDE_PATHS,
 } from "../../../../src/work/step-execution/infra/work-branch-manager";
 import {
+  MANAGED_DEVCONTAINERS_DIR,
+  MANAGED_RUNTIME_INSTALL_ARTIFACT_PATHS,
+} from "../../../../src/runtime/runtime-service/domain/managed-runtimes";
+import {
   FakeGitCommitPushService,
   FakeSubmoduleService,
 } from "./helpers/orchestrator-launch-fakes";
@@ -132,6 +136,35 @@ describe("buildCommitAndPushWorkBranch exclude paths", () => {
     expect(await commitExcludePaths(["devcontainer.json"])).toContain(
       "devcontainer.json",
     );
+  });
+
+  test("always excludes the managed devcontainers directory", async () => {
+    expect(WORK_BRANCH_EXCLUDE_PATHS).toContain(MANAGED_DEVCONTAINERS_DIR);
+    expect(await commitExcludePaths()).toContain(
+      ".boboddy/managed-devcontainers",
+    );
+  });
+
+  test("excludes a managed config and the install artifacts alongside the defaults, each once", async () => {
+    const excluded = await commitExcludePaths([
+      ".boboddy/managed-devcontainers/bun1/devcontainer.json",
+      ...MANAGED_RUNTIME_INSTALL_ARTIFACT_PATHS,
+    ]);
+
+    expect(excluded).toEqual([
+      ...WORK_BRANCH_EXCLUDE_PATHS,
+      ".boboddy/managed-devcontainers/bun1/devcontainer.json",
+      ".boboddy/pipeline-builder/node_modules",
+      ".boboddy/pipeline-builder/bun.lock",
+      ".boboddy/pipeline-builder/package-lock.json",
+    ]);
+    expect(new Set(excluded).size).toBe(excluded?.length ?? -1);
+  });
+
+  test("does not pass the managed directory twice when it is also the extra path", async () => {
+    const excluded = await commitExcludePaths([MANAGED_DEVCONTAINERS_DIR]);
+
+    expect(excluded).toEqual([...WORK_BRANCH_EXCLUDE_PATHS]);
   });
 
   test("does not pass the canonical config twice when it is also the extra path", async () => {

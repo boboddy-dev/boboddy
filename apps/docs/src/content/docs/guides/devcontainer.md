@@ -128,7 +128,7 @@ Things to know when you write an alternate config:
 - There is no fallback. If the file is missing on the branch the step starts from, the step fails and names the path and branch. A later step in a pipeline starts from the work branch of the nearest earlier step that produced one, so that branch must contain the config (see [Base branch](/boboddy/guides/workers/#base-branch)). See [Selecting a devcontainer config](/boboddy/guides/steps/#selecting-a-devcontainer-config).
 - The workspace is still mounted from the repository root, whichever directory the config lives in. A relative `build.dockerfile` or `build.context` in a nested config resolves against **the config file's directory**, not the repository root.
 - A `workspaceFolder` that differs from `/workspaces/<repository-folder-name>` does not move the mount unless the config also sets `workspaceMount`. Keep `workspaceFolder` under the mount, or set `workspaceMount`, or the agent's working directory will not exist in the container.
-- Code steps run their runner script inside the selected container, so an alternate config used by a `codeStep` must provide a JavaScript runtime.
+- A `codeStep` runs in a worker-supplied [managed runtime](/boboddy/guides/steps/#runtime-for-code-steps) by default, which needs no devcontainer config. A code step that opts into `Runtime.devcontainer({ config })` runs its runner script inside the selected container, so that alternate config must provide a JavaScript runtime (`bun` or `node`) and the pipeline-builder dependencies.
 
 ## Troubleshooting
 

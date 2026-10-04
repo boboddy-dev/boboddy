@@ -14,8 +14,15 @@
  * directly via a host shell (`no_workspace` mode, where `workspaceFolder`
  * equals `workspacePath` and there is no container).
  *
- * The runner script dynamically `import()`s the resolved entrypoint module,
- * calls the named export with the parsed input JSON, and writes the result to
+ * The runner lives beside the step's module (`.code-step-runner-<uuid>.mjs`
+ * in `dirname(sourceFile)`) so its bare `@boboddy/sdk/code-step-lookup` import
+ * resolves the way the module's own imports do; the input JSON stays in
+ * `.boboddy/tmp/`. The runner is removed afterwards, and stale ones left by a
+ * crash are swept before each write, so a later commit cannot pick one up.
+ *
+ * The runner script dynamically `import()`s the entrypoint module, finds the
+ * code step by key (see `code-step-runner-script.ts`), calls it with the
+ * parsed input JSON, and writes the result to
  * `.boboddy/step-findings-submission.json` in the exact shape the OpenCode
  * plugin's `boboddy-submit-step-findings` tool already writes (see
  * `buildFindingsSubmissionPath` / `process-project-work-findings.ts`, reused
@@ -23,22 +30,27 @@
  * changes, since it is already agnostic to how `resultJson` was produced.
  */
 import { execFile } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createUuidV7 } from "../../../common/contracts/uuid-v7";
 import { buildDockerEnvFlags } from "../../../runtime/runtime-service/infra/docker-env-flags";
+import { CODE_STEP_RUNNER_SCRIPT_SOURCE } from "./code-step-runner-script";
 import { buildFindingsSubmissionPath } from "./process-project-work-findings";
 import { shQuote } from "./process-project-work-monitor-helpers";
 
 const execFileAsync = promisify(execFile);
 
-/** Relative (POSIX) location under the workspace root for code-step scratch files. */
+/** Relative (POSIX) location under the workspace root for the step's input file. */
 const CODE_STEP_TMP_RELATIVE_DIR = ".boboddy/tmp";
+
+const CODE_STEP_RUNNER_PREFIX = ".code-step-runner-";
+const CODE_STEP_RUNNER_SUFFIX = ".mjs";
+
+export type CodeStepRuntime = "bun" | "node";
 
 export type CodeStepEntrypoint = {
   sourceFile: string;
-  exportName: string;
 };
 
 export type ExecuteCodeStepInput = {
@@ -55,7 +67,15 @@ export type ExecuteCodeStepInput = {
     runtimeContainerId: string | null;
   };
   entrypointJson: CodeStepEntrypoint;
+  /** The step definition's key, which the runner looks up in the module. */
+  stepKey: string;
   inputJson: unknown;
+  /**
+   * The runtime a managed step's image provides, invoked directly. Omitted for
+   * a step in the project's own devcontainer, where bun, then node, is
+   * whichever the container has on `PATH`.
+   */
+  runtime?: CodeStepRuntime | undefined;
   /**
    * The step's resolved environment variables (`resolveStepEnv`), visible to
    * the entrypoint through `process.env`. May carry secrets: they travel as
@@ -149,115 +169,40 @@ export const defaultRunCodeStepCommand: RunCodeStepCommand = async (
 };
 
 /**
- * The runner script executed inside the workspace. Written as a standalone
- * `.mjs` file (no external deps) so it works verbatim under either `bun` or
- * `node`'s ESM loader. Prefers `bun` when present because code-step
- * entrypoints are typically authored in TypeScript (the same
- * `.boboddy/pipeline-builder/*.ts` files `@boboddy/sdk` collects them from —
- * see decision 7) and `bun`'s `import()` handles `.ts` natively; a devcontainer
- * that only has plain `node` (no TS loader) will surface a clear import error
- * for a `.ts` entrypoint, which is the same "clear stderr message" failure
- * mode required for a missing export or a thrown error.
+ * Always starts in the workspace folder: `docker exec` and a host shell both
+ * begin in whatever directory the image or worker happens to use, which made
+ * relative paths in a step function behave differently per environment.
  *
- * argv: `<entrypointAbsPath> <exportName> <inputFileAbsPath> <findingsFileAbsPath>`.
+ * A managed step names its runtime, so it is invoked directly. Any other step
+ * prefers bun when present and falls back to node. See
+ * CODE_STEP_RUNNER_SCRIPT_SOURCE's doc comment for why.
  */
-const CODE_STEP_RUNNER_SCRIPT_SOURCE = `
-import { readFile, writeFile } from "node:fs/promises";
-
-async function main() {
-  const [, , entrypointPath, exportName, inputFilePath, findingsFilePath] = process.argv;
-  if (!entrypointPath || !exportName || !inputFilePath || !findingsFilePath) {
-    console.error("boboddy code-step runner: missing required arguments");
-    process.exitCode = 1;
-    return;
-  }
-
-  let inputJson;
-  try {
-    const rawInput = await readFile(inputFilePath, "utf8");
-    inputJson = JSON.parse(rawInput);
-  } catch (error) {
-    console.error(
-      \`boboddy code-step runner: failed to read/parse input file at \${inputFilePath}: \${
-        error instanceof Error ? error.message : String(error)
-      }\`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  let mod;
-  try {
-    mod = await import(entrypointPath);
-  } catch (error) {
-    console.error(
-      \`boboddy code-step runner: failed to import entrypoint module at \${entrypointPath}: \${
-        error instanceof Error ? (error.stack ?? error.message) : String(error)
-      }\`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  const fn = mod[exportName];
-  if (typeof fn !== "function") {
-    console.error(
-      \`boboddy code-step runner: module at \${entrypointPath} has no exported function named "\${exportName}"\`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  let result;
-  try {
-    result = await fn(inputJson);
-  } catch (error) {
-    console.error(
-      \`boboddy code-step runner: code step function "\${exportName}" threw: \${
-        error instanceof Error ? (error.stack ?? error.message) : String(error)
-      }\`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  try {
-    await writeFile(
-      findingsFilePath,
-      \`\${JSON.stringify({ findingsJson: result === undefined ? null : result }, null, 2)}\\n\`,
-      "utf8",
-    );
-  } catch (error) {
-    console.error(
-      \`boboddy code-step runner: failed to write findings submission to \${findingsFilePath}: \${
-        error instanceof Error ? error.message : String(error)
-      }\`,
-    );
-    process.exitCode = 1;
-  }
-}
-
-await main();
-`;
-
 function buildRunnerInvocationScript(input: {
+  workspaceFolder: string;
+  runtime: CodeStepRuntime | undefined;
   runnerScriptPath: string;
   entrypointPath: string;
-  exportName: string;
+  stepKey: string;
   inputFilePath: string;
   findingsFilePath: string;
 }): string {
   const runnerArgs = [
     shQuote(input.runnerScriptPath),
     shQuote(input.entrypointPath),
-    shQuote(input.exportName),
+    shQuote(input.stepKey),
     shQuote(input.inputFilePath),
     shQuote(input.findingsFilePath),
   ].join(" ");
+  const enterWorkspace = `cd ${shQuote(input.workspaceFolder)} &&`;
 
-  // Prefer bun (native TS support) when present; fall back to node otherwise.
-  // See CODE_STEP_RUNNER_SCRIPT_SOURCE's doc comment for why.
+  if (input.runtime) {
+    const invocation =
+      input.runtime === "bun" ? `bun run ${runnerArgs}` : `node ${runnerArgs}`;
+    return `${enterWorkspace} ${invocation}`;
+  }
+
   return [
+    enterWorkspace,
     "if command -v bun >/dev/null 2>&1; then",
     `bun run ${runnerArgs};`,
     "elif command -v node >/dev/null 2>&1; then",
@@ -266,6 +211,46 @@ function buildRunnerInvocationScript(input: {
     'echo "boboddy code-step runner: neither bun nor node found in PATH" 1>&2; exit 1;',
     "fi",
   ].join(" ");
+}
+
+/**
+ * Resolves a workspace-relative path to a host path, refusing one that leaves
+ * the workspace: the runner is written and swept at this location.
+ */
+function resolveInsideWorkspace(
+  workspacePath: string,
+  relativePath: string,
+): string {
+  const resolved = path.resolve(workspacePath, relativePath);
+  const relative = path.relative(path.resolve(workspacePath), resolved);
+  if (
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(
+      `Code step source file "${relativePath}" resolves outside the workspace`,
+    );
+  }
+  return resolved;
+}
+
+/**
+ * Deletes `.code-step-runner-*.mjs` files a crashed run left in `directory`,
+ * so a later step cannot commit one with its work. Workspaces are per step
+ * execution, so this cannot race a live runner.
+ */
+async function removeStaleRunners(directory: string): Promise<void> {
+  const entries = await readdir(directory);
+  await Promise.allSettled(
+    entries
+      .filter(
+        (name) =>
+          name.startsWith(CODE_STEP_RUNNER_PREFIX) &&
+          name.endsWith(CODE_STEP_RUNNER_SUFFIX),
+      )
+      .map((name) => rm(path.join(directory, name), { force: true })),
+  );
 }
 
 /**
@@ -282,16 +267,17 @@ export async function executeCodeStep(
   const runCommand = deps.runCommand ?? defaultRunCodeStepCommand;
   const tmpId = createUuidV7();
 
+  const relativeRunnerDir = path.posix.dirname(input.entrypointJson.sourceFile);
   const relativeRunnerScriptPath = path.posix.join(
-    CODE_STEP_TMP_RELATIVE_DIR,
-    `code-step-runner-${tmpId}.mjs`,
+    relativeRunnerDir,
+    `${CODE_STEP_RUNNER_PREFIX}${tmpId}${CODE_STEP_RUNNER_SUFFIX}`,
   );
   const relativeInputFilePath = path.posix.join(
     CODE_STEP_TMP_RELATIVE_DIR,
     `code-step-input-${tmpId}.json`,
   );
 
-  const hostRunnerScriptPath = path.join(
+  const hostRunnerScriptPath = resolveInsideWorkspace(
     input.environment.workspacePath,
     relativeRunnerScriptPath,
   );
@@ -319,19 +305,27 @@ export async function executeCodeStep(
     input.environment.workspaceFolder,
   );
 
-  await mkdir(path.dirname(hostRunnerScriptPath), { recursive: true });
-  await writeFile(hostRunnerScriptPath, CODE_STEP_RUNNER_SCRIPT_SOURCE, "utf8");
-  await writeFile(
-    hostInputFilePath,
-    JSON.stringify(input.inputJson ?? null),
-    "utf8",
-  );
-
   try {
+    await mkdir(path.dirname(hostRunnerScriptPath), { recursive: true });
+    await removeStaleRunners(path.dirname(hostRunnerScriptPath));
+    await writeFile(
+      hostRunnerScriptPath,
+      CODE_STEP_RUNNER_SCRIPT_SOURCE,
+      "utf8",
+    );
+    await mkdir(path.dirname(hostInputFilePath), { recursive: true });
+    await writeFile(
+      hostInputFilePath,
+      JSON.stringify(input.inputJson ?? null),
+      "utf8",
+    );
+
     const shellCommand = buildRunnerInvocationScript({
+      workspaceFolder: input.environment.workspaceFolder,
+      runtime: input.runtime,
       runnerScriptPath: runnerVisibleRunnerScriptPath,
       entrypointPath: runnerVisibleEntrypointPath,
-      exportName: input.entrypointJson.exportName,
+      stepKey: input.stepKey,
       inputFilePath: runnerVisibleInputFilePath,
       findingsFilePath: runnerVisibleFindingsPath,
     });
@@ -348,7 +342,7 @@ export async function executeCodeStep(
         .join("\n");
       throw new Error(
         `Code step execution failed (exit code ${String(result.exitCode)}) ` +
-          `for entrypoint ${input.entrypointJson.sourceFile}#${input.entrypointJson.exportName}` +
+          `for ${input.entrypointJson.sourceFile} (step "${input.stepKey}")` +
           (details ? `: ${details}` : ""),
       );
     }

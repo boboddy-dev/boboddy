@@ -167,6 +167,15 @@ describe("defineStep — environment.vars type inference", () => {
     });
   });
 
+  test("codeStep and defineStep differ only in the default runtime", () => {
+    expect(
+      codeStep({ key: "code", name: "Code", fn: () => ({}) }).managedRuntime,
+    ).toBe("bun1");
+    expect(
+      defineStep({ key: "s", name: "S", agentPrompt: "go" }).managedRuntime,
+    ).toBeUndefined();
+  });
+
   test("codeStep emits null envJson when vars is not declared", () => {
     const spec = codeStep({ key: "code", name: "Code", fn: () => ({}) });
     expect(spec.envJson).toBeNull();

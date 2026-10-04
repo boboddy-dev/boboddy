@@ -8,7 +8,12 @@ import type {
   StepDefinitionSpec,
   TypedStepDefinitionSpec,
 } from "./define-step";
-import { compileEnvironment, type CodeStepEnvironment } from "./runtime";
+import { DEFAULT_CODE_STEP_RUNTIME_ID } from "../../managed-runtimes";
+import {
+  compileEnvironment,
+  Runtime,
+  type CodeStepEnvironment,
+} from "./runtime";
 import type { AnyStepFeature, FeatureSignalKeys } from "./step-features";
 
 /**
@@ -42,12 +47,13 @@ export type DefineCodeStepInput<
   description?: string | null;
   version?: number;
   /**
-   * The step's own implementation — resolved by `collect-definitions.ts`
-   * to a portable `{sourceFile, exportName}` pair (by identity-matching
-   * this reference against the declaring module's other exports) before
-   * the (unserializable) function reference is ever sent over the wire.
-   * Must be a plain named export of the same module `codeStep()` is
-   * called from (code-step entrypoints resolve against the target repo).
+   * The step's own implementation. It may be an inline arrow or a reference
+   * to a function declared elsewhere; it does not need to be exported. Only
+   * the file that defines the step is pushed (as `{ sourceFile }`), and the
+   * worker re-imports that file from the repo checkout and finds the step by
+   * `key`, so closures and module-level helpers keep working. The step must
+   * be exported by name from that file or embedded in its default-exported
+   * pipeline.
    *
    * Typed against `EffectiveResult`, not the bare `resultSchema` output, so
    * a step with `features: [Features.notifications()]` can return the
@@ -71,8 +77,11 @@ export type DefineCodeStepInput<
    * Where the step's runner executes (`runtime`) and the environment variables
    * it receives (`vars`). The function reads the variables back through
    * `process.env`; unlike `defineStep()`, there is no typed `env` argument to
-   * `fn`. The container the runtime selects must provide a JS runtime for the
-   * runner script.
+   * `fn`.
+   *
+   * Omitting `runtime` compiles to `Runtime.managed.bun1()`, a worker-supplied
+   * container. `Runtime.devcontainer()` opts into the project's own container,
+   * which must then provide a JS runtime for the runner script.
    *
    * `Runtime.host()` is not supported: a code step runs repo code, so it needs
    * a workspace, and the host runtime has none. It is a type error here and
@@ -124,8 +133,16 @@ export function codeStep<
 
   const featureSignals = features.flatMap((f) => f._signals);
 
-  const { executionMode, devcontainerConfigPath, envJson, repo } =
-    compileEnvironment(config.environment, { stepKey: config.key });
+  const {
+    executionMode,
+    devcontainerConfigPath,
+    managedRuntime,
+    envJson,
+    repo,
+  } = compileEnvironment(config.environment, {
+    stepKey: config.key,
+    defaultRuntime: Runtime.managed[DEFAULT_CODE_STEP_RUNTIME_ID](),
+  });
 
   const spec: StepDefinitionSpec = {
     key: config.key,
@@ -136,6 +153,7 @@ export function codeStep<
     status: config.status ?? "active",
     executionMode,
     devcontainerConfigPath,
+    managedRuntime,
     prompt: null,
     inputSchemaJson: config.inputSchema
       ? toJSONSchema(config.inputSchema as unknown as $ZodType)

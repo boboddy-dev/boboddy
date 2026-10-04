@@ -123,6 +123,7 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
 
       const sessionId = createUuidV7();
       environment = await orchestrator.launch({
+        startAgent: true,
         sessionId,
         projectId: createUuidV7(),
         requestedByUserId: createUuidV7(),
@@ -143,10 +144,14 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
           baseUrl: `http://127.0.0.1:${String(fakeAiServer.port)}`,
         },
       });
+      const { agent } = environment;
+      if (!agent) {
+        throw new Error("Expected the launch to start an agent");
+      }
 
       // A single working MCP check passes.
       const working = await runHealthChecks({
-        agentBaseUrl: environment.agentBaseUrl,
+        agentBaseUrl: agent.baseUrl,
         workspaceFolder: environment.workspaceFolder,
         healthChecks: [echoCheck()],
         fakeAiServer,
@@ -163,7 +168,7 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
 
       // A single throwing MCP check fails with the tool's real error message.
       const broken = await runHealthChecks({
-        agentBaseUrl: environment.agentBaseUrl,
+        agentBaseUrl: agent.baseUrl,
         workspaceFolder: environment.workspaceFolder,
         healthChecks: [boomCheck()],
         fakeAiServer,
@@ -184,7 +189,7 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
       // shared group "third" would start concurrently with "second" instead
       // of waiting to observe its failure.
       const orderedWithAbort = await runHealthChecks({
-        agentBaseUrl: environment.agentBaseUrl,
+        agentBaseUrl: agent.baseUrl,
         workspaceFolder: environment.workspaceFolder,
         healthChecks: [
           echoCheck({ name: "first (passes)", serialGroup: "ordered" }),
@@ -218,7 +223,7 @@ describe.skipIf(!integrationEnabled)("runHealthChecks (integration)", () => {
       // non-MCP (flat) tool id, matching the runner's degraded-for-MCP design.
       const startedAt = Date.now();
       const neverRegistered = await runHealthChecks({
-        agentBaseUrl: environment.agentBaseUrl,
+        agentBaseUrl: agent.baseUrl,
         workspaceFolder: environment.workspaceFolder,
         healthChecks: [
           buildCheck({ tool: "totally-fake-tool-that-does-not-exist" }),

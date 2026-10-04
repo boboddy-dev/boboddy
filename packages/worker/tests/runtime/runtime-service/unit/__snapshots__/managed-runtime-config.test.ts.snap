@@ -1,0 +1,102 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`renderManagedRuntimeConfig renders every (identifier, lockfile) pair 1`] = `
+{
+  "bun1 / bun.lock": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production",
+    "remoteUser": "bun",
+  },
+  "bun1 / bun.lockb": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "bun1 / deno.json": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "bun1 / deno.lock": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "bun1 / no lockfile": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "bun1 / package-lock.json": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "bun1 / pnpm-lock.yaml": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "bun1 / yarn.lock": {
+    "image": "oven/bun:1.4.0-debian",
+    "name": "boboddy-managed-bun1",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && bun install --production && rm -f bun.lock",
+    "remoteUser": "bun",
+  },
+  "node24 / bun.lock": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && echo 'boboddy: npm does not read bun.lock; installing without it (use the bun1 managed runtime to honor it)' 1>&2 && npm install --omit=dev --no-audit --no-fund && rm -f package-lock.json",
+    "remoteUser": "node",
+  },
+  "node24 / bun.lockb": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && echo 'boboddy: npm does not read bun.lockb; installing without it (use the bun1 managed runtime to honor it)' 1>&2 && npm install --omit=dev --no-audit --no-fund && rm -f package-lock.json",
+    "remoteUser": "node",
+  },
+  "node24 / deno.json": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && npm install --omit=dev --no-audit --no-fund && rm -f package-lock.json",
+    "remoteUser": "node",
+  },
+  "node24 / deno.lock": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && npm install --omit=dev --no-audit --no-fund && rm -f package-lock.json",
+    "remoteUser": "node",
+  },
+  "node24 / no lockfile": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && npm install --omit=dev --no-audit --no-fund && rm -f package-lock.json",
+    "remoteUser": "node",
+  },
+  "node24 / package-lock.json": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && npm install --omit=dev --no-audit --no-fund",
+    "remoteUser": "node",
+  },
+  "node24 / pnpm-lock.yaml": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && corepack pnpm install --prod",
+    "remoteUser": "node",
+  },
+  "node24 / yarn.lock": {
+    "image": "node:24-bookworm-slim",
+    "name": "boboddy-managed-node24",
+    "onCreateCommand": "cd .boboddy/pipeline-builder && npm install --omit=dev --no-audit --no-fund && rm -f package-lock.json",
+    "remoteUser": "node",
+  },
+}
+`;

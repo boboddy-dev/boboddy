@@ -63,13 +63,15 @@ async function setup(input: {
     return Promise.resolve({
       workspacePath,
       workspaceFolder: "/workspaces/repo",
-      opencodeLogDirectory: path.join(workspacePath, ".logs"),
       resolvedBranch: "main",
       workBranch: null,
       createdFromBranch: null,
       devcontainerConfigPath: ".devcontainer/devcontainer.json",
       runtimeContainerId: "runtime-container-id",
-      agentBaseUrl: "http://localhost:4096",
+      agent: {
+        baseUrl: "http://localhost:4096",
+        logDirectory: path.join(workspacePath, ".logs"),
+      },
       aiImage: "boboddy/ai-worker:local",
       networkName: "test-network",
       secretValues: [],

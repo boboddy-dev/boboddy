@@ -29,7 +29,7 @@ export async function markTrackedSessionRunning(
     localRuntimeSessionId: UuidV7;
     workspacePath: string;
     runtimeContainerId: string | null;
-    agentBaseUrl: string;
+    agentBaseUrl: string | null;
     resolvedBranch: string;
     devcontainerConfigPath: string;
     aiImage: string;

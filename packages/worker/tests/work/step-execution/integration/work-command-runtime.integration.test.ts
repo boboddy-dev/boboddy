@@ -9,7 +9,15 @@
  *   - A selected config that is missing from the clone fails the step before
  *     any container launches, naming the path and the branch.
  *   - A code step runs in the container its `Runtime.devcontainer({ config })`
- *     selects.
+ *     selects, and never starts OpenCode (no server process, no workspace
+ *     plugin, no OpenCode mount or published port); the AI scenarios guard that
+ *     the mount and port are still present when the server is needed.
+ *   - A code step on a managed runtime launches the config the worker
+ *     synthesizes for its identifier, runs on that image's runtime, never
+ *     commits the managed config or install artifacts, and an identifier the
+ *     worker does not know fails the step before any container launches. The
+ *     launcher here honors `image` only: it does not run `onCreateCommand`, so
+ *     the dependency install itself is covered by the unit tests, not here.
  *   - A step's `repo` decides what reaches the remote: `readOnly` pushes no
  *     branch, `readWrite` pushes a commit carrying the rendered message, and a
  *     remote that refuses the push fails the step (`"fail"`) or not (`"warn"`).
@@ -40,12 +48,21 @@ const TEST_TIMEOUT_MS = 3 * 60 * 1000;
 const ALT_CONFIG_PATH = ".devcontainer/alt/devcontainer.json";
 const CODE_STEP_ENTRYPOINT = {
   sourceFile: ".boboddy/pipeline-builder/integration-code-step.mjs",
-  exportName: "integrationCodeStep",
+};
+const INSPECTING_CODE_STEP_ENTRYPOINT = {
+  sourceFile: ".boboddy/pipeline-builder/integration-inspecting-code-step.mjs",
 };
 const WRITING_CODE_STEP_ENTRYPOINT = {
   sourceFile: ".boboddy/pipeline-builder/integration-writing-code-step.mjs",
-  exportName: "integrationWritingCodeStep",
 };
+const RUNTIME_PROBE_CODE_STEP_ENTRYPOINT = {
+  sourceFile:
+    ".boboddy/pipeline-builder/integration-runtime-probe-code-step.mjs",
+};
+const BUN1_MANAGED_CONFIG_PATH =
+  ".boboddy/managed-devcontainers/bun1/devcontainer.json";
+const NODE24_MANAGED_CONFIG_PATH =
+  ".boboddy/managed-devcontainers/node24/devcontainer.json";
 
 describe.skipIf(!integrationEnabled)("step runtime (integration)", () => {
   let fakeAi: FakeAiServer;
@@ -145,6 +162,9 @@ describe.skipIf(!integrationEnabled)("step runtime (integration)", () => {
       expect(
         integration.gitCommitPushService.committedFiles.flat(),
       ).not.toContain(ALT_CONFIG_PATH);
+      const [launch] = integration.devcontainerLauncher.launches;
+      expect(launch?.mounts.length).toBeGreaterThan(0);
+      expect(launch?.publishedPort).not.toBeNull();
     },
     TEST_TIMEOUT_MS,
   );
@@ -190,6 +210,130 @@ describe.skipIf(!integrationEnabled)("step runtime (integration)", () => {
       expect(integration.devcontainerLauncher.launchedConfigPaths).toEqual([
         ALT_CONFIG_PATH,
       ]);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "a code step never starts OpenCode: no server process, no plugin in the workspace, no OpenCode mount or published port",
+    async () => {
+      const { workerClient, integration } = await runScenario(
+        scenarioFor({ codeEntrypoint: INSPECTING_CODE_STEP_ENTRYPOINT }, {}),
+        {},
+      );
+
+      expect(workerClient.failCalls).toHaveLength(0);
+      expect(workerClient.completeCalls).toHaveLength(1);
+      const result = workerClient.completeCalls[0]?.resultJson as {
+        opencodeProcesses: string[];
+        processCount: number;
+        opencodePluginPresent: boolean;
+        opencodeDirectoryPresent: boolean;
+      };
+      expect(result.processCount).toBeGreaterThan(0);
+      expect(result.opencodeProcesses).toEqual([]);
+      expect(result.opencodePluginPresent).toBe(false);
+      expect(result.opencodeDirectoryPresent).toBe(false);
+
+      expect(integration.devcontainerLauncher.launches).toHaveLength(1);
+      const [launch] = integration.devcontainerLauncher.launches;
+      expect(launch?.mounts).toEqual([]);
+      expect(launch?.publishedPort).toBeNull();
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test.each([
+    ["bun1", BUN1_MANAGED_CONFIG_PATH, true],
+    ["node24", NODE24_MANAGED_CONFIG_PATH, false],
+  ] as const)(
+    "a managed %s code step launches its synthesized config and runs on its own runtime, without OpenCode",
+    async (managedRuntime, configPath, expectBun) => {
+      const { workerClient, integration } = await runScenario(
+        scenarioFor(
+          {
+            codeEntrypoint: RUNTIME_PROBE_CODE_STEP_ENTRYPOINT,
+            managedRuntime,
+          },
+          {},
+        ),
+        {},
+      );
+
+      expect(workerClient.failCalls).toHaveLength(0);
+      expect(workerClient.completeCalls).toHaveLength(1);
+      expect(integration.devcontainerLauncher.launchedConfigPaths).toEqual([
+        configPath,
+      ]);
+      const result = workerClient.completeCalls[0]?.resultJson as {
+        bunVersion: string | null;
+        nodeVersion: string;
+        cwd: string;
+      };
+      expect(result.bunVersion !== null).toBe(expectBun);
+      expect(result.cwd).toStartWith("/workspaces/");
+      if (!expectBun) {
+        expect(result.nodeVersion).toStartWith("24.");
+      }
+      const [launch] = integration.devcontainerLauncher.launches;
+      expect(launch?.mounts).toEqual([]);
+      expect(launch?.publishedPort).toBeNull();
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "a managed readWrite code step pushes its output and never the managed config or install artifacts",
+    async () => {
+      const { workerClient, integration } = await runScenario(
+        scenarioFor(
+          {
+            codeEntrypoint: WRITING_CODE_STEP_ENTRYPOINT,
+            managedRuntime: "bun1",
+          },
+          {},
+        ),
+        {},
+      );
+
+      expect(workerClient.failCalls).toHaveLength(0);
+      expect(workerClient.completeCalls).toHaveLength(1);
+      const committed = integration.gitCommitPushService.committedFiles.flat();
+      expect(committed).toContain("generated.txt");
+      expect(
+        committed.filter(
+          (file) =>
+            file.startsWith(".boboddy/managed-devcontainers") ||
+            file.startsWith(".boboddy/pipeline-builder/node_modules"),
+        ),
+      ).toEqual([]);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "an identifier this worker does not know fails the step before any container launches",
+    async () => {
+      const { workerClient, integration } = await runScenario(
+        scenarioFor(
+          {
+            codeEntrypoint: RUNTIME_PROBE_CODE_STEP_ENTRYPOINT,
+            managedRuntime: "bun9",
+          },
+          {},
+        ),
+        {},
+      );
+
+      expect(workerClient.completeCalls).toHaveLength(0);
+      expect(workerClient.failCalls).toHaveLength(1);
+      expect(workerClient.failCalls[0]?.errorJson).toMatchObject({
+        message:
+          'Managed runtime "bun9" is not supported by this worker. ' +
+          "Supported managed runtimes: bun1, node24. " +
+          "Upgrade the Boboddy CLI to a version that supports it.",
+      });
+      expect(integration.devcontainerLauncher.launchedConfigPaths).toEqual([]);
     },
     TEST_TIMEOUT_MS,
   );

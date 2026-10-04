@@ -104,6 +104,7 @@ type StepDefinitionForDryRun = {
   name: string;
   executionMode: "workspace" | "no_workspace";
   devcontainerConfigPath: string | null;
+  managedRuntime: string | null;
   repo: RepoConfig;
   resultSchemaJson: Record<string, unknown> | null;
   opencodeMcpJson: OpenCodeMcpServers | null;
@@ -153,6 +154,7 @@ async function fetchStepDefinition(
         name: string;
         executionMode?: "workspace" | "no_workspace";
         devcontainerConfigPath?: string | null;
+        managedRuntime?: string | null;
         repo: RepoConfig;
         resultSchemaJson: Record<string, unknown> | null;
         opencodeMcpJson: OpenCodeMcpServers | null;
@@ -172,6 +174,7 @@ async function fetchStepDefinition(
     name: data.name,
     executionMode: data.executionMode ?? "workspace",
     devcontainerConfigPath: data.devcontainerConfigPath ?? null,
+    managedRuntime: data.managedRuntime ?? null,
     repo: data.repo,
     resultSchemaJson: data.resultSchemaJson,
     opencodeMcpJson: data.opencodeMcpJson,
@@ -275,6 +278,7 @@ export async function runWorkDryRun(
     let environment: Awaited<ReturnType<typeof orchestrator.launch>>;
     try {
       environment = await orchestrator.launch({
+        startAgent: true,
         sessionId,
         projectId,
         requestedByUserId,
@@ -302,6 +306,7 @@ export async function runWorkDryRun(
           workerEnv: { ...process.env, ...options.localEnvVars },
         }).stepEnv,
         devcontainerConfigPath: stepDefinition?.devcontainerConfigPath ?? null,
+        managedRuntime: stepDefinition?.managedRuntime ?? null,
         repo: stepDefinition?.repo ?? DRY_RUN_GLOBAL_REPO,
       });
     } catch (error) {
@@ -332,6 +337,13 @@ export async function runWorkDryRun(
 
     reporter.event({ type: "step:runtime-ready", stepExecutionId });
 
+    const { agent } = environment;
+    if (!agent) {
+      throw new Error(
+        "Dry-run runtime environment launched without an agent although one was requested",
+      );
+    }
+
     const containerHealth =
       environment.runtimeContainerId && environment.checkContainerHealth
         ? await environment.checkContainerHealth().then((result) => ({
@@ -341,7 +353,7 @@ export async function runWorkDryRun(
             ),
           }))
         : null;
-    const opencodeHealth = await checkOpencodeHealth(environment.agentBaseUrl);
+    const opencodeHealth = await checkOpencodeHealth(agent.baseUrl);
     const providerCredentials = safeProviderAccessResolver.lastError
       ? { ok: false, detail: safeProviderAccessResolver.lastError.message }
       : { ok: true, detail: "resolved" };
@@ -352,7 +364,7 @@ export async function runWorkDryRun(
     // slow-starting servers time to connect before the first declared check
     // forces a tool call, not to build this report.
     const mcpServers = await pollMcpStatus(
-      environment.agentBaseUrl,
+      agent.baseUrl,
       environment.workspaceFolder,
     );
     // Same runner the real-execution gate uses (`runHealthChecks`, #119) —
@@ -365,7 +377,7 @@ export async function runWorkDryRun(
     // check still gets a reported outcome — `passed`, `failed`, or
     // `skipped` — so the full table below always reflects what actually ran.
     const healthChecks = await runHealthChecks({
-      agentBaseUrl: environment.agentBaseUrl,
+      agentBaseUrl: agent.baseUrl,
       workspaceFolder: environment.workspaceFolder,
       healthChecks: stepDefinition?.healthChecksJson ?? [],
       fakeAiServer,
@@ -400,7 +412,7 @@ export async function runWorkDryRun(
         projectId: options.projectId,
         workspacePath: environment.workspacePath,
         runtimeContainerId: environment.runtimeContainerId,
-        agentBaseUrl: environment.agentBaseUrl,
+        agentBaseUrl: agent.baseUrl,
       });
     }
 
@@ -409,7 +421,7 @@ export async function runWorkDryRun(
       scope,
       workspacePath: environment.workspacePath,
       runtimeContainerId: environment.runtimeContainerId,
-      agentBaseUrl: environment.agentBaseUrl,
+      agentBaseUrl: agent.baseUrl,
       kept: keep,
       containerHealth: containerHealth ?? null,
       opencodeHealth,

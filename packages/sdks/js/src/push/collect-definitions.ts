@@ -15,6 +15,11 @@ import {
   type DefaultPipelineAssignmentSpec,
 } from "../definitions/pipelines/define-default-pipeline-assignment";
 import type { StepDefinitionSpec } from "../definitions/steps";
+import {
+  isPipelineDefinitionSpec,
+  isStepDefinitionSpec,
+  stepsInModule,
+} from "./code-step-lookup";
 
 /**
  * Files that drive a push or the pipeline-builder studio rather than
@@ -65,26 +70,69 @@ export type TolerantCollectedDefinitions = CollectedDefinitions & {
   readonly brokenPipelines: readonly BrokenPipeline[];
 };
 
-// eslint-disable-next-line local/no-unknown-parameter-type
-function isStepDefinitionSpec(value: unknown): value is StepDefinitionSpec {
-  if (typeof value !== "object" || value === null) return false;
-  const obj = value as Record<string, unknown>;
-  return (
-    typeof obj["key"] === "string" &&
-    typeof obj["name"] === "string" &&
-    typeof obj["version"] === "number" &&
-    (obj["kind"] === "user_defined" || obj["kind"] === "code")
-  );
+type RegisteredCodeStep = {
+  readonly version: number;
+  readonly fn: unknown;
+  readonly sourceFile: string;
+};
+
+type CollectedPipeline = {
+  readonly spec: PipelineDefinitionSpec;
+  readonly sourceFile: string;
+};
+
+/** Mutable accumulator shared by every file of one collection run. */
+type CollectionState = {
+  readonly pipelines: CollectedPipeline[];
+  readonly stepMap: Map<string, StepDefinitionSpec>;
+  readonly codeSteps: Map<string, RegisteredCodeStep>;
+};
+
+function createCollectionState(): CollectionState {
+  return { pipelines: [], stepMap: new Map(), codeSteps: new Map() };
 }
 
 /**
- * For a `kind === "code"` spec: finds whichever export of `mod` `===
- * spec.entrypoint.fn` by reference identity, combines it with the module's
- * own path — recorded relative to the repo root as
- * `PIPELINE_BUILDER_DIR/<file>`, since `absDir` (the directory being
- * collected) is always `PIPELINE_BUILDER_DIR` itself — into `entrypointJson`,
- * and strips the live `fn` reference (it can never be serialized into the
- * push request). Every other kind passes through unchanged.
+ * Records a code step under its `key` and throws when the key is already
+ * taken by a step with a different version or a different `fn` — the worker
+ * finds a code step by `key` alone, so a shared key must mean one function.
+ */
+function registerCodeStep(
+  state: CollectionState,
+  spec: StepDefinitionSpec,
+  sourceFile: string,
+): void {
+  const fn = spec.entrypoint?.fn;
+  if (spec.kind !== "code" || !fn) return;
+
+  const existing = state.codeSteps.get(spec.key);
+  if (!existing) {
+    state.codeSteps.set(spec.key, { version: spec.version, fn, sourceFile });
+    return;
+  }
+  if (existing.version !== spec.version) {
+    throw new Error(
+      `Code step "${spec.key}" is defined with different versions ` +
+        `(v${String(existing.version)} in ${existing.sourceFile}, v${String(spec.version)} in ${sourceFile}). ` +
+        `A code step is found by key alone, so give each code step a unique key.`,
+    );
+  }
+  if (existing.fn !== fn) {
+    throw new Error(
+      `Code step "${spec.key}" is defined with different fn references ` +
+        `(${existing.sourceFile} and ${sourceFile}). ` +
+        `A code step is found by key alone, so give each code step a unique key.`,
+    );
+  }
+}
+
+/**
+ * For a `kind === "code"` spec: records `sourceFile` — the file that defines
+ * the step, relative to the repo root as `PIPELINE_BUILDER_DIR/<file>`, since
+ * `absDir` (the directory being collected) is always `PIPELINE_BUILDER_DIR`
+ * itself — as `entrypointJson`, and strips the live `fn` reference (it can
+ * never be serialized into the push request). Every other kind passes
+ * through unchanged.
  *
  * Deliberately does *not* use `process.cwd()`: `boboddy pipelines push` and
  * `studio` both spawn their collecting subprocess with `cwd` already set to
@@ -97,28 +145,15 @@ function isStepDefinitionSpec(value: unknown): value is StepDefinitionSpec {
  */
 function resolveCodeStepEntrypoint(
   spec: StepDefinitionSpec,
-  mod: Record<string, unknown>,
   absoluteFilePath: string,
   absDir: string,
 ): StepDefinitionSpec {
   if (spec.kind !== "code") return spec;
 
-  const fn = spec.entrypoint?.fn;
-  if (!fn) {
+  if (!spec.entrypoint?.fn) {
     throw new Error(
-      `Code step "${spec.key}" (kind: "code") has no entrypoint.fn to resolve. ` +
+      `Code step "${spec.key}" (kind: "code") has no entrypoint.fn. ` +
         `Build it with codeStep({ fn, ... }) from "@boboddy/sdk/definitions/steps".`,
-    );
-  }
-
-  const exportName = Object.entries(mod).find(
-    ([, exportedValue]) => exportedValue === fn,
-  )?.[0];
-  if (!exportName) {
-    throw new Error(
-      `Code step "${spec.key}"'s fn is not a named export of ${absoluteFilePath}. ` +
-        `codeStep({ fn }) requires fn to be exported by name from the same module ` +
-        `so its entrypoint can be resolved to a portable {sourceFile, exportName} pair.`,
     );
   }
 
@@ -126,23 +161,8 @@ function resolveCodeStepEntrypoint(
   delete resolved.entrypoint;
   resolved.entrypointJson = {
     sourceFile: join(PIPELINE_BUILDER_DIR, relative(absDir, absoluteFilePath)),
-    exportName,
   };
   return resolved;
-}
-
-function isPipelineDefinitionSpec(
-  // eslint-disable-next-line local/no-unknown-parameter-type
-  value: unknown,
-): value is PipelineDefinitionSpec {
-  if (typeof value !== "object" || value === null) return false;
-  const obj = value as Record<string, unknown>;
-  return (
-    typeof obj["key"] === "string" &&
-    typeof obj["name"] === "string" &&
-    typeof obj["version"] === "number" &&
-    Array.isArray(obj["nodeDefinitions"])
-  );
 }
 
 async function importModule(path: string): Promise<Record<string, unknown>> {
@@ -167,60 +187,59 @@ function fileNameWithoutExtension(file: string): string {
 }
 
 /**
- * Imports one source file and folds whatever it exports into `pipelines`/
- * `stepMap` — the per-file body shared by both `collectDefinitionsFromDirectory`
- * (which lets a throw here propagate straight out) and
+ * Imports one source file and folds whatever it exports into `state` — the
+ * per-file body shared by both `collectDefinitionsFromDirectory` (which lets a
+ * throw here propagate straight out) and
  * `collectDefinitionsFromDirectoryTolerant` (which catches it per file).
+ *
+ * Code steps reachable from the module (named exports and the default
+ * pipeline's embedded steps, as `stepsInModule` sees them) are registered
+ * first, so a key conflict rejects the whole file before any of it is kept.
  */
 async function collectFile(
   absoluteFilePath: string,
   absDir: string,
-  pipelines: PipelineDefinitionSpec[],
-  stepMap: Map<string, StepDefinitionSpec>,
+  state: CollectionState,
 ): Promise<void> {
   const mod = await importModule(absoluteFilePath);
 
+  for (const step of stepsInModule(mod)) {
+    registerCodeStep(state, step, absoluteFilePath);
+  }
+
+  const defaultExport = mod["default"];
+  if (isPipelineDefinitionSpec(defaultExport)) {
+    state.pipelines.push({
+      spec: defaultExport,
+      sourceFile: absoluteFilePath,
+    });
+  }
+
   for (const [exportName, value] of Object.entries(mod)) {
-    if (exportName === "default") {
-      if (isPipelineDefinitionSpec(value)) pipelines.push(value);
-      continue;
-    }
-    if (isStepDefinitionSpec(value)) {
-      const resolved = resolveCodeStepEntrypoint(
-        value,
-        mod,
-        absoluteFilePath,
-        absDir,
-      );
-      stepMap.set(`${resolved.key}@v${String(resolved.version)}`, resolved);
-    }
+    if (exportName === "default" || !isStepDefinitionSpec(value)) continue;
+    const resolved = resolveCodeStepEntrypoint(value, absoluteFilePath, absDir);
+    state.stepMap.set(`${resolved.key}@v${String(resolved.version)}`, resolved);
   }
 }
 
 /**
- * Pick up steps embedded in pipelines (steps not explicitly exported). Named
- * exports take precedence — an embedded `kind: "code"` step whose `fn` was
- * already resolved via a direct export is skipped here. Throws (naming the
- * owning pipeline) when an embedded `kind: "code"` step was never exported by
- * name, since its entrypoint can't be resolved without one.
+ * Pick up steps embedded in a pipeline (steps not explicitly exported). Named
+ * exports take precedence — an embedded step already collected from a direct
+ * export is skipped here. An embedded `kind: "code"` step resolves to the
+ * file of the pipeline that embeds it.
  */
 function foldEmbeddedSteps(
-  dir: string,
-  spec: PipelineDefinitionSpec,
+  pipeline: CollectedPipeline,
+  absDir: string,
   stepMap: Map<string, StepDefinitionSpec>,
 ): void {
-  for (const embedded of spec._stepDefinitions ?? []) {
+  for (const embedded of pipeline.spec._stepDefinitions ?? []) {
     const key = `${embedded.key}@v${String(embedded.version)}`;
     if (stepMap.has(key)) continue;
-    if (embedded.kind === "code") {
-      throw new Error(
-        `Code step "${embedded.key}" is only referenced inside a pipeline and is not ` +
-          `exported by name from any file in "${dir}". codeStep({ fn }) requires fn to be ` +
-          `a named export so its entrypoint can be resolved — export the step itself, e.g. ` +
-          `\`export const ${embedded.key} = codeStep({ ... })\`.`,
-      );
-    }
-    stepMap.set(key, embedded);
+    stepMap.set(
+      key,
+      resolveCodeStepEntrypoint(embedded, pipeline.sourceFile, absDir),
+    );
   }
 }
 
@@ -241,7 +260,7 @@ function foldEmbeddedSteps(
  * compiled binary is still unsupported.
  *
  * Throws on the first bad file — a syntax error, a `definePipeline()`-time
- * validation failure, an unresolvable `codeStep` entrypoint — aborting the
+ * validation failure, a conflicting `codeStep` key — aborting the
  * whole collection. That's the right behavior for `boboddy pipelines push`
  * (this function's only real caller besides its own tests): pushing a
  * partially-collected directory would be worse than refusing to push at all.
@@ -254,20 +273,19 @@ export async function collectDefinitionsFromDirectory(
   const absDir = resolve(dir);
   const sourceFiles = listSourceFiles(absDir);
 
-  const pipelines: PipelineDefinitionSpec[] = [];
-  const stepMap = new Map<string, StepDefinitionSpec>();
+  const state = createCollectionState();
 
   for (const file of sourceFiles) {
-    await collectFile(join(absDir, file), absDir, pipelines, stepMap);
+    await collectFile(join(absDir, file), absDir, state);
   }
 
-  for (const spec of pipelines) {
-    foldEmbeddedSteps(dir, spec, stepMap);
+  for (const pipeline of state.pipelines) {
+    foldEmbeddedSteps(pipeline, absDir, state.stepMap);
   }
 
   return {
-    pipelines,
-    steps: [...stepMap.values()],
+    pipelines: state.pipelines.map((pipeline) => pipeline.spec),
+    steps: [...state.stepMap.values()],
     defaultPipelineAssignment: await collectDefaultPipelineAssignment(absDir),
   };
 }
@@ -275,8 +293,8 @@ export async function collectDefinitionsFromDirectory(
 /**
  * `collectDefinitionsFromDirectory`'s tolerant sibling, built for `boboddy
  * pipelines studio`: one file failing to import or compile (a syntax error,
- * an `assertTargetExists`-style `definePipeline()` throw, an unresolvable
- * `codeStep` entrypoint, ...) is recorded as a `BrokenPipeline` entry instead
+ * an `assertTargetExists`-style `definePipeline()` throw, a conflicting
+ * `codeStep` key, ...) is recorded as a `BrokenPipeline` entry instead
  * of aborting collection — every *other* file's pipeline still comes back
  * usable, so one bad edit in the builder directory doesn't blank the whole
  * designer (see `compute-studio-snapshot.ts`).
@@ -287,13 +305,12 @@ export async function collectDefinitionsFromDirectoryTolerant(
   const absDir = resolve(dir);
   const sourceFiles = listSourceFiles(absDir);
 
-  const pipelines: PipelineDefinitionSpec[] = [];
-  const stepMap = new Map<string, StepDefinitionSpec>();
+  const state = createCollectionState();
   const brokenPipelines: BrokenPipeline[] = [];
 
   for (const file of sourceFiles) {
     try {
-      await collectFile(join(absDir, file), absDir, pipelines, stepMap);
+      await collectFile(join(absDir, file), absDir, state);
     } catch (error) {
       brokenPipelines.push({
         key: fileNameWithoutExtension(file),
@@ -303,16 +320,16 @@ export async function collectDefinitionsFromDirectoryTolerant(
   }
 
   // A pipeline that imported fine can still turn out broken here, if one of
-  // its embedded (never-exported) code steps can't be resolved — pulled out
+  // its embedded code steps is malformed (no `entrypoint.fn`) — pulled out
   // of `pipelines` and reported the same way as an import-time failure.
   const okPipelines: PipelineDefinitionSpec[] = [];
-  for (const spec of pipelines) {
+  for (const pipeline of state.pipelines) {
     try {
-      foldEmbeddedSteps(dir, spec, stepMap);
-      okPipelines.push(spec);
+      foldEmbeddedSteps(pipeline, absDir, state.stepMap);
+      okPipelines.push(pipeline.spec);
     } catch (error) {
       brokenPipelines.push({
-        key: spec.key,
+        key: pipeline.spec.key,
         message: error instanceof Error ? error.message : String(error),
       });
     }
@@ -330,7 +347,7 @@ export async function collectDefinitionsFromDirectoryTolerant(
 
   return {
     pipelines: okPipelines,
-    steps: [...stepMap.values()],
+    steps: [...state.stepMap.values()],
     defaultPipelineAssignment,
     brokenPipelines,
   };

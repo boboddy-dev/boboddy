@@ -26,8 +26,37 @@ function codeStepImportSpecifier(fromDir: string): string {
   return rel.startsWith(".") ? rel : `./${rel}`;
 }
 
+async function collectionError(dir: string): Promise<string> {
+  try {
+    await collectDefinitionsFromDirectory(dir);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return "";
+}
+
+function embeddedOnlyPipelineSource(fromDir: string): string {
+  return `
+import { codeStep } from "${codeStepImportSpecifier(fromDir)}";
+
+export default {
+  key: "embedded-pipeline",
+  name: "Embedded Pipeline",
+  description: null,
+  version: 1,
+  status: "active",
+  entryNodeKey: "done",
+  nodeDefinitions: [{ nodeKey: "done", kind: "succeed" }],
+  dependencyEdges: [],
+  _stepDefinitions: [
+    codeStep({ key: "embedded-step", name: "Embedded Step", fn: (input) => input }),
+  ],
+};
+`;
+}
+
 describe("collectDefinitionsFromDirectory — code steps", () => {
-  test("resolves a code step's entrypoint to {sourceFile, exportName} and strips fn", async () => {
+  test("resolves a code step's entrypoint to { sourceFile } and strips fn", async () => {
     const dir = makeTempDir();
     try {
       writeFileSync(
@@ -53,10 +82,9 @@ export const reviewFileStep = codeStep({
       expect(step).toBeDefined();
       expect(step?.kind).toBe("code");
       expect(step?.entrypoint).toBeUndefined();
-      expect(step?.entrypointJson?.exportName).toBe("doReview");
-      expect(step?.entrypointJson?.sourceFile).toBe(
-        join(PIPELINE_BUILDER_DIR, "review-file-step.ts"),
-      );
+      expect(step?.entrypointJson).toEqual({
+        sourceFile: join(PIPELINE_BUILDER_DIR, "review-file-step.ts"),
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -102,30 +130,118 @@ export const reviewFileStep = codeStep({
     }
   });
 
-  test("throws a clear error when a code step's fn is not a named export", async () => {
+  test("accepts an inline arrow as fn", async () => {
     const dir = makeTempDir();
     try {
       writeFileSync(
-        join(dir, "bad-step.ts"),
+        join(dir, "inline-step.ts"),
         `
 import { codeStep } from "${codeStepImportSpecifier(dir)}";
 
-export const badStep = codeStep({
-  key: "bad-step",
-  name: "Bad Step",
+export const inlineStep = codeStep({
+  key: "inline-step",
+  name: "Inline Step",
   fn: (input) => input,
 });
 `,
       );
 
-      let caught: unknown;
-      try {
-        await collectDefinitionsFromDirectory(dir);
-      } catch (err) {
-        caught = err;
+      const collected = await collectDefinitionsFromDirectory(dir);
+      const step = collected.steps.find((s) => s.key === "inline-step");
+
+      expect(step?.entrypoint).toBeUndefined();
+      expect(step?.entrypointJson).toEqual({
+        sourceFile: join(PIPELINE_BUILDER_DIR, "inline-step.ts"),
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolves an embedded-only code step to the pipeline's file", async () => {
+    const dir = makeTempDir();
+    try {
+      writeFileSync(
+        join(dir, "embedded-pipeline.ts"),
+        embeddedOnlyPipelineSource(dir),
+      );
+
+      const collected = await collectDefinitionsFromDirectory(dir);
+      const step = collected.steps.find((s) => s.key === "embedded-step");
+
+      expect(collected.pipelines).toHaveLength(1);
+      expect(step?.kind).toBe("code");
+      expect(step?.entrypoint).toBeUndefined();
+      expect(step?.entrypointJson).toEqual({
+        sourceFile: join(PIPELINE_BUILDER_DIR, "embedded-pipeline.ts"),
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("throws when two code steps share a key with different versions", async () => {
+    const dir = makeTempDir();
+    try {
+      writeFileSync(
+        join(dir, "versions.ts"),
+        `
+import { codeStep } from "${codeStepImportSpecifier(dir)}";
+
+export const stepV1 = codeStep({ key: "shared", name: "Shared", version: 1, fn: () => 1 });
+export const stepV2 = codeStep({ key: "shared", name: "Shared", version: 2, fn: () => 2 });
+`,
+      );
+
+      expect(await collectionError(dir)).toMatch(
+        /"shared" is defined with different versions/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("throws when two files define the same key with different fn references", async () => {
+    const dir = makeTempDir();
+    try {
+      for (const file of ["a.ts", "b.ts"]) {
+        writeFileSync(
+          join(dir, file),
+          `
+import { codeStep } from "${codeStepImportSpecifier(dir)}";
+
+export const step = codeStep({ key: "shared", name: "Shared", fn: () => "${file}" });
+`,
+        );
       }
-      expect(caught).toBeInstanceOf(Error);
-      expect((caught as Error).message).toMatch(/is not a named export/);
+
+      expect(await collectionError(dir)).toMatch(
+        /"shared" is defined with different fn references/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("does not throw when two files share a key through the same fn", async () => {
+    const dir = makeTempDir();
+    try {
+      writeFileSync(
+        join(dir, "original.ts"),
+        `
+import { codeStep } from "${codeStepImportSpecifier(dir)}";
+
+export const step = codeStep({ key: "shared", name: "Shared", fn: () => 1 });
+`,
+      );
+      writeFileSync(
+        join(dir, "reexport.ts"),
+        `export { step } from "./original";\n`,
+      );
+
+      const collected = await collectDefinitionsFromDirectory(dir);
+
+      expect(collected.steps.filter((s) => s.key === "shared")).toHaveLength(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -169,36 +285,25 @@ describe("collectDefinitionsFromDirectoryTolerant", () => {
     }
   });
 
-  test("an unresolvable embedded code step marks its owning pipeline broken by key, not by filename", async () => {
+  test("an embedded-only code step no longer marks its pipeline broken", async () => {
     const dir = makeTempDir();
     try {
       writeFileSync(
-        join(dir, "review-file-pipeline.ts"),
-        `
-import { codeStep } from "${codeStepImportSpecifier(dir)}";
-
-export default {
-  key: "review-file-pipeline",
-  name: "Review File Pipeline",
-  description: null,
-  version: 1,
-  status: "active",
-  entryNodeKey: "done",
-  nodeDefinitions: [{ nodeKey: "done", kind: "succeed" }],
-  dependencyEdges: [],
-  _stepDefinitions: [
-    codeStep({ key: "bad-step", name: "Bad Step", fn: (input) => input }),
-  ],
-};
-`,
+        join(dir, "embedded-pipeline.ts"),
+        embeddedOnlyPipelineSource(dir),
       );
 
       const collected = await collectDefinitionsFromDirectoryTolerant(dir);
 
-      expect(collected.pipelines).toHaveLength(0);
-      expect(collected.brokenPipelines).toHaveLength(1);
-      expect(collected.brokenPipelines[0]?.key).toBe("review-file-pipeline");
-      expect(collected.brokenPipelines[0]?.message).toMatch(/is not exported by name/);
+      expect(collected.brokenPipelines).toEqual([]);
+      expect(collected.pipelines.map((p) => p.key)).toEqual([
+        "embedded-pipeline",
+      ]);
+      expect(
+        collected.steps.find((s) => s.key === "embedded-step")?.entrypointJson,
+      ).toEqual({
+        sourceFile: join(PIPELINE_BUILDER_DIR, "embedded-pipeline.ts"),
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

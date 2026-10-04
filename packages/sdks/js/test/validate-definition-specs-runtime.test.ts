@@ -144,3 +144,91 @@ describe("validateDefinitionSpecs — runtime", () => {
     expect(issues.every((issue) => issue.check === "runtime")).toBe(true);
   });
 });
+
+describe("validateDefinitionSpecs — managed runtime", () => {
+  const validate = (steps: ReturnType<typeof stepSpecWithOverrides>[]) =>
+    validateDefinitionSpecs({ pipelines: [], steps });
+
+  test.concurrent.each(["bun1", "node24"])(
+    "accepts a workspace code step on %s",
+    (managedRuntime) => {
+      expect(
+        validate([
+          stepSpecWithOverrides("managed", {
+            kind: "code",
+            executionMode: "workspace",
+            managedRuntime,
+          }),
+        ]),
+      ).toEqual([]);
+    },
+  );
+
+  test.concurrent("accepts a null managedRuntime on any step", () => {
+    expect(
+      validate([
+        stepSpecWithOverrides("agent", { managedRuntime: null }),
+        stepSpecWithOverrides("code", { kind: "code", managedRuntime: null }),
+      ]),
+    ).toEqual([]);
+  });
+
+  test.concurrent("rejects an unknown identifier", () => {
+    const issues = validate([
+      stepSpecWithOverrides("unknown", {
+        kind: "code",
+        managedRuntime: "bun9",
+      }),
+    ]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.check).toBe("runtime");
+    expect(issues[0]?.severity).toBe("error");
+    expect(issues[0]?.message).toContain(
+      'Step "unknown" managedRuntime "bun9"',
+    );
+    expect(issues[0]?.message).toContain("bun1, node24");
+  });
+
+  test.concurrent("rejects a managed runtime on a non-code step", () => {
+    const issues = validate([
+      stepSpecWithOverrides("agent", {
+        kind: "user_defined",
+        managedRuntime: "bun1",
+      }),
+    ]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.check).toBe("runtime");
+    expect(issues[0]?.message).toContain("only supported for code steps");
+  });
+
+  test.concurrent(
+    "rejects a managed runtime with a devcontainer config path",
+    () => {
+      const issues = validate([
+        stepSpecWithOverrides("both", {
+          kind: "code",
+          managedRuntime: "bun1",
+          devcontainerConfigPath: ".devcontainer/devcontainer.json",
+        }),
+      ]);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]?.check).toBe("runtime");
+      expect(issues[0]?.message).toContain("devcontainerConfigPath");
+    },
+  );
+
+  test.concurrent("rejects a managed runtime on a no_workspace step", () => {
+    const issues = validate([
+      stepSpecWithOverrides("host-managed", {
+        kind: "code",
+        executionMode: "no_workspace",
+        managedRuntime: "bun1",
+      }),
+    ]);
+    expect(issues.length).toBeGreaterThanOrEqual(1);
+    expect(issues.every((issue) => issue.check === "runtime")).toBe(true);
+    expect(issues.some((issue) => issue.message.includes("no_workspace"))).toBe(
+      true,
+    );
+  });
+});

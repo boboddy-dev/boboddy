@@ -9,14 +9,16 @@
  *   1. Workspace mode (`runtimeContainerId` set): dispatches via the injected
  *      command runner with the container id, and the constructed shell
  *      command references the runner-visible (`workspaceFolder`-rooted)
- *      paths for the runner script, entrypoint, input file, and findings file.
+ *      paths for the runner script, entrypoint, step key, input file, and
+ *      findings file.
  *   2. `no_workspace` mode (`runtimeContainerId: null`): dispatches with a
  *      null container id (host exec), not `docker exec`.
- *   3. Writes the runner script + input file to the HOST workspace path
- *      before dispatch, and always removes them afterward — on both the
- *      success and failure paths.
+ *   3. Writes the runner script next to the step's module and the input file
+ *      to `.boboddy/tmp/` on the HOST workspace path before dispatch, sweeps
+ *      stale runners from the module's directory, and always removes both
+ *      files afterward — on both the success and failure paths.
  *   4. A non-zero exit from the command runner throws a clear error
- *      surfacing stderr/stdout detail, identifying the failing entrypoint.
+ *      surfacing stderr/stdout detail, identifying the failing source file and step key.
  */
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -60,8 +62,8 @@ describe("executeCodeStep", () => {
         },
         entrypointJson: {
           sourceFile: ".boboddy/pipeline-builder/review-file-step.ts",
-          exportName: "reviewFileStep",
         },
+        stepKey: "review-file",
         inputJson: { file: "src/index.ts" },
       },
       { runCommand },
@@ -82,16 +84,45 @@ describe("executeCodeStep", () => {
     expect(shellCommand).toContain(
       "/workspaces/repo/.boboddy/pipeline-builder/review-file-step.ts",
     );
-    expect(shellCommand).toContain("reviewFileStep");
+    expect(shellCommand).toContain("'review-file'");
     // Findings submission path matches `buildFindingsSubmissionPath`'s
     // convention, rooted at the runner-visible workspace folder.
     expect(shellCommand).toContain(
       "/workspaces/repo/.boboddy/step-findings-submission.json",
     );
-    // The runner script + input file both live under a workspace-relative
-    // scratch dir, rooted at workspaceFolder as seen by the runner.
-    expect(shellCommand).toContain("/workspaces/repo/.boboddy/tmp/code-step-runner-");
+    // The runner sits next to the step's module and the input file in the
+    // scratch dir, both rooted at workspaceFolder as seen by the runner.
+    expect(shellCommand).toContain(
+      "/workspaces/repo/.boboddy/pipeline-builder/.code-step-runner-",
+    );
     expect(shellCommand).toContain("/workspaces/repo/.boboddy/tmp/code-step-input-");
+    expect(shellCommand).not.toContain(".boboddy/tmp/code-step-runner-");
+  });
+
+  test("passes the argv <entrypoint> <stepKey> <input> <findings> after the runner path", async () => {
+    const commands: string[] = [];
+    const runCommand: RunCodeStepCommand = (input) => {
+      commands.push(input.shellCommand);
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    };
+
+    await executeCodeStep(
+      {
+        environment: {
+          workspacePath,
+          workspaceFolder: "/workspaces/repo",
+          runtimeContainerId: "container-123",
+        },
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        stepKey: "it's-a-key",
+        inputJson: null,
+      },
+      { runCommand },
+    );
+
+    expect(commands[0]).toMatch(
+      /bun run '\/workspaces\/repo\/steps\/\.code-step-runner-[^']+\.mjs' '\/workspaces\/repo\/steps\/review\.ts' 'it'\\''s-a-key' '\/workspaces\/repo\/\.boboddy\/tmp\/code-step-input-[^']+\.json' '\/workspaces\/repo\/\.boboddy\/step-findings-submission\.json'/,
+    );
   });
 
   test("dispatches with a null container id for no_workspace mode (host exec, no docker)", async () => {
@@ -108,7 +139,8 @@ describe("executeCodeStep", () => {
           workspaceFolder: workspacePath,
           runtimeContainerId: null,
         },
-        entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        stepKey: "review-step",
         inputJson: null,
       },
       { runCommand },
@@ -133,7 +165,8 @@ describe("executeCodeStep", () => {
             workspaceFolder: "/workspaces/repo",
             runtimeContainerId,
           },
-          entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+          entrypointJson: { sourceFile: "steps/review.ts" },
+          stepKey: "review-step",
           inputJson: null,
           stepEnv: { ACCOUNT_ID: "acct-1", WAREHOUSE_TOKEN: "wh-token-value" },
         },
@@ -166,7 +199,8 @@ describe("executeCodeStep", () => {
           workspaceFolder: workspacePath,
           runtimeContainerId: null,
         },
-        entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        stepKey: "review-step",
         inputJson: null,
       },
       { runCommand },
@@ -175,16 +209,17 @@ describe("executeCodeStep", () => {
     expect(calls[0]?.env).toBeUndefined();
   });
 
-  test("writes the runner script + input file to the host workspace path before dispatch, and removes them after success", async () => {
-    let writtenFilesDuringDispatch: string[] = [];
+  test("writes the runner script next to the step's module and the input file to .boboddy/tmp before dispatch, and removes them after success", async () => {
+    let runnerFilesDuringDispatch: string[] = [];
+    let inputFilesDuringDispatch: string[] = [];
     const runCommand: RunCodeStepCommand = async (input) => {
       void input;
-      const tmpDir = path.join(workspacePath, ".boboddy", "tmp");
-      try {
-        writtenFilesDuringDispatch = await readdir(tmpDir);
-      } catch {
-        writtenFilesDuringDispatch = [];
-      }
+      runnerFilesDuringDispatch = await readdir(
+        path.join(workspacePath, "steps"),
+      );
+      inputFilesDuringDispatch = await readdir(
+        path.join(workspacePath, ".boboddy", "tmp"),
+      );
       return { exitCode: 0, stdout: "", stderr: "" };
     };
 
@@ -195,29 +230,34 @@ describe("executeCodeStep", () => {
           workspaceFolder: workspacePath,
           runtimeContainerId: null,
         },
-        entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        stepKey: "review-step",
         inputJson: { a: 1 },
       },
       { runCommand },
     );
 
-    // Both temp files existed at dispatch time...
+    // Both files existed at dispatch time...
+    expect(runnerFilesDuringDispatch).toHaveLength(1);
+    expect(runnerFilesDuringDispatch[0]).toMatch(
+      /^\.code-step-runner-.+\.mjs$/,
+    );
     expect(
-      writtenFilesDuringDispatch.some((name) =>
-        name.startsWith("code-step-runner-"),
-      ),
-    ).toBe(true);
-    expect(
-      writtenFilesDuringDispatch.some((name) =>
+      inputFilesDuringDispatch.some((name) =>
         name.startsWith("code-step-input-"),
       ),
     ).toBe(true);
+    expect(
+      inputFilesDuringDispatch.some((name) =>
+        name.startsWith("code-step-runner-"),
+      ),
+    ).toBe(false);
 
     // ...and are cleaned up afterward.
-    const tmpDirEntries = await readdir(
-      path.join(workspacePath, ".boboddy", "tmp"),
-    );
-    expect(tmpDirEntries).toHaveLength(0);
+    expect(await readdir(path.join(workspacePath, "steps"))).toEqual([]);
+    expect(
+      await readdir(path.join(workspacePath, ".boboddy", "tmp")),
+    ).toHaveLength(0);
   });
 
   test("throws a clear error and still cleans up temp files when the command exits non-zero", async () => {
@@ -225,7 +265,7 @@ describe("executeCodeStep", () => {
       Promise.resolve({
         exitCode: 1,
         stdout: "",
-        stderr: 'module has no exported function named "reviewFileStep"',
+        stderr: 'no code step with key "review-file" exported by or embedded in x',
       });
 
     let caught: unknown;
@@ -237,10 +277,8 @@ describe("executeCodeStep", () => {
             workspaceFolder: workspacePath,
             runtimeContainerId: null,
           },
-          entrypointJson: {
-            sourceFile: "steps/review.ts",
-            exportName: "reviewFileStep",
-          },
+          entrypointJson: { sourceFile: "steps/review.ts" },
+          stepKey: "review-file",
           inputJson: null,
         },
         { runCommand },
@@ -251,16 +289,17 @@ describe("executeCodeStep", () => {
 
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).message).toContain("exit code 1");
-    expect((caught as Error).message).toContain("steps/review.ts");
-    expect((caught as Error).message).toContain("reviewFileStep");
     expect((caught as Error).message).toContain(
-      'module has no exported function named "reviewFileStep"',
+      'for steps/review.ts (step "review-file")',
+    );
+    expect((caught as Error).message).toContain(
+      'no code step with key "review-file" exported by or embedded in x',
     );
 
-    const tmpDirEntries = await readdir(
-      path.join(workspacePath, ".boboddy", "tmp"),
-    );
-    expect(tmpDirEntries).toHaveLength(0);
+    expect(
+      await readdir(path.join(workspacePath, ".boboddy", "tmp")),
+    ).toHaveLength(0);
+    expect(await readdir(path.join(workspacePath, "steps"))).toEqual([]);
   });
 
   test("input JSON is written to the input temp file so the runner can read it back", async () => {
@@ -284,7 +323,8 @@ describe("executeCodeStep", () => {
           workspaceFolder: workspacePath,
           runtimeContainerId: null,
         },
-        entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        stepKey: "review-step",
         inputJson: { file: "src/index.ts", priority: "high" },
       },
       { runCommand },
@@ -300,14 +340,14 @@ describe("executeCodeStep", () => {
   test("the runner script file exists at dispatch time and contains the expected dynamic-import shape", async () => {
     const capturedRunnerScriptContents: string[] = [];
     const runCommand: RunCodeStepCommand = async () => {
-      const tmpDir = path.join(workspacePath, ".boboddy", "tmp");
-      const files = await readdir(tmpDir);
+      const runnerDir = path.join(workspacePath, "steps");
+      const files = await readdir(runnerDir);
       const runnerFile = files.find((name) =>
-        name.startsWith("code-step-runner-"),
+        name.startsWith(".code-step-runner-"),
       );
       if (runnerFile) {
         capturedRunnerScriptContents.push(
-          await readFile(path.join(tmpDir, runnerFile), "utf8"),
+          await readFile(path.join(runnerDir, runnerFile), "utf8"),
         );
       }
       return { exitCode: 0, stdout: "", stderr: "" };
@@ -320,7 +360,8 @@ describe("executeCodeStep", () => {
           workspaceFolder: workspacePath,
           runtimeContainerId: null,
         },
-        entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        stepKey: "review-step",
         inputJson: null,
       },
       { runCommand },
@@ -329,15 +370,12 @@ describe("executeCodeStep", () => {
     expect(capturedRunnerScriptContents).toHaveLength(1);
     const runnerScriptContent = capturedRunnerScriptContents[0] ?? "";
     expect(runnerScriptContent).toContain("import(entrypointPath)");
+    expect(runnerScriptContent).toContain(
+      'import("@boboddy/sdk/code-step-lookup")',
+    );
     expect(runnerScriptContent).toContain("findingsJson");
 
-    // The runner/input files themselves are removed right after dispatch
-    // resolves (the scratch dir stays — only its contents are cleaned up),
-    // but we already captured the content above while they were live.
-    const remainingTmpEntries = await readdir(
-      path.join(workspacePath, ".boboddy", "tmp"),
-    );
-    expect(remainingTmpEntries).toHaveLength(0);
+    expect(await readdir(path.join(workspacePath, "steps"))).toEqual([]);
   });
 });
 

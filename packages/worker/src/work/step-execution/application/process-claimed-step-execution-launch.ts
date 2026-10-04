@@ -46,6 +46,8 @@ function resolveRuntimeEnvironmentOrchestrator(
 export async function launchRuntimeEnvironment(
   deps: ProcessProjectWorkDeps,
   input: {
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s field of the same name. */
+    startAgent: boolean;
     localRuntimeSessionId: UuidV7;
     workerContext: Awaited<ReturnType<typeof fetchWorkerContext>>;
     requestedByUserId: UuidV7;
@@ -61,11 +63,18 @@ export async function launchRuntimeEnvironment(
     stepEnv?: Readonly<Record<string, string>> | undefined;
   },
 ) {
+  const { executionMode } = input.workerContext.stepDefinition;
+  if (!input.startAgent && executionMode === "no_workspace") {
+    throw new Error(
+      `Step "${input.workerContext.stepDefinition.key}" does not use an agent but has execution mode no_workspace; no_workspace steps run OpenCode on the host and require an agent.`,
+    );
+  }
   const orchestrator = resolveRuntimeEnvironmentOrchestrator(
     deps,
-    input.workerContext.stepDefinition.executionMode,
+    executionMode,
   );
   return await orchestrator.launch({
+    startAgent: input.startAgent,
     sessionId: input.localRuntimeSessionId,
     projectId: parseUuidV7(input.workerContext.projectId),
     requestedByUserId: input.requestedByUserId,
@@ -95,6 +104,7 @@ export async function launchRuntimeEnvironment(
     stepEnv: input.stepEnv,
     devcontainerConfigPath:
       input.workerContext.stepDefinition.devcontainerConfigPath,
+    managedRuntime: input.workerContext.stepDefinition.managedRuntime,
     repo: input.workerContext.stepDefinition.repo,
     stepInputJson: input.workerContext.stepExecution.inputJson,
     logger: deps.logger,

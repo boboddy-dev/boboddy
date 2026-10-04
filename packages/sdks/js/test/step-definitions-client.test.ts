@@ -14,7 +14,12 @@ type MockResponse = { status: number; body: unknown };
 async function readRequestDetails(
   input: string | URL | Request,
   init?: RequestInit,
-): Promise<{ url: string; method: string; headers: Record<string, string>; body: unknown }> {
+): Promise<{
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: unknown;
+}> {
   if (input instanceof Request) {
     const text = await input.clone().text();
     return {
@@ -30,7 +35,9 @@ async function readRequestDetails(
     rawHeaders instanceof Headers
       ? Object.fromEntries(rawHeaders.entries())
       : Object.fromEntries(
-          Object.entries((rawHeaders as Record<string, string> | undefined) ?? {}),
+          Object.entries(
+            (rawHeaders as Record<string, string> | undefined) ?? {},
+          ),
         );
   const rawBody = init?.body;
   const body =
@@ -110,6 +117,25 @@ describe("createStepDefinitionsClient.upsertFromSpec", () => {
       });
       // Headers.entries() lowercases header names per the WHATWG spec.
       expect(captured[0]?.headers["authorization"]).toBe("Bearer test-token");
+    } finally {
+      globalThis.fetch = prev;
+    }
+  });
+
+  test("sends managedRuntime in the request body", async () => {
+    const { mockFetch, captured } = createMockFetch([
+      { status: 200, body: { id: "step-id" } },
+    ]);
+    const prev = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+    try {
+      const client = createStepDefinitionsClient(BASE_URL);
+      await client.upsertFromSpec(
+        "proj-1",
+        makeSpec({ kind: "code", prompt: null, managedRuntime: "bun1" }),
+        { headers: AUTH_HEADER },
+      );
+      expect(captured[0]?.body).toMatchObject({ managedRuntime: "bun1" });
     } finally {
       globalThis.fetch = prev;
     }

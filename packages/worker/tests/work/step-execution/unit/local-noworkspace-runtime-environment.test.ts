@@ -9,7 +9,7 @@
  * wiring + cleanup semantics:
  *
  *   - the returned env has `runtimeContainerId === null` (not a container),
- *     a non-empty `workspaceFolder` under the OS temp dir, and `hostAgentLogPath`
+ *     a non-empty `workspaceFolder` under the OS temp dir, and `agent.hostLogPath`
  *     set (so the monitor tails the host file rather than `docker exec`),
  *   - `hostOpencodeBootstrap.start` is called with the expected wrapper path,
  *     the materialized provider env, the built config content, and the workspace
@@ -180,6 +180,7 @@ describe("DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator.launch (host, no
     return {
       repo,
       sessionId,
+      startAgent: true,
       projectId: createUuidV7(),
       requestedByUserId: createUuidV7(),
       gitUrl: "https://example.com/repo.git",
@@ -212,7 +213,7 @@ describe("DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator.launch (host, no
     // The temp working dir was really created on disk.
     expect(await pathExists(expectedWorkspace)).toBe(true);
     // Host log path is set so the monitor tails the host file (not docker exec).
-    expect(env.hostAgentLogPath).toBeTruthy();
+    expect(env.agent?.hostLogPath).toBeTruthy();
     // No clone → no resolved branch; no devcontainer → no config path/network.
     expect(env.resolvedBranch).toBe("");
     expect(env.devcontainerConfigPath).toBe("");
@@ -276,6 +277,23 @@ describe("DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator.launch (host, no
     expect(start?.providerEnv["BOBODDY_TEST_TOKEN"]).toBe("secret-token");
 
     await env.cleanup();
+  });
+
+  test("rejects startAgent: false before doing any work, since no_workspace is AI-only", async () => {
+    const deps = buildDeps();
+    const orchestrator =
+      new DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator(undefined, deps);
+
+    let caught: unknown;
+    try {
+      await orchestrator.launch({ ...launchInput(), startAgent: false });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toMatch(/startAgent must be true/);
+
+    expect(deps.hostOpencodeBootstrap.startInputs).toHaveLength(0);
   });
 
   test("cleanup stops the host process and removes the temp working dir", async () => {

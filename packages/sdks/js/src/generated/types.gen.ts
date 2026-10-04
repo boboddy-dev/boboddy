@@ -1446,7 +1446,6 @@ export type GetApiStepDefinitionsResponses = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -1517,6 +1516,7 @@ export type GetApiStepDefinitionsResponses = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath: string | unknown;
+        managedRuntime: 'bun1' | 'node24' | unknown;
         repo: {
             mode: string;
         } | {
@@ -1555,7 +1555,6 @@ export type PostApiStepDefinitionsData = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson?: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode?: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -1626,6 +1625,7 @@ export type PostApiStepDefinitionsData = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath?: string | unknown;
+        managedRuntime?: 'bun1' | 'node24' | unknown;
         repo?: {
             mode: string;
         } | {
@@ -1781,7 +1781,6 @@ export type PostApiStepDefinitionsResponses = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -1852,6 +1851,7 @@ export type PostApiStepDefinitionsResponses = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath: string | unknown;
+        managedRuntime: 'bun1' | 'node24' | unknown;
         repo: {
             mode: string;
         } | {
@@ -1890,7 +1890,6 @@ export type PutApiStepDefinitionsData = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson?: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode?: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -1961,6 +1960,7 @@ export type PutApiStepDefinitionsData = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath?: string | unknown;
+        managedRuntime?: 'bun1' | 'node24' | unknown;
         repo?: {
             mode: string;
         } | {
@@ -2084,7 +2084,6 @@ export type PutApiStepDefinitionsResponses = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -2155,6 +2154,7 @@ export type PutApiStepDefinitionsResponses = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath: string | unknown;
+        managedRuntime: 'bun1' | 'node24' | unknown;
         repo: {
             mode: string;
         } | {
@@ -2291,7 +2291,6 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -2362,6 +2361,7 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath: string | unknown;
+        managedRuntime: 'bun1' | 'node24' | unknown;
         repo: {
             mode: string;
         } | {
@@ -2498,7 +2498,6 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -2569,6 +2568,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             default?: string;
         }> | unknown;
         devcontainerConfigPath: string | unknown;
+        managedRuntime: 'bun1' | 'node24' | unknown;
         repo: {
             mode: string;
         } | {
@@ -3354,7 +3354,6 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
             kind: 'built_in' | 'user_defined' | 'code';
             entrypointJson: {
                 sourceFile: string;
-                exportName: string;
             } | unknown;
             executionMode: 'workspace' | 'no_workspace';
             resultSchemaJson: {
@@ -3422,6 +3421,7 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                 default?: string;
             }> | unknown;
             devcontainerConfigPath: string | unknown;
+            managedRuntime: 'bun1' | 'node24' | unknown;
             repo: {
                 mode: string;
             } | {
@@ -15057,7 +15057,6 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
         kind: 'built_in' | 'user_defined' | 'code';
         entrypointJson: {
             sourceFile: string;
-            exportName: string;
         } | unknown;
         executionMode: 'workspace' | 'no_workspace';
         inputSchemaJson: {
@@ -15128,6 +15127,7 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             default?: string;
         }> | unknown;
         devcontainerConfigPath: string | unknown;
+        managedRuntime: 'bun1' | 'node24' | unknown;
         repo: {
             mode: string;
         } | {

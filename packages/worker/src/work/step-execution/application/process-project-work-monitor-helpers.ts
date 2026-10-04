@@ -7,6 +7,7 @@ import type { startProcessClaimedExecution } from "./process-claimed-step-execut
 import type { resolveProjectWorkLogger } from "./process-project-work-logger";
 import type { ProcessProjectWorkDeps } from "../contracts/process-project-work-types";
 import { buildFindingsSubmissionPath } from "./process-project-work-findings";
+import { resolveMonitorAgentContext } from "./process-project-work-monitor-agent";
 import { detectArtifactKind } from "../../../artifacts/artifact-store/domain/detect-artifact-kind";
 import { classifyArtifactSaveError } from "../../../artifacts/artifact-store/domain/classify-artifact-save-error";
 
@@ -66,10 +67,18 @@ export async function handleMissingFindings(
   stepStatus: string,
   workerId: string,
 ): Promise<MissingFindingsAction> {
+  const agentContext = resolveMonitorAgentContext(startedExecution);
+  if (agentContext.mode !== "agent") {
+    throw new Error(
+      "Missing-findings retry handling is AI-only but the started execution has no agent",
+    );
+  }
+  const { agent, agentSessionId } = agentContext;
+
   if (!state.hasWaitedForSessionStop) {
     const diagnostics = await captureMissingFindingsDiagnostics({
       workspacePath: startedExecution.environment.workspacePath,
-      opencodeLogDirectory: startedExecution.environment.opencodeLogDirectory,
+      opencodeLogDirectory: agent.logDirectory,
       runtimeContainerId: startedExecution.environment.runtimeContainerId,
     });
     state.hasWaitedForSessionStop = true;
@@ -82,7 +91,7 @@ export async function handleMissingFindings(
         stepExecutionId: startedExecution.stepExecutionId,
         localRuntimeSessionId: startedExecution.localRuntimeSessionId,
         status: stepStatus,
-        agentSessionId: startedExecution.agentSessionId,
+        agentSessionId,
         findingsFile: diagnostics.findingsFile,
         currentExecutionFile: diagnostics.currentExecutionFile,
         opencodeLogs: diagnostics.opencodeLogs,
@@ -94,7 +103,7 @@ export async function handleMissingFindings(
   if (!state.hasRetriedFindingsSubmission) {
     const diagnostics = await captureMissingFindingsDiagnostics({
       workspacePath: startedExecution.environment.workspacePath,
-      opencodeLogDirectory: startedExecution.environment.opencodeLogDirectory,
+      opencodeLogDirectory: agent.logDirectory,
       runtimeContainerId: startedExecution.environment.runtimeContainerId,
     });
     state.hasRetriedFindingsSubmission = true;
@@ -108,16 +117,16 @@ export async function handleMissingFindings(
         stepExecutionId: startedExecution.stepExecutionId,
         localRuntimeSessionId: startedExecution.localRuntimeSessionId,
         status: stepStatus,
-        agentSessionId: startedExecution.agentSessionId,
+        agentSessionId,
         findingsFile: diagnostics.findingsFile,
         currentExecutionFile: diagnostics.currentExecutionFile,
         opencodeLogs: diagnostics.opencodeLogs,
       },
     );
     await deps.agentRunner.sendRetryPrompt({
-      agentBaseUrl: startedExecution.environment.agentBaseUrl,
+      agentBaseUrl: agent.baseUrl,
       workspaceFolder: startedExecution.environment.workspaceFolder,
-      sessionId: startedExecution.agentSessionId,
+      sessionId: agentSessionId,
       promptText: FINDINGS_RETRY_PROMPT,
       agent: STEP_EXECUTION_AGENT,
     });
@@ -127,7 +136,7 @@ export async function handleMissingFindings(
   if (!state.hasWaitedForRetriedFindingsSubmission) {
     const diagnostics = await captureMissingFindingsDiagnostics({
       workspacePath: startedExecution.environment.workspacePath,
-      opencodeLogDirectory: startedExecution.environment.opencodeLogDirectory,
+      opencodeLogDirectory: agent.logDirectory,
       runtimeContainerId: startedExecution.environment.runtimeContainerId,
     });
     state.hasWaitedForRetriedFindingsSubmission = true;
@@ -140,7 +149,7 @@ export async function handleMissingFindings(
         stepExecutionId: startedExecution.stepExecutionId,
         localRuntimeSessionId: startedExecution.localRuntimeSessionId,
         status: stepStatus,
-        agentSessionId: startedExecution.agentSessionId,
+        agentSessionId,
         findingsFile: diagnostics.findingsFile,
         currentExecutionFile: diagnostics.currentExecutionFile,
         opencodeLogs: diagnostics.opencodeLogs,

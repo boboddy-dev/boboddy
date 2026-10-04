@@ -85,13 +85,15 @@ describe("startProcessClaimedExecution declared health checks", () => {
         return Promise.resolve({
           workspacePath: input.workspacePath,
           workspaceFolder: "/workspaces/repo",
-          opencodeLogDirectory: path.join(input.workspacePath, ".logs"),
           resolvedBranch: "main",
           workBranch: null,
           createdFromBranch: null,
           devcontainerConfigPath: "",
           runtimeContainerId: null,
-          agentBaseUrl: "http://localhost:4096",
+          agent: {
+            baseUrl: "http://localhost:4096",
+            logDirectory: path.join(input.workspacePath, ".logs"),
+          },
           aiImage: "opencode-runtime@test",
           networkName: "",
           secretValues: [],
@@ -205,9 +207,9 @@ describe("startProcessClaimedExecution declared health checks", () => {
         fakeAiServer,
       }),
     );
-    expect(launch.mock.calls[0]?.[0]?.fakeAiProviderOverride?.baseUrl).toContain(
-      ":9999",
-    );
+    expect(
+      launch.mock.calls[0]?.[0]?.fakeAiProviderOverride?.baseUrl,
+    ).toContain(":9999");
     expect(deps.agentRunner.promptAsync).toHaveBeenCalledTimes(1);
     expect(cleanup).not.toHaveBeenCalled();
 

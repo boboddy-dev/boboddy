@@ -30,13 +30,15 @@ function createRecordingOrchestrator(workspacePath: string) {
     Promise.resolve({
       workspacePath,
       workspaceFolder: "/workspaces/repo",
-      opencodeLogDirectory: path.join(workspacePath, ".logs"),
       resolvedBranch: "",
       workBranch: null,
       createdFromBranch: null,
       devcontainerConfigPath: "",
       runtimeContainerId: null,
-      agentBaseUrl: "http://localhost:4096",
+      agent: {
+        baseUrl: "http://localhost:4096",
+        logDirectory: path.join(workspacePath, ".logs"),
+      },
       aiImage: "opencode-runtime@test",
       networkName: "",
       secretValues: [],
@@ -95,13 +97,15 @@ describe("startProcessClaimedExecution", () => {
         // Representative resolved workspace folder: the prompt's artifact paths
         // must be anchored here rather than a hardcoded `/workspace`.
         workspaceFolder: "/workspaces/repo",
-        opencodeLogDirectory: path.join(workspacePath, ".logs"),
         resolvedBranch: "main",
         workBranch: null,
         createdFromBranch: null,
         devcontainerConfigPath: ".devcontainer/devcontainer.json",
         runtimeContainerId: "runtime-container-id",
-        agentBaseUrl: "http://localhost:4096",
+        agent: {
+          baseUrl: "http://localhost:4096",
+          logDirectory: path.join(workspacePath, ".logs"),
+        },
         aiImage: "boboddy/ai-worker:local",
         networkName: "test-network",
         secretValues: [],
@@ -182,13 +186,15 @@ describe("startProcessClaimedExecution", () => {
       Promise.resolve({
         workspacePath,
         workspaceFolder: "/workspaces/repo",
-        opencodeLogDirectory: path.join(workspacePath, ".logs"),
         resolvedBranch: "main",
         workBranch: null,
         createdFromBranch: null,
         devcontainerConfigPath: ".devcontainer/devcontainer.json",
         runtimeContainerId: "runtime-container-id",
-        agentBaseUrl: "http://localhost:4096",
+        agent: {
+          baseUrl: "http://localhost:4096",
+          logDirectory: path.join(workspacePath, ".logs"),
+        },
         aiImage: "boboddy/ai-worker:local",
         networkName: "test-network",
         secretValues: [],
@@ -341,6 +347,27 @@ describe("startProcessClaimedExecution runtime orchestrator routing", () => {
     );
     expect(workspaceOrchestrator.launch).not.toHaveBeenCalled();
   });
+
+  test.each<["user_defined" | "built_in"]>([["user_defined"], ["built_in"]])(
+    "launches the agent for a '%s' step",
+    async (kind) => {
+      const workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-routing-start-agent-"),
+      );
+      const workspaceOrchestrator = createRecordingOrchestrator(workspacePath);
+      const workerClient = createWorkerClient("workspace");
+      workerClient.getStepExecutionWorkerContext = vi.fn(() =>
+        Promise.resolve(createWorkerContext("workspace", null, { kind })),
+      );
+      const deps = createRoutingDeps({ workerClient, workspaceOrchestrator });
+
+      await runClaim(deps);
+
+      expect(workspaceOrchestrator.launch).toHaveBeenCalledWith(
+        expect.objectContaining({ startAgent: true }),
+      );
+    },
+  );
 
   test.each([[".devcontainer/alt/devcontainer.json"], [null]])(
     "passes the step's devcontainerConfigPath (%p) to the workspace launch",

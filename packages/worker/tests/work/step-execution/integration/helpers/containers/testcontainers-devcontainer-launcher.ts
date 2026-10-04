@@ -32,6 +32,12 @@ type ParsedBindMount = {
   readOnly: boolean;
 };
 
+export type LaunchRecord = {
+  configPath: string;
+  mounts: ParsedBindMount[];
+  publishedPort: { hostPort: number; containerPort: number } | null;
+};
+
 /**
  * testcontainers-backed DevcontainerLauncher for the SINGLE-CONTAINER model.
  *
@@ -57,6 +63,8 @@ export class TestcontainersDevcontainerLauncher
 {
   /** Config paths handed to `launch`, so tests can assert which config ran. */
   readonly launchedConfigPaths: string[] = [];
+  /** What each launch was given by the config: mounts and published ports. */
+  readonly launches: LaunchRecord[] = [];
 
   constructor(private readonly registry: ContainerRegistry) {}
 
@@ -101,6 +109,12 @@ export class TestcontainersDevcontainerLauncher
     // provider config) is applied here so the in-container OpenCode bootstrap
     // can launch from the mounted payload — there is no second container.
     const injectedMounts = parseBindMounts(config.mounts ?? []);
+    const portBinding = parseAppPort(config.appPort);
+    this.launches.push({
+      configPath: input.devcontainerConfigPath,
+      mounts: injectedMounts,
+      publishedPort: portBinding,
+    });
 
     let container = new GenericContainer(image)
       .withStartupTimeout(STARTUP_TIMEOUT_MS)
@@ -138,7 +152,6 @@ export class TestcontainersDevcontainerLauncher
     // Publish the OpenCode host port the orchestrator chose. The injected
     // appPort spec is `127.0.0.1:<hostPort>:<containerPort>`; bind the fixed
     // host port so the worker reaches the in-container agent over loopback.
-    const portBinding = parseAppPort(config.appPort);
     if (portBinding) {
       container = container.withExposedPorts({
         container: portBinding.containerPort,

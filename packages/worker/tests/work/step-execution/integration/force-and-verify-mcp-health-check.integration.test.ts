@@ -103,6 +103,7 @@ describe.skipIf(!integrationEnabled)(
 
         const sessionId = createUuidV7();
         environment = await orchestrator.launch({
+          startAgent: true,
           sessionId,
           projectId: createUuidV7(),
           requestedByUserId: createUuidV7(),
@@ -123,9 +124,13 @@ describe.skipIf(!integrationEnabled)(
             baseUrl: `http://127.0.0.1:${String(fakeAiServer.port)}`,
           },
         });
+        const { agent } = environment;
+        if (!agent) {
+          throw new Error("Expected the launch to start an agent");
+        }
 
         const working = await forceAndVerifyMcpHealthCheck({
-          agentBaseUrl: environment.agentBaseUrl,
+          agentBaseUrl: agent.baseUrl,
           workspaceFolder: environment.workspaceFolder,
           healthCheck: { tool: "fixture_echo", args: { text: "ping" } },
           fakeAiServer,
@@ -134,7 +139,7 @@ describe.skipIf(!integrationEnabled)(
         expect(working).toEqual({ passed: true });
 
         const broken = await forceAndVerifyMcpHealthCheck({
-          agentBaseUrl: environment.agentBaseUrl,
+          agentBaseUrl: agent.baseUrl,
           workspaceFolder: environment.workspaceFolder,
           healthCheck: { tool: "fixture_boom", args: {} },
           fakeAiServer,

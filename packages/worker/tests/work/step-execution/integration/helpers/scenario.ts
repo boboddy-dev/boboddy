@@ -44,12 +44,14 @@ export function buildSingleStepScenario(input: {
   findings: unknown;
   /** Repo-relative devcontainer config the step selects; `null` auto-detects. */
   devcontainerConfigPath?: string | null;
+  /** The managed runtime identifier a code step runs in; `null` is not managed. */
+  managedRuntime?: string | null;
   /** The step's resolved repo access; defaults to a read-write step. */
   repo?: RepoConfig;
   /** The step execution's additional input (the `{{input.…}}` token source). */
   inputJson?: unknown;
   /** When set, the step is `kind: "code"` and runs this entrypoint instead of prompting. */
-  codeEntrypoint?: { sourceFile: string; exportName: string };
+  codeEntrypoint?: { sourceFile: string };
 }): WorkScenario {
   const resultSchemaJson =
     input.resultSchemaJson === undefined
@@ -82,6 +84,7 @@ export function buildSingleStepScenario(input: {
       entrypointJson: input.codeEntrypoint ?? null,
       executionMode: "workspace",
       devcontainerConfigPath: input.devcontainerConfigPath ?? null,
+      managedRuntime: input.managedRuntime ?? null,
       repo: input.repo ?? {
         mode: "readWrite",
         message: null,

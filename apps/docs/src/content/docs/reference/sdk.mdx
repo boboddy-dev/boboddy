@@ -114,7 +114,7 @@ Legacy raw prompt tokens such as `{{title}}` and `{{stepArtifactsDir}}` still re
 
 ### `Runtime`
 
-`Runtime` builds the `environment.runtime` value: where the step runs. It is exported from `@boboddy/sdk`. Omit `runtime` for the default, `Runtime.devcontainer()`.
+`Runtime` builds the `environment.runtime` value: where the step runs. It is exported from `@boboddy/sdk`. Omit `runtime` for the default: `Runtime.devcontainer()` on `defineStep()`, `Runtime.managed.bun1()` on `codeStep()`.
 
 ```typescript
 import { defineStep, Runtime } from "@boboddy/sdk";
@@ -139,7 +139,7 @@ defineStep({
 ```
 
 ```typescript
-type RuntimeSpec = DevcontainerRuntimeSpec | HostRuntimeSpec;
+type RuntimeSpec = DevcontainerRuntimeSpec | HostRuntimeSpec | ManagedRuntimeSpec;
 
 Runtime.devcontainer(opts?: {
   config?: string; // full repo-relative path to devcontainer.json or .devcontainer.json
@@ -161,7 +161,35 @@ Runtime.host(): HostRuntimeSpec;
 
 `codeStep()` accepts the same `environment`, but `Runtime.host()` is a type error there and is rejected by validation: a code step runs repo code and needs a workspace. The container a code step's `config` selects must provide a JavaScript runtime for the runner script.
 
-The wire form is derived from `runtime`: `executionMode` (`"workspace"` for the devcontainer runtime, `"no_workspace"` for host) and `devcontainerConfigPath` (`config`, or `null`). The path schema is `devcontainerConfigPathSchema` from `@boboddy/sdk/devcontainer-config-path`.
+#### `Runtime.managed`
+
+`codeStep()` also accepts `Runtime.managed.<id>()`: a container the worker supplies (image, config and dependency install), so the step does not boot your project's devcontainer. `defineStep()` rejects it. It is the default for `codeStep()`: omit `runtime` and you get `Runtime.managed.bun1()`. Use `Runtime.devcontainer()` to run a code step in your project's devcontainer instead.
+
+```typescript
+import { codeStep, Runtime } from "@boboddy/sdk/definitions/steps";
+
+codeStep({
+  key: "lookup-criteria",
+  name: "Lookup Criteria",
+  environment: { runtime: Runtime.managed.node24() },
+  fn: lookupCriteriaFn,
+});
+```
+
+```typescript
+type ManagedRuntimeId = "bun1" | "node24";
+
+Runtime.managed: { [K in ManagedRuntimeId]: () => ManagedRuntimeSpec<K> };
+```
+
+| Constructor                | Image                   | Behaviour                                                                                                                            |
+| -------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `Runtime.managed.bun1()`   | `oven/bun:1.4.0-debian` | The default for `codeStep()`. Runs `bun install --production` in `.boboddy/pipeline-builder`, then runs the step with Bun. Skips dependency `postinstall` scripts unless listed in `trustedDependencies`. |
+| `Runtime.managed.node24()` | `node:24-bookworm-slim` | Runs `npm install --omit=dev` (or `corepack pnpm install --prod` for `pnpm-lock.yaml`), then runs the step with Node 24. Runs `postinstall` scripts. Does not resolve extensionless relative imports. |
+
+`Runtime.managed.nope` is a type error: the identifiers come from `MANAGED_RUNTIME_IDS` in `@boboddy/sdk/managed-runtimes`. A managed step has no `config`. See [Runtime for code steps](/boboddy/guides/steps/#runtime-for-code-steps) for the lockfile handling and runtime differences, and [Running Workers](/boboddy/guides/workers/#managed-runtimes) for the worker side.
+
+The wire form is derived from `runtime`: `executionMode` (`"workspace"` for the devcontainer and managed runtimes, `"no_workspace"` for host), `devcontainerConfigPath` (`config`, or `null`), and `managedRuntime` (the identifier for a managed runtime, otherwise `null`). The path schema is `devcontainerConfigPathSchema` from `@boboddy/sdk/devcontainer-config-path`.
 
 See [Environment](/boboddy/guides/steps/#environment) and [Multiple configs](/boboddy/guides/devcontainer/#multiple-configs) for the guides.
 
@@ -268,6 +296,7 @@ Which `repo` each runtime accepts:
 | Runtime                  | `readWrite` | `readOnly` | `none` | Default     |
 | ------------------------ | ----------- | ---------- | ------ | ----------- |
 | `Runtime.devcontainer()` | Yes         | Yes        | No     | `readWrite` |
+| `Runtime.managed.<id>()` | Yes         | Yes        | No     | `readWrite` |
 | `Runtime.host()`         | No          | No         | Yes    | `none`      |
 
 A pair the runtime rejects is a type error where TypeScript can express it, and otherwise a validation error at definition time, at push, and from the server (`422`). `codeStep()` accepts `repo` with the same rules.
@@ -447,12 +476,12 @@ export const sumScores = codeStep({
 | `name`         | `string`                                          | Yes      | Display name                                                        |
 | `version`      | `number`                                          | No       | Version (default: `1`)                                              |
 | `description`  | `string`                                          | No       | Short description                                                   |
-| `fn`           | `(input) => result \| Promise<result>`            | Yes      | The step's implementation; must be a plain named export of the module `codeStep()` is called from |
+| `fn`           | `(input) => result \| Promise<result>`            | Yes      | The step's implementation; may be inline. The worker imports the module and finds the step by `key`, so the step can be exported by name, embedded in a pipeline, or both. See [Code steps](/boboddy/guides/steps/#code-steps) |
 | `inputSchema`  | `ZodType`                                         | No       | Zod schema for `fn`'s input                                          |
 | `resultSchema` | `ZodType`                                         | No       | Zod schema for `fn`'s return value                                   |
 | `signals`      | `CodeStepSignalSpec[]`                            | No       | Values to extract from the result; unlike `defineStep`, `type` is required (not inferred) |
 | `features`     | `AnyStepFeature[]`                                | No       | Feature plugins from `Features`; only each feature's result extension and signals apply (no prompt on a code step) |
-| `environment`  | `{ runtime?: DevcontainerRuntimeSpec; vars?: ({ input }) => Record<string, string \| EnvEntry>; repo?: DevcontainerRepoSpec \| (({ input, result }) => DevcontainerRepoSpec) }` | No | `runtime` is `Runtime.devcontainer({ config? })` (default); `Runtime.host()` is not supported. `vars` are environment variables for the runner process, read by `fn` through `process.env`. `repo` is `Repo.readWrite()` (default) or `Repo.readOnly()`. See [`Runtime`](#runtime), [`Env`](#env) and [`Repo`](#repo) |
+| `environment`  | `{ runtime?: DevcontainerRuntimeSpec \| ManagedRuntimeSpec; vars?: ({ input }) => Record<string, string \| EnvEntry>; repo?: DevcontainerRepoSpec \| (({ input, result }) => DevcontainerRepoSpec) }` | No | `runtime` is `Runtime.managed.<id>()` or `Runtime.devcontainer({ config? })`; the default is `Runtime.managed.bun1()`. `Runtime.host()` is not supported. `vars` are environment variables for the runner process, read by `fn` through `process.env`. `repo` is `Repo.readWrite()` (default) or `Repo.readOnly()`. See [`Runtime`](#runtime), [`Env`](#env) and [`Repo`](#repo) |
 | `status`       | `"draft" \| "active"`                             | No       | Draft steps are not executed; defaults to `"active"`                |
 
 `CodeStepSignalSpec` is `{ sourcePath, key?, type: "string" | "number" | "boolean" | "object" | "array", required?, availableWhenResultStatusIn? }`.

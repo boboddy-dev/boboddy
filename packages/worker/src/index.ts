@@ -158,6 +158,14 @@ export {
   buildPipelineBuilderPackageJson,
   scaffoldPipelineBuilderDirectory,
 } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
+export {
+  PIPELINE_BUILDER_LOCKFILES,
+  selectPipelineBuilderLockfile,
+} from "./runtime/runtime-service/domain/pipeline-builder-lockfiles";
+export type {
+  BuilderInstaller,
+  PipelineBuilderLockfileName,
+} from "./runtime/runtime-service/domain/pipeline-builder-lockfiles";
 export { detectPipelineRuntime } from "./pipelines/pipeline-definitions/infra/detect-pipeline-runtime";
 export type { PipelineRuntime } from "./pipelines/pipeline-definitions/infra/detect-pipeline-runtime";
 export {

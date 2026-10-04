@@ -15,6 +15,13 @@ export type StepExecutionStatus =
   | "cancelled"
   | "skipped";
 
+/**
+ * Mirrors the server's `stepDefinitionKindValues`. The worker does not depend
+ * on `@boboddy/core`; `step-definition-kind-drift.test.ts` pins this union to
+ * the SDK's generated API types so the two cannot drift.
+ */
+export type StepDefinitionKind = "built_in" | "user_defined" | "code";
+
 export type StepExecutionContract = {
   id: string;
   status: StepExecutionStatus;
@@ -71,9 +78,9 @@ export type StepExecutionWorkerContextContract = {
      * instead resolves + imports `entrypointJson` against the target repo's
      * checkout (see `execute-code-step.ts`).
      */
-    kind: "built_in" | "user_defined" | "code";
-    /** `kind === "code"` only. A portable `{sourceFile, exportName}` pair. */
-    entrypointJson: { sourceFile: string; exportName: string } | null;
+    kind: StepDefinitionKind;
+    /** `kind === "code"` only. The module holding the step, found there by `key`. */
+    entrypointJson: { sourceFile: string } | null;
     /**
      * How the step runs. `workspace` (default) clones the repo and launches a
      * devcontainer with OpenCode inside it; `no_workspace` runs OpenCode
@@ -87,6 +94,14 @@ export type StepExecutionWorkerContextContract = {
      * canonical config. Never set for `no_workspace` steps.
      */
     devcontainerConfigPath: string | null;
+    /**
+     * Identifier of the worker-supplied managed runtime this `code` step runs
+     * in instead of a repo devcontainer (see `Runtime.managed`), or `null`.
+     * Typed `string` rather than the SDK union because a server newer than
+     * this worker can send an identifier it does not know; the launch then
+     * fails naming it. Never set together with `devcontainerConfigPath`.
+     */
+    managedRuntime: string | null;
     /**
      * The step's resolved repository access (see `Repo` in the SDK). Never
      * null: the server resolves the runtime's default when a definition is

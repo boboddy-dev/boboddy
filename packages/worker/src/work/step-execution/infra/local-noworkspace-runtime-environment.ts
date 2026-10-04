@@ -48,7 +48,7 @@ export type LocalNoWorkspaceRuntimeEnvironmentOrchestrator =
  * Implements the same {@link StepExecutionRuntimeEnvironmentOrchestrator}
  * contract as the devcontainer orchestrator and returns the same
  * {@link StepExecutionRuntimeEnvironment} shape, with `runtimeContainerId: null`
- * (no container) and `hostAgentLogPath` set so the monitor tails the host log
+ * (no container) and `agent.hostLogPath` set so the monitor tails the host log
  * file rather than doing `docker exec`.
  */
 export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements LocalNoWorkspaceRuntimeEnvironmentOrchestrator {
@@ -70,6 +70,8 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
   ) {}
 
   async launch(input: {
+    /** See `StepExecutionRuntimeEnvironmentOrchestrator.launch`'s `startAgent`. */
+    startAgent: boolean;
     sessionId: UuidV7;
     projectId: UuidV7;
     requestedByUserId: UuidV7;
@@ -104,6 +106,8 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
     stepEnv?: Readonly<Record<string, string>> | undefined;
     /** Accepted for contract parity; a no-workspace step has no devcontainer. */
     devcontainerConfigPath?: string | null | undefined;
+    /** Ignored: no-workspace steps have no container, managed or otherwise. */
+    managedRuntime?: string | null | undefined;
     /**
      * Accepted for contract parity. A no-workspace step never clones, which is
      * exactly repo mode `none`, so there is nothing to act on.
@@ -112,6 +116,12 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
     /** Accepted for contract parity; there is no commit to render. */
     stepInputJson?: unknown;
   }): Promise<StepExecutionRuntimeEnvironment> {
+    if (!input.startAgent) {
+      throw new Error(
+        "A no_workspace step always runs an agent: the no_workspace runtime " +
+          "cannot launch without starting OpenCode (startAgent must be true).",
+      );
+    }
     const reporter = input.reporter ?? noopReporter;
     const stepExecutionId =
       input.stepExecutionId ?? input.currentExecutionInfo.stepExecutionId;
@@ -243,8 +253,6 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
         workspacePath: capturedWorkspacePath,
         // OpenCode runs on the host against the temp workdir directly.
         workspaceFolder: capturedWorkspacePath,
-        opencodeLogDirectory: started.agentLogDirectory,
-        hostAgentLogPath: started.agentLogPath,
         // No clone: there is no resolved branch.
         resolvedBranch: "",
         // No repo: no work branch is created here.
@@ -254,7 +262,11 @@ export class DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator implements Lo
         devcontainerConfigPath: "",
         // No container: callers must treat this as "not a container".
         runtimeContainerId: null,
-        agentBaseUrl: started.agentBaseUrl,
+        agent: {
+          baseUrl: started.agentBaseUrl,
+          logDirectory: started.agentLogDirectory,
+          hostLogPath: started.agentLogPath,
+        },
         // No AI image is used; surface the pinned OpenCode runtime version.
         aiImage: `opencode-runtime@${payload.version}`,
         networkName: "",

@@ -37,7 +37,7 @@ export type LocalRuntimeSessionStore = StepExecutionRunTracker & {
     id: string;
     workspacePath: string;
     runtimeContainerId: string | null;
-    agentBaseUrl: string;
+    agentBaseUrl: string | null;
     metadataJson?: string | null | undefined;
   }): void;
   attachAgentSession(input: {
@@ -120,7 +120,7 @@ export class SqliteLocalRuntimeSessionStore implements LocalRuntimeSessionStore 
     id: string;
     workspacePath: string;
     runtimeContainerId: string | null;
-    agentBaseUrl: string;
+    agentBaseUrl: string | null;
     metadataJson?: string | null | undefined;
   }) {
     this.update(

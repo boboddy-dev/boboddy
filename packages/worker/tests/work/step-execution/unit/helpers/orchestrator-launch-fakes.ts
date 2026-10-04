@@ -354,6 +354,7 @@ export const DEFAULT_WORKSPACE_REPO: RepoConfig = {
 /** A representative `workspace`-mode launch input. */
 export function buildLaunchInput() {
   return {
+    startAgent: true,
     repo: DEFAULT_WORKSPACE_REPO,
     sessionId: createUuidV7(),
     projectId: createUuidV7(),

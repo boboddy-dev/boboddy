@@ -36,7 +36,7 @@ boboddy work <projectId>
 
 1. **Poll** — The worker calls the server to claim a batch of pending step executions.
 2. **Claim** — Each claimed execution is assigned a lease. The worker sends heartbeats to extend the lease while processing.
-3. **Environment setup** — For `Runtime.devcontainer()` steps (the default), the worker clones your repository and launches a single Docker runtime from your devcontainer config: `.devcontainer/devcontainer.json` unless the step selects another with [`Runtime.devcontainer({ config })`](#devcontainer-config). Before bringing the container up, it injects mounts for a pinned, Boboddy-managed OpenCode runtime payload and a session-scoped agent home. For `Runtime.host()` steps, this is skipped entirely — see [Runtime](/boboddy/guides/steps/#runtime).
+3. **Environment setup** — For `Runtime.devcontainer()` steps (the default), the worker clones your repository and launches a single Docker runtime from your devcontainer config: `.devcontainer/devcontainer.json` unless the step selects another with [`Runtime.devcontainer({ config })`](#devcontainer-config). Before bringing the container up, it injects mounts for a pinned, Boboddy-managed OpenCode runtime payload and a session-scoped agent home. For `Runtime.host()` steps, this is skipped entirely — see [Runtime](/boboddy/guides/steps/#runtime). [Code steps](/boboddy/guides/steps/#code-steps) default to a worker-supplied [managed runtime](#managed-runtimes) instead of your devcontainer.
 4. **Agent startup** — For `Runtime.devcontainer()` steps, OpenCode runs **inside that same devcontainer** (same environment as your workspace), launched by absolute path from the mounted runtime payload — never the project's Node or a global `opencode`. There is no separate AI container, cross-container network, or MCP-host bridge. For `Runtime.host()` steps, the same Boboddy-managed OpenCode runtime runs **directly on the worker host** against a temporary empty directory — no Docker, no clone.
 5. **Agent execution** — The step is handed to the in-container OpenCode agent with the step's prompt, input payload, and any configured MCP servers. Provider access is resolved through a normalized contract (currently `direct` mode: an explicit provider base URL + token, with your local OpenCode config as a fallback source).
 6. **Signal extraction** — The agent's structured output is parsed; signals are extracted per the step's `signals` definition.
@@ -54,6 +54,24 @@ Devcontainer config ".devcontainer/frontend/devcontainer.json" not found in the 
 The branch in the message is the one the step was created off: your base branch for the first write step (see [Base branch](#base-branch)), or the work branch of the nearest earlier step that produced one for a later step. If a step expects a config that an earlier step is supposed to add, check that branch. A config path that resolves outside the clone (for example through a symlink) is rejected with `... resolves outside the cloned repository`. A `--dry-run` for the step resolves the same config, so a wrong path shows up in the dry-run report.
 
 The worker patches the config it launches (mounts, ports, and `containerEnv`), and does not commit that patched file to the step's work branch. See [Selecting a devcontainer config](/boboddy/guides/steps/#selecting-a-devcontainer-config) and [Multiple configs](/boboddy/guides/devcontainer/#multiple-configs).
+
+### Managed runtimes
+
+A [code step](/boboddy/guides/steps/#code-steps) runs in a managed runtime (`Runtime.managed.<id>()`, default `bun1`) unless it opts into `Runtime.devcontainer()`. The worker still clones your repository, but it launches its own container instead of your devcontainer config. For each run it:
+
+1. Looks up the identifier in its registry for the image (`oven/bun:1.4.0-debian` for `bun1`, `node:24-bookworm-slim` for `node24`).
+2. Picks the dependency install from the lockfile in the clone's `.boboddy/pipeline-builder` (see [Runtime for code steps](/boboddy/guides/steps/#runtime-for-code-steps)).
+3. Writes a generated `devcontainer.json` to `.boboddy/managed-devcontainers/<id>/devcontainer.json` **inside the clone**, and launches from it.
+
+That directory exists only in the clone for the run. It is excluded from work-branch commits and is never committed to your repository. It holds a devcontainer config that names an image, not an image, and it is unrelated to the host-side `~/.boboddy/runtimes/` directory where the worker caches the OpenCode runtime payload.
+
+A worker only knows the identifiers its version ships. If a step names one it does not know, for example because the step was pushed with a newer SDK than the worker's CLI, the step fails before anything launches, and the failure names the identifier and the ones the worker supports:
+
+```
+Managed runtime "node26" is not supported by this worker. Supported managed runtimes: bun1, node24. Upgrade the Boboddy CLI to a version that supports it.
+```
+
+Upgrade the CLI on the worker host to fix it. Because image tags move with the worker version, a worker upgrade can also change the runtime under every managed code step.
 
 ## Work branches
 

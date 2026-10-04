@@ -1,6 +1,7 @@
 import type { GitCommitPushService } from "../../../runtime/runtime-service/application/git-commit-push-service";
 import type { SubmoduleService } from "../../../runtime/runtime-service/application/submodule-service";
 import { sanitizeGitRefFragment } from "../../../runtime/runtime-service/domain/git-ref-name";
+import { MANAGED_DEVCONTAINERS_DIR } from "../../../runtime/runtime-service/domain/managed-runtimes";
 import type { RepoOnPushFailure } from "@boboddy/sdk/repo-config";
 import type { AnyJsonValue } from "../../../common/contracts/json";
 import { startStopwatch } from "../../../lib/elapsed";
@@ -21,6 +22,7 @@ export const WORK_BRANCH_EXCLUDE_PATHS = [
   ".boboddy/step-findings-submission.json",
   ".boboddy/step-artifacts",
   ".devcontainer/devcontainer.json",
+  MANAGED_DEVCONTAINERS_DIR,
 ] as const;
 
 /** Prefix used when the repo config does not specify a valid `branchPrefix`. */
@@ -302,7 +304,8 @@ export function buildCommitAndPushWorkBranch(input: {
   /**
    * Extra repo-relative paths to keep out of the commit, beyond
    * {@link WORK_BRANCH_EXCLUDE_PATHS}: the devcontainer config the worker
-   * patched before launch, which may live anywhere in the repo.
+   * patched before launch, which may live anywhere in the repo, and for a
+   * managed runtime the install's own artifacts.
    */
   extraExcludePaths?: readonly string[] | undefined;
 }): (ctx: { result: AnyJsonValue }) => Promise<CommitAndPushWorkBranchResult> {

@@ -21,13 +21,15 @@ function createStartedExecution(workspacePath: string): StartedClaimedExecution 
     environment: {
       workspacePath,
       workspaceFolder: "/workspaces/repo",
-      opencodeLogDirectory: path.join(workspacePath, ".logs"),
       resolvedBranch: "main",
       workBranch: null,
       createdFromBranch: null,
       devcontainerConfigPath: ".devcontainer/devcontainer.json",
       runtimeContainerId: "runtime-container-id",
-      agentBaseUrl: "http://127.0.0.1:4096",
+      agent: {
+        baseUrl: "http://127.0.0.1:4096",
+        logDirectory: path.join(workspacePath, ".logs"),
+      },
       aiImage: "opencode-runtime@0.0.0-test",
       networkName: "",
       secretValues: [],

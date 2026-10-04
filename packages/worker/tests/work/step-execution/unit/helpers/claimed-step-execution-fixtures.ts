@@ -58,6 +58,7 @@ export function createWorkerContext(
       entrypointJson: null,
       executionMode: resolvedExecutionMode,
       devcontainerConfigPath: null,
+      managedRuntime: null,
       repo:
         resolvedExecutionMode === "no_workspace"
           ? { mode: "none" }
@@ -81,15 +82,16 @@ export function createWorkerContext(
 export function createCodeStepWorkerContext(
   entrypointJson: StepExecutionWorkerContext["stepDefinition"]["entrypointJson"] = {
     sourceFile: ".boboddy/pipeline-builder/review-file-step.ts",
-    exportName: "reviewFileStep",
   },
   envJson: StepExecutionWorkerContext["stepDefinition"]["envJson"] = null,
+  managedRuntime: StepExecutionWorkerContext["stepDefinition"]["managedRuntime"] = null,
 ): StepExecutionWorkerContext {
   return createWorkerContext("workspace", null, {
     kind: "code",
     prompt: null,
     entrypointJson,
     envJson,
+    managedRuntime,
   });
 }
 

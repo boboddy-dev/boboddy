@@ -266,11 +266,11 @@ export type AdditionalStepInputBinding = WorkItemBinding | LiteralBinding;
 
 /**
  * A `kind: "code"` step's portable entrypoint, once resolved by
- * `collect-definitions.ts`'s identity-capture pass.
+ * `collect-definitions.ts`: the repo-relative file that defines the step. The
+ * worker finds the step inside that file by its `key`.
  */
 export type StepDefinitionEntrypointJson = {
   sourceFile: string;
-  exportName: string;
 };
 
 export type StepDefinitionSpec = {
@@ -286,6 +286,12 @@ export type StepDefinitionSpec = {
    * means auto-detect. Only valid with `executionMode: "workspace"`.
    */
   devcontainerConfigPath?: string | null;
+  /**
+   * Identifier of the worker-supplied managed runtime (`Runtime.managed.<id>()`);
+   * `null` or omitted means not managed. Only valid on a `code` step with
+   * `executionMode: "workspace"` and no `devcontainerConfigPath`.
+   */
+  managedRuntime?: string | null;
   /**
    * Repository access. Omitted means the runtime's default (`readWrite` for
    * `workspace`, `none` for `no_workspace`), which the server resolves.
@@ -306,11 +312,11 @@ export type StepDefinitionSpec = {
   healthChecksJson: HealthChecksInput | null;
   envJson?: EnvVarsInput | null;
   /**
-   * `kind === "code"` only, and only *before* collection —
-   * `collect-definitions.ts` resolves this live `fn` reference down to
-   * `entrypointJson` (by identity-matching against the declaring module's
-   * other exports) and strips this field before the spec is ever pushed;
-   * it can never be serialized into the push request.
+   * `kind === "code"` only: the live function of a spec produced by
+   * `codeStep()`. Code-step discovery (`findCodeStepInModule`) reads it to
+   * find the function to run. `collect-definitions.ts` strips it from the
+   * copy it pushes, since a function cannot be serialized into the push
+   * request; the original spec keeps it.
    */
   // A live function reference, deliberately untyped at this boundary — its
   // real input/result types live on the phantom `TypedStepDefinitionSpec`
@@ -465,8 +471,13 @@ export function defineStep<
   // Collect user-defined signals, then append feature signals.
   const featureSignals = features.flatMap((f) => f._signals);
 
-  const { executionMode, devcontainerConfigPath, envJson, repo } =
-    compileEnvironment(config.environment, { stepKey: config.key });
+  const {
+    executionMode,
+    devcontainerConfigPath,
+    managedRuntime,
+    envJson,
+    repo,
+  } = compileEnvironment(config.environment, { stepKey: config.key });
 
   const spec: StepDefinitionSpec = {
     key: config.key,
@@ -477,6 +488,7 @@ export function defineStep<
     status: config.status ?? "active",
     executionMode,
     devcontainerConfigPath,
+    ...(managedRuntime !== null ? { managedRuntime } : {}),
     prompt: effectivePrompt,
     inputSchemaJson: config.additionalInput
       ? toJSONSchema(config.additionalInput as unknown as $ZodType)

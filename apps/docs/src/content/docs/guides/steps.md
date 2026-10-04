@@ -178,7 +178,59 @@ The worker patches the config it launches (to add mounts, ports, and `containerE
 
 [`codeStep()`](#code-steps) takes the same `environment`, with one restriction: **`Runtime.host()` is not supported**. A code step runs code from your repository, and the host runtime has no clone, so the entrypoint could never be found. This is a type error on `codeStep`, and `boboddy pipelines push` validation rejects a hand-built spec that does it.
 
-A code step runs in whichever container its runtime selects, and the runner script executes there. For any non-default `config`, the container must provide a JavaScript runtime for that script. That is up to the author of the config.
+A code step runs in a **managed runtime** by default: a small container the worker supplies, so the step does not boot your project's devcontainer to run a plain function. The worker owns the image, the generated config and the dependency install; your repository holds nothing for it. Pick one with `Runtime.managed.<id>()`, or opt out with `Runtime.devcontainer()` to run in your project's devcontainer (or the config it selects) instead.
+
+```typescript
+import { codeStep, Runtime } from "@boboddy/sdk/definitions/steps";
+
+export const lookupCriteria = codeStep({
+  key: "lookup-criteria",
+  name: "Lookup Criteria",
+  environment: { runtime: Runtime.managed.node24() },
+  fn: lookupCriteriaFn,
+});
+
+export const needsProjectToolchain = codeStep({
+  key: "needs-project-toolchain",
+  name: "Needs Project Toolchain",
+  environment: { runtime: Runtime.devcontainer() },
+  fn: needsProjectToolchainFn,
+});
+```
+
+| Identifier | Image                   | Runtime      | Install, run in `.boboddy/pipeline-builder`                                                                                                            |
+| ---------- | ----------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bun1`     | `oven/bun:1.4.0-debian` | Bun 1.x      | `bun install --production`, whichever lockfile is present or none                                                                                      |
+| `node24`   | `node:24-bookworm-slim` | Node 24      | `npm install --omit=dev --no-audit --no-fund` for `package-lock.json`, `yarn.lock` or no lockfile; `corepack pnpm install --prod` for `pnpm-lock.yaml`; `bun.lock` or `bun.lockb` is not read by npm, so it installs without it and logs a notice |
+
+`bun1` is the default: omit `runtime` and you get `Runtime.managed.bun1()`. An identifier is the runtime plus its major line. Within a line the worker floats minor and patch versions, so a worker upgrade can move the image under your step. A new major is a new identifier.
+
+How the install works:
+
+- Each image contains one runtime: `bun1` has Bun and no Node, `node24` has Node and no Bun. The worker runs the step with the runtime the identifier names.
+- The install runs on every execution, before your function. A failing install fails the step.
+- When several lockfiles are present, the first of `bun.lock`, `bun.lockb`, `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` decides.
+- With no lockfile the install is a plain install, never a frozen one. The pipeline-builder scaffold gitignores lockfiles, so a fresh clone usually has none.
+- A lockfile the install generates, where your repository had none, is deleted afterwards.
+- A `Repo.readWrite()` step never commits the install's output (`node_modules`, `bun.lock` and `package-lock.json` under `.boboddy/pipeline-builder`), even in a repository that does not gitignore them.
+
+Runtime-specific behavior to know about:
+
+- **`bun1` skips dependency `postinstall` scripts** unless the package is listed in `trustedDependencies` in `.boboddy/pipeline-builder/package.json`. `node24` runs them. A dependency that needs a native build or a binary download can install cleanly on `bun1` and then fail when it is imported or run.
+- **`node24` does not resolve extensionless relative imports.** `import { x } from "./helpers"` fails with `ERR_MODULE_NOT_FOUND`; write `./helpers.ts`, or use `bun1`.
+- **A code step's working directory is the workspace** (the repository root in the container), not the image's default directory. This applies to every code step, including ones on `Runtime.devcontainer()`.
+
+:::note[Behavior change for existing `Runtime.devcontainer()` code steps]
+Before managed runtimes, a code step's working directory was whatever the container image set (for example `/home/bun/app` or `/`), so relative paths in `fn` behaved differently per image. It is now always the workspace. A step that relied on the old directory needs updating.
+:::
+
+:::note[Existing steps are unchanged until re-pushed]
+The default applies when a step is pushed. A code step already pushed keeps running in your project's devcontainer until you push it again with `boboddy pipelines push`. To keep one on the devcontainer after a re-push, set `runtime: Runtime.devcontainer()` explicitly.
+:::
+
+Managed runtimes are for code steps only. `defineStep()` rejects them (a type error, and push validation) because an agent step needs your project's toolchain. A managed step has no `config`, and `repo` follows the usual rules: `Repo.readWrite()` (the default) or `Repo.readOnly()`.
+
+With `Runtime.devcontainer()` the runner script executes in your container. A container selected with a non-default `config` must provide a JavaScript runtime for it: the runner uses `bun` if it is on `PATH`, otherwise `node`. That is up to the author of the config.
 
 ### Repo access
 
@@ -195,6 +247,7 @@ Which modes a runtime accepts, and its default:
 | Runtime                  | `readWrite`            | `readOnly`             | `none`                                       | Default     |
 | ------------------------ | ---------------------- | ---------------------- | -------------------------------------------- | ----------- |
 | `Runtime.devcontainer()` | Yes                    | Yes                    | No: the config is read from the clone        | `readWrite` |
+| `Runtime.managed.<id>()` | Yes                    | Yes                    | No: the worker writes its config into the clone | `readWrite` |
 | `Runtime.host()`         | No: there is no clone  | No: there is no clone  | Yes                                          | `none`      |
 
 A pair the runtime does not accept is a type error where TypeScript can express it. `boboddy pipelines push` validation and the server (a `422`) reject it otherwise. A step that omits `repo` gets its runtime's default, so `Repo.readWrite()` on a devcontainer step and `Repo.none()` on a host step are redundant. [`codeStep()`](#code-steps) accepts `repo` with the same rules.
@@ -325,7 +378,7 @@ Step `vars` also feed MCP `{env:VAR}` substitution (see [Secrets](#secrets)), be
 - **Inputs are stored in the database.** A secret `value` that interpolates `{{input.…}}` is only as private as that input is.
 - **Masking applies to logs only.** Registered secrets are redacted from the shipped log feed; they are not hidden from the agent or from your code. Values shorter than 4 characters (`MIN_MASKABLE_LENGTH`) are never masked.
 - **A secret is not isolated from the agent.** The agent process has the variable in its environment and can read or print it.
-- **Failure messages are not log-masked.** The code-step runner redacts step env values from its exec error message, but if starting OpenCode in a container fails, the error can include the `-e KEY=VALUE` arguments. This is a known limitation, tracked as a follow-up. A code step's own stdout/stderr is likewise included, unmasked, in its failure message, so avoid printing secrets.
+- **Failure messages are not log-masked.** The code-step runner redacts step env values from its exec error message, but for an AI step, if starting OpenCode in a container fails, the error can include the `-e KEY=VALUE` arguments. This is a known limitation, tracked as a follow-up. It does not apply to code steps, which never start OpenCode. A code step's own stdout/stderr is likewise included, unmasked, in its failure message, so avoid printing secrets.
 - **Prompts see declared, non-secret keys only.** `env.X` for a secret is a type error, and a raw `{{env.X}}` token for it renders empty. Optional entries without a `default` are typed `string | undefined`.
 
 #### Pulling steps
@@ -658,11 +711,41 @@ export const sumScores = codeStep({
 });
 ```
 
-`fn` must be a plain named export of the same module `codeStep()` is called from — Boboddy resolves it to a portable `{sourceFile, exportName}` reference at push time, with `sourceFile` recorded relative to the repo root (e.g. `.boboddy/pipeline-builder/sum-scores.ts`). At run time the worker imports `sourceFile` from the checked-out repo, so it must exist and be committed on whatever branch the pipeline execution runs against. Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal rather than inferred from `resultSchema`. See [`codeStep(options)`](/boboddy/reference/sdk/#codestepoptions) for the full option table.
+`fn` can be an inline function, and the step can be exported by name, embedded in a pipeline's `states`, or both. Boboddy records only the module's `sourceFile` at push time, relative to the repo root (e.g. `.boboddy/pipeline-builder/sum-scores.ts`). At run time the worker imports `sourceFile` from the checked-out repo and finds the step in it by `key`, so the file must exist and be committed on whatever branch the pipeline execution runs against. Closures and module-level helpers work because the whole module is imported.
+
+```typescript
+export default definePipeline({
+  key: "scoring",
+  startAt: "sum",
+  states: {
+    sum: {
+      kind: "step",
+      step: codeStep({
+        key: "inline-only",
+        name: "Inline only",
+        resultSchema: z.object({ ok: z.boolean() }),
+        fn: () => ({ ok: true }),
+      }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});
+```
+
+The `key` is the step's identity, and `version` is not part of the lookup. Pushing fails if two code steps share a `key` but differ in `version`, or if two files define the same `key` with different `fn`s. If a module holds more than one distinct `fn` under one `key`, the step fails at run time.
+
+The worker resolves the step with `@boboddy/sdk/code-step-lookup` from the SDK installed in `.boboddy/pipeline-builder/node_modules`, not the version used to push. If that SDK is too old to ship it, the step fails with `the installed @boboddy/sdk is too old for inline code steps; upgrade it`, followed by the installed version (for example `installed version: 0.6.0`). Upgrade `@boboddy/sdk` in `.boboddy/pipeline-builder` (and commit the updated `package.json` and lockfile) to fix it.
+
+During a run the worker writes a temporary `.code-step-runner-<uuid>.mjs` next to `sourceFile` and removes it afterwards.
+
+Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal rather than inferred from `resultSchema`. See [`codeStep(options)`](/boboddy/reference/sdk/#codestepoptions) for the full option table.
 
 `codeStep()` also accepts [`features`](#features) — only each feature's result-schema extension and signals apply (there's no prompt to append to on a code step). See [Building notifications at runtime — `Notify`](#building-notifications-at-runtime--notify) for the `Features.notifications()` + `Notify` + code-step pairing.
 
-`codeStep()` also accepts [`environment`](#environment), with the same `vars` forms and rules as `defineStep()` and a `runtime` limited to `Runtime.devcontainer()` (see [Runtime for code steps](#runtime-for-code-steps)). It takes `repo` with the same rules too (see [Repo access](#repo-access)): a code step that edits files is committed and pushed like an agent step, unless it uses `Repo.readOnly()`. There is no typed env argument to `fn`: the function reads the resolved variables from `process.env`.
+`codeStep()` also accepts [`environment`](#environment), with the same `vars` forms and rules as `defineStep()` and a `runtime` of `Runtime.managed.<id>()` (the default, `bun1`) or `Runtime.devcontainer()` (see [Runtime for code steps](#runtime-for-code-steps)). It takes `repo` with the same rules too (see [Repo access](#repo-access)): a code step that edits files is committed and pushed like an agent step, unless it uses `Repo.readOnly()`. There is no typed env argument to `fn`: the function reads the resolved variables from `process.env`.
+
+A code step never starts OpenCode. The worker launches the step's container (a managed runtime, or your devcontainer), runs the entrypoint, and reads the findings file the runner wrote, so a code step needs no AI provider credentials, and none (nor your host `auth.json`) are placed in its container. Boboddy does not inject the OpenCode runtime mount, published port or host-gateway run args into its devcontainer, and writes no `.opencode/` files into the workspace. Those injections are what reject `docker-compose`-based devcontainer configs for AI steps, so a code step is not subject to that restriction. If the runner finishes without writing its findings file, the step fails immediately.
 
 ## Pushing steps
 

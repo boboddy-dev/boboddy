@@ -218,6 +218,7 @@ describe("launchRuntimeEnvironment git timing lines reach the shipper", () => {
     } satisfies ProcessProjectWorkDeps;
 
     await launchRuntimeEnvironment(deps, {
+      startAgent: true,
       localRuntimeSessionId: createUuidV7(),
       workerContext: {
         ...createWorkerContext("workspace"),

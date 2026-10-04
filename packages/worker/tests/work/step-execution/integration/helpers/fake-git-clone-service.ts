@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -20,6 +20,41 @@ const DUMMY_REPO_DIR = path.join(
 );
 
 const DEFAULT_BRANCH = "main";
+
+const CODE_STEP_LOOKUP_SOURCE = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../../../../sdks/js/src/push/code-step-lookup.ts",
+);
+
+/**
+ * Stands in for the `@boboddy/sdk` a real repo has installed under
+ * `.boboddy/pipeline-builder/node_modules`: just the `code-step-lookup`
+ * subpath the code-step runner imports, transpiled from the real source so the
+ * container (which sees only the workspace) runs the real lookup.
+ */
+async function installCodeStepLookup(workspacePath: string): Promise<void> {
+  const sdkDir = path.join(
+    workspacePath,
+    ".boboddy",
+    "pipeline-builder",
+    "node_modules",
+    "@boboddy",
+    "sdk",
+  );
+  const transpiled = new Bun.Transpiler({ loader: "ts" }).transformSync(
+    await readFile(CODE_STEP_LOOKUP_SOURCE, "utf8"),
+  );
+  await mkdir(sdkDir, { recursive: true });
+  await writeFile(
+    path.join(sdkDir, "package.json"),
+    JSON.stringify({
+      name: "@boboddy/sdk",
+      type: "module",
+      exports: { "./code-step-lookup": "./code-step-lookup.js" },
+    }),
+  );
+  await writeFile(path.join(sdkDir, "code-step-lookup.js"), transpiled);
+}
 
 /**
  * Test double for the production GitCliCloneService. Instead of cloning over
@@ -44,6 +79,7 @@ export class FakeGitCloneService implements GitCloneService {
       recursive: true,
       force: true,
     });
+    await installCodeStepLookup(input.workspacePath);
 
     await this.git(input.workspacePath, ["init", "-b", DEFAULT_BRANCH]);
     await this.git(input.workspacePath, [

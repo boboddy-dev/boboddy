@@ -65,6 +65,7 @@ function createWorkerClient(
           entrypointJson: null,
           executionMode: "workspace",
           devcontainerConfigPath: null,
+          managedRuntime: null,
           repo: { mode: "readWrite", message: null, onPushFailure: "fail" },
           resultSchemaJson: { type: "object" },
           opencodeMcpJson: null,

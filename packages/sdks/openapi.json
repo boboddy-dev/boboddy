@@ -4731,15 +4731,10 @@
                           "sourceFile": {
                             "type": "string",
                             "minLength": 1
-                          },
-                          "exportName": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": [
-                          "sourceFile",
-                          "exportName"
+                          "sourceFile"
                         ],
                         "additionalProperties": false
                       },
@@ -5154,6 +5149,20 @@
                       {
                         "type": "string",
                         "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "managedRuntime": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "bun1",
+                          "node24"
+                        ]
                       },
                       {
                         "type": "null"
@@ -5356,15 +5365,10 @@
                           "sourceFile": {
                             "type": "string",
                             "minLength": 1
-                          },
-                          "exportName": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": [
-                          "sourceFile",
-                          "exportName"
+                          "sourceFile"
                         ],
                         "additionalProperties": false
                       },
@@ -5779,6 +5783,20 @@
                       {
                         "type": "string",
                         "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "managedRuntime": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "bun1",
+                          "node24"
+                        ]
                       },
                       {
                         "type": "null"
@@ -5981,15 +5999,10 @@
                           "sourceFile": {
                             "type": "string",
                             "minLength": 1
-                          },
-                          "exportName": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": [
-                          "sourceFile",
-                          "exportName"
+                          "sourceFile"
                         ],
                         "additionalProperties": false
                       },
@@ -6404,6 +6417,20 @@
                       {
                         "type": "string",
                         "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "managedRuntime": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "bun1",
+                          "node24"
+                        ]
                       },
                       {
                         "type": "null"
@@ -6615,15 +6642,10 @@
                             "sourceFile": {
                               "type": "string",
                               "minLength": 1
-                            },
-                            "exportName": {
-                              "type": "string",
-                              "minLength": 1
                             }
                           },
                           "required": [
-                            "sourceFile",
-                            "exportName"
+                            "sourceFile"
                           ],
                           "additionalProperties": false
                         },
@@ -7035,6 +7057,20 @@
                         }
                       ]
                     },
+                    "managedRuntime": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "bun1",
+                            "node24"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "repo": {
                       "oneOf": [
                         {
@@ -7203,6 +7239,7 @@
                     "healthChecksJson",
                     "envJson",
                     "devcontainerConfigPath",
+                    "managedRuntime",
                     "repo",
                     "status",
                     "signalExtractorDefinitions",
@@ -7726,15 +7763,10 @@
                               "sourceFile": {
                                 "type": "string",
                                 "minLength": 1
-                              },
-                              "exportName": {
-                                "type": "string",
-                                "minLength": 1
                               }
                             },
                             "required": [
-                              "sourceFile",
-                              "exportName"
+                              "sourceFile"
                             ],
                             "additionalProperties": false
                           },
@@ -8146,6 +8178,20 @@
                           }
                         ]
                       },
+                      "managedRuntime": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "bun1",
+                              "node24"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "repo": {
                         "oneOf": [
                           {
@@ -8314,6 +8360,7 @@
                       "healthChecksJson",
                       "envJson",
                       "devcontainerConfigPath",
+                      "managedRuntime",
                       "repo",
                       "status",
                       "signalExtractorDefinitions",
@@ -8639,15 +8686,10 @@
                           "sourceFile": {
                             "type": "string",
                             "minLength": 1
-                          },
-                          "exportName": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": [
-                          "sourceFile",
-                          "exportName"
+                          "sourceFile"
                         ],
                         "additionalProperties": false
                       },
@@ -9062,6 +9104,20 @@
                       {
                         "type": "string",
                         "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "managedRuntime": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "bun1",
+                          "node24"
+                        ]
                       },
                       {
                         "type": "null"
@@ -9264,15 +9320,10 @@
                           "sourceFile": {
                             "type": "string",
                             "minLength": 1
-                          },
-                          "exportName": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": [
-                          "sourceFile",
-                          "exportName"
+                          "sourceFile"
                         ],
                         "additionalProperties": false
                       },
@@ -9687,6 +9738,20 @@
                       {
                         "type": "string",
                         "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "managedRuntime": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "bun1",
+                          "node24"
+                        ]
                       },
                       {
                         "type": "null"
@@ -9889,15 +9954,10 @@
                           "sourceFile": {
                             "type": "string",
                             "minLength": 1
-                          },
-                          "exportName": {
-                            "type": "string",
-                            "minLength": 1
                           }
                         },
                         "required": [
-                          "sourceFile",
-                          "exportName"
+                          "sourceFile"
                         ],
                         "additionalProperties": false
                       },
@@ -10312,6 +10372,20 @@
                       {
                         "type": "string",
                         "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "managedRuntime": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "bun1",
+                          "node24"
+                        ]
                       },
                       {
                         "type": "null"
@@ -10523,15 +10597,10 @@
                             "sourceFile": {
                               "type": "string",
                               "minLength": 1
-                            },
-                            "exportName": {
-                              "type": "string",
-                              "minLength": 1
                             }
                           },
                           "required": [
-                            "sourceFile",
-                            "exportName"
+                            "sourceFile"
                           ],
                           "additionalProperties": false
                         },
@@ -10943,6 +11012,20 @@
                         }
                       ]
                     },
+                    "managedRuntime": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "bun1",
+                            "node24"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "repo": {
                       "oneOf": [
                         {
@@ -11111,6 +11194,7 @@
                     "healthChecksJson",
                     "envJson",
                     "devcontainerConfigPath",
+                    "managedRuntime",
                     "repo",
                     "status",
                     "signalExtractorDefinitions",
@@ -11512,15 +11596,10 @@
                             "sourceFile": {
                               "type": "string",
                               "minLength": 1
-                            },
-                            "exportName": {
-                              "type": "string",
-                              "minLength": 1
                             }
                           },
                           "required": [
-                            "sourceFile",
-                            "exportName"
+                            "sourceFile"
                           ],
                           "additionalProperties": false
                         },
@@ -11932,6 +12011,20 @@
                         }
                       ]
                     },
+                    "managedRuntime": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "bun1",
+                            "node24"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "repo": {
                       "oneOf": [
                         {
@@ -12100,6 +12193,7 @@
                     "healthChecksJson",
                     "envJson",
                     "devcontainerConfigPath",
+                    "managedRuntime",
                     "repo",
                     "status",
                     "signalExtractorDefinitions",
@@ -12501,15 +12595,10 @@
                             "sourceFile": {
                               "type": "string",
                               "minLength": 1
-                            },
-                            "exportName": {
-                              "type": "string",
-                              "minLength": 1
                             }
                           },
                           "required": [
-                            "sourceFile",
-                            "exportName"
+                            "sourceFile"
                           ],
                           "additionalProperties": false
                         },
@@ -12921,6 +13010,20 @@
                         }
                       ]
                     },
+                    "managedRuntime": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "bun1",
+                            "node24"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "repo": {
                       "oneOf": [
                         {
@@ -13089,6 +13192,7 @@
                     "healthChecksJson",
                     "envJson",
                     "devcontainerConfigPath",
+                    "managedRuntime",
                     "repo",
                     "status",
                     "signalExtractorDefinitions",
@@ -16719,15 +16823,10 @@
                                 "sourceFile": {
                                   "type": "string",
                                   "minLength": 1
-                                },
-                                "exportName": {
-                                  "type": "string",
-                                  "minLength": 1
                                 }
                               },
                               "required": [
-                                "sourceFile",
-                                "exportName"
+                                "sourceFile"
                               ],
                               "additionalProperties": false
                             },
@@ -17125,6 +17224,20 @@
                             }
                           ]
                         },
+                        "managedRuntime": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "bun1",
+                                "node24"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "repo": {
                           "oneOf": [
                             {
@@ -17203,6 +17316,7 @@
                         "healthChecksJson",
                         "envJson",
                         "devcontainerConfigPath",
+                        "managedRuntime",
                         "repo"
                       ],
                       "additionalProperties": false
@@ -72456,15 +72570,10 @@
                             "sourceFile": {
                               "type": "string",
                               "minLength": 1
-                            },
-                            "exportName": {
-                              "type": "string",
-                              "minLength": 1
                             }
                           },
                           "required": [
-                            "sourceFile",
-                            "exportName"
+                            "sourceFile"
                           ],
                           "additionalProperties": false
                         },
@@ -72876,6 +72985,20 @@
                         }
                       ]
                     },
+                    "managedRuntime": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "bun1",
+                            "node24"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "repo": {
                       "oneOf": [
                         {
@@ -73044,6 +73167,7 @@
                     "healthChecksJson",
                     "envJson",
                     "devcontainerConfigPath",
+                    "managedRuntime",
                     "repo",
                     "status",
                     "signalExtractorDefinitions",

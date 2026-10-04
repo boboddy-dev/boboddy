@@ -1,6 +1,10 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import {
+  PIPELINE_BUILDER_LOCKFILES,
+  type BuilderInstaller,
+} from "@boboddy/worker";
 
 /**
  * Installing dependencies into `.boboddy/pipeline-builder`.
@@ -18,35 +22,6 @@ import { join } from "node:path";
 export function builderDependenciesInstalled(builderDir: string): boolean {
   return existsSync(join(builderDir, "node_modules", "@boboddy", "sdk"));
 }
-
-export type BuilderInstaller = {
-  /** Executable to spawn. */
-  command: string;
-  /** Arguments. */
-  args: readonly string[];
-  /** Human-readable command, for status lines and error messages. */
-  label: string;
-};
-
-/**
- * Lockfile → installer. Checked before PATH so an existing project keeps using
- * the package manager it was set up with.
- */
-const LOCKFILE_INSTALLERS: ReadonlyArray<readonly [string, BuilderInstaller]> = [
-  ["bun.lock", { command: "bun", args: ["install"], label: "bun install" }],
-  ["bun.lockb", { command: "bun", args: ["install"], label: "bun install" }],
-  [
-    "pnpm-lock.yaml",
-    { command: "pnpm", args: ["install"], label: "pnpm install" },
-  ],
-  ["yarn.lock", { command: "yarn", args: ["install"], label: "yarn install" }],
-  [
-    "package-lock.json",
-    { command: "npm", args: ["install"], label: "npm install" },
-  ],
-  ["deno.lock", { command: "deno", args: ["install"], label: "deno install" }],
-  ["deno.json", { command: "deno", args: ["install"], label: "deno install" }],
-];
 
 /**
  * Fresh-directory fallback order. `bun` first because the CLI itself ships as a
@@ -76,8 +51,8 @@ export function resolveBuilderInstaller(
   const fileExists = options.fileExists ?? existsSync;
   const hasCommand = options.hasCommand ?? isCommandOnPath;
 
-  for (const [lockfile, installer] of LOCKFILE_INSTALLERS) {
-    if (fileExists(join(builderDir, lockfile))) {
+  for (const { name, installer } of PIPELINE_BUILDER_LOCKFILES) {
+    if (fileExists(join(builderDir, name))) {
       return installer;
     }
   }

@@ -189,6 +189,26 @@ export type RemoteArtifactUploader = Pick<
  */
 export type CommitAndPushWorkBranchResult = { pushed: boolean };
 
+/**
+ * The running OpenCode server a prompt-driven step talks to. Present on a
+ * {@link StepExecutionRuntimeEnvironment} only when the launch started one.
+ */
+export type AgentRuntime = {
+  /** Runtime-neutral agent base URL (formerly `aiBaseUrl`). */
+  baseUrl: string;
+  /**
+   * Directory inside the runtime container where the agent's logs are written
+   * and `docker exec` tailing reads them from.
+   */
+  logDirectory: string;
+  /**
+   * Host log file the agent's stdout/stderr is written to for `no_workspace`
+   * runs (tailed directly from the host). `null`/absent for container runs,
+   * where {@link logDirectory} + `docker exec` tailing is used instead.
+   */
+  hostLogPath?: string | null | undefined;
+};
+
 export type StepExecutionRuntimeEnvironment = {
   workspacePath: string;
   /**
@@ -201,7 +221,6 @@ export type StepExecutionRuntimeEnvironment = {
    * host temp working directory (there is no container).
    */
   workspaceFolder: string;
-  opencodeLogDirectory: string;
   resolvedBranch: string;
   /**
    * The `boboddy/...` branch the agent commits to, created off the checked-out
@@ -239,14 +258,8 @@ export type StepExecutionRuntimeEnvironment = {
    * health checks / log tailing).
    */
   runtimeContainerId: string | null;
-  /**
-   * Host log file the agent's stdout/stderr is written to for `no_workspace`
-   * runs (tailed directly from the host). `null`/absent for container runs,
-   * where {@link opencodeLogDirectory} + `docker exec` tailing is used instead.
-   */
-  hostAgentLogPath?: string | null | undefined;
-  /** Runtime-neutral agent base URL (formerly `aiBaseUrl`). */
-  agentBaseUrl: string;
+  /** `null` when the launch did not start an agent. */
+  agent: AgentRuntime | null;
   aiImage: string;
   networkName: string;
   /**
@@ -264,6 +277,11 @@ export type StepExecutionRuntimeEnvironment = {
 
 export type StepExecutionRuntimeEnvironmentOrchestrator = {
   launch(input: {
+    /**
+     * Whether to start the agent (OpenCode server) alongside the runtime.
+     * Required so every caller states intent.
+     */
+    startAgent: boolean;
     sessionId: UuidV7;
     projectId: UuidV7;
     requestedByUserId: UuidV7;
@@ -320,6 +338,14 @@ export type StepExecutionRuntimeEnvironmentOrchestrator = {
      * no-workspace orchestrator.
      */
     devcontainerConfigPath?: string | null | undefined;
+    /**
+     * The step's managed runtime identifier. When set, the workspace
+     * orchestrator launches a synthesized config for it instead of resolving
+     * one from the clone, and fails the launch before cloning when the
+     * identifier is unknown to this worker. Ignored by the no-workspace
+     * orchestrator.
+     */
+    managedRuntime?: string | null | undefined;
     /**
      * The step's resolved repository access. `readOnly` checks out the base but
      * creates no work branch and never commits or pushes; `readWrite` creates the
@@ -400,7 +426,7 @@ export type StartedClaimedExecution = {
   localRuntimeSessionId: UuidV7;
   stepExecutionId: UuidV7;
   claimToken: string;
-  agentSessionId: string;
+  agentSessionId: string | null;
   environment: StepExecutionRuntimeEnvironment;
 };
 
@@ -416,7 +442,7 @@ export type StepExecutionRunTracker = {
     workspacePath: string;
     /** `null` for `no_workspace` runs, which have no container. */
     runtimeContainerId: string | null;
-    agentBaseUrl: string;
+    agentBaseUrl: string | null;
     metadataJson?: string | null | undefined;
   }): void | Promise<void>;
   attachAgentSession(input: {

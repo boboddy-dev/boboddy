@@ -3,6 +3,7 @@ import { parseSchema } from "json-schema-to-zod";
 import type { EnvVarSpec } from "@boboddy/sdk/env-vars";
 import { resolveRepoConfig, type RepoConfig } from "@boboddy/sdk/repo-config";
 import { isSecretLookingEnvName } from "@boboddy/sdk/definitions/steps";
+import { DEFAULT_CODE_STEP_RUNTIME_ID } from "@boboddy/sdk/managed-runtimes";
 
 export type StepDefContract = {
   key: string;
@@ -11,8 +12,10 @@ export type StepDefContract = {
   prompt: string | null;
   version: number;
   status: string;
+  kind?: "built_in" | "user_defined" | "code";
   executionMode: "workspace" | "no_workspace";
   devcontainerConfigPath: string | null;
+  managedRuntime?: string | null;
   repo: RepoConfig;
   inputSchemaJson: Record<string, unknown> | null;
   resultSchemaJson: Record<string, unknown> | null;
@@ -31,7 +34,7 @@ export type StepDefContract = {
 
 export function keyToVarName(key: string): string {
   return key
-    .replace(/-([a-z])/g, (_, c: string) => (c).toUpperCase())
+    .replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
     .replace(/[^a-zA-Z0-9_$]/g, "_");
 }
 
@@ -118,7 +121,9 @@ export function promptToSource(prompt: string): string {
     : `({ ${usedScopes.join(", ")} }) => ${expr}`;
 }
 
-export function schemaToZodExpr(schemaJson: Record<string, unknown> | null): string {
+export function schemaToZodExpr(
+  schemaJson: Record<string, unknown> | null,
+): string {
   if (!schemaJson) return "z.unknown()";
   try {
     return parseSchema(schemaJson);
@@ -204,17 +209,29 @@ function buildVarsProperty(
 
 /**
  * The runtime property for a step's `environment`, or null for the default
- * (a workspace step with no selected config). `no_workspace` is the host
- * runtime, which carries no config path.
+ * (an agent step with no selected config, or a code step on the default
+ * managed runtime). `no_workspace` is the host runtime, which carries no config
+ * path.
+ *
+ * A code step that is not managed is emitted as an explicit
+ * `Runtime.devcontainer()`: omitting it would move the step onto the default
+ * managed runtime the next time it is pushed.
  */
 function buildRuntimeProperty(step: StepDefContract): string | null {
   if (step.executionMode === "no_workspace") {
     return "    runtime: Runtime.host(),";
   }
+  if (step.managedRuntime) {
+    if (step.managedRuntime === DEFAULT_CODE_STEP_RUNTIME_ID) return null;
+    const factory = isValidIdentifier(step.managedRuntime)
+      ? `.${step.managedRuntime}`
+      : `[${JSON.stringify(step.managedRuntime)}]`;
+    return `    runtime: Runtime.managed${factory}(),`;
+  }
   if (step.devcontainerConfigPath) {
     return `    runtime: Runtime.devcontainer({ config: ${JSON.stringify(step.devcontainerConfigPath)} }),`;
   }
-  return null;
+  return step.kind === "code" ? "    runtime: Runtime.devcontainer()," : null;
 }
 
 /**

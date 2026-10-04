@@ -18,6 +18,7 @@ import type { ProcessProjectWorkDeps } from "../../../../src/work/step-execution
 import {
   createCodeStepWorkerContext,
   createRunTracker,
+  createWorkerContext,
   createWorkerClient,
   projectId,
   requestedByUserId,
@@ -35,9 +36,10 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
   });
 
   function buildDeps(input: {
-    entrypointJson: { sourceFile: string; exportName: string };
+    entrypointJson: { sourceFile: string };
     runCodeStepCommand: ProcessProjectWorkDeps["runCodeStepCommand"];
     envJson?: Parameters<typeof createCodeStepWorkerContext>[1];
+    managedRuntime?: Parameters<typeof createCodeStepWorkerContext>[2];
   }): {
     deps: ProcessProjectWorkDeps;
     tracker: ReturnType<typeof createRunTracker>;
@@ -47,14 +49,13 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
       Promise.resolve({
         workspacePath,
         workspaceFolder: "/workspaces/repo",
-        opencodeLogDirectory: path.join(workspacePath, ".logs"),
         resolvedBranch: "main",
         workBranch: null,
         createdFromBranch: null,
         devcontainerConfigPath: ".devcontainer/devcontainer.json",
         runtimeContainerId: "runtime-container-id",
-        agentBaseUrl: "http://localhost:4096",
-        aiImage: "boboddy/ai-worker:local",
+        agent: null,
+        aiImage: "",
         networkName: "test-network",
         secretValues: [],
         cleanup: () => Promise.resolve(),
@@ -64,7 +65,11 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
     const workerClient = createWorkerClient();
     workerClient.getStepExecutionWorkerContext = vi.fn(() =>
       Promise.resolve(
-        createCodeStepWorkerContext(input.entrypointJson, input.envJson),
+        createCodeStepWorkerContext(
+          input.entrypointJson,
+          input.envJson,
+          input.managedRuntime,
+        ),
       ),
     );
 
@@ -93,19 +98,21 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
     return { deps, tracker, launch };
   }
 
-  test("dispatches via the injected command runner, skips promptAsync entirely, and returns a synthetic agentSessionId", async () => {
+  test("dispatches via the injected command runner, skips promptAsync and the agent entirely, and returns a null agentSessionId", async () => {
     workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "boboddy-code-step-branch-"),
     );
 
     const entrypointJson = {
       sourceFile: ".boboddy/pipeline-builder/review-file-step.ts",
-      exportName: "reviewFileStep",
     };
     const runCodeStepCommand = vi.fn<RunCodeStepCommand>(() =>
       Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }),
     );
-    const { deps, tracker } = buildDeps({ entrypointJson, runCodeStepCommand });
+    const { deps, tracker, launch } = buildDeps({
+      entrypointJson,
+      runCodeStepCommand,
+    });
 
     const result = await startProcessClaimedExecution(
       {
@@ -130,21 +137,65 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
     expect(call?.shellCommand).toContain(
       ".boboddy/pipeline-builder/review-file-step.ts",
     );
-    expect(call?.shellCommand).toContain("reviewFileStep");
+    expect(call?.shellCommand).toContain("'demo-step'");
 
-    // A synthetic, stable agentSessionId — no real OpenCode session exists.
-    expect(result.agentSessionId).toBe(`code-step:${stepExecutionId}`);
+    expect(result.agentSessionId).toBeNull();
     expect(result.stepExecutionId).toBe(stepExecutionId);
+    expect(launch).toHaveBeenCalledWith(
+      expect.objectContaining({ startAgent: false }),
+    );
 
     // eslint-disable-next-line @typescript-eslint/unbound-method -- reading through a plain object, not a class instance
     expect(tracker.markRunning).toHaveBeenCalledTimes(1);
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(tracker.attachAgentSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentSessionId: `code-step:${stepExecutionId}`,
-      }),
+    expect(tracker.markRunning).toHaveBeenCalledWith(
+      expect.objectContaining({ agentBaseUrl: null }),
     );
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(tracker.attachAgentSession).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ["bun1", "bun run"],
+    ["node24", "node '"],
+  ])(
+    "a managed %s step reaches the launch and invokes its runtime directly",
+    async (managedRuntime, invocation) => {
+      workspacePath = await mkdtemp(
+        path.join(os.tmpdir(), "boboddy-code-step-branch-managed-"),
+      );
+      const runCodeStepCommand = vi.fn<RunCodeStepCommand>(() =>
+        Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }),
+      );
+      const { deps, tracker, launch } = buildDeps({
+        entrypointJson: { sourceFile: "steps/review.ts" },
+        runCodeStepCommand,
+        managedRuntime,
+      });
+
+      await startProcessClaimedExecution(
+        {
+          projectId,
+          requestedByUserId,
+          claim: {
+            stepExecution: { id: stepExecutionId },
+            claimToken: "claim-token",
+          },
+          leaseDurationSeconds: 30,
+        },
+        deps,
+        deps.workerClient,
+        tracker,
+      );
+
+      expect(launch).toHaveBeenCalledWith(
+        expect.objectContaining({ managedRuntime, startAgent: false }),
+      );
+      const shellCommand = runCodeStepCommand.mock.calls[0]?.[0].shellCommand;
+      expect(shellCommand).toContain(invocation);
+      expect(shellCommand).not.toContain("command -v");
+    },
+  );
 
   test("hands the resolved step env to the command runner, outside the shell command", async () => {
     workspacePath = await mkdtemp(
@@ -155,7 +206,7 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
       Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }),
     );
     const { deps, tracker, launch } = buildDeps({
-      entrypointJson: { sourceFile: "steps/review.ts", exportName: "review" },
+      entrypointJson: { sourceFile: "steps/review.ts" },
       runCodeStepCommand,
       envJson: [
         {
@@ -210,14 +261,13 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
 
     const entrypointJson = {
       sourceFile: "steps/review-step.ts",
-      exportName: "reviewFileStep",
     };
     const runCodeStepCommand = vi.fn(() =>
       Promise.resolve({
         exitCode: 1,
         stdout: "",
         stderr:
-          'module has no exported function named "reviewFileStep"',
+          'no code step with key "demo-step" exported by or embedded in x',
       }),
     );
     const { deps, tracker } = buildDeps({ entrypointJson, runCodeStepCommand });
@@ -245,12 +295,67 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).message).toContain("exit code 1");
     expect((caught as Error).message).toContain(
-      'module has no exported function named "reviewFileStep"',
+      'no code step with key "demo-step" exported by or embedded in x',
     );
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(deps.agentRunner.promptAsync).not.toHaveBeenCalled();
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(tracker.markFailed).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects a code step in no_workspace mode before launching any runtime", async () => {
+    workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "boboddy-code-step-branch-no-workspace-"),
+    );
+
+    const runCodeStepCommand = vi.fn<RunCodeStepCommand>(() =>
+      Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }),
+    );
+    const { deps, tracker, launch } = buildDeps({
+      entrypointJson: { sourceFile: "steps/review.ts" },
+      runCodeStepCommand,
+    });
+    const noWorkspaceLaunch = vi.fn();
+    const noWorkspaceDeps = {
+      ...deps,
+      noWorkspaceRuntimeEnvironmentOrchestrator: { launch: noWorkspaceLaunch },
+    } satisfies ProcessProjectWorkDeps;
+    noWorkspaceDeps.workerClient.getStepExecutionWorkerContext = vi.fn(() =>
+      Promise.resolve(
+        createWorkerContext("no_workspace", null, {
+          kind: "code",
+          prompt: null,
+          entrypointJson: { sourceFile: "steps/review.ts" },
+        }),
+      ),
+    );
+
+    let caught: unknown;
+    try {
+      await startProcessClaimedExecution(
+        {
+          projectId,
+          requestedByUserId,
+          claim: {
+            stepExecution: { id: stepExecutionId },
+            claimToken: "claim-token",
+          },
+          leaseDurationSeconds: 30,
+        },
+        noWorkspaceDeps,
+        noWorkspaceDeps.workerClient,
+        tracker,
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toContain("no_workspace");
+    expect((caught as Error).message).toContain("require an agent");
+    expect(launch).not.toHaveBeenCalled();
+    expect(noWorkspaceLaunch).not.toHaveBeenCalled();
+    expect(runCodeStepCommand).not.toHaveBeenCalled();
   });
 
   test("throws before dispatching when the step definition is missing entrypointJson", async () => {
@@ -269,14 +374,13 @@ describe("startProcessClaimedExecution kind: 'code' branch", () => {
       Promise.resolve({
         workspacePath,
         workspaceFolder: "/workspaces/repo",
-        opencodeLogDirectory: path.join(workspacePath, ".logs"),
         resolvedBranch: "main",
         workBranch: null,
         createdFromBranch: null,
         devcontainerConfigPath: ".devcontainer/devcontainer.json",
         runtimeContainerId: "runtime-container-id",
-        agentBaseUrl: "http://localhost:4096",
-        aiImage: "boboddy/ai-worker:local",
+        agent: null,
+        aiImage: "",
         networkName: "test-network",
         secretValues: [],
         cleanup: () => Promise.resolve(),
