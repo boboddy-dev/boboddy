@@ -287,6 +287,53 @@ describe("GitCliCommitPushService", () => {
   );
 
   test.concurrent(
+    "commitAll tolerates excluded paths that are gitignored (e.g. node_modules)",
+    async () => {
+      const { root, workspace } = await setupFixture();
+      const ignoredDir = ".boboddy/pipeline-builder/node_modules";
+      try {
+        await writeRepoFile(
+          workspace,
+          ".boboddy/pipeline-builder/.gitignore",
+          "node_modules/\n",
+        );
+        await git(workspace, ["add", "-A"]);
+        await git(workspace, [
+          "commit",
+          "--no-gpg-sign",
+          "-m",
+          "add pipeline-builder gitignore",
+        ]);
+        await service.createBranch({
+          workspacePath: workspace,
+          branchName: "boboddy/step-ignored",
+        });
+
+        await writeRepoFile(workspace, `${ignoredDir}/pkg/index.js`, "x\n");
+        await writeRepoFile(workspace, "src/ok.ts", "export const k = 1;\n");
+
+        const result = await service.commitAll({
+          workspacePath: workspace,
+          message: "boboddy: step ignored",
+          excludePaths: [...WORK_BRANCH_EXCLUDE_PATHS, ignoredDir],
+        });
+        expect(result.committed).toBe(true);
+
+        const committedFiles = await git(workspace, [
+          "show",
+          "--name-only",
+          "--pretty=format:",
+          "HEAD",
+        ]);
+        expect(committedFiles).toContain("src/ok.ts");
+        expect(committedFiles).not.toContain("node_modules");
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test.concurrent(
     "commitAll returns committed:false when there is nothing to commit",
     async () => {
       const { root, workspace } = await setupFixture();

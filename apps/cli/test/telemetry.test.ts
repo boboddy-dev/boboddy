@@ -3,7 +3,7 @@ import type { AuthProfile } from "@boboddy/worker";
 
 /**
  * `telemetry.ts` reaches into two real modules that must not touch the
- * network or the developer's real `~/.boboddy.json` in a test run:
+ * network or the developer's real `~/.boboddy/config.jsonc` in a test run:
  * `@boboddy/observability/analytics/server` (mocked fully, mirroring
  * `packages/observability/tests/analytics/server.test.ts`) and
  * `@boboddy/worker` (mocked partially — only the
@@ -77,6 +77,11 @@ void mock.module("@boboddy/worker", () => ({
   loadAuthProfile: (baseUrl: string) => fakeProfiles[baseUrl] ?? null,
 }));
 
+let fakeBaked: { key?: string; host?: string } = {};
+void mock.module("../src/lib/build-constants", () => ({
+  bakedTelemetryConfig: () => fakeBaked,
+}));
+
 const telemetry = await import("../src/lib/telemetry");
 
 const ORIGINAL_ENV = { ...process.env };
@@ -100,6 +105,7 @@ beforeEach(() => {
   fakeAnonymousId = "anon-fixed-id";
   fakeTelemetryDisabled = false;
   fakeProfiles = {};
+  fakeBaked = {};
   resetEnv();
   process.env["POSTHOG_CLI_KEY"] = "phc_test";
   process.env["POSTHOG_CLI_HOST"] = "https://t.boboddy.dev";
@@ -173,6 +179,49 @@ describe("captureMilestone", () => {
     expect(() => {
       telemetry.captureMilestone("cli_init_started");
     }).not.toThrow();
+  });
+});
+
+describe("key and host resolution", () => {
+  test("uses the build-baked key and host when the env vars are unset", () => {
+    delete process.env["POSTHOG_CLI_KEY"];
+    delete process.env["POSTHOG_CLI_HOST"];
+    fakeBaked = { key: "phc_baked", host: "https://baked.example.com" };
+    telemetry.captureMilestone("cli_init_started");
+    expect(initCalls).toEqual([
+      { key: "phc_baked", host: "https://baked.example.com" },
+    ]);
+    expect(captureCalls).toHaveLength(1);
+  });
+
+  test("falls back to the baked key when the env var is set but empty", () => {
+    process.env["POSTHOG_CLI_KEY"] = "";
+    fakeBaked = { key: "phc_baked" };
+    telemetry.captureMilestone("cli_init_started");
+    expect(initCalls[0]?.key).toBe("phc_baked");
+  });
+
+  test("env vars override the baked key and host", () => {
+    fakeBaked = { key: "phc_baked", host: "https://baked.example.com" };
+    telemetry.captureMilestone("cli_init_started");
+    expect(initCalls).toEqual([
+      { key: "phc_test", host: "https://t.boboddy.dev" },
+    ]);
+  });
+
+  test("defaults the host when neither env nor build provides one", () => {
+    delete process.env["POSTHOG_CLI_HOST"];
+    telemetry.captureMilestone("cli_init_started");
+    expect(initCalls[0]?.host).toBe("https://us.i.posthog.com");
+  });
+
+  test("the persisted opt-out still wins over a baked key", () => {
+    delete process.env["POSTHOG_CLI_KEY"];
+    fakeBaked = { key: "phc_baked" };
+    fakeTelemetryDisabled = true;
+    telemetry.captureMilestone("cli_init_started");
+    expect(initCalls).toEqual([]);
+    expect(captureCalls).toEqual([]);
   });
 });
 

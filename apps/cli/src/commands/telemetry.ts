@@ -9,7 +9,7 @@ import {
 /**
  * `boboddy telemetry` — the documented opt-out surface for #147's CLI
  * onboarding-funnel reporting. `BOBODDY_TELEMETRY_DISABLED=1` does the same
- * thing for a single invocation without touching `~/.boboddy.json`; this
+ * thing for a single invocation without touching `~/.boboddy/config.jsonc`; this
  * command is for turning it off (or back on) for every future invocation.
  */
 

@@ -39,7 +39,10 @@ function identityArgs(): string[] {
   ];
 }
 
-/** A top-level pathspec exclude for `git add`, robust against .gitignore. */
+/**
+ * A top-level pathspec exclude for `git add`. NOT safe for gitignored paths
+ * (git errors on them); callers must filter those out first.
+ */
 function excludePathspec(relativePath: string): string {
   return `:(exclude,top)${relativePath}`;
 }
@@ -153,13 +156,22 @@ export class GitCliCommitPushService implements GitCommitPushService {
     message: string,
     excludePaths: readonly string[],
   ): Promise<boolean> {
-    // Stage everything EXCEPT the Boboddy runtime files.
+    // Stage everything EXCEPT the Boboddy runtime files. Excludes that are
+    // already gitignored are dropped from the pathspec: `git add -A -- .` skips
+    // ignored paths on its own, and naming one in an exclude pathspec makes git
+    // exit 1 ("The following paths are ignored by one of your .gitignore files").
+    const addExcludes: string[] = [];
+    for (const relativePath of excludePaths) {
+      if (!(await this.isIgnored(workspacePath, relativePath))) {
+        addExcludes.push(relativePath);
+      }
+    }
     const addArgs = [
       "add",
       "-A",
       "--",
       ".",
-      ...excludePaths.map(excludePathspec),
+      ...addExcludes.map(excludePathspec),
     ];
     await this.gitWithPermissionRetry(workspacePath, addArgs);
 
@@ -268,6 +280,29 @@ export class GitCliCommitPushService implements GitCommitPushService {
           // Best-effort restore.
         }
       }
+    }
+  }
+
+  /**
+   * True when git's ignore rules cover `relativePath`. Tracked files are never
+   * reported as ignored (no `--no-index`), so tracked+modified excludes keep
+   * their pathspec exclude. Any failure (exit 1 = not ignored, or a git error)
+   * is treated as "not ignored".
+   */
+  private async isIgnored(
+    workspacePath: string,
+    relativePath: string,
+  ): Promise<boolean> {
+    try {
+      await this.git(workspacePath, [
+        "check-ignore",
+        "-q",
+        "--",
+        relativePath,
+      ]);
+      return true;
+    } catch {
+      return false;
     }
   }
 

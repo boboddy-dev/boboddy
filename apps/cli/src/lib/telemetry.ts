@@ -5,6 +5,7 @@ import {
   isTelemetryDisabled,
   loadAuthProfile,
 } from "@boboddy/worker";
+import { bakedTelemetryConfig } from "./build-constants";
 import { createCliLogger } from "./logger";
 
 /**
@@ -15,7 +16,7 @@ import { createCliLogger } from "./logger";
  * drop-off signal that matters most.
  *
  * Identity: every event is keyed to a persisted anonymous id
- * (`getOrCreateAnonymousId`, `~/.boboddy.json`) until the real `userId` is
+ * (`getOrCreateAnonymousId`, `~/.boboddy/config.jsonc`) until the real `userId` is
  * known, at which point later events in THIS process switch to it and a
  * PostHog `alias` call merges the two distinct ids server-side. A `userId`
  * already on disk (a signed-in session from an earlier run) is adopted the
@@ -33,11 +34,15 @@ import { createCliLogger } from "./logger";
  * out from under posthog-node's in-flight delivery.
  */
 
-/** The CLI's write-only PostHog project token. Unset ⇒ every call below is a no-op. */
+/**
+ * The CLI's write-only PostHog project token. Overrides the token baked into
+ * release binaries by `script/build.ts`; with neither, every call below is a
+ * no-op.
+ */
 export const POSTHOG_KEY_ENV_VAR = "POSTHOG_CLI_KEY";
-/** Defaults to the same ingestion host every other PostHog integration in this repo uses. */
+/** Overrides the baked host; defaults to the ingestion host every other PostHog integration in this repo uses. */
 export const POSTHOG_HOST_ENV_VAR = "POSTHOG_CLI_HOST";
-/** Set to `1` to opt out for a single invocation without touching `~/.boboddy.json`. */
+/** Set to `1` to opt out for a single invocation without touching `~/.boboddy/config.jsonc`. */
 export const TELEMETRY_DISABLED_ENV_VAR = "BOBODDY_TELEMETRY_DISABLED";
 /** Set to `1` to print every telemetry payload to stderr, in addition to sending it. */
 export const TELEMETRY_DEBUG_ENV_VAR = "BOBODDY_TELEMETRY_DEBUG";
@@ -73,8 +78,10 @@ export function isTelemetryEnabled(): boolean {
 
 function ensureInitialized(): boolean {
   if (!isTelemetryEnabled()) return false;
-  const key = process.env[POSTHOG_KEY_ENV_VAR] ?? "";
-  const host = process.env[POSTHOG_HOST_ENV_VAR] ?? DEFAULT_POSTHOG_HOST;
+  const baked = bakedTelemetryConfig();
+  const key = process.env[POSTHOG_KEY_ENV_VAR] || baked.key || "";
+  const host =
+    process.env[POSTHOG_HOST_ENV_VAR] || baked.host || DEFAULT_POSTHOG_HOST;
   return analyticsServer.init({ key, host });
 }
 
@@ -104,7 +111,7 @@ export function captureMilestone(
   const enabled = ensureInitialized();
   // Resolved only when actually sending: `resolveDistinctId` may create AND
   // PERSIST a fresh anonymous id (`getOrCreateAnonymousId` writes to
-  // `~/.boboddy.json`). Someone who opted out — env var or the persisted
+  // `~/.boboddy/config.jsonc`). Someone who opted out — env var or the persisted
   // flag itself — must not get a brand-new on-disk identifier as a side
   // effect of a command that is supposed to be a no-op.
   if (!enabled) {
