@@ -97,6 +97,9 @@ jobs:
       - name: Build CLI binaries
         env:
           CLI_BUILD_VERSION: ${{ needs.resolve-version.outputs.version }}
+          POSTHOG_CLI_KEY: ${{ secrets.POSTHOG_CLI_KEY }}
+          POSTHOG_CLI_HOST: ${{ vars.POSTHOG_CLI_HOST }}
+          BOBODDY_REQUIRE_TELEMETRY_KEY: "1"
         run: bun run --filter @boboddy/cli build
 
       - name: Upload binaries
