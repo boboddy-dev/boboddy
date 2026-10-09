@@ -1,7 +1,12 @@
 import { describe, expect } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import {
   REPOSITORY_TASK_LABEL,
   reportResolvedRepository,
+  strayProjectConfigMessage,
+  warnAboutStrayProjectConfig,
 } from "../src/lib/init-repository-resolution";
 import {
   concurrentTest as test,
@@ -80,5 +85,79 @@ describe("reportResolvedRepository", () => {
     }
 
     expect(methods(calls)).not.toContain("info");
+  });
+
+  test("strips credentials from the printed remote but returns it unchanged", async () => {
+    const { reporter, calls } = createRecorder();
+    const remoteUrl = "https://user:ghp_secret@github.com/acme/my-repo.git";
+
+    const result = await reportResolvedRepository({
+      reporter,
+      ports: {
+        resolveGitRepository: () =>
+          Promise.resolve({ repoRoot: "/Users/dev/my-repo", remoteUrl }),
+      },
+    });
+
+    expect(result.remoteUrl).toBe(remoteUrl);
+    expect(messages(calls)).toContain(
+      "Remote: https://github.com/acme/my-repo.git",
+    );
+    expect(messages(calls).join("\n")).not.toContain("ghp_secret");
+  });
+});
+
+describe("warnAboutStrayProjectConfig", () => {
+  function withRepo(fn: (repoRoot: string, nested: string) => void): void {
+    const repoRoot = mkdtempSync(resolve(tmpdir(), "boboddy-stray-"));
+    const nested = join(repoRoot, "packages", "app");
+    mkdirSync(nested, { recursive: true });
+    try {
+      fn(repoRoot, nested);
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
+  }
+
+  function writeConfig(dir: string): void {
+    mkdirSync(join(dir, ".boboddy"), { recursive: true });
+    writeFileSync(join(dir, ".boboddy", "boboddy.jsonc"), "{}\n");
+  }
+
+  test("warns about a leftover subdirectory config, without touching it", () => {
+    withRepo((repoRoot, nested) => {
+      writeConfig(nested);
+      const { reporter, calls } = createRecorder();
+
+      warnAboutStrayProjectConfig({ cwd: nested, repoRoot, reporter });
+
+      expect(calls).toEqual([
+        {
+          method: "warn",
+          message: strayProjectConfigMessage(nested, repoRoot),
+        },
+      ]);
+    });
+  });
+
+  test("stays quiet in a subdirectory with no stray config", () => {
+    withRepo((repoRoot, nested) => {
+      const { reporter, calls } = createRecorder();
+
+      warnAboutStrayProjectConfig({ cwd: nested, repoRoot, reporter });
+
+      expect(calls).toEqual([]);
+    });
+  });
+
+  test("stays quiet at the repo root, where the config belongs", () => {
+    withRepo((repoRoot) => {
+      writeConfig(repoRoot);
+      const { reporter, calls } = createRecorder();
+
+      warnAboutStrayProjectConfig({ cwd: repoRoot, repoRoot, reporter });
+
+      expect(calls).toEqual([]);
+    });
   });
 });

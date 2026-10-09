@@ -1,146 +1,28 @@
-# boboddy CLI
+# @boboddy/cli
 
-`boboddy` is a Bun + TypeScript CLI workspace with a modular command layout and compiled binary distribution support.
+Boboddy runs AI agents over your backlog, on your machines. This CLI links your
+repo, designs pipelines with an agent, and runs the workers that execute them.
 
-## Project Shape
-
-```txt
-apps/cli/
-  src/
-    index.ts
-    commands/
-      hello.ts
-  script/
-    build.ts
-  bin/
-    boboddy
-  test/
-    cli.test.ts
-  package.json
-  tsconfig.json
-  README.md
-```
-
-## Prerequisites
-
-- Bun `1.2.9` or newer
-
-## Local Development
-
-Install dependencies from the workspace root:
+## Install
 
 ```sh
-bun install
+npm i -g @boboddy/cli
 ```
 
-Run the CLI directly from source:
+## Use
 
 ```sh
-bun run apps/cli/src/index.ts hello
-bun run apps/cli/src/index.ts hello Connor
-bun run apps/cli/src/index.ts work 01966a2c-9494-7db5-aa46-0f8f5cbbe001
-bun run apps/cli/src/index.ts auth status
+boboddy init               # sign in and link this repo to a Boboddy project
+boboddy pipelines design   # pick a work item; an agent interviews you and writes the pipeline
+boboddy work               # run a worker that executes your pipeline's steps
 ```
 
-Or from the package directory:
+The designer connects to an AI provider once, the first time it starts. The
+Quickstart says
+[which option to pick for your tool](https://boboddy-dev.github.io/boboddy/getting-started/quickstart/#connect-your-ai-tool).
 
-```sh
-cd apps/cli
-bun run src/index.ts hello Connor
-bun run src/index.ts work 01966a2c-9494-7db5-aa46-0f8f5cbbe001
-```
+## Docs
 
-## Type Checking
-
-```sh
-bun run --filter @boboddy/cli typecheck
-```
-
-## Tests
-
-```sh
-bun run --filter @boboddy/cli test
-```
-
-The tests spawn the CLI as a subprocess, so they do not require a global install.
-
-## Build Binaries
-
-```sh
-bun run --filter @boboddy/cli build
-```
-
-This creates standalone binaries in `apps/cli/dist/` for:
-
-- `boboddy-darwin-arm64`
-- `boboddy-darwin-x64`
-- `boboddy-linux-x64`
-- `boboddy-linux-arm64`
-- `boboddy-windows-x64.exe`
-
-## npm Bin Wrapper
-
-The package publishes the `boboddy` executable through `bin/boboddy`.
-
-- The wrapper detects the current platform and architecture.
-- It runs the matching compiled binary from `dist/` when available.
-- It prints a clear error when the current platform is unsupported or the expected binary is missing.
-
-After building, run the wrapper locally:
-
-```sh
-./bin/boboddy hello Connor
-./bin/boboddy auth login
-```
-
-## Authentication
-
-Authenticate the CLI through the browser-based Better Auth device flow:
-
-```sh
-boboddy auth login
-boboddy auth status
-boboddy auth whoami
-boboddy auth logout
-```
-
-By default the CLI targets `http://127.0.0.1:3000`. Override that with
-`--base-url` or the `BOBODDY_BASE_URL` environment variable.
-
-Authenticated CLI credentials are stored in `~/.boboddy/auth.jsonc`.
-
-## Observability
-
-The CLI reports a small set of onboarding milestones (init started,
-requirements verified, signed in, project linked, designer launched, dry run
-passed, pipeline pushed, run queued) directly to PostHog. Each event is keyed
-to a random anonymous id persisted in `~/.boboddy/config.jsonc` until you sign in, at
-which point later events switch to your account id. `accessToken`, `email`,
-and `name` are never sent as event data.
-
-```sh
-boboddy telemetry status    # is it enabled?
-boboddy telemetry disable   # opt out, persists across invocations
-boboddy telemetry enable    # opt back in
-```
-
-`BOBODDY_TELEMETRY_DISABLED=1` opts out for a single invocation without
-touching `~/.boboddy/config.jsonc`. `BOBODDY_TELEMETRY_DEBUG=1` prints every payload
-to stderr in addition to sending it. See the
-[Observability docs](https://boboddy-dev.github.io/boboddy/reference/observability/)
-for the full list of what's collected.
-
-## npm-Style Installation
-
-When this workspace is published as a package, the `bin` field maps the `boboddy` command to `./bin/boboddy`.
-
-Typical install and usage shape:
-
-```sh
-npm install -g <published-package-name>
-boboddy hello Connor
-```
-
-## Future GitHub Releases
-
-For GitHub Releases, upload the compiled files from `apps/cli/dist/` as release assets. Consumers can then download the platform-specific binary directly without installing through npm.
+- [Quickstart](https://boboddy-dev.github.io/boboddy/getting-started/quickstart/) — ten minutes to a running pipeline.
+- [CLI reference](https://boboddy-dev.github.io/boboddy/reference/cli/) — every command and flag.
+- [Observability](https://boboddy-dev.github.io/boboddy/reference/observability/) — what the CLI reports and how to opt out.

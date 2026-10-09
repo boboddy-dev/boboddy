@@ -1,5 +1,7 @@
 import { CLI_AUTH_CLIENT_ID } from "../infra/auth-config";
 import { createCliAuthClient } from "../infra/auth-client";
+import { SetupErrorCodes } from "../../../lib/errors";
+import { DeviceLoginError } from "./poll-for-access-token";
 
 export async function requestDeviceAuthorization(baseUrl: string) {
   const authClient = createCliAuthClient({ baseUrl });
@@ -9,7 +11,10 @@ export async function requestDeviceAuthorization(baseUrl: string) {
   });
 
   if (!result.data) {
-    throw new Error("Unable to start CLI authentication.");
+    throw new DeviceLoginError(
+      "Unable to start CLI authentication.",
+      SetupErrorCodes.DeviceLoginFailed,
+    );
   }
 
   return result.data;

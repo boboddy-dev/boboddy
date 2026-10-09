@@ -3,8 +3,11 @@ import {
   NO_WORK_ITEM_MESSAGE,
   SEARCH_WORK_ITEM,
 } from "./design-work-item";
+import {
+  ensureProviderConnected,
+  type ProviderConnectPorts,
+} from "./design-provider-connect";
 import { resolveFreeTextWorkItem } from "./design-work-item-resolution";
-import type { OpencodeProviderCredentialCheck } from "@boboddy/worker";
 import type { EnsureOpencodeRuntimePort } from "./design-runtime";
 import type {
   DesignWorkItem,
@@ -12,6 +15,8 @@ import type {
   WorkItemDraft,
 } from "./design-work-item";
 import type { BaseReporter } from "./reporter-types";
+import { CliError } from "./cli-error";
+import { ensureSignedIn, type SignInPorts } from "./ensure-signed-in";
 
 /**
  * The preflight for `boboddy pipelines design`.
@@ -20,20 +25,16 @@ import type { BaseReporter } from "./reporter-types";
  * that a new user should be able to type one thing and end up in a working
  * session. A missing session triggers a login; a missing directory is
  * scaffolded; missing dependencies are installed; a missing runtime is
- * downloaded. The single exception is provider credentials — Boboddy cannot
- * obtain an Anthropic/OpenAI key on the user's behalf, so that one hard-stops
- * with the remediation the runtime itself prints.
+ * downloaded; a missing AI provider connection hands the user to OpenCode's
+ * own `auth login`, with guidance for the AI tools they already have.
  *
  * All I/O is behind {@link DesignPreflightPorts} so the decision logic (which
  * branch runs when) is unit-testable without a network, a filesystem, or a
  * 100 MB download.
  */
 
-export interface DesignPreflightPorts extends EnsureOpencodeRuntimePort {
-  /** Current authenticated session for `baseUrl`, or `null` when signed out. */
-  loadSession(baseUrl: string): Promise<{ email: string } | null>;
-  /** Run the interactive device-code login. Resolves once signed in. */
-  login(baseUrl: string): Promise<{ email: string }>;
+export interface DesignPreflightPorts
+  extends EnsureOpencodeRuntimePort, SignInPorts, ProviderConnectPorts {
   /** The projectId recorded in `.boboddy/boboddy.jsonc`, if any. */
   readConfiguredProjectId(): Promise<string | undefined>;
   /**
@@ -115,10 +116,6 @@ export interface DesignPreflightPorts extends EnsureOpencodeRuntimePort {
   dependenciesInstalled(): boolean;
   /** Install them. Throws with an actionable message on failure. */
   installDependencies(): Promise<void>;
-  /** Check for a usable AI provider credential. */
-  checkCredentials(
-    launcherPath: string,
-  ): Promise<OpencodeProviderCredentialCheck>;
 }
 
 export type DesignPreflightInput = {
@@ -164,15 +161,17 @@ export function workItemNotFoundMessage(
 
 /**
  * Run every precondition in dependency order, healing what it can, and return
- * everything the launch needs. Throws on the two unrecoverable cases: no
- * project ID, and no AI provider credential.
+ * everything the launch needs. Throws when the user declines to answer (no
+ * project ID, no work item) or a heal itself fails.
  */
 export async function runDesignPreflight(
   input: DesignPreflightInput,
 ): Promise<DesignPreflightResult> {
   const { baseUrl, reporter, ports } = input;
 
-  await ensureSignedIn(baseUrl, reporter, ports);
+  // `pipelines design` asserts a tty before the preflight runs, so a missing
+  // session always heals through the device login.
+  await ensureSignedIn({ baseUrl, interactive: true, reporter, ports });
   const projectId = await ensureProjectId({
     baseUrl,
     projectIdArgument: input.projectIdArgument,
@@ -191,28 +190,13 @@ export async function runDesignPreflight(
   });
   await ensureBuilderDirectory(reporter, ports);
   const launcherPath = await ports.ensureRuntime();
-  const providers = await ensureProviderCredentials(launcherPath, ports);
-
-  reporter.success(`AI provider ready (${providers.join(", ")})`);
+  const providers = await ensureProviderCredentials(
+    launcherPath,
+    reporter,
+    ports,
+  );
 
   return { projectId, workItem, launcherPath, providers };
-}
-
-/** Step 1 — authentication. Heals by running the device flow inline. */
-async function ensureSignedIn(
-  baseUrl: string,
-  reporter: BaseReporter,
-  ports: DesignPreflightPorts,
-): Promise<void> {
-  const existing = await ports.loadSession(baseUrl);
-  if (existing) {
-    reporter.success(`Signed in as ${existing.email}`);
-    return;
-  }
-
-  reporter.info(`Not signed in to ${baseUrl}. Starting sign-in…`);
-  const session = await ports.login(baseUrl);
-  reporter.success(`Signed in as ${session.email}`);
 }
 
 /**
@@ -252,7 +236,7 @@ async function ensureProjectId(input: {
 
   const prompted = (await ports.promptProjectId())?.trim() ?? "";
   if (prompted.length === 0) {
-    throw new Error(NO_PROJECT_ID_MESSAGE);
+    throw new CliError("no_project_id", NO_PROJECT_ID_MESSAGE);
   }
 
   reporter.info("Using the project ID you entered for this session only.");
@@ -352,7 +336,7 @@ async function ensureWorkItem(input: {
       ports,
     });
     if (choice === undefined) {
-      throw new Error(NO_WORK_ITEM_MESSAGE);
+      throw new CliError("no_work_item", NO_WORK_ITEM_MESSAGE);
     }
     if (choice !== FREE_TEXT_WORK_ITEM) {
       reporter.success(`Designing for “${choice.title}”`);
@@ -506,18 +490,18 @@ async function ensureBuilderDirectory(
 }
 
 /**
- * Step 6 — provider credentials. The one UNHEALABLE stop: without a key there
- * is no model to talk to, and no amount of retrying on our side changes that.
- * (A cancelled project id or work item also stops the run, but those are the
- * user declining to answer, not Boboddy hitting a wall.)
+ * Step 6 — the AI provider connection. Healed like every other step: see
+ * `design-provider-connect.ts`.
  */
 async function ensureProviderCredentials(
   launcherPath: string,
+  reporter: BaseReporter,
   ports: DesignPreflightPorts,
 ): Promise<readonly string[]> {
-  const check = await ports.checkCredentials(launcherPath);
-  if (!check.ok) {
-    throw new Error(check.remediation);
-  }
-  return check.providers;
+  const { providers } = await ensureProviderConnected({
+    launcherPath,
+    reporter,
+    ports,
+  });
+  return providers;
 }

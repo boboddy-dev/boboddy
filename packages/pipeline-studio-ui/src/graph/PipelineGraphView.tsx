@@ -31,15 +31,18 @@ export function PipelineGraphView({
   edges,
   onSelectNode,
   onDeselect,
+  colorMode = "dark",
 }: {
   nodes: StudioNode[];
   edges: StudioEdge[];
   onSelectNode?: (nodeKey: string) => void;
   onDeselect?: () => void;
+  colorMode?: "light" | "dark";
 }) {
   return (
     <ReactFlowProvider>
       <ReactFlow
+        colorMode={colorMode}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}

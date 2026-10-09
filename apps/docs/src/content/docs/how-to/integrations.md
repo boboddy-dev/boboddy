@@ -1,5 +1,5 @@
 ---
-title: Integrations
+title: Connect GitHub or Jira
 description: Connect GitHub or Jira so incoming issues become work items automatically
 ---
 
@@ -8,8 +8,8 @@ them by hand. Connect one from **Project → Settings → Integrations** — eve
 project has this panel, however it was created, so you can link one later even
 if you started with a manually-created project.
 
-GitHub is the recommended path: it syncs continuously, in the background,
-forever. Jira works too, but only syncs when you ask it to.
+GitHub is the recommended path: issue changes reach Boboddy instantly, in the
+background, for as long as the integration is connected. Jira works too, but only syncs when you ask it to.
 
 ## GitHub
 
@@ -19,11 +19,13 @@ rather than an OAuth login — you'll be sent to GitHub to approve it, choosing
 screen. Boboddy then lets you pick which of the repos that installation covers
 to link into this project.
 
-Once linked, Boboddy syncs on a schedule — no webhook, just a poll:
+Once linked, GitHub sends Boboddy a webhook whenever an issue changes, so work
+items update within seconds:
 
 | | |
 |---|---|
-| Cadence | Every 15 minutes, automatically, for as long as the integration is connected |
+| Cadence | Instant, via webhooks — an issue being opened, edited, closed, reopened, labeled, unlabeled, assigned, or unassigned updates its work item right away |
+| Backstop | A daily sync catches anything a webhook missed |
 | First sync | Looks back 180 days |
 | What's ingested | Issues only — pull requests are filtered out |
 
@@ -68,7 +70,7 @@ status/issue-type fields:
 | | GitHub | Jira |
 |---|---|---|
 | Setup | Install a GitHub App | Enter base URL, email, project keys |
-| Sync | Automatic, every 15 minutes | Manual — click "Sync now", re-enter API key each time |
+| Sync | Automatic and instant, via webhooks | Manual — click "Sync now", re-enter API key each time |
 | Status/issue-type on work items | No (open/closed only) | Yes |
 
 Nothing stops you connecting both to the same project — issues from either

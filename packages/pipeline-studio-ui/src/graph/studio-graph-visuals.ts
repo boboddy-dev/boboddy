@@ -28,29 +28,15 @@ export function highestSeverity(
 }
 
 /**
- * The color for a given severity (or `null`, meaning "no issues") — reuses
- * this package's existing hand-rolled palette from `index-html-template.ts`:
- * `#b00020` (error-red, already used for `.studio-status-error` /
- * `.studio-option-broken` / the broken-pipeline dialog's heading) and
- * `#b34700` (warning-amber, already used for `.studio-issue-check`).
- * `#0969da` (info-blue) is new here — this package's palette had no
- * existing "informational, not error-adjacent" color to reuse. Neutral
- * falls back to the same light-gray border color React Flow's own default
- * node uses, so an issue-free node doesn't stand out from today's baseline.
+ * The color for a given severity (or `null`, meaning "no issues"), as a
+ * `--studio-severity-*` CSS variable reference. The actual values live in
+ * `index-html-template.ts`'s per-theme palettes, so nodes, edges, chips, and
+ * badges all follow the active light/dark theme without re-rendering.
  */
 export function severityColor(
   severity: "error" | "warning" | "info" | null,
 ): string {
-  switch (severity) {
-    case "error":
-      return "#b00020";
-    case "warning":
-      return "#b34700";
-    case "info":
-      return "#0969da";
-    case null:
-      return "#1a192b1a";
-  }
+  return `var(--studio-severity-${severity ?? "none"})`;
 }
 
 /**

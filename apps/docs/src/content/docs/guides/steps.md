@@ -172,7 +172,7 @@ The error names the path and the branch it was looked up on.
 The worker reads the config from the checkout the step starts from. For the first step in a pipeline that is your base branch (see [Base branch](/boboddy/guides/workers/#base-branch)); for a later step it is the work branch of the nearest earlier step that produced one. So an earlier step can add, change, or remove a config that a later step selects. The config must exist on that branch, not only on your default branch.
 :::
 
-The worker patches the config it launches (to add mounts, ports, and `containerEnv`). That patched file is **not** committed to the step's work branch, wherever it lives. See [Setting up a Dev Container](/boboddy/guides/devcontainer/#multiple-configs) for writing an alternate config.
+The worker patches the config it launches (to add mounts, ports, and `containerEnv`). That patched file is **not** committed to the step's work branch, wherever it lives. See [Set up a dev container](/boboddy/how-to/devcontainer/#multiple-configs) for writing an alternate config.
 
 #### Runtime for code steps
 

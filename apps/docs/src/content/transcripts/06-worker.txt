@@ -1,0 +1,13 @@
+# @boboddy/cli 0.0.0 — replay of a recorded `boboddy work` run (packages/demo-video/fixtures/raw/terminal.jsonl) through the real ClackReporter; reporter output is live, not hand-written.
+# Trimmed by hand: clack's blank "│" spacer lines and the devcontainer build log window are dropped; ids are replaced with placeholders.
+┌   Boboddy worker
+●  Logs → ~/.boboddy/logs/worker-2026-10-07T15-04-12-123Z.log
+●  Using source branch: main
+●  Project <project-id> · concurrency 1
+◆  Worker ready (<worker-id>)
+●  Claimed 1 step
+◇  step <step-id> starting devcontainer… [0s]
+◆  step <step-id> Running postCreateCommand... · 9s
+◇  Step <step-id> succeeded (2m 26s) [2m 16s]
+●  Claimed 1 step
+◇  step <next-step-id> starting devcontainer… [0s]

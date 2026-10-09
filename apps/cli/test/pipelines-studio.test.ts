@@ -27,6 +27,7 @@ type Calls = {
   scaffoldBuilderDir: number;
   startServer: { builderDir: string; port: number | undefined } | undefined;
   openBrowser: string | undefined;
+  studioOpened: { browserOpened: boolean }[];
   waitForShutdownSignal: number;
   close: number;
 };
@@ -39,6 +40,7 @@ function createPorts(overrides: Partial<StudioSessionPorts> = {}): {
     scaffoldBuilderDir: 0,
     startServer: undefined,
     openBrowser: undefined,
+    studioOpened: [],
     waitForShutdownSignal: 0,
     close: 0,
   };
@@ -62,6 +64,9 @@ function createPorts(overrides: Partial<StudioSessionPorts> = {}): {
     openBrowser: (url) => {
       calls.openBrowser = url;
       return Promise.resolve();
+    },
+    studioOpened: (input) => {
+      calls.studioOpened.push(input);
     },
     waitForShutdownSignal: () => {
       calls.waitForShutdownSignal += 1;
@@ -150,6 +155,50 @@ describe("runStudioSession — orchestration", () => {
         message.includes("Could not open a browser"),
       ),
     ).toBe(true);
+  });
+
+  test("records the studio as opened with the browser after a successful open", async () => {
+    const { ports, calls } = createPorts();
+    const { reporter } = createReporterRecorder();
+
+    await runStudioSession({
+      builderDir: "/repo/.boboddy/pipeline-builder",
+      port: undefined,
+      reporter,
+      ports,
+    });
+
+    expect(calls.studioOpened).toEqual([{ browserOpened: true }]);
+  });
+
+  test("records the studio as opened without a browser when the open fails", async () => {
+    const { ports, calls } = createPorts({
+      openBrowser: () => Promise.reject(new Error("no display")),
+    });
+    const { reporter } = createReporterRecorder();
+
+    await runStudioSession({
+      builderDir: "/repo/.boboddy/pipeline-builder",
+      port: undefined,
+      reporter,
+      ports,
+    });
+
+    expect(calls.studioOpened).toEqual([{ browserOpened: false }]);
+  });
+
+  test("does not record the studio as opened when the preflight fails", async () => {
+    const { ports, calls } = createPorts({ dependenciesInstalled: () => false });
+    const { reporter } = createReporterRecorder();
+
+    await runStudioSession({
+      builderDir: "/repo/.boboddy/pipeline-builder",
+      port: undefined,
+      reporter,
+      ports,
+    }).catch(() => undefined);
+
+    expect(calls.studioOpened).toEqual([]);
   });
 
   test("reports the server's URL so a user without a browser can still open it", async () => {

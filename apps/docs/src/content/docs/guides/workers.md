@@ -11,7 +11,7 @@ A **worker** is a long-running process that polls the Boboddy server for pending
 boboddy work
 ```
 
-By default the worker runs continuously, polling your project's step queue every 5 seconds.
+By default the worker runs continuously, polling your project's step queue every 5 seconds. When a poll finds nothing to claim, the interval doubles, up to once a minute, and drops back to 5 seconds as soon as it claims work.
 
 If your current directory contains `.boboddy/boboddy.jsonc`, the project ID is read automatically. Otherwise pass it explicitly:
 
@@ -21,16 +21,7 @@ boboddy work <projectId>
 
 ## Worker flags
 
-| Flag                             | Alias | Default                  | Description                                                                       |
-| -------------------------------- | ----- | ------------------------ | --------------------------------------------------------------------------------- |
-| `--once`                         | —     | `false`                  | Poll once and wait for any claimed jobs to finish                                 |
-| `--concurrency <n>`              | `-c`  | `1`                      | Maximum number of concurrently active jobs                                        |
-| `--batch-size <n>`               | `-b`  | value of `--concurrency` | Maximum step executions to claim per poll cycle                                   |
-| `--lease-duration-seconds <n>`   | `-l`  | `30`                     | Lease duration before the server reclaims a job                                   |
-| `--poll-interval-ms <n>`         | `-p`  | `5000`                   | Milliseconds between poll cycles                                                  |
-| `--worker-id <id>`               | `-w`  | auto                     | Worker identifier used while claiming steps                                       |
-| `--work-item-id <id>`            | —     | —                        | Only process step executions for this work item ID                                |
-| `--preserve-runtime-on-complete` | `-k`  | `false`                  | Keep runtime containers and workspace after a job finishes (useful for debugging) |
+Flags are in the [CLI reference](/boboddy/reference/cli/#boboddy-work-projectid).
 
 ## How execution works
 
@@ -53,7 +44,7 @@ Devcontainer config ".devcontainer/frontend/devcontainer.json" not found in the 
 
 The branch in the message is the one the step was created off: your base branch for the first write step (see [Base branch](#base-branch)), or the work branch of the nearest earlier step that produced one for a later step. If a step expects a config that an earlier step is supposed to add, check that branch. A config path that resolves outside the clone (for example through a symlink) is rejected with `... resolves outside the cloned repository`. A `--dry-run` for the step resolves the same config, so a wrong path shows up in the dry-run report.
 
-The worker patches the config it launches (mounts, ports, and `containerEnv`), and does not commit that patched file to the step's work branch. See [Selecting a devcontainer config](/boboddy/guides/steps/#selecting-a-devcontainer-config) and [Multiple configs](/boboddy/guides/devcontainer/#multiple-configs).
+The worker patches the config it launches (mounts, ports, and `containerEnv`), and does not commit that patched file to the step's work branch. See [Selecting a devcontainer config](/boboddy/guides/steps/#selecting-a-devcontainer-config) and [Multiple configs](/boboddy/how-to/devcontainer/#multiple-configs).
 
 ### Managed runtimes
 
@@ -195,10 +186,7 @@ Set the variables, or mark them `optional` or give them a `default`, and re-run.
 
 ## Environment requirements
 
-- **Docker** must be running and accessible to the worker process — required for `Runtime.devcontainer()` steps. `Runtime.host()` steps do not use Docker.
-- **AI provider credentials** must be available. Boboddy ships and launches its own pinned OpenCode runtime, so you do not need OpenCode installed — but it reads your provider credentials from `~/.config/opencode/` or from env vars such as `ANTHROPIC_API_KEY`. See [opencode.ai/docs](https://opencode.ai/docs) for provider setup.
-- Your repo must have a `.devcontainer/devcontainer.json` (or the config the step selects) by the time a `Runtime.devcontainer()` step runs. `boboddy init` only reports a missing one; the [pipeline designer](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) authors it during a design session, and this worker run is what first builds it. See [Setting up a Dev Container](/boboddy/guides/devcontainer/) to write one by hand.
-- Credentials must be present (`boboddy auth login`).
+Docker, an AI provider, and a Boboddy sign-in are listed in [Installation](/boboddy/getting-started/installation/#requirements); which steps need Docker and a devcontainer is under [Runtime](/boboddy/getting-started/concepts/#runtime). For a worker on a CI box, see [Authentication](#authentication).
 
 ## Single-job mode
 

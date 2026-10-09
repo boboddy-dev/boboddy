@@ -104,6 +104,8 @@ export type CohortGateNodeDefinitionSpec = {
 export type ChoiceNodeDefinitionSpec = {
   nodeKey: string;
   kind: "choice";
+  /** Display name (e.g. "Outcome check"); graph renderers fall back to `nodeKey`. */
+  name?: string;
   /** The routing table — may be empty when `default` alone covers every case. */
   choices: ChoiceCaseSpec[];
   /** The fallback target when no `choices[]` entry matches. */
@@ -134,10 +136,12 @@ export type SplitNodeDefinitionSpec = {
   branchNodeKeys: string[];
 };
 
-/** `succeed`/`fail` carry no fields of their own besides `nodeKey`/`kind`. */
+/** `succeed`/`fail` carry no fields of their own besides `nodeKey`/`kind`/`name`. */
 export type TerminalNodeDefinitionSpec = {
   nodeKey: string;
   kind: "succeed" | "fail";
+  /** Display name (e.g. "Needs a human"); graph renderers fall back to `nodeKey`. */
+  name?: string;
 };
 
 /**

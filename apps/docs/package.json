@@ -8,6 +8,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
+    "prose-words": "bun scripts/prose-words.ts",
+    "check-commands": "bun scripts/check-commands.ts",
+    "test": "bun scripts/check-commands.ts && bun scripts/prose-words.ts src/content/docs/getting-started/quickstart.mdx --max 900",
     "astro": "astro"
   },
   "dependencies": {
@@ -15,6 +18,7 @@
     "@astrojs/starlight": "0.41.7",
     "@astrojs/starlight-tailwind": "^5.0.0",
     "@boboddy/design-tokens": "workspace:*",
+    "@boboddy/observability": "workspace:*",
     "@boboddy/pipeline-studio-ui": "workspace:*",
     "@boboddy/sdk": "workspace:*",
     "@tailwindcss/vite": "^4.1.14",
@@ -23,6 +27,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.33.0",
+    "starlight-links-validator": "0.25.3",
+    "starlight-llms-txt": "^0.12.0",
     "tailwindcss": "^4.1.14",
     "zod": "^4.3.6"
   },

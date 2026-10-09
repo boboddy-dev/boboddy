@@ -29,10 +29,24 @@ async function git(cwd: string, args: string[]): Promise<void> {
   });
 }
 
-function fakeClient(projects: Array<{ id: string; gitUrl: string }>) {
+function fakeClient(
+  projects: Array<{
+    id: string;
+    gitUrl: string;
+    name?: string;
+    createdAt?: string;
+  }>,
+) {
   return {
     projects: {
-      listProjects: () => Promise.resolve({ data: projects }),
+      listProjects: () =>
+        Promise.resolve({
+          data: projects.map((project) => ({
+            name: project.id,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            ...project,
+          })),
+        }),
     },
   } as unknown as ReturnType<typeof createBoboddyClient>;
 }
@@ -66,10 +80,88 @@ describe("localConfigSetup", () => {
 
     const result = await localConfigSetup({ client, headers, rootDir: repo });
 
-    expect(result).toEqual({ status: "matched", projectId: "existing-id" });
+    expect(result).toEqual({
+      status: "matched",
+      projectId: "existing-id",
+      projectName: "existing-id",
+      matchCount: 1,
+    });
     expect(await readProjectConfig(repo)).toEqual({
       projectId: "existing-id",
     });
+  });
+
+  test("matches a project stored with the HTTPS URL when the local remote is SSH", async () => {
+    const client = fakeClient([
+      {
+        id: "github-project",
+        name: "My Repo",
+        gitUrl: "https://github.com/acme/my-repo.git",
+      },
+    ]);
+
+    const result = await localConfigSetup({ client, headers, rootDir: repo });
+
+    expect(result).toEqual({
+      status: "matched",
+      projectId: "github-project",
+      projectName: "My Repo",
+      matchCount: 1,
+    });
+    expect(await readProjectConfig(repo)).toEqual({
+      projectId: "github-project",
+    });
+  });
+
+  test("picks the oldest of several matching projects and reports the count", async () => {
+    const client = fakeClient([
+      {
+        id: "newer",
+        gitUrl: "https://github.com/acme/my-repo.git",
+        createdAt: "2026-02-01T00:00:00.000Z",
+      },
+      {
+        id: "older",
+        gitUrl: REMOTE_URL,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+
+    const result = await localConfigSetup({ client, headers, rootDir: repo });
+
+    expect(result).toEqual({
+      status: "matched",
+      projectId: "older",
+      projectName: "older",
+      matchCount: 2,
+    });
+  });
+
+  test("throws, and writes nothing, when the project list cannot be loaded", async () => {
+    const client = {
+      projects: {
+        listProjects: () =>
+          Promise.resolve({
+            data: undefined,
+            error: { status: 401 },
+            response: { status: 401 },
+          }),
+      },
+    } as unknown as ReturnType<typeof createBoboddyClient>;
+
+    let caught: unknown;
+    try {
+      await localConfigSetup({
+        client,
+        headers,
+        rootDir: repo,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect((caught as Error).message).toContain("HTTP 401");
+    expect(await readProjectConfig(repo)).toBeNull();
   });
 
   test("does NOT call createProject and returns handoff-required when no project matches", async () => {

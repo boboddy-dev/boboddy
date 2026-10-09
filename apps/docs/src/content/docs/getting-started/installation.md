@@ -8,32 +8,24 @@ description: Install the Boboddy CLI
 To get through [Quickstart](/boboddy/getting-started/quickstart/)'s first
 pipeline run, you need:
 
+- **A git repository with an `origin` remote** — `boboddy init` reads the
+  remote to find or create your project
 - **Node.js** 18+ or **Bun** 1.3+ (or npm/pnpm/yarn — any one package manager, to
   install dependencies into `.boboddy/pipeline-builder/`)
-- **An AI provider configured for OpenCode** — both `boboddy init` and
-  `boboddy pipelines design` run a Boboddy-managed OpenCode runtime, but they
-  read *your* provider credentials. See
-  [Connecting providers](https://opencode.ai/docs/providers/) on the OpenCode
-  docs, or just run `boboddy init` and it will walk you through signing in the
-  first time it needs to.
+- **An AI provider** — the first design session connects one, and the
+  [Quickstart's provider table](/boboddy/getting-started/quickstart/#connect-your-ai-tool)
+  says which menu entry to pick for Claude Code, Codex, or GitHub Copilot. Or
+  export a provider API key such as `ANTHROPIC_API_KEY` before you start.
+- **A Boboddy sign-in** — `boboddy init` signs you in. On a worker machine
+  where you won't run `init`, use
+  [`boboddy auth login`](/boboddy/reference/cli/#boboddy-auth-login).
+- **Docker**, running where the worker runs — for steps on
+  `Runtime.devcontainer()`, the default for steps that work in your code. See
+  [Runtime](/boboddy/getting-started/concepts/#runtime) for which steps need it
+  and where the devcontainer comes from.
 
 You do **not** need OpenCode installed. Boboddy downloads and pins its own
 runtime the first time it's needed — a one-time ~100 MB download.
-
-To run steps on **`Runtime.devcontainer()`**, the default (agents that clone and work inside your
-repository), you additionally need:
-
-- **Docker** — used to build the per-execution dev container.
-- **A `.devcontainer/devcontainer.json`** in your project root. You do not have to
-  write it yourself: a design session authors one when it is missing. See
-  [Setting up a Dev Container](/boboddy/guides/devcontainer/) to write one by hand.
-
-:::note
-Steps that use **`Runtime.host()`** (like the ones in the starter pipeline) run
-directly on the host and need neither Docker nor a dev container — that's what
-keeps a first pipeline run container-free until a step actually needs your
-repository. See [Runtime](/boboddy/guides/steps/#runtime).
-:::
 
 ## Install the CLI
 
@@ -61,9 +53,10 @@ if you're troubleshooting an install.
 
 ## Next steps
 
-`boboddy init` handles signing in — to both Boboddy and OpenCode — as part of
-project setup, so there's no separate login step to run first. Head to
-[Quickstart](/boboddy/getting-started/quickstart/) to run it.
+`boboddy init` handles signing in to Boboddy and creating your project as
+part of setup, and the design session it hands off to connects your AI
+provider, so there's no separate login step to run first. Run it from anywhere in your repository; head to
+[Quickstart](/boboddy/getting-started/quickstart/) for the walkthrough.
 
 Already signed in and just need the commands? See the
 [CLI reference](/boboddy/reference/cli/) for `boboddy auth`, environment

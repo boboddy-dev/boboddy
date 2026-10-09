@@ -1,0 +1,18 @@
+---
+/**
+ * Renders a terminal transcript from `src/content/transcripts/` (imported with
+ * Vite's `?raw`) as a terminal-framed code block. The leading `#` lines record
+ * where the transcript came from and the CLI version it matches; they stay in
+ * the file so staleness is visible in review, and are stripped here so they
+ * never render.
+ */
+import { Code } from '@astrojs/starlight/components';
+
+interface Props {
+  src: string;
+}
+
+const code = Astro.props.src.replace(/^(?:#[^\n]*\n)+/, '').trimEnd();
+---
+
+<Code code={code} lang="text" title="terminal" frame="terminal" wrap />

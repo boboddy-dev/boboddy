@@ -1,4 +1,8 @@
-import type { AnalyticsEventName } from "@boboddy/observability/analytics/events";
+import type {
+  AnalyticsEventName,
+  AnalyticsEventProperties,
+  CliContextProperties,
+} from "@boboddy/observability/analytics/events";
 import * as analyticsServer from "@boboddy/observability/analytics/server";
 import {
   getOrCreateAnonymousId,
@@ -7,6 +11,7 @@ import {
 } from "@boboddy/worker";
 import { bakedTelemetryConfig } from "./build-constants";
 import { createCliLogger } from "./logger";
+import { version as CLI_VERSION } from "../../package.json";
 
 /**
  * CLI-side reporting of the 8-milestone onboarding funnel (#147),
@@ -25,12 +30,14 @@ import { createCliLogger } from "./logger";
  *
  * Never sends `accessToken`, `email`, or `name` as an event property —
  * `email`/`name` go out only as `identify()` traits, in
- * {@link identifyAuthenticatedUser}.
+ * {@link identifyAuthenticatedUser}. Every event also carries
+ * {@link cliContextProperties} (version, OS, arch, key source), applied last
+ * so a caller can't overwrite it.
  *
  * Every entry point below is fire-and-forget and never throws: a telemetry
  * failure must not delay or break the command it's attached to. The one
  * bounded wait is {@link flushTelemetry}, called once near process exit —
- * see `apps/cli/src/index.ts` — so a short-lived CLI process doesn't exit
+ * see `run()` in `apps/cli/src/cli.ts` — so a short-lived CLI process doesn't exit
  * out from under posthog-node's in-flight delivery.
  */
 
@@ -76,6 +83,37 @@ export function isTelemetryEnabled(): boolean {
   return !envDisabled() && !isTelemetryDisabled();
 }
 
+/**
+ * Where this process's PostHog key comes from: the `POSTHOG_CLI_KEY` override
+ * (`env`), the key `script/build.ts` baked into the binary (`baked`), or
+ * neither (`none`, so nothing is ever sent). Same precedence as the key
+ * {@link ensureInitialized} actually uses.
+ */
+export type TelemetryKeySource = "baked" | "env" | "none";
+
+export function telemetryKeySource(): TelemetryKeySource {
+  if (process.env[POSTHOG_KEY_ENV_VAR]) return "env";
+  if (bakedTelemetryConfig().key) return "baked";
+  return "none";
+}
+
+/**
+ * The build context attached to every CLI event. `cli_key_source` is typed
+ * wider than {@link CliContextProperties} because this also answers for a
+ * keyless build, which never actually sends anything.
+ */
+export function cliContextProperties(): Omit<
+  CliContextProperties,
+  "cli_key_source"
+> & { cli_key_source: TelemetryKeySource } {
+  return {
+    cli_version: CLI_VERSION,
+    os: process.platform,
+    arch: process.arch,
+    cli_key_source: telemetryKeySource(),
+  };
+}
+
 function ensureInitialized(): boolean {
   if (!isTelemetryEnabled()) return false;
   const baked = bakedTelemetryConfig();
@@ -104,9 +142,9 @@ function debugPrint(payload: Record<string, unknown>): void {
  * network — posthog-node's own `capture` only enqueues, so this can't delay
  * the caller regardless of delivery state.
  */
-export function captureMilestone(
-  event: AnalyticsEventName,
-  properties?: Record<string, unknown>,
+export function captureMilestone<E extends AnalyticsEventName>(
+  event: E,
+  properties?: AnalyticsEventProperties[E],
 ): void {
   const enabled = ensureInitialized();
   // Resolved only when actually sending: `resolveDistinctId` may create AND
@@ -119,11 +157,12 @@ export function captureMilestone(
     return;
   }
   const id = resolveDistinctId();
+  const payload = { ...properties, ...cliContextProperties() };
 
-  debugPrint({ event, distinctId: id, properties, sent: true });
+  debugPrint({ event, distinctId: id, properties: payload, sent: true });
 
   try {
-    analyticsServer.capture(id, event, properties);
+    analyticsServer.capture(id, event, payload);
   } catch (error) {
     logger.debug({ err: error }, "telemetry capture failed");
   }
@@ -179,7 +218,7 @@ export function syncIdentityFromDisk(baseUrl: string): void {
  * Drain the in-flight PostHog queue before the process exits, bounded by
  * `timeoutMs` so a slow/unreachable network never delays a command's exit
  * for more than that — called once, near the very end of `run()` in
- * `apps/cli/src/index.ts`.
+ * `apps/cli/src/cli.ts`.
  */
 export async function flushTelemetry(
   timeoutMs = DEFAULT_FLUSH_TIMEOUT_MS,

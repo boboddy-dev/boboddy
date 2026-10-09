@@ -38,7 +38,12 @@ export type RunPipelineStudioServerOptions = {
   builderDir: string;
   /** Fixed port, or omit to let the OS pick a free one. */
   port?: number;
+  /** Directory holding the built studio assets; defaults to `@boboddy/pipeline-studio-ui`'s `dist/`. */
+  staticDir?: string;
 };
+
+export const MISSING_STUDIO_ASSETS_MESSAGE =
+  "Pipeline studio assets are missing. Run `bun run --filter @boboddy/pipeline-studio-ui build`.";
 
 /**
  * Resolves `@boboddy/pipeline-studio-ui`'s own `dist/` directory. Two cases:
@@ -132,12 +137,18 @@ function buildStreamResponse(
  * Starts the studio's HTTP server and file watcher. Runs one immediate
  * `computeStudioSnapshot` before returning, so the very first browser
  * request already has real content instead of an empty "connecting" state.
+ *
+ * Throws before binding a port or starting the watcher when the built assets
+ * are missing, so callers never open a browser onto a page of 404s.
  */
 export async function runPipelineStudioServer(
   options: RunPipelineStudioServerOptions,
 ): Promise<PipelineStudioServerHandle> {
   const { builderDir } = options;
-  const staticDir = resolveStaticDir();
+  const staticDir = options.staticDir ?? resolveStaticDir();
+  if (!existsSync(join(staticDir, "index.html"))) {
+    throw new Error(MISSING_STUDIO_ASSETS_MESSAGE);
+  }
   const clients = new Set<SseClient>();
 
   let snapshot = await computeStudioSnapshot(builderDir);

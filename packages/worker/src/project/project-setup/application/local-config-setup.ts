@@ -1,4 +1,5 @@
 import type { createBoboddyClient } from "@boboddy/sdk";
+import { stripGitUrlCredentials } from "@boboddy/sdk/git-url";
 import { createLazyLogger } from "@boboddy/observability/logging/host";
 import { deriveProjectName } from "../../project-config/infra/fs-project-config-repo";
 import { readProjectConfig } from "../../project-config/application/read-project-config";
@@ -16,24 +17,33 @@ const logger = createLazyLogger({
  *
  * - `already-configured` — `.boboddy/boboddy.jsonc` already has a
  *   `projectId`; nothing else ran.
- * - `matched` — an existing project's `gitUrl` matched this repo's remote;
- *   it's been persisted to `.boboddy/boboddy.jsonc`.
- * - `handoff-required` — no project matches this remote. This used to
- *   silently `POST /projects` to create one; it no longer does. The caller
- *   (`boboddy init`) is responsible for sending the user to `/projects/new`
- *   in a browser — pre-filled with `gitUrl`/`suggestedName` — and, once they
- *   confirm they're done, calling `completeProjectHandoff` to re-check and
- *   persist it.
+ * - `matched` — an existing project's `gitUrl` points at the same repository
+ *   as this repo's remote (see `findMatchingProject`); it's been persisted to
+ *   `.boboddy/boboddy.jsonc`. `matchCount` above one means several projects
+ *   point at this repo and the oldest was picked.
+ * - `handoff-required` — no project matches this remote. Nothing is created
+ *   here. The caller (`boboddy init`) either creates the project through the
+ *   API from a GitHub repo the user's installation covers, or sends the user
+ *   to `/projects/new` in a browser — pre-filled with `gitUrl`/`suggestedName`
+ *   — and polls `completeProjectHandoff` until it exists.
  */
 export type LocalConfigSetupResult =
   | { status: "already-configured" }
-  | { status: "matched"; projectId: string }
+  | {
+      status: "matched";
+      projectId: string;
+      projectName: string;
+      matchCount: number;
+    }
   | { status: "handoff-required"; gitUrl: string; suggestedName: string };
 
 export async function localConfigSetup(input: {
   client: ReturnType<typeof createBoboddyClient>;
   headers: { Authorization: string };
-  /** Defaults to `process.cwd()`; overridable so this is unit-testable without touching the real cwd. */
+  /**
+   * The repo root `.boboddy/` lives in. Defaults to `process.cwd()`; `init`
+   * passes the resolved root so a run from a subdirectory still writes there.
+   */
   rootDir?: string;
 }): Promise<LocalConfigSetupResult> {
   const existingConfig = await readProjectConfig(input.rootDir);
@@ -46,24 +56,30 @@ export async function localConfigSetup(input: {
   // remote URL keeps project identity keyed by remote, not by path.
   const { remoteUrl: gitUrl } = await resolveGitRepository(input.rootDir);
 
-  const existing = await findMatchingProject({
+  const match = await findMatchingProject({
     client: input.client,
     headers: input.headers,
     gitUrl,
   });
 
-  if (existing) {
-    await writeProjectConfig(existing.id, input.rootDir);
+  if (match) {
+    const { project, matchCount } = match;
+    await writeProjectConfig(project.id, input.rootDir);
     logger.info(
-      { projectId: existing.id },
+      { projectId: project.id, matchCount },
       "Found existing project for this repository.",
     );
-    return { status: "matched", projectId: existing.id };
+    return {
+      status: "matched",
+      projectId: project.id,
+      projectName: project.name,
+      matchCount,
+    };
   }
 
   const suggestedName = deriveProjectName(gitUrl);
   logger.info(
-    { gitUrl, suggestedName },
+    { gitUrl: stripGitUrlCredentials(gitUrl), suggestedName },
     "No project found for this repository; a browser hand-off is required.",
   );
   return { status: "handoff-required", gitUrl, suggestedName };

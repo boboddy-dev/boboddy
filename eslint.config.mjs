@@ -108,11 +108,7 @@ export default defineConfig(
   },
   {
     files: ["apps/next/**/*.{ts,tsx}"],
-    ignores: [
-      "apps/next/app/_lib/analytics.ts",
-      "apps/next/app/_lib/errors.ts",
-      "apps/next/app/_lib/posthog-test-mock.ts",
-    ],
+    ignores: ["apps/next/components/analytics-provider.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -121,7 +117,7 @@ export default defineConfig(
             {
               name: "posthog-js",
               message:
-                "Import from @/app/_lib/analytics or @/app/_lib/errors instead of posthog-js directly.",
+                "Import from @boboddy/observability/analytics/browser (initialized in components/analytics-provider.tsx) instead of posthog-js directly.",
             },
           ],
         },

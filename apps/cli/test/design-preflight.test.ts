@@ -14,9 +14,8 @@ import {
 import { noopBaseReporter } from "../src/lib/reporter-types";
 
 /**
- * The preflight's contract is "heal everything except a missing AI key", so
- * these tests are all about which branch runs: each precondition is exercised
- * both present and absent, and the one hard stop is pinned.
+ * The preflight's contract is "heal everything", so these tests are all about
+ * which branch runs: each precondition is exercised both present and absent.
  *
  * Every port is a spy — no network, no filesystem, no 100 MB download.
  */
@@ -138,6 +137,8 @@ function createPorts(overrides: PortOverrides = {}): {
       return Promise.resolve(LAUNCHER);
     },
     checkCredentials: () => Promise.resolve(OK_CREDENTIALS),
+    detectInstalledTools: () => Promise.resolve([]),
+    runAuthLogin: () => Promise.reject(new Error("not expected")),
   };
 
   return { ports: { ...base, ...overrides }, calls };
@@ -467,43 +468,5 @@ describe("runDesignPreflight — builder directory", () => {
 
     expect(error.message).toBe("install exploded");
     expect(calls.ensureRuntime).toBe(0);
-  });
-});
-
-describe("runDesignPreflight — provider credentials", () => {
-  test("hard-stops with the remediation when no credential is found", async () => {
-    // The one thing the command cannot heal: we can't obtain the user's API key.
-    const remediation =
-      'No AI provider credentials were found.\n\n  "…" auth login';
-    const { ports } = createPorts({
-      checkCredentials: () => Promise.resolve({ ok: false, remediation }),
-    });
-
-    const error = await expectRejection(run(ports));
-
-    expect(error.message).toBe(remediation);
-  });
-
-  test("the credential check runs against the provisioned launcher", async () => {
-    let seen: string | undefined;
-    const { ports } = createPorts({
-      checkCredentials: (launcherPath) => {
-        seen = launcherPath;
-        return Promise.resolve(OK_CREDENTIALS);
-      },
-    });
-
-    await run(ports);
-
-    expect(seen).toBe(LAUNCHER);
-  });
-
-  test("reports provider names, and only names", async () => {
-    const { ports } = createPorts({
-      checkCredentials: () =>
-        Promise.resolve({ ok: true, providers: ["anthropic", "openai"] }),
-    });
-
-    expect((await run(ports)).providers).toEqual(["anthropic", "openai"]);
   });
 });

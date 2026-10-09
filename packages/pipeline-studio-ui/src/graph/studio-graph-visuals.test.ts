@@ -56,11 +56,11 @@ describe("highestSeverity", () => {
 });
 
 describe("severityColor", () => {
-  test("maps each severity (and null) to a distinct, stable color", () => {
-    expect(severityColor("error")).toBe("#b00020");
-    expect(severityColor("warning")).toBe("#b34700");
-    expect(severityColor("info")).toBe("#0969da");
-    expect(severityColor(null)).toBe("#1a192b1a");
+  test("maps each severity (and null) to its theme-aware CSS variable", () => {
+    expect(severityColor("error")).toBe("var(--studio-severity-error)");
+    expect(severityColor("warning")).toBe("var(--studio-severity-warning)");
+    expect(severityColor("info")).toBe("var(--studio-severity-info)");
+    expect(severityColor(null)).toBe("var(--studio-severity-none)");
   });
 });
 

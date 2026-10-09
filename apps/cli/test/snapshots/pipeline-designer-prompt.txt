@@ -41,7 +41,9 @@ Read first. Never ask for something you can discover.
   session's TUI had already exited — there was no live agent left to tell at
   the time. Investigate and fix it before anything else in this session; it
   is why that session's run offer could not queue a run.
-- List this directory. Read every `.ts` file already here.
+- List this directory. Read every `.ts` file already here. Ignore
+  `.boboddy-studio-collect.mjs`; it is the studio's own helper, not a
+  definition.
 - Read `../boboddy.jsonc` if present.
 - Look at the repository root: languages, package manifests, test setup,
   `.devcontainer/`, `docker-compose.yml`, CI config, `README`.
@@ -53,6 +55,11 @@ Read first. Never ask for something you can discover.
   `workspace` step — you do not redeclare it in a step's `mcpServers`, and you
   do not ask the user whether it exists. Name what you found in one line; it
   is evidence for phase 3, not something to raise there as a question.
+- If `$BOBODDY_STUDIO_URL` is set, a live graph of this directory is open in
+  the user's browser. It re-renders on every file save and shows the same
+  validation issues `boboddy pipelines push` would report. Mention it once,
+  in one line, when you state what you found. If it is not set, there is no
+  graph this session — never mention one.
 
 From that you should already know the stack, whether tests exist, whether a
 devcontainer exists, what the starter scaffold contains, and which tools are
@@ -270,6 +277,11 @@ answer over yours.
 Write the definition files. Follow the authoring reference below exactly — it
 records the shapes that actually compile and the traps that do not.
 
+With the studio open, write files in an order that keeps the graph readable:
+the pipeline file first with its steps stubbed, then fill the steps in. After
+each pipeline-shaped change, tell the user to look at the graph rather than
+describing the shape in prose.
+
 Most of the value is in the `agentPrompt` text, not in the wiring. Spend your
 effort there: name the tools, define what confidence means for this step, say
 what to do when blocked, and demand structured evidence. Read each prompt back
@@ -333,6 +345,11 @@ work-item fields they actually have, confirmed in phase 3a, rather than assuming
 2. Push. Fix and re-push on failure. Common causes: a route or assign target
    that does not exist, a pipeline on a named export instead of `export
    default`, an assignment file with no `assign()`.
+
+   With the studio open, its issues panel is the same validator. A
+   `route-target` issue for a pipeline that exists only on the server — pushed
+   in an earlier session and not present in this directory — is a known false
+   positive there; push resolves it. Say so if the user asks.
 3. Re-read every `signals[].sourcePath` against its result schema by eye. The
    compiler does not check them and push does not either.
 
@@ -343,7 +360,9 @@ repository root, not from this directory.
 
 Summarize in a few lines:
 
-- Which files you created or changed, and what the pipeline does step by step.
+- Which files you created or changed, and what the pipeline does step by step
+  — with the studio open, point at the graph for the shape and spend the words
+  on what each step produces.
 - What would happen to the seeded work item, by title, if it ran: which steps,
   what evidence each one would have to produce, and the artifact at the end.
 - Where it blocks for a human and why.

@@ -107,6 +107,16 @@ async function codesignIfDarwin(outfile: string): Promise<void> {
   }
 }
 
+/** Builds `@boboddy/pipeline-studio-ui`'s real `dist/`; the studio server refuses to start without it. */
+async function buildStudioUi(): Promise<void> {
+  const uiBuild = Bun.spawn(["bun", "run", "build.ts"], {
+    cwd: pipelineStudioUiDir,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  expect(await uiBuild.exited).toBe(0);
+}
+
 /** Reads the compiled entrypoint's stdout until it prints the server's URL. */
 async function readStudioUrl(
   stdout: ReadableStream<Uint8Array>,
@@ -133,12 +143,7 @@ describe("boboddy pipelines studio — compiled binary asset embedding", () => {
     async () => {
       // 1. Build @boboddy/pipeline-studio-ui's real dist/ — the assets this
       // test verifies actually make it into the compiled binary.
-      const uiBuild = Bun.spawn(["bun", "run", "build.ts"], {
-        cwd: pipelineStudioUiDir,
-        stdout: "inherit",
-        stderr: "inherit",
-      });
-      expect(await uiBuild.exited).toBe(0);
+      await buildStudioUi();
 
       // 2. Write a throwaway entrypoint. It must live inside this workspace
       // (a subdirectory of apps/cli), not the system temp dir — Bun's
@@ -347,7 +352,8 @@ export default definePipeline({
         expect(await install.exited).toBe(0);
 
         // 3. Compile a throwaway entrypoint into a real standalone
-        // executable, exactly like the test above.
+        // executable, exactly like the test above, assets included.
+        await buildStudioUi();
         entryDir = mkdtempSync(
           join(import.meta.dir, "real-sdk-import-entry-"),
         );
@@ -357,7 +363,7 @@ export default definePipeline({
         const buildResult = await Bun.build({
           entrypoints: [join(entryDir, "entry.ts")],
           target: "bun",
-          compile: { outfile },
+          compile: { outfile, assets: [pipelineStudioUiDistDir] },
         });
         if (!buildResult.success) {
           throw new Error(

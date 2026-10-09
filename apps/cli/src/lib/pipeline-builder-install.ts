@@ -5,6 +5,7 @@ import {
   PIPELINE_BUILDER_LOCKFILES,
   type BuilderInstaller,
 } from "@boboddy/worker";
+import { CliError } from "./cli-error";
 
 /**
  * Installing dependencies into `.boboddy/pipeline-builder`.
@@ -99,7 +100,8 @@ export async function runBuilderInstall(
   });
 
   if (exitCode !== 0) {
-    throw new Error(
+    throw new CliError(
+      "builder_install_failed",
       `\`${input.installer.label}\` failed (exit ${String(exitCode)}) in ` +
         `${input.builderDir}. Fix the install and re-run this command.`,
     );

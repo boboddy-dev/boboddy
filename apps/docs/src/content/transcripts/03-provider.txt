@@ -1,0 +1,11 @@
+# @boboddy/cli 0.0.0 — derived from reporter strings in apps/cli/src (lib/design-preflight.ts, lib/design-runtime.ts, lib/design-provider-connect.ts), rendered through ClackReporter; not a live capture.
+# Trimmed by hand: clack's blank "│" spacer lines are dropped. The guidance line shown is the one for a machine with Claude Code installed.
+◆  Scaffolded the pipeline builder directory
+●  Installing pipeline builder dependencies…
+◆  Dependencies installed
+◇  AI runtime ready [41s]
+●  Connect an AI provider
+●  The designer runs on OpenCode, which needs its own connection to a model.
+●  This is one-time: the same connection runs your pipeline steps later.
+●  You have Claude Code. In the picker choose "Anthropic" and paste an API key from console.anthropic.com — a Claude Pro/Max subscription can't be reused here.
+└  Opening the provider connection…

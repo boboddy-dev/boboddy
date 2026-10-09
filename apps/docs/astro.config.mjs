@@ -2,22 +2,23 @@ import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
+import starlightLinksValidator from "starlight-links-validator";
+import starlightLlmsTxt from "starlight-llms-txt";
 
 // Astro's `redirects` destinations, unlike Starlight/markdown links, are not
-// resolved against `base` automatically — they need the prefix spelled out
-// (see open question 2 in docs/docs-site-redesign-plan.md re: base-path
-// fragility). Kept as a constant, not a second hardcoded literal, so a
-// future `base` change only needs one edit.
+// resolved against `base` automatically — they need the prefix spelled out.
+// Kept as a constant, not a second hardcoded literal, so a future `base`
+// change only needs one edit. Site structure: docs/plans/docs-onboarding-clarity.md.
 const base = "/boboddy";
 
 export default defineConfig({
   site: "https://boboddy-dev.github.io",
   base,
-  // No docs-home splash page: send visitors straight into the first guide
-  // instead of a marketing-style landing page.
   redirects: {
-    "/": `${base}/getting-started/installation/`,
+    "/getting-started/": `${base}/`,
     "/reference/telemetry/": `${base}/reference/observability/`,
+    "/guides/devcontainer/": `${base}/how-to/devcontainer/`,
+    "/guides/integrations/": `${base}/how-to/integrations/`,
   },
   vite: {
     plugins: [tailwindcss()],
@@ -44,6 +45,27 @@ export default defineConfig({
         baseUrl: "https://github.com/boboddy-dev/boboddy-platform/edit/main/apps/docs/",
       },
       lastUpdated: true,
+      /*
+       * Publishes /llms.txt, /llms-full.txt, and /llms-small.txt for readers'
+       * AI assistants (the Quickstart's "Have your assistant drive" tip links
+       * llms-full.txt). The plugin's `exclude` only applies to llms-small.txt,
+       * so the Catalog is excluded there and demoted to the end of
+       * llms-full.txt; its islands are skipped by PipelineGraphIsland.astro.
+       */
+      plugins: [
+        starlightLinksValidator(),
+        starlightLlmsTxt({
+          description:
+            "Boboddy runs AI agents over your backlog, on your machines. You describe a pipeline — a few steps, each one an agent with a prompt and a rule for what counts as done — and a worker on your laptop or CI box runs it against each work item that arrives, pausing for a human when the rules say so.",
+          promote: [
+            "index",
+            "getting-started/quickstart",
+            "getting-started/concepts",
+          ],
+          demote: ["catalog", "catalog/**"],
+          exclude: ["catalog", "catalog/**"],
+        }),
+      ],
       customCss: ["./src/styles/global.css"],
       /*
        * Expressive Code (fenced code block rendering).
@@ -113,6 +135,7 @@ export default defineConfig({
         ThemeProvider: "./src/components/ForcedDarkThemeProvider.astro",
         SiteTitle: "./src/components/SiteTitle.astro",
         Header: "./src/components/Header.astro",
+        Head: "./src/components/Head.astro",
       },
       head: [
         {
@@ -139,12 +162,41 @@ export default defineConfig({
         {
           label: "Getting Started",
           items: [
-            { label: "Installation", slug: "getting-started/installation" },
+            { label: "Introduction", slug: "index" },
             { label: "Quickstart", slug: "getting-started/quickstart" },
+            { label: "Core concepts", slug: "getting-started/concepts" },
+            { label: "Installation", slug: "getting-started/installation" },
           ],
         },
         {
-          label: "Guides",
+          label: "How-to",
+          items: [
+            {
+              label: "Change the pipeline you built",
+              slug: "how-to/change-a-pipeline",
+            },
+            {
+              label: "Let a step work inside your repo",
+              slug: "how-to/let-a-step-read-your-repo",
+            },
+            {
+              label: "Give a step an MCP server",
+              slug: "how-to/connect-a-tool-to-a-step",
+            },
+            {
+              label: "Run a pipeline on any work item",
+              slug: "how-to/run-on-a-work-item",
+            },
+            {
+              label: "Commit and share your pipeline",
+              slug: "how-to/commit-your-pipeline",
+            },
+            { label: "Set up a dev container", slug: "how-to/devcontainer" },
+            { label: "Connect GitHub or Jira", slug: "how-to/integrations" },
+          ],
+        },
+        {
+          label: "SDK",
           items: [
             { label: "Defining Steps", slug: "guides/steps" },
             { label: "Building Pipelines", slug: "guides/pipelines" },
@@ -157,11 +209,6 @@ export default defineConfig({
               slug: "guides/pipeline-assignment",
             },
             { label: "Running Workers", slug: "guides/workers" },
-            {
-              label: "Setting up a Dev Container",
-              slug: "guides/devcontainer",
-            },
-            { label: "Integrations", slug: "guides/integrations" },
           ],
         },
         {

@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { ConfigurationError } from "../../../lib/errors";
+import { ConfigurationError, SetupErrorCodes } from "../../../lib/errors";
 
 const execFileAsync = promisify(execFile);
 
@@ -57,6 +57,7 @@ export async function getGitRemoteUrl(repoRoot: string): Promise<string> {
   } catch {
     throw new ConfigurationError(
       "Could not read git remote origin. Make sure this repo has a remote named 'origin'.",
+      SetupErrorCodes.NoOriginRemote,
     );
   }
 }
@@ -83,7 +84,10 @@ export async function resolveGitRepository(
 ): Promise<ResolvedGitRepository> {
   const repoRoot = await findGitRoot(startDir);
   if (!repoRoot) {
-    throw new ConfigurationError(NOT_IN_GIT_REPOSITORY_MESSAGE);
+    throw new ConfigurationError(
+      NOT_IN_GIT_REPOSITORY_MESSAGE,
+      SetupErrorCodes.NotInGitRepository,
+    );
   }
 
   const remoteUrl = await getGitRemoteUrl(repoRoot);

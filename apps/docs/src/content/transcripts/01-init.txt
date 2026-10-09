@@ -1,0 +1,17 @@
+# @boboddy/cli 0.0.0 — derived from reporter strings in apps/cli/src (init.ts, lib/init-*.ts, lib/device-login.ts), rendered through ClackReporter; not a live capture.
+# Trimmed by hand: clack's blank "│" spacer lines and the device-login URL/code lines are dropped.
+◇  Repository: ~/my-repo [0s]
+●  Remote: git@github.com:you/my-repo.git
+●  Not signed in to https://app.boboddy.dev. Starting sign-in…
+◇  Signed in as you@example.com [14s]
+◇  Requirements verified [1s]
+◇  No project found for this repository yet [0s]
+◇  Create Boboddy project “my-repo” from GitHub you/my-repo?
+│  Yes
+◇  Created project “my-repo” [4s]
+◇  No devcontainer yet [0s]
+▲  Boboddy runs every step inside your project's devcontainer, and this repository does not have one yet. Nothing to do: `boboddy pipelines design` will write a `.devcontainer/devcontainer.json` during the session, and your first pipeline run is what verifies it builds.
+◇  No AI provider connected yet [0s]
+●  The pipeline designer runs on OpenCode and connects it to a model the first time it starts — nothing to do now.
+◆  Design your first pipeline now?
+│  ● Yes / ○ No

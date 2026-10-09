@@ -7,7 +7,7 @@ The default pipeline assignment controls which pipeline is automatically started
 
 ## File location and authoring
 
-`boboddy pipelines init` scaffolds an example file, and `boboddy pipelines design` writes one wired to the pipeline it builds. `boboddy pipelines pull` writes or removes the file based on the server configuration. `boboddy pipelines push` syncs it back to the server when it is present.
+`boboddy pipelines design` writes one wired to the pipeline it builds; `boboddy pipelines init` scaffolds an example for hand-authoring (see [which to use](/boboddy/reference/cli/#boboddy-pipelines-init)). `boboddy pipelines pull` writes or removes the file based on the server configuration. `boboddy pipelines push` syncs it back to the server when it is present.
 
 ```typescript
 import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";

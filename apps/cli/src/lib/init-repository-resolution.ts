@@ -1,3 +1,7 @@
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { PROJECT_CONFIG_RELATIVE_PATH } from "@boboddy/sdk/defaults";
+import { stripGitUrlCredentials } from "@boboddy/sdk/git-url";
 import type { BaseReporter } from "./reporter-types";
 
 /**
@@ -34,9 +38,13 @@ export function repositoryResolvedLabel(repoRoot: string): string {
   return `Repository: ${repoRoot}`;
 }
 
-/** Plain info line for the `origin` remote, printed alongside the task. */
+/**
+ * Plain info line for the `origin` remote, printed alongside the task. Any
+ * credential embedded in the remote is stripped so it never reaches the
+ * terminal or a pasted log.
+ */
 export function remoteResolvedMessage(remoteUrl: string): string {
-  return `Remote: ${remoteUrl}`;
+  return `Remote: ${stripGitUrlCredentials(remoteUrl)}`;
 }
 
 /**
@@ -63,4 +71,33 @@ export async function reportResolvedRepository(input: {
   task.succeed(repositoryResolvedLabel(resolved.repoRoot));
   reporter.info(remoteResolvedMessage(resolved.remoteUrl));
   return resolved;
+}
+
+export function strayProjectConfigMessage(
+  cwd: string,
+  repoRoot: string,
+): string {
+  return (
+    `Found a stray .boboddy/ in ${cwd} from an earlier run; the project ` +
+    `config now lives at ${join(repoRoot, ".boboddy")}/. You can delete the stray one.`
+  );
+}
+
+/**
+ * Earlier versions of `init` wrote `.boboddy/` into whatever subdirectory
+ * they ran from. Point out a leftover one instead of migrating it: the user
+ * may have edited it, and the root config is now the one that counts.
+ */
+export function warnAboutStrayProjectConfig(input: {
+  cwd: string;
+  repoRoot: string;
+  reporter: BaseReporter;
+}): void {
+  const { cwd, repoRoot, reporter } = input;
+  if (resolve(cwd) === resolve(repoRoot)) {
+    return;
+  }
+  if (existsSync(join(cwd, PROJECT_CONFIG_RELATIVE_PATH))) {
+    reporter.warn(strayProjectConfigMessage(cwd, repoRoot));
+  }
 }

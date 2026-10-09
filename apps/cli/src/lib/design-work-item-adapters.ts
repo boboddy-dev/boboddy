@@ -12,6 +12,7 @@ import type {
   WorkItemChoiceResult,
   WorkItemDraft,
 } from "./design-work-item";
+import { CliError } from "./cli-error";
 
 /**
  * The real implementations of the preflight's work-item ports: two `clack`
@@ -159,7 +160,8 @@ export async function createDesignWorkItem(input: {
   });
 
   if (error !== undefined) {
-    throw new Error(
+    throw new CliError(
+      "work_item_create_failed",
       `Could not create the work item: ${describeApiError(error)}`,
     );
   }

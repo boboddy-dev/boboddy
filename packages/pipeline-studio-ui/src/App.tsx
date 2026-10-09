@@ -5,6 +5,7 @@ import { NodeDetailPanel } from "./graph/NodeDetailPanel";
 import { PipelineGraphView } from "./graph/PipelineGraphView";
 import { SeverityChip } from "./graph/SeverityChip";
 import type { StudioSnapshot } from "./graph/studio-graph-types";
+import { useStudioTheme } from "./theme";
 
 /**
  * One issue row. Step-only issues (`nodeKey === undefined`, e.g.
@@ -154,6 +155,7 @@ function BrokenPipelineDialog({
 
 export function App() {
   const snapshot = useStudioSnapshot();
+  const { theme, toggleTheme } = useStudioTheme();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [dialogPipeline, setDialogPipeline] = useState<BrokenPipeline | null>(null);
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
@@ -239,6 +241,14 @@ export function App() {
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          className="studio-theme-toggle"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
       </header>
       <div className="studio-graph">
         {selected ? (
@@ -246,6 +256,7 @@ export function App() {
             key={selected.key}
             nodes={selected.nodes}
             edges={selected.edges}
+            colorMode={theme}
             onSelectNode={setSelectedNodeKey}
             onDeselect={() => {
               setSelectedNodeKey(null);

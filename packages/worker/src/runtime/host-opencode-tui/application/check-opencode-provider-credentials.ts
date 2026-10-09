@@ -50,8 +50,7 @@ export type CheckOpencodeProviderCredentialsInput = {
    *
    * Optional: a caller that only needs the yes/no answer (not the remediation
    * text) can omit it rather than provision the runtime just to ask the
-   * question — `boboddy init` does exactly that before deciding whether to run
-   * `opencode auth login` inline.
+   * question — `boboddy init` does exactly that to report provider status.
    */
   launcherPath?: string | undefined;
   /** Host home dir override (tests). Defaults to `HOME`/`os.homedir()`. */

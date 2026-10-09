@@ -63,7 +63,7 @@ describe("boboddy init", () => {
         expect(
           hasReporterLine(
             result.stderr,
-            "Not signed in to https://example.com. Run 'boboddy auth login' first.",
+            "Not signed in to https://example.com. Run 'boboddy auth login' in an interactive terminal, then re-run this command.",
           ),
         ).toBe(true);
       } finally {

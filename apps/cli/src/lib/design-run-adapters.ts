@@ -16,6 +16,7 @@ import { readLocalEnvVars } from "./local-env-vars";
 import { createTransport } from "./logger";
 import type { BaseReporter } from "./reporter-types";
 import { captureMilestone } from "./telemetry";
+import { CliError } from "./cli-error";
 
 /**
  * The real implementations of the run offer's ports: one `clack` confirm and two
@@ -70,6 +71,79 @@ export async function resolveAssignedPipeline(input: {
   return assignment.success ? assignment.data.pipelineDefinitionId : undefined;
 }
 
+const pipelineStepRefsSchema = z.object({
+  stepDefinitions: z.array(z.object({ stepDefinitionId: z.string().min(1) })),
+});
+
+/**
+ * The two step-definition fields that decide where a step executes. Parsed for
+ * the same reason as {@link assignedPipelineSchema}: the generated type
+ * collapses the nullable `managedRuntime` to `unknown`.
+ */
+export const stepExecutionTargetSchema = z.object({
+  executionMode: z.enum(["workspace", "no_workspace"]),
+  managedRuntime: z.string().nullable(),
+});
+
+export type StepExecutionTarget = z.infer<typeof stepExecutionTargetSchema>;
+
+/**
+ * A step runs inside the project's devcontainer only when it needs a workspace
+ * and no managed runtime supplies the container. `no_workspace` steps run on
+ * the host; managed-runtime steps run in a Boboddy-provided image.
+ */
+export function stepNeedsProjectDevcontainer(
+  step: StepExecutionTarget,
+): boolean {
+  return step.executionMode === "workspace" && step.managedRuntime === null;
+}
+
+/**
+ * Does any step of `pipelineDefinitionId` execute inside the project's own
+ * devcontainer? Host-only and managed-runtime pipelines run without one.
+ */
+export async function pipelineNeedsProjectDevcontainer(input: {
+  baseUrl: string;
+  pipelineDefinitionId: string;
+}): Promise<boolean> {
+  const { client, headers } = await connectApi(input.baseUrl);
+
+  const pipeline = await client.pipelineDefinitions.getPipelineDefinition({
+    path: { pipelineDefinitionId: input.pipelineDefinitionId },
+    headers,
+  });
+  if (pipeline.error !== undefined) {
+    throw new Error(
+      `Could not read the pipeline: ${describeApiError(pipeline.error)}`,
+    );
+  }
+
+  const stepDefinitionIds = [
+    ...new Set(
+      pipelineStepRefsSchema
+        .parse(pipeline.data)
+        .stepDefinitions.map((step) => step.stepDefinitionId),
+    ),
+  ];
+
+  const steps = await Promise.all(
+    stepDefinitionIds.map(async (stepDefinitionId) => {
+      const step = await client.stepDefinitions.getStepDefinition({
+        path: { stepDefinitionId },
+        headers,
+      });
+      if (step.error !== undefined) {
+        throw new Error(
+          `Could not read step definition ${stepDefinitionId}: ${describeApiError(step.error)}`,
+        );
+      }
+      return stepExecutionTargetSchema.parse(step.data);
+    }),
+  );
+
+  return steps.some(stepNeedsProjectDevcontainer);
+}
+
 /**
  * Queue a run of `pipelineDefinitionId` against one work item.
  *
@@ -98,7 +172,10 @@ export async function queueDesignRun(input: {
   });
 
   if (error !== undefined) {
-    throw new Error(`Could not queue the run: ${describeApiError(error)}`);
+    throw new CliError(
+      "run_queue_failed",
+      `Could not queue the run: ${describeApiError(error)}`,
+    );
   }
 
   // Milestone 8, "First run queued / worker run started" — scoped to the

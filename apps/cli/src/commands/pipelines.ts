@@ -28,6 +28,7 @@ import {
   PUSH_SCRIPT_FILENAME,
   PUSH_SCRIPT_TEMPLATE,
 } from "../templates/push-script";
+import { CliError } from "../lib/cli-error";
 
 // init
 
@@ -83,14 +84,16 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
 
     const projectId = args.projectId ?? (await readProjectConfig())?.projectId;
     if (!projectId) {
-      throw new Error(
+      throw new CliError(
+        "no_project_id",
         "No project ID provided. Pass one as an argument or run `boboddy init` first.",
       );
     }
 
     const authenticated = await loadAuthenticatedSession(baseUrl);
     if (!authenticated) {
-      throw new Error(
+      throw new CliError(
+        "not_signed_in_noninteractive",
         `Not signed in to ${baseUrl}. Run \`boboddy auth login\` first.`,
       );
     }
@@ -99,7 +102,8 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
     const dir = join(process.cwd(), PIPELINE_BUILDER_DIR);
 
     if (!existsSync(dir)) {
-      throw new Error(
+      throw new CliError(
+        "push_failed",
         `Pipeline builder directory not found at ${PIPELINE_BUILDER_DIR}. ` +
           "Run `boboddy pipelines init` first.",
       );
@@ -108,7 +112,8 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
     // Without node_modules, the user's pipeline files can't import @boboddy/sdk
     // (or anything else). Bail with a clear hint before we even pick a runtime.
     if (!existsSync(join(dir, "node_modules", "@boboddy", "sdk"))) {
-      throw new Error(
+      throw new CliError(
+        "push_failed",
         `Missing dependencies in ${PIPELINE_BUILDER_DIR}. ` +
           "Run `bun install` / `npm install` / `pnpm install` / `yarn install` " +
           "inside that directory first.",
@@ -117,7 +122,7 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
 
     const detected = detectPipelineRuntime(dir);
     if (!detected.ok) {
-      throw new Error(detected.message);
+      throw new CliError("push_failed", detected.message);
     }
     const { runtime } = detected;
 
@@ -162,9 +167,13 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
     if (exitCode !== 0) {
       task.fail(`Push failed (exit ${String(exitCode)})`);
       // Passthrough the child's exact exit code (deliberate exit-code
-      // passthrough; not forced to 1). Flushed explicitly first:
-      // `process.exit` bypasses the `finally` in `index.ts` that normally
-      // does this.
+      // passthrough; not forced to 1). Captured and flushed explicitly
+      // first: `process.exit` bypasses `run()` in `cli.ts`, which normally
+      // does both.
+      captureMilestone(AnalyticsEvents.CliCommandFailed, {
+        command: "pipelines push",
+        code: "push_failed",
+      });
       await flushTelemetry();
       process.exit(exitCode);
     }

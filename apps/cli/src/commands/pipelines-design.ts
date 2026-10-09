@@ -1,36 +1,28 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import * as clack from "@clack/prompts";
-import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   assertInteractiveTerminal,
-  buildOpencodeTuiConfig,
   checkOpencodeProviderCredentials,
+  detectInstalledAiTools,
   hasDevcontainer,
-  hasFailedExitCode,
   launchOpencodeTui,
-  loadAuthenticatedSession,
   localConfigSetup,
-  PIPELINE_BUILDER_DIR,
-  PIPELINE_DESIGNER_AGENT_NAME,
   readProjectConfig,
-  resolveBoboddyBaseUrl,
+  runPipelineStudioServer,
   scaffoldPipelineBuilderDirectory,
-  serializeOpencodeTuiConfig,
   verifyRequirements,
 } from "@boboddy/worker";
 import { version as CLI_VERSION } from "../../package.json";
+import { openBrowser } from "../auth/browser";
 import { withReporter } from "../lib/command-output";
-import {
-  buildPipelineDesignerPrompt,
-  PIPELINE_DESIGNER_AGENT_DESCRIPTION,
-} from "../lib/design-agent-assets";
 import {
   runDesignPreflight,
   type DesignPreflightPorts,
 } from "../lib/design-preflight";
+import { runOpencodeAuthLogin } from "../lib/design-provider-connect";
 import {
+  pipelineNeedsProjectDevcontainer,
   promptRunNow,
   queueDesignRun,
   resolveAssignedPipeline,
@@ -41,12 +33,14 @@ import {
   type DesignRunOfferPorts,
   type DesignRunTarget,
 } from "../lib/design-run-offer";
-import { readAndConsumeRunOfferGateFailure } from "../lib/design-run-offer-gate-marker";
 import { ensureDesignRuntime } from "../lib/design-runtime";
 import {
-  buildDesignSeedPrompt,
-  hasAuthoredDefinitions,
-} from "../lib/design-seed-prompt";
+  runDesignSession,
+  type DesignArguments,
+  type DesignPaths,
+  type DesignSessionPorts,
+} from "../lib/design-session";
+import { startDesignStudio, type DesignStudioPorts } from "../lib/design-studio";
 import {
   createDesignWorkItem,
   findWorkItemByUrl,
@@ -56,22 +50,17 @@ import {
   promptWorkItemSearch,
   promptWorkItemText,
 } from "../lib/design-work-item-adapters";
-import { performDeviceLogin } from "../lib/device-login";
+import { createSignInPorts } from "../lib/ensure-signed-in";
 import {
   builderDependenciesInstalled,
   NO_PACKAGE_MANAGER_MESSAGE,
   resolveBuilderInstaller,
   runBuilderInstall,
 } from "../lib/pipeline-builder-install";
-import { resolveCurrentBoboddyCliPath } from "../lib/resolve-cli-path";
-import {
-  captureMilestone,
-  flushTelemetry,
-  syncIdentityFromDisk,
-} from "../lib/telemetry";
 import { runWork } from "./work";
 import type { CommandContext } from "../lib/command-output";
 import type { BaseReporter } from "../lib/reporter-types";
+import { CliError } from "../lib/cli-error";
 
 /**
  * `boboddy pipelines design` — the guided path from "I have a repo" to "I have
@@ -85,25 +74,18 @@ import type { BaseReporter } from "../lib/reporter-types";
  * `lib/design-preflight.ts`.
  */
 
-interface DesignArguments {
-  projectId: string | undefined;
-  baseUrl: string | undefined;
-  workItemId: string | undefined;
-}
-
 /**
- * A scaffold in the wrong directory is quietly expensive: `pipelines push`
- * resolves the builder directory from the cwd, so a stray
- * `.boboddy/pipeline-builder` in a subdirectory produces confusing failures
- * later. Only enforced when we would actually create the directory.
+ * A scaffold outside a repository has no root to anchor `.boboddy/` to. Only
+ * enforced when we would actually create the directory.
  */
-function assertProjectRoot(cwd: string): void {
-  if (existsSync(join(cwd, ".git")) || existsSync(join(cwd, ".boboddy"))) {
+function assertInsideRepository(paths: DesignPaths, cwd: string): void {
+  if (paths.repoRoot !== null) {
     return;
   }
-  throw new Error(
-    "Run `boboddy pipelines design` from the root of your repository. " +
-      `No .git or .boboddy directory was found in ${cwd}.`,
+  throw new CliError(
+    "not_in_git_repo",
+    "Run `boboddy pipelines design` from inside your project's git repository. " +
+      `No git repository was found at or above ${cwd}.`,
   );
 }
 
@@ -141,34 +123,36 @@ async function promptProjectId(): Promise<string | undefined> {
  */
 async function resolveProjectFromRepo(
   baseUrl: string,
+  projectRoot: string,
 ): Promise<string | undefined> {
   const { headers, client } = await verifyRequirements({ baseUrl });
-  const result = await localConfigSetup({ headers, client });
+  const result = await localConfigSetup({
+    headers,
+    client,
+    rootDir: projectRoot,
+  });
   if (result.status === "matched") return result.projectId;
   if (result.status === "already-configured") {
-    return (await readProjectConfig())?.projectId;
+    return (await readProjectConfig(projectRoot))?.projectId;
   }
   return undefined;
 }
 
-/** Wire the preflight's ports to their real implementations. */
-function buildPorts(
-  builderDir: string,
+/**
+ * Wire the preflight's ports to their real implementations. Exported so the
+ * path wiring — which root each port reads and writes — is testable.
+ */
+export function buildDesignPreflightPorts(
+  paths: DesignPaths,
   ctx: CommandContext,
 ): DesignPreflightPorts {
+  const { builderDir, projectRoot } = paths;
   return {
-    loadSession: async (baseUrl) => {
-      const authenticated = await loadAuthenticatedSession(baseUrl);
-      return authenticated ? { email: authenticated.session.user.email } : null;
-    },
-    login: (baseUrl) =>
-      performDeviceLogin({
-        baseUrl,
-        reporter: ctx.reporter,
-        logger: ctx.logger,
-      }),
-    readConfiguredProjectId: async () => (await readProjectConfig())?.projectId,
-    resolveProjectFromRepo,
+    ...createSignInPorts({ reporter: ctx.reporter, logger: ctx.logger }),
+    readConfiguredProjectId: async () =>
+      (await readProjectConfig(projectRoot))?.projectId,
+    resolveProjectFromRepo: (baseUrl) =>
+      resolveProjectFromRepo(baseUrl, projectRoot),
     promptProjectId,
     listWorkItems: listRecentWorkItems,
     getWorkItemById: getDesignWorkItemById,
@@ -179,14 +163,14 @@ function buildPorts(
     createWorkItem: createDesignWorkItem,
     builderDirExists: () => existsSync(builderDir),
     scaffoldBuilderDir: () => {
-      assertProjectRoot(process.cwd());
+      assertInsideRepository(paths, process.cwd());
       scaffoldPipelineBuilderDirectory(builderDir, CLI_VERSION);
     },
     dependenciesInstalled: () => builderDependenciesInstalled(builderDir),
     installDependencies: async () => {
       const installer = resolveBuilderInstaller(builderDir);
       if (installer === null) {
-        throw new Error(NO_PACKAGE_MANAGER_MESSAGE);
+        throw new CliError("no_package_manager", NO_PACKAGE_MANAGER_MESSAGE);
       }
       ctx.logger.info(
         { installer: installer.label, builderDir },
@@ -197,34 +181,26 @@ function buildPorts(
     ensureRuntime: () => ensureDesignRuntime({ reporter: ctx.reporter }),
     checkCredentials: (launcherPath) =>
       checkOpencodeProviderCredentials({ launcherPath }),
+    detectInstalledTools: () => detectInstalledAiTools({}),
+    runAuthLogin: runOpencodeAuthLogin,
   };
-}
-
-/**
- * The builder directory's filenames. Deliberately shallow — the one caller only
- * tailors a seed-prompt flag, so a `readdir` is the entire budget, and a missing
- * directory is simply empty.
- */
-function listBuilderFiles(builderDir: string): readonly string[] {
-  try {
-    return readdirSync(builderDir);
-  } catch {
-    return [];
-  }
 }
 
 /** Wire the closing run offer's ports to their real implementations. */
 function buildRunOfferPorts(input: {
   baseUrl: string;
   target: DesignRunTarget;
-  builderDir: string;
+  paths: DesignPaths;
   reporter: BaseReporter;
 }): DesignRunOfferPorts {
-  const { baseUrl, target, builderDir, reporter } = input;
+  const { baseUrl, target, paths, reporter } = input;
+  const { builderDir } = paths;
   return {
-    hasDevcontainer: () => hasDevcontainer(process.cwd()),
     resolveAssignedPipeline: () =>
       resolveAssignedPipeline({ baseUrl, projectId: target.projectId }),
+    pipelineNeedsProjectDevcontainer: (pipelineDefinitionId) =>
+      pipelineNeedsProjectDevcontainer({ baseUrl, pipelineDefinitionId }),
+    hasDevcontainer: () => hasDevcontainer(paths.projectRoot),
     runFirstStepDryRun: (pipelineDefinitionId) =>
       runFirstStepDryRun({
         baseUrl,
@@ -254,6 +230,49 @@ function buildRunOfferPorts(input: {
   };
 }
 
+function buildStudioPorts(): DesignStudioPorts {
+  return {
+    startServer: ({ builderDir }) => runPipelineStudioServer({ builderDir }),
+    openBrowser,
+  };
+}
+
+/** Wire the session's ports to their real implementations. */
+function buildDesignSessionPorts(
+  ctx: CommandContext,
+): DesignSessionPorts {
+  return {
+    preflight: ({ baseUrl, paths, projectIdArgument, workItemIdArgument }) =>
+      runDesignPreflight({
+        baseUrl,
+        projectIdArgument,
+        workItemIdArgument,
+        reporter: ctx.reporter,
+        ports: buildDesignPreflightPorts(paths, ctx),
+      }),
+    startStudio: ({ builderDir }) =>
+      startDesignStudio({
+        builderDir,
+        reporter: ctx.reporter,
+        ports: buildStudioPorts(),
+      }),
+    launchTui: launchOpencodeTui,
+    runOffer: ({ baseUrl, paths, target, tuiExitedCleanly }) =>
+      runDesignRunOffer({
+        tuiExitedCleanly,
+        target,
+        reporter: ctx.reporter,
+        ports: buildRunOfferPorts({
+          baseUrl,
+          target,
+          paths,
+          reporter: ctx.reporter,
+        }),
+      }),
+    exit: (code) => process.exit(code),
+  };
+}
+
 /**
  * The command body, callable without yargs' argv envelope so `boboddy init`
  * can hand straight over to the designer in-process (see `lib/init-handoff.ts`)
@@ -263,110 +282,11 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
   withReporter("pipelines-design", async (ctx) => {
     // The TUI owns the terminal; without a real tty it renders into the void.
     assertInteractiveTerminal();
-
-    const baseUrl = resolveBoboddyBaseUrl(args.baseUrl);
-    const builderDir = join(process.cwd(), PIPELINE_BUILDER_DIR);
-    syncIdentityFromDisk(baseUrl);
-
-    ctx.reporter.start("Boboddy pipeline designer");
-
-    const preflight = await runDesignPreflight({
-      baseUrl,
-      projectIdArgument: args.projectId,
-      workItemIdArgument: args.workItemId,
-      reporter: ctx.reporter,
-      ports: buildPorts(builderDir, ctx),
+    await runDesignSession({
+      args,
+      ctx,
+      ports: buildDesignSessionPorts(ctx),
     });
-
-    const configContent = serializeOpencodeTuiConfig(
-      buildOpencodeTuiConfig({
-        agentName: PIPELINE_DESIGNER_AGENT_NAME,
-        description: PIPELINE_DESIGNER_AGENT_DESCRIPTION,
-        prompt: buildPipelineDesignerPrompt(),
-      }),
-    );
-
-    // Read after the preflight, which is what creates the directory. The flag
-    // discounts the files that same step just scaffolded — see
-    // `hasAuthoredDefinitions`.
-    //
-    // Consumed here too: a PRIOR session's post-push run-offer gate (#146) may
-    // have failed after that session's own TUI had already exited, with no
-    // live agent left to tell. This is the first moment THIS session can pass
-    // that on — see `design-run-offer-gate-marker.ts`.
-    const priorRunOfferFailure = readAndConsumeRunOfferGateFailure(builderDir);
-    const seedPrompt = buildDesignSeedPrompt({
-      workItem: preflight.workItem,
-      hasExistingDefinitions: hasAuthoredDefinitions(
-        listBuilderFiles(builderDir),
-      ),
-      priorRunOfferFailure,
-    });
-
-    const cliPath = resolveCurrentBoboddyCliPath();
-    ctx.logger.info(
-      {
-        builderDir,
-        cliPath,
-        projectId: preflight.projectId,
-        workItemId: preflight.workItem.id,
-        configBytes: Buffer.byteLength(configContent, "utf8"),
-        seedPromptBytes: Buffer.byteLength(seedPrompt, "utf8"),
-      },
-      "Launching the OpenCode TUI",
-    );
-
-    // Close the clack block before the child takes over the terminal; a live
-    // spinner and a full-screen TUI cannot share a tty.
-    ctx.reporter.finish("Starting the designer…");
-
-    // Milestone 5 — fired right before handing the terminal to the TUI, not
-    // after: `launchOpencodeTui` blocks for the whole session, so "after"
-    // would only ever fire once the user has already exited.
-    captureMilestone(AnalyticsEvents.CliDesignerLaunched);
-
-    const result = await launchOpencodeTui({
-      launcherPath: preflight.launcherPath,
-      cwd: builderDir,
-      agent: PIPELINE_DESIGNER_AGENT_NAME,
-      configContent,
-      seedPrompt,
-      env: {
-        // The agent shells out to the CLI to push; `process.env` is inherited
-        // wholesale by the launcher, so TMUX/TMUX_PANE survive untouched.
-        BOBODDY_CLI: cliPath,
-        BOBODDY_PROJECT_ID: preflight.projectId,
-        BOBODDY_BASE_URL: baseUrl,
-      },
-    });
-
-    const target: DesignRunTarget = {
-      projectId: preflight.projectId,
-      workItemId: preflight.workItem.id,
-      workItemTitle: preflight.workItem.title,
-    };
-
-    // The session closes its own loop: what was just designed, run on the item
-    // it was designed for. See `lib/design-run-offer.ts`.
-    await runDesignRunOffer({
-      tuiExitedCleanly: result.exitCode === 0,
-      target,
-      reporter: ctx.reporter,
-      ports: buildRunOfferPorts({
-        baseUrl,
-        target,
-        builderDir,
-        reporter: ctx.reporter,
-      }),
-    });
-
-    if (hasFailedExitCode(result)) {
-      // Deliberate exit-code passthrough, matching `pipelines push`. Flushed
-      // explicitly first: `process.exit` bypasses the `finally` in
-      // `index.ts` that normally does this.
-      await flushTelemetry();
-      process.exit(result.exitCode);
-    }
   });
 
 export const designCommand: CommandModule<object, DesignArguments> = {
@@ -391,6 +311,12 @@ export const designCommand: CommandModule<object, DesignArguments> = {
           "Design around this specific work item ID instead of picking " +
           "from the project's recent items (for one older than the picker " +
           "shows). Falls back to the picker if the id doesn't resolve",
+      })
+      .option("studio", {
+        type: "boolean",
+        default: true,
+        describe:
+          "Open the live pipeline graph in your browser alongside the session (--no-studio to skip)",
       }),
   handler: (args: ArgumentsCamelCase<DesignArguments>) =>
     runPipelineDesign(args),

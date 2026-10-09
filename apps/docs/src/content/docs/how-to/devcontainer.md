@@ -1,5 +1,5 @@
 ---
-title: Setting up a Dev Container
+title: Set up a dev container
 description: Generate a minimal .devcontainer/devcontainer.json for your project using an AI prompt
 ---
 
@@ -8,15 +8,7 @@ description: Generate a minimal .devcontainer/devcontainer.json for your project
 This page provides a prompt you can paste into any AI coding assistant (Claude, Copilot, etc.) to generate a minimal, project-appropriate devcontainer config.
 
 :::tip[You probably don't need this page]
-If your project has no `.devcontainer/devcontainer.json`, the [pipeline designer](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) writes one for you during a design session, based on the repository it just read. `boboddy init` reports a missing devcontainer as a notice and carries on. This page is for writing one by hand, or for understanding what the agent produced.
-:::
-
-:::note[Exception]
-Steps with `environment: { runtime: Runtime.host() }` run without a clone or a dev container, so a project that only uses those steps does not need a `devcontainer.json`. See [Runtime](/boboddy/guides/steps/#runtime).
-:::
-
-:::caution[No build happens in-session]
-The agent authors the config but never builds the image — your first pipeline run is what verifies it. If that run fails early, suspect the container before the pipeline.
+A design session writes this file for you when it's missing, and host-only pipelines never need one — see [Runtime](/boboddy/getting-started/concepts/#runtime). This page is for writing one by hand, or for understanding what the agent produced.
 :::
 
 ## AI prompt

@@ -83,6 +83,16 @@ void mock.module("../src/lib/build-constants", () => ({
 }));
 
 const telemetry = await import("../src/lib/telemetry");
+const { version: CLI_VERSION } = await import("../package.json");
+
+function context(cliKeySource: "baked" | "env") {
+  return {
+    cli_version: CLI_VERSION,
+    os: process.platform,
+    arch: process.arch,
+    cli_key_source: cliKeySource,
+  };
+}
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -125,18 +135,21 @@ describe("captureMilestone", () => {
       {
         distinctId: "anon-fixed-id",
         event: "cli_init_started",
-        properties: undefined,
+        properties: context("env"),
       },
     ]);
   });
 
-  test("forwards properties untouched", () => {
-    telemetry.captureMilestone("cli_project_linked", { linked: "new" });
+  test("forwards the caller's properties alongside the build context", () => {
+    telemetry.captureMilestone("cli_project_linked", {
+      linked: "new",
+      via: "api",
+    });
     expect(captureCalls).toEqual([
       {
         distinctId: "anon-fixed-id",
         event: "cli_project_linked",
-        properties: { linked: "new" },
+        properties: { linked: "new", via: "api", ...context("env") },
       },
     ]);
   });
@@ -179,6 +192,67 @@ describe("captureMilestone", () => {
     expect(() => {
       telemetry.captureMilestone("cli_init_started");
     }).not.toThrow();
+  });
+});
+
+describe("build context", () => {
+  test("every capture carries cli_version, os, arch and cli_key_source", () => {
+    telemetry.captureMilestone("cli_init_started");
+    telemetry.captureMilestone("cli_command_failed", {
+      command: "init",
+      code: "unknown",
+    });
+    telemetry.captureMilestone("cli_designer_launched", {
+      providers: ["anthropic"],
+    });
+    telemetry.captureMilestone("cli_studio_opened", {
+      via: "studio",
+      browser_opened: false,
+    });
+    expect(captureCalls).toHaveLength(4);
+    for (const call of captureCalls) {
+      expect(call.properties).toMatchObject(context("env"));
+    }
+    expect(captureCalls[3]?.properties).toMatchObject({
+      via: "studio",
+      browser_opened: false,
+    });
+  });
+
+  test("cli_key_source is baked with only a baked key", () => {
+    delete process.env["POSTHOG_CLI_KEY"];
+    fakeBaked = { key: "phc_baked" };
+    telemetry.captureMilestone("cli_init_started");
+    expect(captureCalls[0]?.properties?.["cli_key_source"]).toBe("baked");
+  });
+
+  test("cli_key_source is env when only the env var is set", () => {
+    telemetry.captureMilestone("cli_init_started");
+    expect(captureCalls[0]?.properties?.["cli_key_source"]).toBe("env");
+  });
+
+  test("cli_key_source is env when the env var overrides a baked key", () => {
+    fakeBaked = { key: "phc_baked" };
+    telemetry.captureMilestone("cli_init_started");
+    expect(captureCalls[0]?.properties?.["cli_key_source"]).toBe("env");
+  });
+
+  test("a caller property named cli_version can't override the context value", () => {
+    telemetry.captureMilestone("cli_init_started", {
+      cli_version: "9.9.9-spoofed",
+      cli_key_source: "spoofed",
+    });
+    expect(captureCalls[0]?.properties).toEqual(context("env"));
+  });
+
+  test("telemetryKeySource reports none, baked and env with the same precedence as the key", () => {
+    delete process.env["POSTHOG_CLI_KEY"];
+    expect(telemetry.telemetryKeySource()).toBe("none");
+    process.env["POSTHOG_CLI_KEY"] = "";
+    fakeBaked = { key: "phc_baked" };
+    expect(telemetry.telemetryKeySource()).toBe("baked");
+    process.env["POSTHOG_CLI_KEY"] = "phc_env";
+    expect(telemetry.telemetryKeySource()).toBe("env");
   });
 });
 
@@ -280,7 +354,7 @@ describe("identity", () => {
       {
         distinctId: "user-2",
         event: "cli_requirements_verified",
-        properties: undefined,
+        properties: context("env"),
       },
     ]);
   });
@@ -326,6 +400,38 @@ describe("flushTelemetry", () => {
   test("resolves even if the underlying flush hangs, once the timeout elapses", async () => {
     telemetry.captureMilestone("cli_init_started");
     await telemetry.flushTelemetry(5);
+    expect(flushCount).toBe(1);
+  });
+});
+
+describe("run() failure reporting", () => {
+  test("captures cli_command_failed with the command and code, never the message", async () => {
+    const { run } = await import("../src/cli");
+    const unknownBaseUrl = `http://127.0.0.1:9/run-failure-${crypto.randomUUID()}`;
+
+    const exitCode = await run([
+      "pipelines",
+      "push",
+      "project-1",
+      "--base-url",
+      unknownBaseUrl,
+    ]);
+
+    expect(exitCode).toBe(1);
+    const failures = captureCalls.filter(
+      (call) => call.event === "cli_command_failed",
+    );
+    expect(failures).toEqual([
+      {
+        distinctId: "anon-fixed-id",
+        event: "cli_command_failed",
+        properties: {
+          command: "pipelines push",
+          code: "not_signed_in_noninteractive",
+          ...context("env"),
+        },
+      },
+    ]);
     expect(flushCount).toBe(1);
   });
 });

@@ -49,6 +49,12 @@ describe("design agent assets", () => {
     }
   });
 
+  test("tells the agent how to detect the pipeline studio", () => {
+    // `design-session.ts` sets this env var only when the studio started; the
+    // prompt is the only place the agent learns to look for it.
+    expect(buildPipelineDesignerPrompt()).toContain("$BOBODDY_STUDIO_URL");
+  });
+
   test("every fence the composed prompt opens is closed", () => {
     // The archetype sources are wrapped in three-backtick fences, so a stray
     // fence inside one would truncate the block for whatever reads the prompt.
@@ -145,13 +151,14 @@ describe("composed prompt size", () => {
   // discovery plus the secrets/`.env.example` handling (phases 1, 3, 7, 10, and
   // AUTHORING.md §1) to ~70,900, and the flat pipeline SDK rewrite (Phase 6 —
   // `definePipeline({states})`, the `choice`/routing sections, and the
-  // router archetype's per-target dispatch-state pattern) to ~78,900 — the
-  // lower bound is set just under the current value so any further growth is
-  // a deliberate decision rather than a drift.
+  // router archetype's per-target dispatch-state pattern) to ~78,900, and the
+  // pipeline-studio guidance (`$BOBODDY_STUDIO_URL` in phases 1, 7, 9, 10) to
+  // ~82,200 — the lower bound is set just under the current value so any
+  // further growth is a deliberate decision rather than a drift.
   test("stays within the expected envelope", () => {
     const length = buildPipelineDesignerPrompt().length;
-    expect(length).toBeGreaterThan(76_000);
-    expect(length).toBeLessThan(82_000);
+    expect(length).toBeGreaterThan(80_000);
+    expect(length).toBeLessThan(86_000);
   });
 
   test("survives a round trip through the injected TUI config", () => {

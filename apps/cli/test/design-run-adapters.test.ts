@@ -1,5 +1,9 @@
 import { describe, expect } from "bun:test";
-import { assignedPipelineSchema } from "../src/lib/design-run-adapters";
+import {
+  assignedPipelineSchema,
+  stepExecutionTargetSchema,
+  stepNeedsProjectDevcontainer,
+} from "../src/lib/design-run-adapters";
 import { concurrentTest as test } from "./utils";
 
 /**
@@ -38,5 +42,48 @@ describe("assignedPipelineSchema", () => {
     expect(
       assignedPipelineSchema.safeParse({ pipelineDefinitionId: "" }).success,
     ).toBe(false);
+  });
+});
+
+describe("stepNeedsProjectDevcontainer", () => {
+  test("a workspace step without a managed runtime runs in the project devcontainer", () => {
+    expect(
+      stepNeedsProjectDevcontainer({
+        executionMode: "workspace",
+        managedRuntime: null,
+      }),
+    ).toBe(true);
+  });
+
+  test("a managed-runtime step brings its own container", () => {
+    expect(
+      stepNeedsProjectDevcontainer({
+        executionMode: "workspace",
+        managedRuntime: "bun1",
+      }),
+    ).toBe(false);
+  });
+
+  test("a no_workspace step runs on the host", () => {
+    expect(
+      stepNeedsProjectDevcontainer({
+        executionMode: "no_workspace",
+        managedRuntime: null,
+      }),
+    ).toBe(false);
+  });
+
+  test("reads the execution target off a step definition response", () => {
+    const parsed = stepExecutionTargetSchema.parse({
+      id: "019ed1c9-3333-7170-a08a-1ff912085f7b",
+      executionMode: "workspace",
+      managedRuntime: null,
+      kind: "user_defined",
+    });
+
+    expect(parsed).toEqual({
+      executionMode: "workspace",
+      managedRuntime: null,
+    });
   });
 });

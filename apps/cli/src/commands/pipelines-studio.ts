@@ -1,8 +1,10 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   PIPELINE_BUILDER_DIR,
+  resolveBoboddyBaseUrl,
   runPipelineStudioServer,
   scaffoldPipelineBuilderDirectory,
   type PipelineStudioServerHandle,
@@ -10,10 +12,12 @@ import {
 import { version as CLI_VERSION } from "../../package.json";
 import { openBrowser } from "../auth/browser";
 import { withReporter } from "../lib/command-output";
+import { browserOpenFailedMessage } from "../lib/design-studio";
 import {
   runStudioPreflight,
   type StudioPreflightPorts,
 } from "../lib/studio-preflight";
+import { captureMilestone, syncIdentityFromDisk } from "../lib/telemetry";
 import type { CommandContext } from "../lib/command-output";
 import type { BaseReporter } from "../lib/reporter-types";
 
@@ -69,6 +73,8 @@ export interface StudioSessionPorts extends StudioPreflightPorts {
     port: number | undefined;
   }): Promise<PipelineStudioServerHandle>;
   openBrowser(url: string): Promise<void>;
+  /** Records that the studio is up, once the browser attempt is settled. */
+  studioOpened(input: { browserOpened: boolean }): void;
   /** Resolves once the user asks to stop (SIGINT/SIGTERM). */
   waitForShutdownSignal(): Promise<void>;
 }
@@ -87,14 +93,15 @@ export async function runStudioSession(input: {
   reporter.success(`Watching ${PIPELINE_BUILDER_DIR}`);
   reporter.info(`Studio running at ${handle.url}`);
 
+  let browserOpened = true;
   try {
     await ports.openBrowser(handle.url);
   } catch (error) {
-    reporter.warn(
-      `Could not open a browser automatically. Open ${handle.url} manually.`,
-    );
+    browserOpened = false;
+    reporter.warn(browserOpenFailedMessage(handle.url));
     if (error instanceof Error) reporter.warn(error.message);
   }
+  ports.studioOpened({ browserOpened });
 
   reporter.finish("Press Ctrl+C to stop watching.");
   await ports.waitForShutdownSignal();
@@ -119,6 +126,12 @@ function buildRealPorts(builderDir: string): StudioSessionPorts {
     ...buildPreflightPorts(builderDir),
     startServer: (options) => runPipelineStudioServer(options),
     openBrowser,
+    studioOpened: ({ browserOpened }) => {
+      captureMilestone(AnalyticsEvents.CliStudioOpened, {
+        via: "studio",
+        browser_opened: browserOpened,
+      });
+    },
     waitForShutdownSignal,
   };
 }
@@ -126,6 +139,7 @@ function buildRealPorts(builderDir: string): StudioSessionPorts {
 export const runPipelineStudio = (args: StudioArguments): Promise<void> =>
   withReporter("pipelines-studio", async (ctx: CommandContext) => {
     const builderDir = join(process.cwd(), PIPELINE_BUILDER_DIR);
+    syncIdentityFromDisk(resolveBoboddyBaseUrl(undefined));
     ctx.reporter.start("Boboddy pipeline studio");
 
     await runStudioSession({

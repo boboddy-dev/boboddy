@@ -71,6 +71,8 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
     installDependencies: () => Promise.resolve(),
     ensureRuntime: () => Promise.resolve(LAUNCHER),
     checkCredentials: () => Promise.resolve(OK_CREDENTIALS),
+    detectInstalledTools: () => Promise.resolve([]),
+    runAuthLogin: () => Promise.reject(new Error("not expected")),
   };
   return { ports: { ...base, ...overrides }, calls };
 }

@@ -3,22 +3,12 @@ title: SDK Reference
 description: TypeScript SDK types, helpers, and API client
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
-
-Install the SDK:
-
-<Tabs>
-  <TabItem label="npm">
-    ```bash
-    npm install @boboddy/sdk
-    ```
-  </TabItem>
-  <TabItem label="bun">
-    ```bash
-    bun add @boboddy/sdk
-    ```
-  </TabItem>
-</Tabs>
+You don't install the SDK yourself to write pipelines. `@boboddy/sdk` is a
+dependency of `.boboddy/pipeline-builder/package.json`, which
+[`boboddy pipelines design`](/boboddy/reference/cli/#boboddy-pipelines-design-projectid)
+scaffolds and installs for you ([`boboddy pipelines init`](/boboddy/reference/cli/#boboddy-pipelines-init)
+scaffolds it; you run the install). Add it to another package directly only
+to script against the [API client](#api-client).
 
 See the [Pipeline Graph catalog entry](/boboddy/catalog/pipeline-graph/) for an interactive view of a compiled pipeline's node/edge graph.
 
@@ -191,7 +181,7 @@ Runtime.managed: { [K in ManagedRuntimeId]: () => ManagedRuntimeSpec<K> };
 
 The wire form is derived from `runtime`: `executionMode` (`"workspace"` for the devcontainer and managed runtimes, `"no_workspace"` for host), `devcontainerConfigPath` (`config`, or `null`), and `managedRuntime` (the identifier for a managed runtime, otherwise `null`). The path schema is `devcontainerConfigPathSchema` from `@boboddy/sdk/devcontainer-config-path`.
 
-See [Environment](/boboddy/guides/steps/#environment) and [Multiple configs](/boboddy/guides/devcontainer/#multiple-configs) for the guides.
+See [Environment](/boboddy/guides/steps/#environment) and [Multiple configs](/boboddy/how-to/devcontainer/#multiple-configs) for the guides.
 
 ### `Env`
 

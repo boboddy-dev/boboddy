@@ -1,0 +1,94 @@
+---
+/*
+  Overrides `@astrojs/starlight/components/Head.astro` to add PostHog. Renders
+  Starlight's default head unchanged, then a client script that does nothing
+  unless `PUBLIC_POSTHOG_KEY` and `PUBLIC_POSTHOG_HOST` are set at build time —
+  the same key handling as `apps/landing/src/layouts/Layout.astro`.
+
+  Every page sends `$pageview`. The Quickstart also sends
+  `docs_quickstart_viewed`, `docs_quickstart_scrolled` once per depth quartile,
+  and `docs_quickstart_command_copied` when a shell block's copy button is
+  pressed, with `step` set to the number of the enclosing `<Steps>` item.
+  Events are described in docs/analytics.md.
+*/
+import Default from "@astrojs/starlight/components/Head.astro";
+---
+
+<Default />
+
+<script>
+  import * as analytics from "@boboddy/observability/analytics/browser";
+  import {
+    AnalyticsEvents,
+    type AnalyticsEventProperties,
+    type DocsQuickstartScrollDepth,
+  } from "@boboddy/observability/analytics/events";
+
+  const key = import.meta.env["PUBLIC_POSTHOG_KEY"];
+  const host = import.meta.env["PUBLIC_POSTHOG_HOST"];
+  const uiHost = import.meta.env["PUBLIC_POSTHOG_UI_HOST"];
+
+  const SHELL_LANGUAGES = new Set(["bash", "sh", "shell", "zsh", "console"]);
+  const DEPTHS: readonly DocsQuickstartScrollDepth[] = ["25", "50", "75", "100"];
+
+  function isQuickstart(): boolean {
+    return window.location.pathname
+      .replace(/\/$/, "")
+      .endsWith("/getting-started/quickstart");
+  }
+
+  function trackScrollDepth(): void {
+    const sent = new Set<DocsQuickstartScrollDepth>();
+    const report = () => {
+      const { scrollHeight } = document.documentElement;
+      const seen = (window.scrollY + window.innerHeight) / scrollHeight;
+      for (const depth of DEPTHS) {
+        if (sent.has(depth) || seen * 100 < Number(depth)) continue;
+        sent.add(depth);
+        analytics.capture(AnalyticsEvents.DocsQuickstartScrolled, {
+          depth,
+        } satisfies AnalyticsEventProperties["docs_quickstart_scrolled"]);
+      }
+      if (sent.size === DEPTHS.length) {
+        window.removeEventListener("scroll", report);
+      }
+    };
+    window.addEventListener("scroll", report, { passive: true });
+    report();
+  }
+
+  /** The 1-based number of the `<Steps>` item holding `element`, if any. */
+  function stepOf(element: Element): string | undefined {
+    const item = element.closest(".sl-steps > li");
+    if (!item?.parentElement) return undefined;
+    return String(Array.from(item.parentElement.children).indexOf(item) + 1);
+  }
+
+  function trackCommandCopies(): void {
+    document.addEventListener("click", (event) => {
+      const button = (event.target as Element | null)?.closest(
+        ".expressive-code .copy button",
+      );
+      if (!button) return;
+      const language = button
+        .closest("figure")
+        ?.querySelector("pre")
+        ?.getAttribute("data-language");
+      if (!language || !SHELL_LANGUAGES.has(language)) return;
+      const step = stepOf(button);
+      if (!step) return;
+      analytics.capture(AnalyticsEvents.DocsQuickstartCommandCopied, {
+        step,
+      } satisfies AnalyticsEventProperties["docs_quickstart_command_copied"]);
+    });
+  }
+
+  if (key && host && analytics.init({ key, host, uiHost })) {
+    analytics.pageView(window.location.href);
+    if (isQuickstart()) {
+      analytics.capture(AnalyticsEvents.DocsQuickstartViewed);
+      trackScrollDepth();
+      trackCommandCopies();
+    }
+  }
+</script>

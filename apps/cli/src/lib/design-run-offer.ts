@@ -1,4 +1,9 @@
+import {
+  AnalyticsEvents,
+  type CliRunOfferSkippedReason,
+} from "@boboddy/observability/analytics/events";
 import type { BaseReporter } from "./reporter-types";
+import { captureMilestone } from "./telemetry";
 
 /**
  * The tail of `boboddy pipelines design` — the command closing its own loop.
@@ -13,10 +18,12 @@ import type { BaseReporter } from "./reporter-types";
  * Three things gate the offer, and all of them are honest about it rather than
  * failing halfway:
  *
- * - A devcontainer, because every step executes inside one. Missing, the run is
- *   impossible, so there is nothing to ask.
  * - A pipeline for the assignment to point at. Absent, the session never got as
  *   far as pushing, so there is nothing to run.
+ * - A devcontainer, but only when the pipeline has a step that executes inside
+ *   the project's own one (a `workspace` step without a managed runtime).
+ *   Host-only and managed-runtime pipelines run without it. When it is needed
+ *   and missing, the run is impossible, so there is nothing to ask.
  * - The pushed pipeline's first step passing a full dry run (#146) — container,
  *   OpenCode, MCP servers, declared health checks. This is the single source of
  *   truth for "is what was just pushed obviously broken", so it runs once,
@@ -41,14 +48,21 @@ import type { BaseReporter } from "./reporter-types";
 export type DryRunGateResult = { ok: boolean; summary: string };
 
 export interface DesignRunOfferPorts {
-  /** Does this repository have a `.devcontainer/devcontainer.json`? */
-  hasDevcontainer(): Promise<boolean>;
   /**
    * The pipeline definition the project's default assignment points at — what
    * the session just pushed. `undefined` when the project has no assignment,
    * which means nothing was pushed.
    */
   resolveAssignedPipeline(): Promise<string | undefined>;
+  /**
+   * Does any step of `pipelineDefinitionId` execute inside the project's own
+   * devcontainer — a `workspace` step with no managed runtime?
+   */
+  pipelineNeedsProjectDevcontainer(
+    pipelineDefinitionId: string,
+  ): Promise<boolean>;
+  /** Does this repository have a `.devcontainer/devcontainer.json`? */
+  hasDevcontainer(): Promise<boolean>;
   /**
    * Run the full dry run (container + OpenCode + MCP + declared health checks,
    * #146) against `pipelineDefinitionId`'s FIRST step, resolved unambiguously
@@ -112,9 +126,10 @@ export const REFINE_MESSAGE =
   "Run `boboddy pipelines design` again to refine your pipelines.";
 
 export const DEVCONTAINER_MISSING_MESSAGE =
-  "No devcontainer in this repository. Boboddy runs every step inside your " +
-  "project's devcontainer, so a run needs a `.devcontainer/devcontainer.json` " +
-  "first — ask for one in your next design session, or add one by hand.";
+  "No devcontainer in this repository. This pipeline has steps that run inside " +
+  "your project's devcontainer, so a run needs a " +
+  "`.devcontainer/devcontainer.json` first — ask for one in your next design " +
+  "session, or add one by hand.";
 
 export const NO_PIPELINE_MESSAGE =
   "No pipeline is assigned to this project yet, so there is nothing to run. " +
@@ -173,23 +188,28 @@ export async function runDesignRunOffer(
   if (!input.tuiExitedCleanly) {
     // The command's exit-code passthrough already speaks for a broken session;
     // an offer on top of it would be noise.
+    reportSkipped("tui_not_clean");
     return { ran: false };
   }
 
   const command = formatRunCommand(target);
   reporter.start(RUN_OFFER_TITLE);
 
-  // Cheapest check first: this one is a `stat`, the next one is a round trip.
-  if (!(await ports.hasDevcontainer())) {
-    reporter.warn(DEVCONTAINER_MISSING_MESSAGE);
-    reportRunLater(reporter, command);
-    return { ran: false };
-  }
-
   const pipelineDefinitionId = await ports.resolveAssignedPipeline();
   if (pipelineDefinitionId === undefined) {
     reporter.warn(NO_PIPELINE_MESSAGE);
     reporter.finish(REFINE_MESSAGE);
+    reportSkipped("no_pipeline");
+    return { ran: false };
+  }
+
+  if (
+    (await ports.pipelineNeedsProjectDevcontainer(pipelineDefinitionId)) &&
+    !(await ports.hasDevcontainer())
+  ) {
+    reporter.warn(DEVCONTAINER_MISSING_MESSAGE);
+    reportRunLater(reporter, command);
+    reportSkipped("no_devcontainer");
     return { ran: false };
   }
 
@@ -202,11 +222,13 @@ export async function runDesignRunOffer(
     reporter.warn(`${FIRST_STEP_DRY_RUN_FAILED_MESSAGE} ${dryRun.summary}`);
     reporter.info(FIRST_STEP_DRY_RUN_FAILED_NEXT_STEPS);
     reportRunLater(reporter, command);
+    reportSkipped("dry_run_failed");
     return { ran: false };
   }
 
   if (!(await ports.confirmRun(target.workItemTitle))) {
     reportRunLater(reporter, command);
+    reportSkipped("declined");
     return { ran: false };
   }
 
@@ -291,4 +313,9 @@ function reportRunLater(reporter: BaseReporter, command: string): void {
   reporter.info(`${RUN_LATER_PREFIX} ${command}`);
   reporter.info(NOTHING_QUEUED_MESSAGE);
   reporter.finish(REFINE_MESSAGE);
+}
+
+/** Why the offer ended without running, for the `cli_run_offer_skipped` funnel event. */
+function reportSkipped(reason: CliRunOfferSkippedReason): void {
+  captureMilestone(AnalyticsEvents.CliRunOfferSkipped, { reason });
 }

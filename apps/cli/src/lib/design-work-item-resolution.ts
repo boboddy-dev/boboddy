@@ -5,6 +5,7 @@ import {
 } from "./design-work-item";
 import type { DesignWorkItem, WorkItemDraft } from "./design-work-item";
 import type { BaseReporter } from "./reporter-types";
+import { CliError } from "./cli-error";
 
 /**
  * The free-text rung's resolve-vs-create decision (see `design-preflight.ts`,
@@ -51,7 +52,7 @@ export async function resolveFreeTextWorkItem(input: {
 
   const text = await ports.promptWorkItemText();
   if (text === undefined) {
-    throw new Error(NO_WORK_ITEM_MESSAGE);
+    throw new CliError("no_work_item", NO_WORK_ITEM_MESSAGE);
   }
 
   const resolved = await resolveWorkItemReference({
@@ -68,7 +69,7 @@ export async function resolveFreeTextWorkItem(input: {
 
   const draft = parseWorkItemDraft(text);
   if (draft === undefined) {
-    throw new Error(NO_WORK_ITEM_MESSAGE);
+    throw new CliError("no_work_item", NO_WORK_ITEM_MESSAGE);
   }
 
   const task = reporter.startTask("Creating the work item…");

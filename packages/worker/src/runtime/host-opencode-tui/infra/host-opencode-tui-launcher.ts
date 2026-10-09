@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
+import { ConfigurationError, SetupErrorCodes } from "../../../lib/errors";
 import {
   LAUNCH_WRAPPER_FILENAME,
   resolveHostNativePlatform,
@@ -302,9 +303,10 @@ export function assertInteractiveTerminal(
   } = process,
 ): void {
   if (streams.stdin.isTTY !== true || streams.stdout.isTTY !== true) {
-    throw new Error(
+    throw new ConfigurationError(
       "This command needs an interactive terminal. Run it directly in your " +
         "shell rather than through a pipe, redirect, or CI runner.",
+      SetupErrorCodes.NoInteractiveTerminal,
     );
   }
 }

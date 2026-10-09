@@ -2171,6 +2171,14 @@
                   },
                   "gitUrl": {
                     "type": "string"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "cli_handoff",
+                      "cli_api"
+                    ]
                   }
                 },
                 "required": [
@@ -2203,6 +2211,14 @@
                   },
                   "gitUrl": {
                     "type": "string"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "cli_handoff",
+                      "cli_api"
+                    ]
                   }
                 },
                 "required": [
@@ -2235,6 +2251,14 @@
                   },
                   "gitUrl": {
                     "type": "string"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "cli_handoff",
+                      "cli_api"
+                    ]
                   }
                 },
                 "required": [
@@ -37713,6 +37737,10 @@
                                 "type": "string",
                                 "const": "choice"
                               },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
                               "choices": {
                                 "type": "array",
                                 "items": {
@@ -38255,6 +38283,10 @@
                               "kind": {
                                 "type": "string",
                                 "const": "succeed"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
                               }
                             },
                             "required": [
@@ -38273,6 +38305,10 @@
                               "kind": {
                                 "type": "string",
                                 "const": "fail"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
                               }
                             },
                             "required": [
@@ -76219,6 +76255,14 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "cli_handoff",
+                      "cli_api"
+                    ]
                   }
                 },
                 "required": [
@@ -76270,6 +76314,14 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "cli_handoff",
+                      "cli_api"
+                    ]
                   }
                 },
                 "required": [
@@ -76320,6 +76372,14 @@
                       {
                         "type": "null"
                       }
+                    ]
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "cli_handoff",
+                      "cli_api"
                     ]
                   }
                 },

@@ -783,6 +783,7 @@ export type PostApiProjectsData = {
         name: string;
         description: string | unknown;
         gitUrl: string;
+        origin?: 'web' | 'cli_handoff' | 'cli_api';
     };
     path?: never;
     query?: never;
@@ -7390,6 +7391,7 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
         } | {
             nodeKey: string;
             kind: string;
+            name?: string;
             choices: Array<{
                 conditionJson: unknown;
                 targetNodeKey: string;
@@ -7486,9 +7488,11 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
         } | {
             nodeKey: string;
             kind: string;
+            name?: string;
         } | {
             nodeKey: string;
             kind: string;
+            name?: string;
         }>;
         dependencyEdges: Array<{
             fromNodeKey: string;
@@ -15870,6 +15874,7 @@ export type PostApiProjectsFromGithubData = {
         };
         name?: string;
         description?: string | unknown;
+        origin?: 'web' | 'cli_handoff' | 'cli_api';
     };
     path?: never;
     query?: never;

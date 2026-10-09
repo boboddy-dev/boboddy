@@ -1,0 +1,10 @@
+# @boboddy/cli 0.0.0 — derived from reporter strings in apps/cli/src (lib/design-run-offer.ts, lib/design-run-adapters.ts), rendered through ClackReporter; not a live capture.
+# Trimmed by hand: clack's blank "│" spacer lines are dropped. The first-step dry run takes longer when it builds a devcontainer.
+┌   Run it
+●  Logs → ~/.boboddy/logs/worker-2026-10-07T15-04-12-123Z.log
+◇  First step healthy [1m 48s]
+◇  Run your new pipeline on “Checkout crashes when a coupon is applied twice” now?
+│  Yes
+◇  Run queued [0s]
+●  A failed run — a step, or the devcontainer build — is something to take back to the designer: run `boboddy pipelines design` again and tell the agent what happened. The edit loop is the repair loop.
+└  Starting the worker…

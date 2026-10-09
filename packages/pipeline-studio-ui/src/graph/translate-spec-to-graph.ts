@@ -38,7 +38,33 @@ const NODE_WIDTH = 220;
 const NODE_HEIGHT = 72;
 
 function nodeLabel(node: NodeDefinitionSpec): string {
-  return isWorkingNodeDefinition(node) ? node.stepName : node.nodeKey;
+  if (isWorkingNodeDefinition(node)) return node.stepName;
+  switch (node.kind) {
+    case "choice":
+    case "succeed":
+    case "fail":
+      return node.name ?? node.nodeKey;
+    default:
+      return node.nodeKey;
+  }
+}
+
+/**
+ * An edge's on-graph label: a `loop` edge's `loopExit` (`next`/`onExhausted`)
+ * or a `choice` edge's designer-only display summary (`label`, e.g.
+ * `outcome == "reproduced"` / `otherwise`).
+ */
+function edgeLabel(
+  edge: DependencyEdgeSpec,
+  nodeKindByKey: ReadonlyMap<string, NodeDefinitionSpec["kind"]>,
+): string | undefined {
+  const loopExit = edge.discriminantJson?.["loopExit"];
+  if (typeof loopExit === "string") return loopExit;
+  const label = edge.discriminantJson?.["label"];
+  if (nodeKindByKey.get(edge.fromNodeKey) === "choice" && typeof label === "string") {
+    return label;
+  }
+  return undefined;
 }
 
 // ─── Node/branch shape: a consumer step's input/output/result, for display ───
@@ -297,14 +323,14 @@ function buildRawGraph(
     };
   });
 
+  const nodeKindByKey = new Map(
+    spec.nodeDefinitions.map((node) => [node.nodeKey, node.kind] as const),
+  );
   const edges: StudioEdge[] = spec.dependencyEdges.map((edge) => ({
     id: edgeId(edge),
     source: edge.fromNodeKey,
     target: edge.toNodeKey,
-    label:
-      typeof edge.discriminantJson?.["loopExit"] === "string"
-        ? edge.discriminantJson["loopExit"]
-        : undefined,
+    label: edgeLabel(edge, nodeKindByKey),
     data: { issues: edgeIssues.get(edgeId(edge)) ?? [] },
   }));
 

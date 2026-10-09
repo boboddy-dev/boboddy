@@ -127,6 +127,49 @@ describe("translateSpecToGraph — mapping", () => {
     expect(routeNode?.data.label).toBe("routeBySeverity");
   });
 
+  test("prefers a choice/fail/succeed node's display name over its key", () => {
+    const spec = pipeline(
+      [
+        ANALYZE,
+        { nodeKey: "routeBySeverity", kind: "choice", name: "Route by severity", choices: [], default: null },
+        { nodeKey: "needs_human", kind: "fail", name: "Needs a human" },
+        { nodeKey: "done", kind: "succeed", name: "Done" },
+      ],
+      [],
+    );
+
+    const { nodes } = translateSpecToGraph(spec, []);
+    const label = (id: string) => nodes.find((n) => n.id === id)?.data.label;
+
+    expect(label("routeBySeverity")).toBe("Route by severity");
+    expect(label("needs_human")).toBe("Needs a human");
+    expect(label("done")).toBe("Done");
+  });
+
+  test("labels choice edges from discriminantJson.label, and loop edges from loopExit", () => {
+    const spec = pipeline(
+      [ANALYZE, ROUTE, PAGE_ONCALL, SUMMARIZE],
+      [
+        { fromNodeKey: "analyze", toNodeKey: "routeBySeverity", discriminantJson: { label: "ignored" } },
+        {
+          fromNodeKey: "routeBySeverity",
+          toNodeKey: "pageOncall",
+          discriminantJson: { label: 'severity == "critical"' },
+        },
+        { fromNodeKey: "routeBySeverity", toNodeKey: "summarize", discriminantJson: { label: "otherwise" } },
+        { fromNodeKey: "pageOncall", toNodeKey: "summarize", discriminantJson: { loopExit: "next" } },
+      ],
+    );
+
+    const { edges } = translateSpecToGraph(spec, []);
+    const label = (id: string) => edges.find((e) => e.id === id)?.label;
+
+    expect(label("routeBySeverity->pageOncall")).toBe('severity == "critical"');
+    expect(label("routeBySeverity->summarize")).toBe("otherwise");
+    expect(label("pageOncall->summarize")).toBe("next");
+    expect(label("analyze->routeBySeverity")).toBeUndefined();
+  });
+
   test("lays out every node with a distinct, non-origin position", () => {
     const spec = pipeline([ANALYZE, ROUTE, PAGE_ONCALL, SUMMARIZE], EDGES);
 

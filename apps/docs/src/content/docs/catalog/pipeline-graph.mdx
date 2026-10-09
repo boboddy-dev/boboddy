@@ -5,8 +5,8 @@ description: A compiled pipeline's node/edge graph, rendered interactively
 
 import { Code } from "astro:components";
 import { translateSpecToGraph } from "@boboddy/pipeline-studio-ui";
-import { PipelineGraphView } from "@boboddy/pipeline-studio-ui/view";
 import CatalogExample from "../../../components/CatalogExample.astro";
+import PipelineGraphIsland from "../../../components/PipelineGraphIsland.astro";
 
 import { linearChainSpec } from "../../catalog-fixtures/pipeline-graph/linear-chain";
 import { choiceSpec } from "../../catalog-fixtures/pipeline-graph/choice";
@@ -29,8 +29,7 @@ The simplest shape: a sequence of steps with no branching, ending in a terminal 
   title="Triage a bug report"
   description="Reads the report, analyzes its severity, and writes a summary."
 >
-  <PipelineGraphView
-    client:visible
+  <PipelineGraphIsland
     nodes={linearChainGraph.nodes}
     edges={linearChainGraph.edges}
   />
@@ -45,8 +44,7 @@ A `choice` node routes to one of several targets based on its `choices[]` condit
   title="Route an incident by severity"
   description="Classifies an incident, then pages on-call or files a ticket."
 >
-  <PipelineGraphView
-    client:visible
+  <PipelineGraphIsland
     nodes={choiceGraph.nodes}
     edges={choiceGraph.edges}
   />

@@ -142,3 +142,18 @@ export type ExpectedCoreError =
   | ResourceConflictError
   | ResourceOwnershipError
   | CoreValidationError;
+
+/**
+ * Stable codes for the setup failures `boboddy init` / `pipelines design`
+ * report as `cli_command_failed`. Thrown errors carry one as their `code`, so
+ * the CLI classifies them by code rather than by matching message text.
+ */
+export const SetupErrorCodes = {
+  NotInGitRepository: "NOT_IN_GIT_REPOSITORY",
+  NoOriginRemote: "NO_ORIGIN_REMOTE",
+  NotSignedIn: "NOT_SIGNED_IN",
+  NoInteractiveTerminal: "NO_INTERACTIVE_TERMINAL",
+  DeviceLoginExpired: "DEVICE_LOGIN_EXPIRED",
+  DeviceLoginDenied: "DEVICE_LOGIN_DENIED",
+  DeviceLoginFailed: "DEVICE_LOGIN_FAILED",
+} as const;

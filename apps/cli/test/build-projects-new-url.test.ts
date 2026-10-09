@@ -17,6 +17,7 @@ describe("buildProjectsNewUrl", () => {
       "git@github.com:acme/my-repo.git",
     );
     expect(parsed.searchParams.get("name")).toBe("my-repo");
+    expect(parsed.searchParams.get("source")).toBe("cli");
   });
 
   test("respects a non-default base URL (e.g. --base-url / BOBODDY_BASE_URL)", () => {
@@ -27,5 +28,18 @@ describe("buildProjectsNewUrl", () => {
     });
 
     expect(url.startsWith("http://localhost:3000/projects/new?")).toBe(true);
+  });
+
+  test("strips credentials from the gitUrl it puts in the link", () => {
+    const url = buildProjectsNewUrl({
+      baseUrl: "https://app.boboddy.dev",
+      gitUrl: "https://user:ghp_secret@github.com/acme/my-repo.git",
+      suggestedName: "my-repo",
+    });
+
+    expect(new URL(url).searchParams.get("gitUrl")).toBe(
+      "https://github.com/acme/my-repo.git",
+    );
+    expect(url).not.toContain("ghp_secret");
   });
 });

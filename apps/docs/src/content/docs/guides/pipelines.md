@@ -39,39 +39,7 @@ Every path through the pipeline ends at a `succeed` or `fail` state (`{ kind: "s
 
 ## Scaffold pipeline definitions
 
-Run this command to fetch your existing step and pipeline definitions from the server and write them as editable TypeScript files:
-
-```bash
-boboddy pipelines pull
-```
-
-This creates (or overwrites) the following files inside `.boboddy/pipeline-builder/`:
-
-| File | Description |
-|------|-------------|
-| `steps.ts` | One `defineStep()` export per step (latest version of each key) |
-| `<pipeline-key>.ts` | One pipeline export per pipeline |
-| `default-pipeline-assignment.ts` | Project-level routing policy (written if one is configured; removed if not) |
-| `package.json` | SDK and zod dependencies (written once, never overwritten) |
-| `tsconfig.json` | TypeScript config for the package (written once, never overwritten) |
-
-For a brand-new project with no definitions on the server yet, use [`boboddy pipelines design`](/boboddy/reference/cli/#boboddy-pipelines-design-projectid) — it scaffolds the directory, interviews you, and writes the definitions. `boboddy pipelines init` scaffolds a starter template for hand-authoring instead.
-
-After pulling, install dependencies inside the directory:
-
-```bash
-cd .boboddy/pipeline-builder && npm install
-```
-
-Your pipeline and step definitions in this directory are source code — commit them. The scaffolded `.gitignore` only excludes `node_modules/`, lockfiles, and the generated `push.ts`. Run `npm run typecheck` in the directory to validate definitions before pushing.
-
-When you're ready to publish changes back:
-
-```bash
-boboddy pipelines push
-```
-
-This pushes steps first, then pipelines, in a single command.
+Pipeline files live in `.boboddy/pipeline-builder/`. To edit what's already on the server by hand, the loop is [`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-projectid) → install dependencies → `npm run typecheck` → [`boboddy pipelines push`](/boboddy/reference/cli/#boboddy-pipelines-push-projectid). To start from nothing, see [`boboddy pipelines init`](/boboddy/reference/cli/#boboddy-pipelines-init) for when to use `design` instead.
 
 ## `definePipeline()` options
 
@@ -373,19 +341,7 @@ refineUntilPasses: {
 
 ## Branching: `choice`
 
-A `choice` state holds a whole routing table in one place — every branch's condition and target, plus a fallback. See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/#branching-choice) for the full syntax.
-
-```typescript
-routeBySeverity: {
-  kind: "choice",
-  choices: [
-    { when: Rule.when("severity", "equal", "critical"), next: "pageOncall" },
-  ],
-  default: "fanOutFiles",
-}
-```
-
-Every `choices[].next` and `default` must name another state **in the same pipeline** — a `choice` cannot route to a different pipeline, and it cannot block, directly.
+A `choice` state routes to the first state in the same pipeline whose condition matches, or to its `default` — see [Branching: `choice`](/boboddy/guides/pipeline-advancement/#branching-choice).
 
 ## Split: unconditional fork
 
@@ -422,13 +378,7 @@ No two branches may reconverge on the same state, directly or several hops downs
 
 ## Routing to another pipeline
 
-Point a `step`/`fanOut`/`parallel`/loop-exit's `next` at a `{ routeToPipeline }` target instead of a state key to hand execution off to a different pipeline entirely:
-
-```typescript
-next: { routeToPipeline: "triage-pipeline" }
-```
-
-`routeToPipeline` must name a pipeline that already exists on the server or is in the same push batch — push validates it and throws otherwise.
+A `next` can be `{ routeToPipeline: "<pipeline-key>" }` instead of a state key, handing the run off to a different pipeline — see [Routing to another pipeline](/boboddy/guides/pipeline-advancement/#routing-to-another-pipeline).
 
 ## See also
 

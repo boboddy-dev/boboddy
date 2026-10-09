@@ -1,13 +1,37 @@
 ---
 title: Quickstart
-description: Run your first pipeline end to end in one continuous CLI session
+description: From boboddy init to a running pipeline in one terminal session
 ---
 
 import { Steps, FileTree } from '@astrojs/starlight/components';
+import Transcript from '../../../components/Transcript.astro';
+import initTranscript from '../../transcripts/01-init.txt?raw';
+import workItemTranscript from '../../transcripts/02-work-item.txt?raw';
+import providerTranscript from '../../transcripts/03-provider.txt?raw';
+import sessionTranscript from '../../transcripts/04-session-start.txt?raw';
+import runOfferTranscript from '../../transcripts/05-run-offer.txt?raw';
+import workerTranscript from '../../transcripts/06-worker.txt?raw';
 
-This guide gets you from installing the CLI to a running pipeline in one
-continuous session — mostly in your terminal, with one short hop to your
-browser to create a project. ~10 minutes.
+:::tip[Have your assistant drive]
+Using Claude Code, Codex, or Copilot? Paste this page's URL and say *follow
+the Boboddy quickstart in this repo*. The docs are published as
+[`llms-full.txt`](/boboddy/llms-full.txt) for exactly that.
+:::
+
+By the end you'll have a pipeline built around one of your own work items,
+running on your machine. It takes about ten minutes in one terminal session;
+the browser only comes in for sign-in, setup the terminal can't finish, and
+the pipeline graph.
+
+## Before you start
+
+- A git repository with an `origin` remote.
+- Node.js or Bun.
+- Claude Code, Codex, or GitHub Copilot — or an API key from any AI provider.
+
+Details are in [Installation](/boboddy/getting-started/installation/#requirements).
+Steps that work inside your code run in a container, so the run may also need
+Docker — see [Runtime](/boboddy/getting-started/concepts/#runtime).
 
 <Steps>
 
@@ -17,236 +41,158 @@ browser to create a project. ~10 minutes.
    npm i -g @boboddy/cli
    ```
 
-   See [Installation](/boboddy/getting-started/installation/) for the Bun
-   alternative, platform details, and AI-provider setup.
+   Prefer Bun? See [Installation](/boboddy/getting-started/installation/#install-the-cli).
 
-2. **Initialize your project**
+2. **Link your repo**
 
-   From the root of your repository:
+   From anywhere inside your repository:
 
    ```bash
-   cd my-repo
    boboddy init
    ```
 
-   `init` walks up from your current directory to find the real repository
-   root (submodule-safe), then prints the repo path and remote it resolved —
-   so a walk into a repo you didn't realize you were in is never silent.
+   <Transcript src={initTranscript} />
 
-   From there it handles both logins for you:
+   `init` signs you in, then finds or creates the
+   [project](/boboddy/getting-started/concepts/#project) for this repo. The one
+   decision is `Create Boboddy project … from GitHub?` — say yes, and your
+   issues keep syncing in as work items. If it isn't asked, `init` opens a
+   pre-filled page in your browser; pick your repo from GitHub there if you can
+   (see [Connect GitHub or Jira](/boboddy/how-to/integrations/)).
 
-   - **OpenCode.** If it doesn't detect a configured provider — neither an
-     `opencode auth login` nor a recognized env var such as
-     `ANTHROPIC_API_KEY` — it runs `opencode auth login` inline and waits for
-     you to finish before continuing.
-   - **Boboddy.** If you aren't signed in, it runs the device-flow login for
-     you.
+   The notices need nothing from you. Answer yes to
+   `Design your first pipeline now?`.
 
-   If a project already matches this repo's git remote, `init` skips straight
-   to step 3. Otherwise, it opens your browser to a pre-filled **Create
-   Project** page:
+3. **Pick a work item**
 
-   :::tip[Link GitHub if you can]
-   The project-creation page defaults to picking a repo from GitHub over
-   entering one manually — take it if the option's there. A linked repo keeps
-   ingesting new and updated issues as work items on an ongoing basis; a
-   manually-created project never syncs anything automatically. See
-   [Integrations](/boboddy/guides/integrations/) for what each path gets you
-   and how to link one later if you skip it now.
-   :::
+   <Transcript src={workItemTranscript} />
 
-   Finish creating the project in the browser, then switch back to your
-   terminal and press **Enter** to continue. `init` re-resolves the project it
-   just found and writes `.boboddy/boboddy.jsonc` with the `projectId`, so
-   later commands don't need it passed explicitly.
+   The designer builds every pipeline around one real
+   [work item](/boboddy/getting-started/concepts/#work-item) — its interview
+   asks how *this* item should be handled — so pick something typical. Not
+   listed? Search, paste a ticket link, or describe one in a sentence.
 
-   It also checks for a `.devcontainer/devcontainer.json` and tells you if
-   there isn't one — that's a notice, not a blocker; the design session in the
-   next step writes one for you if it's missing. `init` never authors a
-   pipeline itself and never analyzes your repo — the design agent does both,
-   and it's what runs next.
+4. <strong id="connect-your-ai-tool">Connect your AI tool</strong>
 
-3. **Design your first pipeline**
+   The designer runs on a Boboddy-managed OpenCode runtime that needs its own
+   connection to a model. The first time, it names the AI tools it finds and
+   hands you OpenCode's provider menu.
 
-   `init` launches straight into an interactive session with a
-   `pipeline-designer` agent, seeded with a work item you pick — one of the
-   project's recently-ingested items (searchable, not just the most recent
-   few), or paste a ticket URL or describe one in a sentence and it creates
-   the item for you. **Every session designs around a real work item**, so
-   pick something typical rather than your weirdest edge case.
+   <Transcript src={providerTranscript} />
 
-   Moments after the session opens, it kicks off a quick health check of the
-   container and OpenCode runtime in the background — purely advisory, so it
-   doesn't hold up the conversation while it runs.
+   Connect the tool you already have:
 
-   The agent reads your repository first — including any `.opencode/opencode.json`
-   or `.opencode/tools/` you already have, since every MCP server or tool
-   declared there already loads for every step, so it won't ask whether those
-   exist. It won't ask about your stack either. It opens on the goal — *what
-   should come out the other end when a ticket like this one arrives?* — and
-   everything after that is asked through the item you picked, one question at
-   a time:
+   | You have       | In the menu, pick                                                                                                                 |
+   | -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+   | Claude Code    | **Anthropic**, then paste an API key from console.anthropic.com — a Claude Pro/Max subscription can't be reused here             |
+   | GitHub Copilot | **GitHub Copilot**, then **GitHub.com (Public)** (or **GitHub Enterprise**), and enter the device code at github.com/login/device |
+   | Codex          | **OpenAI**, then **ChatGPT Pro/Plus (browser)** to use your ChatGPT subscription (or **Manually enter API Key**)                   |
+   | None of these  | Any provider (Anthropic is recommended), then follow the prompts — see OpenCode's [Connecting providers](https://opencode.ai/docs/providers/) |
 
-   - **The deliverable.** If that ticket landed overnight and an agent picked it up,
-     what would you want waiting for you in the morning, and what would you have to
-     see to trust it?
-   - **What the execution environment can reach.** Walk it through your own
-     process for that ticket, step by step — what's the first thing you'd do,
-     and which tool would you use for it, then what's next? Each tool you name
-     either already loads (it's in your `.opencode/` config) or becomes a new
-     MCP server for the pipeline. "Nothing but the repository" is a completely
-     normal answer and still supports a good pipeline.
-   - **What must never be touched.** Working that ticket, what would you be angry to
-     find an agent had done? Production writes, customer data, anything that sends
-     email or charges money.
+   It's one-time: the same connection runs your steps later. Boboddy never
+   reads those tools' credentials. Already exported a key such as
+   `ANTHROPIC_API_KEY`? This step is skipped.
 
-   If one of those new tools needs a secret — an API key, a token, a connection
-   string — it never asks for the value. It asks for the variable name and
-   writes it to `.boboddy/.env.example`, then tells you at the end which
-   variables you need to fill in: copy that file to `.boboddy/.env` and put the
-   real values there yourself. `.boboddy/.env` is never something the agent
-   writes.
+5. **Talk to the designer**
 
-   It then proposes two or three ranked pipeline designs — filtered to what you
-   actually said is reachable — and builds the one you pick, plus a
-   `default-pipeline-assignment.ts` so incoming work items route to it.
-   Because the designer only proposes what your environment can actually
-   support, a repo with no dev container gets a pipeline built entirely from
-   **`Runtime.host()`** steps: the agent works on the host in a scratch
-   directory instead of cloning your repo, so nothing here needs Docker. If a
-   step does need your code, the agent writes a `.devcontainer/devcontainer.json`
-   for you first — see [Setting up a Dev Container](/boboddy/guides/devcontainer/)
-   if you'd rather write one by hand, or [Runtime](/boboddy/guides/steps/#runtime)
-   for the devcontainer/host distinction.
+   <Transcript src={sessionTranscript} />
 
-   Finally, the agent typechecks the definitions and runs `boboddy pipelines push`.
+   Your terminal becomes the
+   [designer](/boboddy/getting-started/concepts/#the-designer), and your browser
+   opens the [studio](/boboddy/getting-started/concepts/#the-studio): a live
+   graph of the pipeline that redraws every time the designer saves a file.
 
-   :::note
-   Shell commands are gated by permission prompts. The prompt on
-   `boboddy pipelines push` is your confirmation — nothing reaches the server
-   until you approve it.
-   :::
+   ![The pipeline studio: the pipeline picker in the top bar, the graph of the pipeline's states in the centre, and the validation issues panel on the right.](../../../assets/quickstart/studio.png)
 
-   `design` needs a real terminal; it won't work through a pipe or in CI. It's also
-   **re-runnable**: run it again (`boboddy pipelines design`) with a different work
-   item and it reads your existing definitions and iterates on them rather than
-   starting over. In those sessions it tells you up front how big a change it
-   thinks you need — tweak an existing pipeline, route these items to one, or add a
-   new pipeline — and waits for you to agree before it edits anything. Same command
-   for day one and day fifty.
+   The designer reads your repository first, then interviews you about the
+   item you picked, one question at a time:
 
-   :::tip
-   Prefer to write the definitions yourself? `boboddy pipelines init` scaffolds a
-   commented `triage-and-plan.ts` starter pipeline plus
-   `default-pipeline-assignment.ts` for you to hand-edit — it's the manual path
-   and needs no AI provider:
+   - *What should come out the other end?* What you'd want waiting in the
+     morning, and what you'd need to see to trust it.
+   - *What can the environment reach?* The tools you'd use for this item, step
+     by step. "Nothing but the repository" is a fine answer.
+   - *What must never be touched?* Production writes, customer data, anything
+     that sends email or charges money.
 
-   ```bash
-   boboddy pipelines init
-   cd .boboddy/pipeline-builder && npm install   # or bun/pnpm/yarn install
-   npm run typecheck
-   cd ../.. && boboddy pipelines push
-   ```
+   It proposes two or three ranked designs and builds the one you pick, plus
+   the [default pipeline assignment](/boboddy/getting-started/concepts/#default-pipeline-assignment)
+   that routes new items to it. With no `.devcontainer/devcontainer.json`, it
+   writes one ([Runtime](/boboddy/getting-started/concepts/#runtime)). For a
+   secret it asks only the variable name; you put the value in `.boboddy/.env`
+   ([Secrets](/boboddy/guides/steps/#secrets)).
 
-   See [Defining Steps](/boboddy/guides/steps/) and
-   [Building Pipelines](/boboddy/guides/pipelines/).
-   :::
+   Finally it typechecks and runs `boboddy pipelines push`, which always asks
+   for permission. Say yes: that's the moment your pipeline reaches Boboddy.
+   Then quit the designer with `/exit`.
 
-4. **Verify and run**
+6. **Run it**
 
-   Once the definitions are pushed, `design` runs one more check before
-   offering to queue anything: a full dry-run — container, OpenCode, and
-   tool/MCP health — targeted at your new pipeline's first step. This one
-   *is* blocking: if it fails, nothing is queued, and re-running
-   `boboddy pipelines design` is what picks the problem back up next time.
+   As the designer closes, it checks that your pipeline's first step can
+   actually run, then asks whether to run it on your work item now:
 
-   If it passes, `design` asks whether to run your new pipeline against the
-   work item you designed around, right now. Say yes and it queues the run
-   and starts a worker in the same terminal:
+   <Transcript src={runOfferTranscript} />
 
-   ```bash
-   boboddy work
-   ```
+   Say yes. It queues the run and starts a
+   [worker](/boboddy/getting-started/concepts/#worker) in the same terminal:
 
-   The worker claims the pending step execution, runs the step's agent, and
-   reports its signals back. Watch the pipeline view in the dashboard: each
-   state's `next` (and, if declared, `blockWhen`) reads those signals and
-   decides whether the pipeline continues on to the next state or blocks for
-   a human. That advance-on-signal moment is the core of Boboddy.
+   <Transcript src={workerTranscript} />
 
-   Say no instead, and `design` prints the command to run it later — start a
-   run from the work item's executions drawer in the dashboard, or from a
-   fresh work item, whenever you're ready.
+   The worker polls until you press Ctrl+C. If the check or a step fails, run
+   `boboddy pipelines design` again and tell the designer what happened. Said
+   no? See [Run a pipeline on any work item](/boboddy/how-to/run-on-a-work-item/).
+
+7. **Watch it in the dashboard**
+
+   {/* Screenshot pending (docs onboarding plan, Phase 2d): the apps/next run page on the demo project, graph with one succeeded and one running node. */}
+
+   Open your project in the
+   [dashboard](/boboddy/getting-started/concepts/#dashboard), go to the
+   *Executions* tab, and select the run. The run page shows the pipeline
+   graph and each step's status. Select a step for its logs and output; its
+   *Evaluation facts* are the [signals](/boboddy/getting-started/concepts/#signal)
+   the step reported.
+
+   Signals drive [advancement](/boboddy/getting-started/concepts/#advancement):
+   the run moves on, or — when a `blockWhen` rule matches — stops as *Blocked*
+   until a human steps in. That moment is the core of Boboddy.
 
 </Steps>
 
-That's a full pipeline run, designed and executed from a single command.
-
----
-
-## Next steps
-
-- **Automate intake.** If you skipped linking GitHub (or want to add Jira),
-  connect one from your project's settings — see
-  [Integrations](/boboddy/guides/integrations/) for what syncs, how often, and
-  the field mapping into work items.
-- **Change how work items route.** The `default-pipeline-assignment.ts` the
-  agent wired up decides which pipeline starts for each incoming item — see
-  [Default Pipeline Assignment](/boboddy/guides/pipeline-assignment/) for the
-  full rule API.
-- **Scale up workers.** See [Running Workers](/boboddy/guides/workers/) for
-  concurrency, polling, and branch options.
-
----
-
-## Project structure
-
-After completing setup, your repo will have:
+## What you have now
 
 <FileTree>
 
 - my-repo/
   - .boboddy/
-    - boboddy.jsonc project config (projectId, optional branchPrefix)
-    - .env.example variable names for secrets a step's tools need, no values
-    - .env your real secret values — you create this yourself, never committed
-    - pipeline-builder/ steps and pipeline definitions
-      - package.json SDK + zod deps, `typecheck` script
-      - tsconfig.json
-      - .gitignore
-      - `<your-pipeline>.ts` one file per pipeline
+    - boboddy.jsonc the project id
+    - .env.example secret variable names, only if a step needs any
+    - pipeline-builder/
+      - `<your-pipeline>.ts` the pipeline and its steps
       - default-pipeline-assignment.ts
-      - node_modules/ ignored
-      - push.ts ignored; regenerated by every push
+      - package.json
+      - …
   - .devcontainer/
-    - devcontainer.json execution environment (workspace-mode steps)
+    - devcontainer.json written by the designer if you had none
 
 </FileTree>
 
-**Everything in `.boboddy/pipeline-builder/` is committed except
-`node_modules/`, lockfiles, and `push.ts`.** Your pipeline and step definitions
-are source code — review them in pull requests like any other file.
+Commit `.boboddy/` and `.devcontainer/`; the builder's `.gitignore` already
+skips `node_modules/`, `push.ts`, and
+[lockfiles](/boboddy/how-to/commit-your-pipeline/). Never commit
+`.boboddy/.env`.
 
-`.boboddy/.env.example` only exists if a pipeline needs a secret — the design
-session writes it with variable names, never values, and tells you which ones
-to fill in. Commit it so teammates know what to set. **Never commit
-`.boboddy/.env`** — add it to your repo's `.gitignore` if it isn't covered
-already; it holds the real values and the design session never writes it for
-you.
+## Next
 
-Lockfiles are the surprising exclusion. `boboddy pipelines push` picks its
-runtime from whichever lockfile it finds in that directory, so committing one
-would force every teammate onto the same package manager. Each developer installs
-with the tool they already have.
+- [Change this pipeline](/boboddy/how-to/change-a-pipeline/) — run
+  `boboddy pipelines design` again with another work item; it edits what's
+  there instead of starting over.
+- [Let a step read your repo](/boboddy/how-to/let-a-step-read-your-repo/) —
+  when a step needs your code, it runs in your devcontainer.
+- [Automate intake](/boboddy/how-to/integrations/) — connect GitHub or Jira, and
+  route new items with
+  [Default Pipeline Assignment](/boboddy/guides/pipeline-assignment/).
+- [Scale workers](/boboddy/guides/workers/) — concurrency, polling, and work
+  branches.
 
-Run `npm run typecheck` (or the bun/pnpm/yarn equivalent) inside
-`.boboddy/pipeline-builder/` to validate your definitions before pushing.
-
-## Where to go next
-
-- [Defining Steps](/boboddy/guides/steps/) — inputs, results, signals, and
-  the step environment (runtime and variables).
-- [Building Pipelines](/boboddy/guides/pipelines/) — `definePipeline()`, state
-  kinds, and input bindings.
-- [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) — advancement
-  policies and computed signals.
+Rather write pipelines by hand? Start from
+[`boboddy pipelines init`](/boboddy/reference/cli/#boboddy-pipelines-init).

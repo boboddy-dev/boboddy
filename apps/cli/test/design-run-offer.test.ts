@@ -41,8 +41,9 @@ const PIPELINE_ID = "019ed1c9-2222-7170-a08a-1ff912085f7b";
 const RUN_COMMAND = formatRunCommand(TARGET);
 
 type Calls = {
-  hasDevcontainer: number;
   resolveAssignedPipeline: number;
+  pipelineNeedsProjectDevcontainer: number;
+  hasDevcontainer: number;
   runFirstStepDryRun: number;
   confirmRun: number;
   queueRun: number;
@@ -59,8 +60,9 @@ function createPorts(overrides: Partial<DesignRunOfferPorts> = {}): {
   order: string[];
 } {
   const calls: Calls = {
-    hasDevcontainer: 0,
     resolveAssignedPipeline: 0,
+    pipelineNeedsProjectDevcontainer: 0,
+    hasDevcontainer: 0,
     runFirstStepDryRun: 0,
     confirmRun: 0,
     queueRun: 0,
@@ -69,13 +71,17 @@ function createPorts(overrides: Partial<DesignRunOfferPorts> = {}): {
   const order: string[] = [];
 
   const base: DesignRunOfferPorts = {
-    hasDevcontainer: () => {
-      calls.hasDevcontainer += 1;
-      return Promise.resolve(true);
-    },
     resolveAssignedPipeline: () => {
       calls.resolveAssignedPipeline += 1;
       return Promise.resolve(PIPELINE_ID);
+    },
+    pipelineNeedsProjectDevcontainer: () => {
+      calls.pipelineNeedsProjectDevcontainer += 1;
+      return Promise.resolve(true);
+    },
+    hasDevcontainer: () => {
+      calls.hasDevcontainer += 1;
+      return Promise.resolve(true);
     },
     runFirstStepDryRun: () => {
       calls.runFirstStepDryRun += 1;
@@ -252,9 +258,14 @@ describe("runDesignRunOffer", () => {
     expect(messages(reported)).toContain(NOTHING_QUEUED_MESSAGE);
   });
 
-  test("skips the offer and explains itself when there is no devcontainer", async () => {
+  test("skips the offer and explains itself when the pipeline needs a missing devcontainer", async () => {
     const { reporter, calls: reported } = createRecorder();
+    let askedAbout: string | undefined;
     const { ports, calls } = createPorts({
+      pipelineNeedsProjectDevcontainer: (pipelineDefinitionId) => {
+        askedAbout = pipelineDefinitionId;
+        return Promise.resolve(true);
+      },
       hasDevcontainer: () => Promise.resolve(false),
     });
 
@@ -266,15 +277,51 @@ describe("runDesignRunOffer", () => {
     });
 
     expect(result.ran).toBe(false);
+    expect(askedAbout).toBe(PIPELINE_ID);
     expect(calls.confirmRun).toBe(0);
     expect(calls.queueRun).toBe(0);
     expect(calls.runWorker).toBe(0);
-    // Cheap local check first: no reason to ask the server which pipeline is
-    // assigned when the run cannot happen either way.
-    expect(calls.resolveAssignedPipeline).toBe(0);
     expect(calls.runFirstStepDryRun).toBe(0);
     expect(messages(reported)).toContain(DEVCONTAINER_MISSING_MESSAGE);
     expect(messages(reported)).toContain(`${RUN_LATER_PREFIX} ${RUN_COMMAND}`);
+  });
+
+  test("runs a host-only or managed-runtime pipeline without a devcontainer", async () => {
+    const { reporter, calls: reported } = createRecorder();
+    const { ports, calls } = createPorts({
+      pipelineNeedsProjectDevcontainer: () => Promise.resolve(false),
+      hasDevcontainer: () => {
+        throw new Error("the devcontainer gate should not be consulted");
+      },
+    });
+
+    const result = await runDesignRunOffer({
+      tuiExitedCleanly: true,
+      target: TARGET,
+      reporter,
+      ports,
+    });
+
+    expect(result.ran).toBe(true);
+    expect(calls.queueRun).toBe(1);
+    expect(messages(reported)).not.toContain(DEVCONTAINER_MISSING_MESSAGE);
+  });
+
+  test("does not ask about the devcontainer before a pipeline is known", async () => {
+    const { reporter } = createRecorder();
+    const { ports, calls } = createPorts({
+      resolveAssignedPipeline: () => Promise.resolve(undefined),
+    });
+
+    await runDesignRunOffer({
+      tuiExitedCleanly: true,
+      target: TARGET,
+      reporter,
+      ports,
+    });
+
+    expect(calls.pipelineNeedsProjectDevcontainer).toBe(0);
+    expect(calls.hasDevcontainer).toBe(0);
   });
 
   test("does not offer a run when no pipeline is assigned to run", async () => {
@@ -375,7 +422,7 @@ describe("runDesignRunOffer", () => {
     // A crashed or killed session has no result to offer, and the command's
     // exit-code passthrough already speaks for it.
     expect(reported).toEqual([]);
-    expect(calls.hasDevcontainer).toBe(0);
+    expect(calls.resolveAssignedPipeline).toBe(0);
     expect(calls.confirmRun).toBe(0);
   });
 

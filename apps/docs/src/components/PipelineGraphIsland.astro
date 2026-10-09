@@ -1,0 +1,20 @@
+---
+/*
+  A `client:visible` PipelineGraphView island for catalog entries.
+
+  The island is skipped when this page is rendered for `llms-full.txt`:
+  starlight-llms-txt renders each page through an Astro container with no
+  React renderer, so the island would fail the build, and an interactive
+  canvas has no text to give an LLM anyway. MDX renders JSX children
+  eagerly, so the guard has to live here rather than in CatalogExample.
+*/
+import type { ComponentProps } from "react";
+import { PipelineGraphView } from "@boboddy/pipeline-studio-ui/view";
+
+type Props = Pick<ComponentProps<typeof PipelineGraphView>, "nodes" | "edges">;
+
+const { nodes, edges } = Astro.props;
+const isLlmsTxt = Astro.url.pathname.endsWith(".txt");
+---
+
+{!isLlmsTxt && <PipelineGraphView client:visible nodes={nodes} edges={edges} />}

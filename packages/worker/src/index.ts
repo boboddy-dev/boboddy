@@ -7,6 +7,7 @@ export {
   InvariantViolationError,
   PersistenceError,
   ConfigurationError,
+  SetupErrorCodes,
 } from "./lib/errors";
 export {
   parseJsonc,
@@ -85,7 +86,10 @@ export {
 export { localConfigSetup } from "./project/project-setup/application/local-config-setup";
 export type { LocalConfigSetupResult } from "./project/project-setup/application/local-config-setup";
 export { findMatchingProject } from "./project/project-setup/application/find-matching-project";
-export type { MatchedProject } from "./project/project-setup/application/find-matching-project";
+export type {
+  MatchedProject,
+  ProjectMatch,
+} from "./project/project-setup/application/find-matching-project";
 export { completeProjectHandoff } from "./project/project-setup/application/complete-project-handoff";
 export {
   findGitRoot,
@@ -149,6 +153,11 @@ export type {
   CheckOpencodeProviderCredentialsInput,
   OpencodeProviderCredentialCheck,
 } from "./runtime/host-opencode-tui/application/check-opencode-provider-credentials";
+export { detectInstalledAiTools } from "./runtime/host-opencode-tui/application/detect-installed-ai-tools";
+export type {
+  DetectInstalledAiToolsInput,
+  InstalledAiTool,
+} from "./runtime/host-opencode-tui/application/detect-installed-ai-tools";
 export {
   PIPELINE_BUILDER_DIR,
   PIPELINE_BUILDER_TSCONFIG,

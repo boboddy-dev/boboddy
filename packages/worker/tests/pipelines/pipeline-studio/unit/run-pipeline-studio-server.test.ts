@@ -2,21 +2,37 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runPipelineStudioServer } from "../../../../src/pipelines/pipeline-studio/application/run-pipeline-studio-server";
+import {
+  MISSING_STUDIO_ASSETS_MESSAGE,
+  runPipelineStudioServer,
+} from "../../../../src/pipelines/pipeline-studio/application/run-pipeline-studio-server";
 import type { StudioSnapshot } from "@boboddy/pipeline-studio-ui";
 
 /**
  * A real `Bun.serve` + real `fs.watch` smoke test — deliberately NOT a fake,
  * unlike `apps/cli`'s command-wiring tests (see the phase report): this is
- * the one place that mechanism itself is exercised end to end. Static-asset
- * serving is intentionally left untested here — it depends on
- * `packages/pipeline-studio-ui`'s build output existing on disk, which this
- * test suite should not require as a precondition (see that package's own
- * `build.ts` for how those assets are produced).
+ * the one place that mechanism itself is exercised end to end. The server
+ * refuses to start without a built `index.html`, so each test points it at a
+ * temp static dir rather than requiring `packages/pipeline-studio-ui`'s build
+ * output on disk.
  */
 
 function makeTempDir(): string {
   return mkdtempSync(join(tmpdir(), "boboddy-studio-server-test-"));
+}
+
+function makeStaticDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), "boboddy-studio-static-test-"));
+  writeFileSync(join(dir, "index.html"), "<!doctype html>");
+  return dir;
+}
+
+async function findFreePort(): Promise<number> {
+  const probe = Bun.serve({ port: 0, fetch: () => new Response() });
+  const port = probe.port;
+  await probe.stop(true);
+  if (port === undefined) throw new Error("Expected the probe to bind a port");
+  return port;
 }
 
 const PIPELINE_V1 = `export default {
@@ -60,7 +76,11 @@ async function readOneSnapshot(
 describe("runPipelineStudioServer", () => {
   test("streams an initial snapshot, then a fresh one after a file change", async () => {
     const dir = makeTempDir();
-    const handle = await runPipelineStudioServer({ builderDir: dir });
+    const staticDir = makeStaticDir();
+    const handle = await runPipelineStudioServer({
+      builderDir: dir,
+      staticDir,
+    });
     try {
       writeFileSync(join(dir, "review-pr.ts"), PIPELINE_V1);
       // The handle's own preflight snapshot predates this write, so the
@@ -87,15 +107,21 @@ describe("runPipelineStudioServer", () => {
     } finally {
       await handle.close();
       rmSync(dir, { recursive: true, force: true });
+      rmSync(staticDir, { recursive: true, force: true });
     }
   }, 10_000);
 
   test("close() stops accepting new connections", async () => {
     const dir = makeTempDir();
-    const handle = await runPipelineStudioServer({ builderDir: dir });
+    const staticDir = makeStaticDir();
+    const handle = await runPipelineStudioServer({
+      builderDir: dir,
+      staticDir,
+    });
     const url = handle.url;
     await handle.close();
     rmSync(dir, { recursive: true, force: true });
+    rmSync(staticDir, { recursive: true, force: true });
 
     let failed = false;
     try {
@@ -104,5 +130,41 @@ describe("runPipelineStudioServer", () => {
       failed = true;
     }
     expect(failed).toBe(true);
+  });
+
+  test("refuses to start, without binding a port, when the built assets are missing", async () => {
+    const dir = makeTempDir();
+    const emptyStaticDir = makeTempDir();
+    const port = await findFreePort();
+    try {
+      let thrown: unknown;
+      try {
+        const handle = await runPipelineStudioServer({
+          builderDir: dir,
+          port,
+          staticDir: emptyStaticDir,
+        });
+        await handle.close();
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe(MISSING_STUDIO_ASSETS_MESSAGE);
+      expect(MISSING_STUDIO_ASSETS_MESSAGE).toContain(
+        "bun run --filter @boboddy/pipeline-studio-ui build",
+      );
+
+      let connectionRefused = false;
+      try {
+        await fetch(`http://localhost:${String(port)}/`);
+      } catch {
+        connectionRefused = true;
+      }
+      expect(connectionRefused).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      rmSync(emptyStaticDir, { recursive: true, force: true });
+    }
   });
 });

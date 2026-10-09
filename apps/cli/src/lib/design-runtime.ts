@@ -4,6 +4,7 @@ import {
   type OpencodePayloadProvisionProgress,
 } from "@boboddy/worker";
 import type { BaseReporter, WorkTask } from "./reporter-types";
+import { CliError } from "./cli-error";
 
 /**
  * Provisioning the host-native OpenCode runtime for `pipelines design`, with
@@ -134,6 +135,10 @@ export async function ensureDesignRuntime(
   } catch (error) {
     progress.fail();
     const cause = error instanceof Error ? error.message : String(error);
-    throw new Error(describeRuntimeProvisionFailure(cause));
+    throw new CliError(
+      "runtime_download_failed",
+      describeRuntimeProvisionFailure(cause),
+      { cause: error },
+    );
   }
 }

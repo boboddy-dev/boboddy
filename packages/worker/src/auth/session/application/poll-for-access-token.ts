@@ -1,5 +1,18 @@
 import { CLI_AUTH_CLIENT_ID } from "../infra/auth-config";
 import { createCliAuthClient } from "../infra/auth-client";
+import { CoreError, SetupErrorCodes } from "../../../lib/errors";
+
+type DeviceLoginErrorCode =
+  | typeof SetupErrorCodes.DeviceLoginExpired
+  | typeof SetupErrorCodes.DeviceLoginDenied
+  | typeof SetupErrorCodes.DeviceLoginFailed;
+
+/** Why the device-authorization flow ended without a token. */
+export class DeviceLoginError extends CoreError {
+  constructor(message: string, code: DeviceLoginErrorCode) {
+    super({ code, message, status: 401 });
+  }
+}
 
 const DEVICE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 
@@ -44,18 +57,26 @@ export async function pollForAccessToken({
         currentIntervalSeconds += 5;
         continue;
       case "expired_token":
-        throw new Error(
+        throw new DeviceLoginError(
           "The CLI sign-in request expired. Run `boboddy auth login` again.",
+          SetupErrorCodes.DeviceLoginExpired,
         );
       case "access_denied":
-        throw new Error("CLI access was denied.");
+        throw new DeviceLoginError(
+          "CLI access was denied.",
+          SetupErrorCodes.DeviceLoginDenied,
+        );
       default:
-        throw new Error(
+        throw new DeviceLoginError(
           result.error?.error_description ??
             "CLI sign-in could not be completed.",
+          SetupErrorCodes.DeviceLoginFailed,
         );
     }
   }
 
-  throw new Error("Timed out waiting for CLI approval.");
+  throw new DeviceLoginError(
+    "Timed out waiting for CLI approval.",
+    SetupErrorCodes.DeviceLoginExpired,
+  );
 }

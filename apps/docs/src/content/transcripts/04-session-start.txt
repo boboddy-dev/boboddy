@@ -1,0 +1,7 @@
+# @boboddy/cli 0.0.0 — derived from reporter strings in apps/cli/src (lib/design-provider-connect.ts, lib/design-studio.ts, lib/design-session.ts), rendered through ClackReporter; not a live capture.
+# Trimmed by hand: clack's blank "│" spacer lines are dropped. The studio port is random per session.
+┌   Boboddy pipeline designer
+●  Logs → ~/.boboddy/logs/worker-2026-10-07T15-04-12-123Z.log
+◆  AI provider ready (anthropic)
+◇  Studio running at http://localhost:51234 [0s]
+└  Starting the designer… The graph is in your browser; the designer is in this terminal.

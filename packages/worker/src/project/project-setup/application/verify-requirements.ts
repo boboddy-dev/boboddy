@@ -1,6 +1,6 @@
 import { createBoboddyClient } from "@boboddy/sdk";
 import { loadAuthenticatedSession } from "../../../auth/session/application/load-authenticated-session";
-import { ConfigurationError } from "../../../lib/errors";
+import { ConfigurationError, SetupErrorCodes } from "../../../lib/errors";
 import {
   findGitRoot,
   NOT_IN_GIT_REPOSITORY_MESSAGE,
@@ -18,7 +18,9 @@ export async function verifyRequirements(input: { baseUrl: string }): Promise<{
   }
   if (!session) {
     throw new ConfigurationError(
-      `Not signed in to ${input.baseUrl}. Run 'boboddy auth login' first.`,
+      `Not signed in to ${input.baseUrl}. Run 'boboddy auth login' in an ` +
+        "interactive terminal, then re-run this command.",
+      SetupErrorCodes.NotSignedIn,
     );
   }
 
@@ -28,7 +30,10 @@ export async function verifyRequirements(input: { baseUrl: string }): Promise<{
   // second, cheap walk here; this check exists so `verifyRequirements` stays
   // safe to call on its own.
   if (!(await findGitRoot(process.cwd()))) {
-    throw new ConfigurationError(NOT_IN_GIT_REPOSITORY_MESSAGE);
+    throw new ConfigurationError(
+      NOT_IN_GIT_REPOSITORY_MESSAGE,
+      SetupErrorCodes.NotInGitRepository,
+    );
   }
 
   return {

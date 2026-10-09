@@ -21,6 +21,7 @@
     "./devcontainer-config-path": "./src/devcontainer-config-path.ts",
     "./managed-runtimes": "./src/managed-runtimes.ts",
     "./repo-config": "./src/repo-config.ts",
+    "./git-url": "./src/git-url/git-repo-identity.ts",
     "./jsonc": "./src/jsonc.ts",
     "./boboddy-config-parser": "./src/boboddy-config-parser.ts"
   },

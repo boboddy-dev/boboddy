@@ -2,11 +2,8 @@ import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { version as packageVersion } from "../package.json";
-import {
-  BAKED_POSTHOG_CLI_HOST_DEFINE,
-  BAKED_POSTHOG_CLI_KEY_DEFINE,
-} from "../src/lib/build-constants";
 import { CLI_BUILD_TARGETS, type CliBuildTarget } from "./targets";
+import { resolveTelemetryDefines } from "./telemetry-defines";
 
 const require = createRequire(import.meta.url);
 
@@ -71,46 +68,6 @@ async function buildTarget(
       throw new Error(`codesign failed for ${target.outputName}.`);
     }
   }
-}
-
-/**
- * Bakes the CLI's write-only PostHog token (and optional host) into every
- * binary, so the onboarding funnel reports from installed copies without
- * users setting env vars. Bun only honours the two-argument `--define K=V`
- * form; the `--define:K=V` form is silently ignored.
- *
- * Without `POSTHOG_CLI_KEY` the build still succeeds (local and PR-preview
- * builds), unless `BOBODDY_REQUIRE_TELEMETRY_KEY=1` — set that in release
- * pipelines so a missing secret fails loudly instead of shipping a binary
- * that silently drops every event.
- */
-function resolveTelemetryDefines(): string[] {
-  const key = process.env["POSTHOG_CLI_KEY"] ?? "";
-  const host = process.env["POSTHOG_CLI_HOST"] ?? "";
-
-  if (!key) {
-    if (process.env["BOBODDY_REQUIRE_TELEMETRY_KEY"] === "1") {
-      throw new Error(
-        "POSTHOG_CLI_KEY is not set but BOBODDY_REQUIRE_TELEMETRY_KEY=1. Refusing to build a release binary that cannot report telemetry.",
-      );
-    }
-    process.stdout.write(
-      "POSTHOG_CLI_KEY is not set; built binaries will not send CLI telemetry.\n",
-    );
-    return [];
-  }
-
-  const defines = [
-    "--define",
-    `${BAKED_POSTHOG_CLI_KEY_DEFINE}=${JSON.stringify(key)}`,
-  ];
-  if (host) {
-    defines.push(
-      "--define",
-      `${BAKED_POSTHOG_CLI_HOST_DEFINE}=${JSON.stringify(host)}`,
-    );
-  }
-  return defines;
 }
 
 async function main(): Promise<void> {
