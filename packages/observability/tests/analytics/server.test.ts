@@ -30,6 +30,8 @@ const identifyCalls: IdentifyArgs[] = [];
 const aliasCalls: AliasArgs[] = [];
 const captureExceptionCalls: CaptureExceptionArgs[] = [];
 let shutdownCount = 0;
+let shutdownArgs: (number | undefined)[] = [];
+let shutdownShouldReject = false;
 let flushCount = 0;
 let flushShouldReject = false;
 let constructedWith: ConstructedArgs[] = [];
@@ -66,9 +68,12 @@ void mock.module("posthog-node", () => ({
     ) {
       captureExceptionCalls.push({ error, distinctId, context });
     }
-    shutdown(): Promise<void> {
+    shutdown(timeoutMs?: number): Promise<void> {
       shutdownCount += 1;
-      return Promise.resolve();
+      shutdownArgs.push(timeoutMs);
+      return shutdownShouldReject
+        ? Promise.reject(new Error("Timeout while shutting down PostHog"))
+        : Promise.resolve();
     }
   },
 }));
@@ -82,6 +87,8 @@ describe("server analytics wrapper", () => {
     aliasCalls.length = 0;
     captureExceptionCalls.length = 0;
     shutdownCount = 0;
+    shutdownArgs = [];
+    shutdownShouldReject = false;
     flushCount = 0;
     flushShouldReject = false;
     constructedWith = [];
@@ -226,5 +233,27 @@ describe("server analytics wrapper", () => {
     expect(shutdownCount).toBe(1);
     server.init({ key: "phc_server", host: "https://t.boboddy.dev" });
     expect(constructedWith).toHaveLength(2);
+  });
+
+  test("shutdown forwards the timeout to the client", async () => {
+    server.init({ key: "phc_server", host: "https://t.boboddy.dev" });
+    await server.shutdown(1500);
+    expect(shutdownArgs).toEqual([1500]);
+  });
+
+  test("shutdown swallows a rejection", async () => {
+    server.init({ key: "phc_server", host: "https://t.boboddy.dev" });
+    shutdownShouldReject = true;
+    await server.shutdown(1500);
+    expect(shutdownCount).toBe(1);
+  });
+
+  test("shutdown clears the client even when it rejects", async () => {
+    server.init({ key: "phc_server", host: "https://t.boboddy.dev" });
+    shutdownShouldReject = true;
+    await server.shutdown(1500);
+    expect(server.isInitialized()).toBe(false);
+    server.capture("user-1", "after_shutdown");
+    expect(captureCalls).toEqual([]);
   });
 });

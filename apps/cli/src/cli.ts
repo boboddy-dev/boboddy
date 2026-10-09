@@ -19,7 +19,7 @@ import { workCommand } from "./commands/work";
 import { createCliLogger } from "./lib/logger";
 import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import { classifyCliError } from "./lib/cli-error";
-import { captureMilestone, flushTelemetry } from "./lib/telemetry";
+import { captureMilestone, shutdownTelemetry } from "./lib/telemetry";
 import { version as CLI_VERSION } from "../package.json";
 const logger = createCliLogger("cli");
 
@@ -103,6 +103,6 @@ export async function run(
   } finally {
     // Bounded: never lets telemetry delay process exit by more than its own
     // timeout, whether the command above succeeded or threw.
-    await flushTelemetry();
+    await shutdownTelemetry();
   }
 }

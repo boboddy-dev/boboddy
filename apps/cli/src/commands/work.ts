@@ -18,7 +18,7 @@ import { runWorkDryRunCommand } from "../lib/dry-run-command";
 import { readLocalEnvVars } from "../lib/local-env-vars";
 import {
   captureMilestone,
-  flushTelemetry,
+  shutdownTelemetry,
   syncIdentityFromDisk,
 } from "../lib/telemetry";
 
@@ -115,7 +115,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     logger.error(
       "No project ID provided. Pass one as an argument or run `boboddy init` first.",
     );
-    await flushTelemetry();
+    await shutdownTelemetry();
     process.exit(1);
   }
 
@@ -138,7 +138,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     reporter.error(message);
     logger.error({ err: error }, "Failed to resolve the source branch");
-    await flushTelemetry();
+    await shutdownTelemetry();
     process.exit(1);
   }
 

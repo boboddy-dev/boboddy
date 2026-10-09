@@ -109,9 +109,14 @@ export function captureException(
   client.captureException(error, distinctId, context);
 }
 
-// Drains the in-memory queue without tearing the client down, so the same
-// warm instance can keep capturing. Never rejects: analytics delivery must not
-// be able to fail a request that has already produced a response.
+/**
+ * Sends only what is already in the in-memory queue, without tearing the
+ * client down, so the same warm instance can keep capturing. `capture()`
+ * enqueues asynchronously, so an event captured just before this call may not
+ * be queued yet — a process about to exit must use `shutdown` instead. Never
+ * rejects: analytics delivery must not be able to fail a request that has
+ * already produced a response.
+ */
 export async function flush(): Promise<void> {
   if (!client) return;
   try {
@@ -121,8 +126,20 @@ export async function flush(): Promise<void> {
   }
 }
 
-export async function shutdown(): Promise<void> {
+/**
+ * Awaits pending captures, flushes them, and tears the client down. posthog-node
+ * rejects when `timeoutMs` elapses first; that rejection and any delivery error
+ * are swallowed so telemetry can never fail the caller. The client is always
+ * cleared, so a later `init` constructs a fresh one.
+ */
+export async function shutdown(timeoutMs?: number): Promise<void> {
   if (!client) return;
-  await client.shutdown();
-  client = null;
+  const current = client;
+  try {
+    await current.shutdown(timeoutMs);
+  } catch {
+    // Swallowed deliberately — see above.
+  } finally {
+    client = null;
+  }
 }

@@ -30,7 +30,7 @@ let captureCalls: CaptureArgs[] = [];
 let identifyCalls: IdentifyArgs[] = [];
 let aliasCalls: AliasArgs[] = [];
 let initCalls: InitArgs[] = [];
-let flushCount = 0;
+let shutdownCalls: (number | undefined)[] = [];
 let initialized = false;
 let captureShouldThrow = false;
 
@@ -55,8 +55,9 @@ void mock.module("@boboddy/observability/analytics/server", () => ({
   alias: (userId: string, previousId: string) => {
     aliasCalls.push({ userId, previousId });
   },
-  flush: () => {
-    flushCount += 1;
+  shutdown: (timeoutMs?: number) => {
+    shutdownCalls.push(timeoutMs);
+    initialized = false;
     return Promise.resolve();
   },
 }));
@@ -108,7 +109,7 @@ beforeEach(() => {
   identifyCalls = [];
   aliasCalls = [];
   initCalls = [];
-  flushCount = 0;
+  shutdownCalls = [];
   initialized = false;
   captureShouldThrow = false;
   getOrCreateAnonymousIdCalls = 0;
@@ -385,22 +386,22 @@ describe("debug mode", () => {
   });
 });
 
-describe("flushTelemetry", () => {
-  test("awaits the underlying flush when telemetry was initialized", async () => {
+describe("shutdownTelemetry", () => {
+  test("shuts the client down with the default timeout when telemetry was initialized", async () => {
     telemetry.captureMilestone("cli_init_started");
-    await telemetry.flushTelemetry();
-    expect(flushCount).toBe(1);
+    await telemetry.shutdownTelemetry();
+    expect(shutdownCalls).toEqual([1500]);
+  });
+
+  test("forwards a caller-supplied timeout", async () => {
+    telemetry.captureMilestone("cli_init_started");
+    await telemetry.shutdownTelemetry(5);
+    expect(shutdownCalls).toEqual([5]);
   });
 
   test("is a no-op when telemetry was never initialized", async () => {
-    await telemetry.flushTelemetry();
-    expect(flushCount).toBe(0);
-  });
-
-  test("resolves even if the underlying flush hangs, once the timeout elapses", async () => {
-    telemetry.captureMilestone("cli_init_started");
-    await telemetry.flushTelemetry(5);
-    expect(flushCount).toBe(1);
+    await telemetry.shutdownTelemetry();
+    expect(shutdownCalls).toEqual([]);
   });
 });
 
@@ -432,6 +433,6 @@ describe("run() failure reporting", () => {
         },
       },
     ]);
-    expect(flushCount).toBe(1);
+    expect(shutdownCalls).toEqual([1500]);
   });
 });

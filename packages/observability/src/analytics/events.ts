@@ -18,6 +18,9 @@ export const AnalyticsEvents = {
   PipelineRunCompleted: "pipeline_run_completed",
   InviteAccepted: "invite_accepted",
   GithubAppInstalled: "github_app_installed",
+  // Captured by `@boboddy/growth` when a visitor opens a `/s/<code>` share
+  // link, under the visitor's browser distinct id.
+  ShareLinkClicked: "share_link_clicked",
   // CLI onboarding funnel (see apps/cli/src/lib/telemetry.ts) — one event per
   // milestone, keyed by distinct-id/session rather than by command, so the
   // funnel reads the same across `boboddy init`'s guided path and every
@@ -93,6 +96,31 @@ export type InviteAcceptedProperties = {
 export type GithubAppInstalledProperties = {
   intent: "create" | "link";
   new_installation: boolean;
+};
+
+/**
+ * `link_name`, `source` and `campaign` are the share link's human-readable
+ * labels, never the opaque code. `$set_once` pins the visitor's first share
+ * link on their person; `$set` tracks the latest. Unset `source`/`campaign`
+ * are sent as `null` so `initial_*` always describes the first link.
+ */
+export type ShareLinkClickedProperties = {
+  link_name: string;
+  source: string | null;
+  campaign: string | null;
+  code: string;
+  destination: string;
+  referrer: string | null;
+  $set: {
+    last_share_link: string;
+    last_share_source: string | null;
+    last_share_campaign: string | null;
+  };
+  $set_once: {
+    initial_share_link: string;
+    initial_share_source: string | null;
+    initial_share_campaign: string | null;
+  };
 };
 
 /**
@@ -200,6 +228,7 @@ export type AnalyticsEventProperties = {
   pipeline_run_completed: PipelineRunCompletedProperties;
   invite_accepted: InviteAcceptedProperties;
   github_app_installed: GithubAppInstalledProperties;
+  share_link_clicked: ShareLinkClickedProperties;
   cli_init_started: UntypedEventProperties;
   cli_requirements_verified: UntypedEventProperties;
   cli_auth_completed: UntypedEventProperties;

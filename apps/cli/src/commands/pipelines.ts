@@ -21,7 +21,7 @@ import { studioCommand } from "./pipelines-studio";
 import { withReporter } from "../lib/command-output";
 import {
   captureMilestone,
-  flushTelemetry,
+  shutdownTelemetry,
   syncIdentityFromDisk,
 } from "../lib/telemetry";
 import {
@@ -167,14 +167,14 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
     if (exitCode !== 0) {
       task.fail(`Push failed (exit ${String(exitCode)})`);
       // Passthrough the child's exact exit code (deliberate exit-code
-      // passthrough; not forced to 1). Captured and flushed explicitly
+      // passthrough; not forced to 1). Captured and delivered explicitly
       // first: `process.exit` bypasses `run()` in `cli.ts`, which normally
       // does both.
       captureMilestone(AnalyticsEvents.CliCommandFailed, {
         command: "pipelines push",
         code: "push_failed",
       });
-      await flushTelemetry();
+      await shutdownTelemetry();
       process.exit(exitCode);
     }
 

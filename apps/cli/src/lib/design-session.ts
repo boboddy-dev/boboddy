@@ -31,7 +31,7 @@ import {
 import { resolveCurrentBoboddyCliPath } from "./resolve-cli-path";
 import {
   captureMilestone,
-  flushTelemetry,
+  shutdownTelemetry,
   syncIdentityFromDisk,
 } from "./telemetry";
 
@@ -250,13 +250,13 @@ export async function runDesignSession(input: {
 
   if (hasFailedExitCode(result)) {
     // Deliberate exit-code passthrough, matching `pipelines push`. Captured
-    // and flushed explicitly first: `process.exit` bypasses `run()` in
+    // and delivered explicitly first: `process.exit` bypasses `run()` in
     // `cli.ts`, which normally does both.
     captureMilestone(AnalyticsEvents.CliCommandFailed, {
       command: "pipelines design",
       code: "designer_exited_nonzero",
     });
-    await flushTelemetry();
+    await shutdownTelemetry();
     ports.exit(result.exitCode);
   }
 }

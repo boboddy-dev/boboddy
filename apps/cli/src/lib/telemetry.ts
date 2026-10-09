@@ -36,9 +36,10 @@ import { version as CLI_VERSION } from "../../package.json";
  *
  * Every entry point below is fire-and-forget and never throws: a telemetry
  * failure must not delay or break the command it's attached to. The one
- * bounded wait is {@link flushTelemetry}, called once near process exit —
- * see `run()` in `apps/cli/src/cli.ts` — so a short-lived CLI process doesn't exit
- * out from under posthog-node's in-flight delivery.
+ * bounded wait is {@link shutdownTelemetry}, called once immediately before
+ * the process exits — see `run()` in `apps/cli/src/cli.ts`. It awaits
+ * posthog-node's pending captures (which enqueue asynchronously) and delivers
+ * them, so a short-lived CLI process doesn't exit before anything is sent.
  */
 
 /**
@@ -55,7 +56,7 @@ export const TELEMETRY_DISABLED_ENV_VAR = "BOBODDY_TELEMETRY_DISABLED";
 export const TELEMETRY_DEBUG_ENV_VAR = "BOBODDY_TELEMETRY_DEBUG";
 
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
-const DEFAULT_FLUSH_TIMEOUT_MS = 1500;
+const DEFAULT_SHUTDOWN_TIMEOUT_MS = 1500;
 
 const logger = createCliLogger("telemetry");
 
@@ -215,17 +216,14 @@ export function syncIdentityFromDisk(baseUrl: string): void {
 }
 
 /**
- * Drain the in-flight PostHog queue before the process exits, bounded by
- * `timeoutMs` so a slow/unreachable network never delays a command's exit
- * for more than that — called once, near the very end of `run()` in
- * `apps/cli/src/cli.ts`.
+ * Await pending captures and deliver them, then shut the PostHog client down,
+ * bounded by `timeoutMs` so a slow/unreachable network never delays a
+ * command's exit for more than that. Called once, immediately before the
+ * process exits; later captures in the same process re-initialize the client.
  */
-export async function flushTelemetry(
-  timeoutMs = DEFAULT_FLUSH_TIMEOUT_MS,
+export async function shutdownTelemetry(
+  timeoutMs = DEFAULT_SHUTDOWN_TIMEOUT_MS,
 ): Promise<void> {
   if (!analyticsServer.isInitialized()) return;
-  await Promise.race([
-    analyticsServer.flush(),
-    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
-  ]);
+  await analyticsServer.shutdown(timeoutMs);
 }

@@ -32,6 +32,10 @@ describe("AnalyticsEvents", () => {
     expect(AnalyticsEvents.GithubAppInstalled).toBe("github_app_installed");
   });
 
+  test("share link click event uses the snake_case wire name", () => {
+    expect(AnalyticsEvents.ShareLinkClicked).toBe("share_link_clicked");
+  });
+
   test("CLI failure events use the snake_case wire name", () => {
     expect(AnalyticsEvents.CliCommandFailed).toBe("cli_command_failed");
     expect(AnalyticsEvents.CliRunOfferSkipped).toBe("cli_run_offer_skipped");

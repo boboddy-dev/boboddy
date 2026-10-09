@@ -18,7 +18,7 @@ void mock.module("@boboddy/observability/analytics/server", () => ({
   capture: () => undefined,
   identify: () => undefined,
   alias: () => undefined,
-  flush: () => Promise.resolve(),
+  shutdown: () => Promise.resolve(),
 }));
 
 let fakeTelemetryDisabled = false;
