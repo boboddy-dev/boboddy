@@ -1,0 +1,12 @@
+{
+  // v2 OpenCode config
+  "mcp": {
+    "servers": {
+      "postgres": {
+        "type": "local",
+        "command": ["uvx", "postgres-mcp", "--access-mode=restricted"],
+        "environment": { "DATABASE_URI": "{env:DATABASE_URI}" },
+      },
+    },
+  },
+}

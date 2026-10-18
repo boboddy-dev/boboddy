@@ -2,54 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { defineStep } from "../src/definitions/steps/define-step";
 
-describe("defineStep — plugins", () => {
-  test("opencodePluginJson defaults to null when not provided", () => {
-    const spec = defineStep({
-      key: "my-step",
-      name: "My Step",
-      agentPrompt: "Do the work.",
-    });
-    expect(spec.opencodePluginJson).toBeNull();
-  });
-
-  test("maps plugins array to opencodePluginJson", () => {
-    const spec = defineStep({
-      key: "my-step",
-      name: "My Step",
-      agentPrompt: "Do the work.",
-      plugins: ["opencode-wakatime", ["@my-org/plugin", { key: "val" }]],
-    });
-    expect(spec.opencodePluginJson).toEqual([
-      "opencode-wakatime",
-      ["@my-org/plugin", { key: "val" }],
-    ]);
-  });
-
-  test("maps multiple string plugins to opencodePluginJson", () => {
-    const spec = defineStep({
-      key: "my-step",
-      name: "My Step",
-      agentPrompt: "Do the work.",
-      plugins: ["opencode-wakatime", "opencode-helicone-session"],
-    });
-
-    expect(spec.opencodePluginJson).toEqual([
-      "opencode-wakatime",
-      "opencode-helicone-session",
-    ]);
-  });
-
-  test("explicit null plugins stores null", () => {
-    const spec = defineStep({
-      key: "my-step",
-      name: "My Step",
-      agentPrompt: "Do the work.",
-      plugins: null,
-    });
-    expect(spec.opencodePluginJson).toBeNull();
-  });
-});
-
 describe("defineStep — healthChecks", () => {
   test("healthChecksJson defaults to null when not provided", () => {
     const spec = defineStep({
@@ -65,30 +17,40 @@ describe("defineStep — healthChecks", () => {
       key: "my-step",
       name: "My Step",
       agentPrompt: "Do the work.",
-      mcpServers: {
-        playwright: {
-          type: "local",
-          command: ["npx", "-y", "@playwright/mcp"],
-        },
-      },
       healthChecks: [
-        {
-          mcp: "playwright",
-          tool: "browser_navigate",
-          args: { url: "about:blank" },
-        },
-        { tool: "my_plugin_tool", severity: "warn", timeoutMs: 5000 },
+        { tool: "my_plugin_tool", severity: "warn", timeoutSeconds: 5 },
       ],
     });
 
     expect(spec.healthChecksJson).toEqual([
-      {
-        mcp: "playwright",
-        tool: "browser_navigate",
-        args: { url: "about:blank" },
-      },
-      { tool: "my_plugin_tool", severity: "warn", timeoutMs: 5000 },
+      { tool: "my_plugin_tool", severity: "warn", timeoutSeconds: 5 },
     ]);
+  });
+
+  test("rejects a hand-written MCP check", () => {
+    expect(() =>
+      defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        // @ts-expect-error MCP checks are declared with defineMcp
+        healthChecks: [{ mcp: "x", tool: "y" }],
+      }),
+    ).toThrow(
+      /Step "my-step" healthChecks: .*mcp.*declared on the server with defineMcp/,
+    );
+  });
+
+  test("rejects mcpServers", () => {
+    expect(() =>
+      defineStep({
+        key: "my-step",
+        name: "My Step",
+        agentPrompt: "Do the work.",
+        // @ts-expect-error mcpServers was replaced by defineMcp + mcps
+        mcpServers: { x: { type: "local", command: ["x"] } },
+      }),
+    ).toThrow(/Step "my-step": mcpServers is not supported\. .*defineMcp/);
   });
 
   test("explicit null healthChecks stores null", () => {
@@ -101,7 +63,7 @@ describe("defineStep — healthChecks", () => {
     expect(spec.healthChecksJson).toBeNull();
   });
 
-  test("accepts a kind: \"cli\" check and passes it through unchanged", () => {
+  test('accepts a kind: "cli" check and passes it through unchanged', () => {
     const spec = defineStep({
       key: "my-step",
       name: "My Step",

@@ -14,7 +14,7 @@ describe("buildDesignerHandoffPorts", () => {
   test("carries the work item id through to the designer launch", async () => {
     let seen:
       | {
-          projectId: string | undefined;
+          project: string | undefined;
           baseUrl: string | undefined;
           workItemId: string | undefined;
           studio: boolean;
@@ -36,7 +36,7 @@ describe("buildDesignerHandoffPorts", () => {
     await ports.launchDesign();
 
     expect(seen).toEqual({
-      projectId: undefined,
+      project: undefined,
       baseUrl: "https://app.example.com",
       workItemId: "0197f000-0000-7000-8000-000000000001",
       studio: true,

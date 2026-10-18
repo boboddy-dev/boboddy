@@ -17,12 +17,12 @@ function createSpyReporter(calls: string[]): CliReporter {
     warn: (m) => calls.push(`warn:${m}`),
     error: (m) => calls.push(`error:${m}`),
     event: (e) => calls.push(`event:${e.type}`),
-    startTask: (m) => {
-      calls.push(`startTask:${m}`);
+    startActivity: (m) => {
+      calls.push(`startActivity:${m}`);
       return {
-        update: (next) => calls.push(`task.update:${next}`),
-        succeed: (next) => calls.push(`task.succeed:${next ?? ""}`),
-        fail: (next) => calls.push(`task.fail:${next ?? ""}`),
+        update: (next) => calls.push(`activity.update:${next}`),
+        succeed: (next) => calls.push(`activity.succeed:${next ?? ""}`),
+        fail: (next) => calls.push(`activity.fail:${next ?? ""}`),
       };
     },
   };
@@ -80,27 +80,27 @@ describe("createRecordingReporter", () => {
     const forwarded: string[] = [];
     const reporter = createRecordingReporter(createSpyReporter(forwarded), filePath);
 
-    const taskA = reporter.startTask("first");
-    const taskB = reporter.startTask("second");
+    const taskA = reporter.startActivity("first");
+    const taskB = reporter.startActivity("second");
     taskB.update("second update");
     taskA.succeed("first done");
     taskB.fail();
 
     expect(forwarded).toEqual([
-      "startTask:first",
-      "startTask:second",
-      "task.update:second update",
-      "task.succeed:first done",
-      "task.fail:",
+      "startActivity:first",
+      "startActivity:second",
+      "activity.update:second update",
+      "activity.succeed:first done",
+      "activity.fail:",
     ]);
 
     const recorded = readRecorded(filePath);
     expect(recorded).toMatchObject([
-      { method: "startTask", args: ["first"], taskId: 0 },
-      { method: "startTask", args: ["second"], taskId: 1 },
-      { method: "task:update", args: ["second update"], taskId: 1 },
-      { method: "task:succeed", args: ["first done"], taskId: 0 },
-      { method: "task:fail", args: [], taskId: 1 },
+      { method: "startActivity", args: ["first"], activityId: 0 },
+      { method: "startActivity", args: ["second"], activityId: 1 },
+      { method: "activity:update", args: ["second update"], activityId: 1 },
+      { method: "activity:succeed", args: ["first done"], activityId: 0 },
+      { method: "activity:fail", args: [], activityId: 1 },
     ]);
   });
 });

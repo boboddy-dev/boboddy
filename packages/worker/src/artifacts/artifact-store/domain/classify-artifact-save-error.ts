@@ -12,13 +12,13 @@ export type ClassifiedArtifactSaveError = {
  *
  * The main case this exists for is `RemoteArtifactStore.saveArtifact`
  * (`../infra/remote-artifact-store.ts`), which delegates to
- * `createStepExecutionPlaneClient` (`@boboddy/sdk`'s
- * `step-execution-plane-client.ts`). That client's control-plane calls do
+ * `createTaskPlaneClient` (`@boboddy/sdk`'s
+ * `task-plane-client.ts`). That client's control-plane calls do
  * `if (result.error) throw new Error(JSON.stringify(result.error))` — so the
  * only signal available is a JSON string sitting in `Error#message`. The
  * generated `result.error` for these endpoints is an RFC 7807-flavored
  * problem-details object: `{ type, title, status, detail?, instance?, code?,
- * errors? }` (see `PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors`
+ * errors? }` (see `PostApiTasksByTaskIdArtifactUploadUrlErrors`
  * in `@boboddy/sdk`'s generated `types.gen.ts`) — there is no nested `error`
  * key.
  *

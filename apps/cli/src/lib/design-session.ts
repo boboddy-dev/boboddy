@@ -43,7 +43,8 @@ import {
  */
 
 export interface DesignArguments {
-  projectId: string | undefined;
+  /** The project as `owner/slug`; defaults to `"project"` in `.boboddy/boboddy.jsonc`. */
+  project: string | undefined;
   baseUrl: string | undefined;
   workItemId: string | undefined;
   /** Open the pipeline studio in the browser alongside the session. */
@@ -105,7 +106,7 @@ export interface DesignSessionPorts {
   preflight(input: {
     baseUrl: string;
     paths: DesignPaths;
-    projectIdArgument: string | undefined;
+    projectArgument: string | undefined;
     workItemIdArgument: string | undefined;
   }): Promise<DesignPreflightResult>;
   startStudio(input: {
@@ -146,7 +147,7 @@ export async function runDesignSession(input: {
   const preflight = await ports.preflight({
     baseUrl,
     paths,
-    projectIdArgument: args.projectId,
+    projectArgument: args.project,
     workItemIdArgument: args.workItemId,
   });
 
@@ -165,6 +166,10 @@ export async function runDesignSession(input: {
         agentName: PIPELINE_DESIGNER_AGENT_NAME,
         description: PIPELINE_DESIGNER_AGENT_DESCRIPTION,
         prompt: buildPipelineDesignerPrompt(),
+        readAllowPaths:
+          preflight.agentToolsManifestPath === null
+            ? []
+            : [preflight.agentToolsManifestPath],
       }),
     );
 
@@ -183,6 +188,7 @@ export async function runDesignSession(input: {
         listBuilderFiles(builderDir),
       ),
       priorRunOfferFailure,
+      agentToolsManifestPath: preflight.agentToolsManifestPath,
     });
 
     const cliPath = resolveCurrentBoboddyCliPath();
@@ -190,6 +196,7 @@ export async function runDesignSession(input: {
       {
         builderDir,
         cliPath,
+        project: preflight.project,
         projectId: preflight.projectId,
         workItemId: preflight.workItem.id,
         studioUrl: studio?.url ?? null,
@@ -217,7 +224,6 @@ export async function runDesignSession(input: {
     result = await ports.launchTui({
       launcherPath: preflight.launcherPath,
       cwd: builderDir,
-      agent: PIPELINE_DESIGNER_AGENT_NAME,
       configContent,
       seedPrompt,
       env: {
@@ -232,6 +238,7 @@ export async function runDesignSession(input: {
 
     const target: DesignRunTarget = {
       projectId: preflight.projectId,
+      project: preflight.project,
       workItemId: preflight.workItem.id,
       workItemTitle: preflight.workItem.title,
     };

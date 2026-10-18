@@ -4,7 +4,7 @@ import { GitCliSourceBranchPort } from "../infra/git-cli-source-branch-port";
  * Resolve the branch `boboddy work` checks out for the FIRST step of a
  * pipeline attempt, immediately after the worker clones the repo — distinct
  * from `baseWorkBranch` (the predecessor step's work branch, handed down by
- * the server for later steps; see `process-claimed-step-execution-helpers`).
+ * the server for later steps; see `process-claimed-task-helpers`).
  *
  * Two sources, in precedence order:
  *   1. An explicit override (e.g. `--source-branch`) — the caller's intent is

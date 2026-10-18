@@ -10,7 +10,7 @@ import type {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * One `stepExecutionId` directory's worth of accounting used by
+ * One `taskId` directory's worth of accounting used by
  * {@link LocalArtifactStore.prune}: total on-disk size (summed recursively,
  * since a step's artifacts may nest a level or two) and the directory's own
  * (non-recursive) mtime, used as a last-activity proxy — every observed real
@@ -70,11 +70,7 @@ export class LocalArtifactStore implements ArtifactStore {
   }
 
   async saveArtifact(input: SaveArtifactInput): Promise<SaveArtifactResult> {
-    const dest = path.join(
-      this.baseDir,
-      input.stepExecutionId,
-      input.relativeStorePath,
-    );
+    const dest = path.join(this.baseDir, input.taskId, input.relativeStorePath);
     await mkdir(path.dirname(dest), { recursive: true });
     await copyFile(input.sourcePath, dest);
     const { size } = await stat(dest);
@@ -82,7 +78,7 @@ export class LocalArtifactStore implements ArtifactStore {
   }
 
   /**
-   * Keeps `baseDir` bounded by evicting whole `stepExecutionId` directories,
+   * Keeps `baseDir` bounded by evicting whole `taskId` directories,
    * oldest-mtime-first, until both retention bars are cleared (decision 11):
    * total remaining size under `localMaxBytes`, and no surviving directory
    * older than `localMaxAgeDays`. A directory past the age cap is evicted

@@ -1,0 +1,284 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`discoverRepoAgentTools on a repo using every format normalizes every server, applies precedence and reports what it skipped 1`] = `
+{
+  "searched": [
+    {
+      "file": ".opencode/opencode.json",
+      "present": false,
+    },
+    {
+      "file": ".opencode/opencode.jsonc",
+      "present": true,
+    },
+    {
+      "file": "opencode.json",
+      "present": true,
+    },
+    {
+      "file": "opencode.jsonc",
+      "present": false,
+    },
+    {
+      "file": ".mcp.json",
+      "present": true,
+    },
+    {
+      "file": ".cursor/mcp.json",
+      "present": true,
+    },
+    {
+      "file": ".vscode/mcp.json",
+      "present": true,
+    },
+    {
+      "file": ".codex/config.toml",
+      "present": true,
+    },
+  ],
+  "servers": [
+    {
+      "config": {
+        "command": [
+          "uvx",
+          "postgres-mcp",
+          "--access-mode=restricted",
+        ],
+        "environment": {
+          "DATABASE_URI": "{env:DATABASE_URI}",
+        },
+        "type": "local",
+      },
+      "inlineSecrets": [],
+      "name": "postgres",
+      "requiredEnv": [
+        "DATABASE_URI",
+      ],
+      "shadowed": [
+        {
+          "source": "opencode.json",
+        },
+      ],
+      "source": ".opencode/opencode.jsonc",
+      "transport": "local",
+    },
+    {
+      "config": {
+        "disabled": true,
+        "timeout": {
+          "startup": 15000,
+        },
+        "type": "remote",
+        "url": "https://mcp.sentry.dev/mcp",
+      },
+      "inlineSecrets": [],
+      "name": "sentry",
+      "requiredEnv": [],
+      "shadowed": [
+        {
+          "source": ".mcp.json",
+        },
+      ],
+      "source": "opencode.json",
+      "transport": "remote",
+    },
+    {
+      "config": {
+        "command": [
+          "npx",
+          "-y",
+          "@playwright/mcp@latest",
+        ],
+        "type": "local",
+      },
+      "inlineSecrets": [],
+      "name": "playwright",
+      "requiredEnv": [],
+      "shadowed": [],
+      "source": ".mcp.json",
+      "transport": "local",
+    },
+    {
+      "config": {
+        "headers": {
+          "Authorization": "Bearer {env:GITHUB_TOKEN}",
+        },
+        "type": "remote",
+        "url": "https://api.githubcopilot.com/mcp/",
+      },
+      "inlineSecrets": [],
+      "name": "github",
+      "requiredEnv": [
+        "GITHUB_TOKEN",
+      ],
+      "shadowed": [],
+      "source": ".mcp.json",
+      "transport": "remote",
+    },
+    {
+      "config": {
+        "type": "remote",
+        "url": "https://mcp.linear.app/sse",
+      },
+      "inlineSecrets": [],
+      "name": "linear",
+      "requiredEnv": [],
+      "shadowed": [],
+      "source": ".mcp.json",
+      "transport": "remote",
+    },
+    {
+      "config": {
+        "type": "remote",
+        "url": "http://127.0.0.1:3845/mcp",
+      },
+      "inlineSecrets": [],
+      "name": "figma",
+      "requiredEnv": [],
+      "shadowed": [],
+      "source": ".cursor/mcp.json",
+      "transport": "remote",
+    },
+    {
+      "config": {
+        "command": [
+          "npx",
+          "-y",
+          "@stripe/mcp",
+          "--tools=all",
+        ],
+        "environment": {
+          "STRIPE_SECRET_KEY": "{env:STRIPE_SECRET_KEY}",
+        },
+        "type": "local",
+      },
+      "inlineSecrets": [],
+      "name": "stripe",
+      "requiredEnv": [
+        "STRIPE_SECRET_KEY",
+      ],
+      "shadowed": [],
+      "source": ".cursor/mcp.json",
+      "transport": "local",
+    },
+    {
+      "config": {
+        "command": [
+          "uvx",
+          "mcp-server-fetch",
+        ],
+        "type": "local",
+      },
+      "inlineSecrets": [],
+      "name": "fetch",
+      "requiredEnv": [],
+      "shadowed": [],
+      "source": ".vscode/mcp.json",
+      "transport": "local",
+    },
+    {
+      "config": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+      },
+      "inlineSecrets": [],
+      "name": "context7",
+      "requiredEnv": [],
+      "shadowed": [],
+      "source": ".vscode/mcp.json",
+      "transport": "remote",
+    },
+    {
+      "config": {
+        "command": [
+          "npx",
+          "-y",
+          "@upstash/context7-mcp",
+        ],
+        "environment": {
+          "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}",
+          "LOG_LEVEL": "info",
+        },
+        "timeout": {
+          "execution": 45000,
+          "startup": 20000,
+        },
+        "type": "local",
+      },
+      "inlineSecrets": [],
+      "name": "docs",
+      "requiredEnv": [
+        "CONTEXT7_API_KEY",
+      ],
+      "shadowed": [],
+      "source": ".codex/config.toml",
+      "transport": "local",
+    },
+    {
+      "config": {
+        "disabled": true,
+        "headers": {
+          "Authorization": "Bearer {env:FIGMA_OAUTH_TOKEN}",
+          "X-Figma-Region": "us-east-1",
+          "X-Team": "{env:FIGMA_TEAM}",
+        },
+        "type": "remote",
+        "url": "https://mcp.figma.com/mcp",
+      },
+      "inlineSecrets": [],
+      "name": "figma_remote",
+      "requiredEnv": [
+        "FIGMA_OAUTH_TOKEN",
+        "FIGMA_TEAM",
+      ],
+      "shadowed": [],
+      "source": ".codex/config.toml",
+      "transport": "remote",
+    },
+  ],
+  "skills": [
+    {
+      "description": "A root-level skill file, named by its stem.",
+      "name": "commit",
+      "path": ".claude/skills/commit.md",
+      "shadowed": [],
+    },
+    {
+      "description": "Uses its directory name.",
+      "name": "no-name",
+      "path": ".agents/skills/no-name/SKILL.md",
+      "shadowed": [],
+    },
+    {
+      "description": "Triage an incoming bug report.",
+      "name": "triage",
+      "path": ".opencode/skill/triage/SKILL.md",
+      "shadowed": [
+        {
+          "path": ".claude/skills/triage/SKILL.md",
+        },
+      ],
+    },
+    {
+      "description": "Cut a release: tag, changelog, publish.",
+      "name": "release",
+      "path": ".opencode/skills/release/SKILL.md",
+      "shadowed": [],
+    },
+  ],
+  "skipped": [
+    {
+      "kind": "server",
+      "name": "perplexity",
+      "reason": "uses VS Code inputs prompts",
+      "source": ".vscode/mcp.json",
+    },
+    {
+      "kind": "skill",
+      "name": "broken",
+      "reason": "skill file has no frontmatter",
+      "source": ".agents/skills/broken/SKILL.md",
+    },
+  ],
+}
+`;

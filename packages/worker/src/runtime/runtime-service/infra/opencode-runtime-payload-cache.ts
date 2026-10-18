@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
-import { logWorkDebug } from "../../../work/step-execution/application/work-logger";
+import { logWorkDebug } from "../../../work/task/application/work-logger";
 import {
   PAYLOAD_BIN_SUBDIR,
   PAYLOAD_FORMAT_REVISION,

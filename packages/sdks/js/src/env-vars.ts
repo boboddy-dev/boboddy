@@ -8,10 +8,23 @@ import { z } from "zod";
  * - `value`: a literal or `{{input.…}}` template, stored in the definition
  *   and rendered per run. `secret` only controls log masking.
  * - `inherit`: read from the **worker** host at run time (`.boboddy/.env`,
- *   then `process.env`). Only the variable *name* is stored.
+ *   then `process.env`). Only the variable *name* is stored. `mcp`, when set,
+ *   is the step's `opencodeMcpJson` key of the ref'd MCP server the variable
+ *   belongs to; absent means a plain step variable.
  *
- * Values travel to the container as `docker exec -e` argv, hence the entry
- * count and value length caps.
+ * `applies` says which process a variable reaches (default `agent`):
+ *
+ * - `agent`: the agent (or code step) process, as `docker exec -e` argv on a
+ *   container run, hence the entry count and value length caps.
+ * - `setup`: only the `devcontainer up` process, so `initializeCommand` sees
+ *   it. It overrides the worker's own variable of the same name. Boboddy never
+ *   adds it to `containerEnv`; the repo forwards it with
+ *   `${localEnv:NAME:default}` if it wants it inside the container.
+ * - `both`: both of the above.
+ *
+ * `setup` and `both` need a container to set up, so they are rejected on a
+ * host (`no_workspace`) step, and on an MCP variable, since MCP servers run
+ * inside the agent.
  */
 
 export const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
@@ -55,6 +68,21 @@ const envVarNameSchema = z
 
 const envVarValueSchema = z.string().max(MAX_ENV_VAR_VALUE_LENGTH);
 
+export const envVarAppliesValues = ["agent", "setup", "both"] as const;
+export type EnvVarApplies = (typeof envVarAppliesValues)[number];
+
+const envVarAppliesSchema = z.enum(envVarAppliesValues).default("agent");
+
+/** True when the variable reaches the agent (or code step) process. */
+export function appliesToAgent(applies: EnvVarApplies): boolean {
+  return applies !== "setup";
+}
+
+/** True when the variable reaches the `devcontainer up` process. */
+export function appliesToSetup(applies: EnvVarApplies): boolean {
+  return applies === "setup" || applies === "both";
+}
+
 /**
  * True when `name` is a worker-side variable an `inherit` entry may not read:
  * `BOBODDY_*` carries the worker's own credentials and configuration, which
@@ -70,6 +98,7 @@ const valueEnvVarSchema = z
     source: z.literal("value"),
     value: envVarValueSchema,
     secret: z.boolean(),
+    applies: envVarAppliesSchema,
   })
   .strict()
   .refine((entry) => !entry.secret || containsInputToken(entry.value), {
@@ -95,6 +124,8 @@ const inheritEnvVarSchema = z
     secret: z.boolean(),
     optional: z.boolean(),
     default: envVarValueSchema.optional(),
+    mcp: z.string().min(1).optional(),
+    applies: envVarAppliesSchema,
   })
   .strict()
   .refine((entry) => !(entry.secret && entry.default !== undefined), {
@@ -126,6 +157,7 @@ export const envVarsSchema = z
  * caps, secret rules) are not re-applied, so tightening those rules can never
  * make an already-stored row unreadable. Only a change to the stored shape
  * itself can break it, and `test/env-vars-stored-compat.test.ts` pins that.
+ * `applies` reads as `agent` when absent, the behavior before it existed.
  */
 export const storedEnvVarsSchema = z.array(
   z.discriminatedUnion("source", [
@@ -134,6 +166,7 @@ export const storedEnvVarsSchema = z.array(
       source: z.literal("value"),
       value: z.string(),
       secret: z.boolean(),
+      applies: z.enum(envVarAppliesValues).default("agent"),
     }),
     z.object({
       name: z.string(),
@@ -142,9 +175,12 @@ export const storedEnvVarsSchema = z.array(
       secret: z.boolean(),
       optional: z.boolean(),
       default: z.string().optional(),
+      mcp: z.string().optional(),
+      applies: z.enum(envVarAppliesValues).default("agent"),
     }),
   ]),
 );
 
-export type EnvVarSpec = z.infer<typeof envVarSpecSchema>;
+export type EnvVarSpec = z.output<typeof envVarSpecSchema>;
+export type EnvVarSpecInput = z.input<typeof envVarSpecSchema>;
 export type EnvVarsInput = z.input<typeof envVarsSchema>;

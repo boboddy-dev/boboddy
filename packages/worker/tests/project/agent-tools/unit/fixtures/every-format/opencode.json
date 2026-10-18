@@ -1,0 +1,12 @@
+{
+  "mcp": {
+    "sentry": {
+      "type": "remote",
+      "url": "https://mcp.sentry.dev/mcp",
+      "enabled": false,
+      "timeout": 15000
+    },
+    "postgres": { "type": "local", "command": ["shadowed-postgres"] },
+    "toggled": { "enabled": true }
+  }
+}

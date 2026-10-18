@@ -9,7 +9,7 @@
  * Sets:
  *   - packages/sdks/js          → version
  *   - packages/opencode-plugin  → version, dependencies.@boboddy/sdk
- *                                 removes dependencies.@opencode-ai/sdk and dependencies.ajv
+ *                                 removes dependencies.ajv
  *   - apps/cli                  → version
  */
 
@@ -56,7 +56,6 @@ await stampPackage("packages/opencode-plugin", (pkg) => {
   pkg.version = version;
   pkg.dependencies ??= {};
   pkg.dependencies["@boboddy/sdk"] = `^${version}`;
-  delete pkg.dependencies["@opencode-ai/sdk"];
   delete pkg.dependencies["ajv"];
 });
 

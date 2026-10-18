@@ -3,7 +3,7 @@ import {
   resolveHostOpencodeBinary,
   type OpencodePayloadProvisionProgress,
 } from "@boboddy/worker";
-import type { BaseReporter, WorkTask } from "./reporter-types";
+import type { BaseReporter, WorkActivity } from "./reporter-types";
 import { CliError } from "./cli-error";
 
 /**
@@ -37,12 +37,12 @@ export function createRuntimeProgressRenderer(reporter: BaseReporter): {
   succeed: () => void;
   fail: () => void;
 } {
-  let task: WorkTask | undefined;
+  let task: WorkActivity | undefined;
 
   const onProgress = (event: OpencodePayloadProvisionProgress): void => {
     switch (event.phase) {
       case "provision-start": {
-        task = reporter.startTask(
+        task = reporter.startActivity(
           "Fetching the AI runtime (one-time download, ~100 MB)…",
         );
         break;

@@ -8,7 +8,7 @@ import {
   logWork,
   logWorkDebug,
   logWorkError,
-} from "../../../work/step-execution/application/work-logger";
+} from "../../../work/task/application/work-logger";
 import type {
   DevcontainerLaunchProgress,
   DevcontainerLaunchProgressLevel,
@@ -40,6 +40,48 @@ function mapDevcontainerLevel(
     return "error";
   }
   if (level >= DEVCONTAINER_LOG_LEVEL_WARNING) {
+    return "warn";
+  }
+  return "info";
+}
+
+const LEVEL_RANK: Record<DevcontainerLaunchProgressLevel, number> = {
+  info: 0,
+  warn: 1,
+  error: 2,
+};
+
+function maxLevel(
+  a: DevcontainerLaunchProgressLevel,
+  b: DevcontainerLaunchProgressLevel,
+): DevcontainerLaunchProgressLevel {
+  return LEVEL_RANK[a] >= LEVEL_RANK[b] ? a : b;
+}
+
+/**
+ * SGR foreground colour codes the CLI's `toErrorText` (red, 31) and
+ * `toWarningText` (yellow, 33) wrap around a line — plus their bright variants
+ * (91/93), which tools inside lifecycle commands commonly use. Matches the code
+ * as any parameter of an SGR sequence, e.g. `\x1b[31m` or `\x1b[1;31m`.
+ */
+// eslint-disable-next-line no-control-regex
+const ANSI_RED = /\x1B\[(?:[0-9;]*;)?(?:31|91)(?:;[0-9;]*)?m/u;
+// eslint-disable-next-line no-control-regex
+const ANSI_YELLOW = /\x1B\[(?:[0-9;]*;)?(?:33|93)(?:;[0-9;]*)?m/u;
+
+/**
+ * Infer severity from ANSI colour in a raw payload. Lifecycle commands
+ * (`initializeCommand`, `postCreateCommand`, …) run under a PTY, so the CLI
+ * logs all of their output — and even its own "…failed with exit code N" line —
+ * at `LogLevel.Info`. The only severity signal that survives is the red/yellow
+ * colour the CLI (via `toErrorText`/`toWarningText`) or the tool itself applied.
+ * Must run before ANSI codes are stripped.
+ */
+function levelFromAnsiColor(value: string): DevcontainerLaunchProgressLevel {
+  if (ANSI_RED.test(value)) {
+    return "error";
+  }
+  if (ANSI_YELLOW.test(value)) {
     return "warn";
   }
   return "info";
@@ -139,10 +181,13 @@ const MEANINGFUL_START_MARKERS = [
  *   - `{ "type": "text" | "raw", "level", "text": "<subprocess output>" }` —
  *     captured stdout/stderr (npm/pip/bash `init.sh`). This is where real error
  *     detail lives, so we no longer drop it: each embedded line becomes its own
- *     `detail`, carrying the CLI's severity so errors ship even when info-level
- *     noise is filtered.
+ *     `detail`, carrying the CLI's severity — raised to `error`/`warn` when the
+ *     payload is coloured red/yellow, since lifecycle-command output is always
+ *     logged at Info — so errors ship even when info-level noise is filtered.
  *   - `{ "type": "progress", "name", "status": "running" }` — a named sub-task
  *     → `milestone`.
+ *   - `{ "type": "progress", "name", "status": "failed" }` — a lifecycle hook
+ *     failed → `error` milestone ("Running postCreateCommand failed").
  *
  * Returns an array because `text`/`raw` events can carry multiple newline-
  * delimited lines. Non-JSON, empty, or unrecognized lines yield `[]`.
@@ -201,18 +246,42 @@ export function parseDevcontainerProgress(
     return name.length > 0 ? [{ kind: "milestone", phase: name, level }] : [];
   }
 
+  // A lifecycle hook that failed (e.g. `{ name: "Running postCreateCommand...",
+  // status: "failed" }`). The CLI emits this at Info level, so force `error`
+  // to give the feed a clear failure marker for the phase.
+  if (
+    record["type"] === "progress" &&
+    record["status"] === "failed" &&
+    typeof record["name"] === "string"
+  ) {
+    const name = toSingleLine(record["name"]).replace(/\.{3}$/u, "");
+    return name.length > 0
+      ? [{ kind: "milestone", phase: `${name} failed`, level: "error" }]
+      : [];
+  }
+
   // `text` / `raw` are the raw subprocess byte streams (submodule clones,
   // npm/pip/bash output). One CLI event is one idea, so we ship the whole
   // payload as a single feed line (preserving its internal structure) rather
   // than exploding it into one line per embedded newline. The shipper strips
   // control chars and caps length, so an oversized payload is truncated rather
-  // than dropped.
+  // than dropped. Severity is the higher of the CLI's level and any red/yellow
+  // ANSI colour in the payload (see levelFromAnsiColor).
   if (
     (record["type"] === "text" || record["type"] === "raw") &&
     typeof record["text"] === "string"
   ) {
     const phase = cleanRawPayload(record["text"]);
-    return phase.length > 0 ? [{ kind: "detail" as const, phase, level }] : [];
+    if (phase.length === 0) {
+      return [];
+    }
+    return [
+      {
+        kind: "detail" as const,
+        phase,
+        level: maxLevel(level, levelFromAnsiColor(record["text"])),
+      },
+    ];
   }
 
   return [];
@@ -465,7 +534,9 @@ export class DevcontainerCliLauncher implements DevcontainerLauncher {
         devcontainerConfigPath: input.devcontainerConfigPath,
         error: message,
       });
-      throw new Error(`Failed to launch devcontainer: ${message}`, { cause: error });
+      throw new Error(`Failed to launch devcontainer: ${message}`, {
+        cause: error,
+      });
     }
   }
 
@@ -476,10 +547,14 @@ export class DevcontainerCliLauncher implements DevcontainerLauncher {
       logWork("runtime", "Devcontainer stopped", { containerId });
     } catch (error) {
       // Ignore missing or already-stopped containers.
-      logWorkDebug("runtime", "Devcontainer stop had no effect (already removed or missing)", {
-        containerId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logWorkDebug(
+        "runtime",
+        "Devcontainer stop had no effect (already removed or missing)",
+        {
+          containerId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
   }
 }

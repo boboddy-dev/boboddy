@@ -17,6 +17,8 @@ function fakeClient(projects: Array<{ id: string; gitUrl: string }>) {
         Promise.resolve({
           data: projects.map((project) => ({
             name: project.id,
+            slug: project.id,
+            ownerUsername: "acme",
             createdAt: "2026-01-01T00:00:00.000Z",
             ...project,
           })),
@@ -32,7 +34,7 @@ function fakeClient(projects: Array<{ id: string; gitUrl: string }>) {
  */
 describe("completeProjectHandoff", () => {
   concurrentTest(
-    "persists and returns the projectId once a matching project exists",
+    "persists the owner/slug ref and returns the project once a matching project exists",
     async () => {
       const tmpDir = mkdtempSync(resolve(tmpdir(), "boboddy-handoff-"));
       try {
@@ -45,9 +47,12 @@ describe("completeProjectHandoff", () => {
           rootDir: tmpDir,
         });
 
-        expect(result).toEqual({ projectId: "new-project-id" });
-        expect(await readProjectConfig(tmpDir)).toEqual({
+        expect(result).toEqual({
           projectId: "new-project-id",
+          project: "acme/new-project-id",
+        });
+        expect(await readProjectConfig(tmpDir)).toEqual({
+          project: "acme/new-project-id",
         });
       } finally {
         rmSync(tmpDir, { recursive: true, force: true });
@@ -97,9 +102,12 @@ describe("completeProjectHandoff", () => {
           rootDir: tmpDir,
         });
 
-        expect(result).toEqual({ projectId: "github-project" });
-        expect(await readProjectConfig(tmpDir)).toEqual({
+        expect(result).toEqual({
           projectId: "github-project",
+          project: "acme/github-project",
+        });
+        expect(await readProjectConfig(tmpDir)).toEqual({
+          project: "acme/github-project",
         });
       } finally {
         rmSync(tmpDir, { recursive: true, force: true });

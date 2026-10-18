@@ -39,7 +39,40 @@ describe("envVarsSchema", () => {
         default: "info",
       },
     ];
-    expect(envVarsSchema.parse(input)).toEqual(input);
+    expect(envVarsSchema.parse(input)).toEqual(
+      input.map((entry) => ({ ...entry, applies: "agent" })),
+    );
+  });
+
+  test.concurrent("round-trips an inherit entry's mcp owner", () => {
+    const input: EnvVarsInput = [{ ...inheritEntry, mcp: "datadog" }];
+    expect(envVarsSchema.parse(input)).toEqual([
+      { ...inheritEntry, mcp: "datadog", applies: "agent" },
+    ]);
+  });
+
+  test.concurrent("defaults applies to agent", () => {
+    expect(envVarsSchema.parse([valueEntry])[0]?.applies).toBe("agent");
+  });
+
+  test.concurrent("round-trips setup and both applies", () => {
+    const parsed = envVarsSchema.parse([
+      { ...valueEntry, applies: "setup" },
+      { ...inheritEntry, applies: "both" },
+    ]);
+    expect(parsed.map((entry) => entry.applies)).toEqual(["setup", "both"]);
+  });
+
+  test.concurrent("rejects an unknown applies", () => {
+    expect(parseOne({ ...valueEntry, applies: "runtime" }).success).toBe(false);
+  });
+
+  test.concurrent("rejects an empty mcp owner", () => {
+    expect(parseOne({ ...inheritEntry, mcp: "" }).success).toBe(false);
+  });
+
+  test.concurrent("rejects mcp on a value entry", () => {
+    expect(parseOne({ ...valueEntry, mcp: "datadog" }).success).toBe(false);
   });
 
   test.concurrent("accepts a secret value that contains an input token", () => {

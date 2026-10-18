@@ -1,12 +1,12 @@
 import {
   type WorkEvent,
   type WorkReporter,
-  type WorkTask,
+  type WorkActivity,
   noopReporter,
 } from "@boboddy/worker";
 
 export { noopReporter };
-export type { WorkReporter, WorkTask, WorkEvent };
+export type { WorkReporter, WorkActivity, WorkEvent };
 
 /**
  * CLI-owned, general-purpose output surface for *all* commands. It is the
@@ -25,7 +25,7 @@ export type BaseReporter = {
   /** Render the closing summary and tear down any live spinner. */
   finish(message: string): void;
   /** Begin a long-running, cancelable task; returns a handle to resolve it. */
-  startTask(message: string): WorkTask;
+  startActivity(message: string): WorkActivity;
   /** A neutral, transient status line. */
   info(message: string): void;
   /** A positive, completed milestone. */
@@ -53,7 +53,7 @@ export type CliReporter = WorkReporter & {
 export const noopBaseReporter: BaseReporter = {
   start: () => {},
   finish: () => {},
-  startTask: () => ({
+  startActivity: () => ({
     update: () => {},
     succeed: () => {},
     fail: () => {},

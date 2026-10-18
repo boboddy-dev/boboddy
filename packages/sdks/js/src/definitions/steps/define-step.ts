@@ -18,11 +18,18 @@ import type {
   LiteralBinding,
   WorkItemBinding,
 } from "../pipelines/define-pipeline";
-import type { HealthChecksInput } from "../../health-checks";
+import {
+  stepHealthChecksInputSchema,
+  type HealthChecksInput,
+  type StepHealthChecksInput,
+} from "../../health-checks";
+import type { OpenCodeMcpServers } from "../../opencode-mcp";
 import type { EnvVarsInput } from "../../env-vars";
 import type { RepoConfigInput } from "../../repo-config";
 import type { EnvRecord, PromptEnvContext } from "./env";
 import { compileEnvironment, type StepEnvironment } from "./runtime";
+import { mergeStepMcps } from "./compile-mcps";
+import type { McpHandle } from "./define-mcp";
 
 /**
  * Resolves the Zod schema node at a dot-notation path within a ZodObject schema.
@@ -93,44 +100,6 @@ function unwrapZodWrappers(schema: ZodType): ZodType {
   }
   return schema;
 }
-
-type OpenCodeMcpServers = Record<
-  string,
-  | {
-      type: "local";
-      command: string[];
-      environment?: Record<string, string>;
-      enabled?: boolean;
-      timeout?: number;
-    }
-  | {
-      type: "remote";
-      url: string;
-      enabled?: boolean;
-      headers?: Record<string, string>;
-      oauth?:
-        | {
-            clientId?: string;
-            clientSecret?: string;
-            scope?: string;
-            redirectUri?: string;
-          }
-        | boolean;
-      timeout?: number;
-    }
-  | {
-      enabled: boolean;
-    }
->;
-
-/**
- * A single entry in the OpenCode `plugin` config array.
- * Either a package name string or a [packageName, options] tuple.
- */
-type OpenCodePluginEntry = string | [string, Record<string, unknown>];
-
-/** Full value of the OpenCode `plugin` config field. */
-type OpenCodePlugins = OpenCodePluginEntry[];
 
 type SignalTypeStr = "string" | "number" | "boolean" | "object" | "array";
 
@@ -238,9 +207,18 @@ export type DefineStepInput<
   result?: TResult;
   signals?: SignalSpecInput<TResult["_output"]>[];
   features?: AnyStepFeature[];
-  mcpServers?: OpenCodeMcpServers | null;
-  plugins?: OpenCodePlugins | null;
-  healthChecks?: HealthChecksInput | null;
+  /**
+   * The step's MCP servers, built with `defineMcp` and keyed by the step's
+   * server key. Each contributes its server, its health checks (run before
+   * `healthChecks`) and its env vars (a same-named `environment.vars` entry
+   * wins).
+   */
+  mcps?: Record<string, McpHandle>;
+  /**
+   * `cli` checks and `tool` checks for plugin or built-in tools. MCP checks
+   * belong on the server's `defineMcp`.
+   */
+  healthChecks?: StepHealthChecksInput | null;
   status?: "draft" | "active";
 };
 
@@ -308,7 +286,6 @@ export type StepDefinitionSpec = {
     availableWhenResultStatusIn: string[] | null;
   }>;
   opencodeMcpJson: OpenCodeMcpServers | null;
-  opencodePluginJson: OpenCodePlugins | null;
   healthChecksJson: HealthChecksInput | null;
   envJson?: EnvVarsInput | null;
   /**
@@ -409,6 +386,34 @@ type ExtractSignalKey<T> = T extends { key: infer K extends string }
 export type SignalKeysOf<TSignals extends readonly unknown[]> =
   TSignals extends readonly (infer S)[] ? ExtractSignalKey<S> : string;
 
+/**
+ * Rejects the removed MCP authoring paths for JS callers the types don't
+ * reach: `mcpServers`, and a `healthChecks` entry carrying `mcp`.
+ */
+function assertStepMcpInput(config: {
+  key: string;
+  healthChecks?: StepHealthChecksInput | null;
+}): void {
+  if ("mcpServers" in config) {
+    throw new Error(
+      `Step "${config.key}": mcpServers is not supported. Declare each MCP server with defineMcp({ type: "ref" | "local" | "remote", ... }) and list it under mcps.`,
+    );
+  }
+  if (config.healthChecks == null) return;
+  const parsed = stepHealthChecksInputSchema.safeParse(config.healthChecks);
+  if (parsed.success) return;
+  const issues = parsed.error.issues
+    .map((issue) =>
+      issue.path.length > 0
+        ? `${issue.path.map(String).join(".")}: ${issue.message}`
+        : issue.message,
+    )
+    .join("; ");
+  throw new Error(
+    `Step "${config.key}" healthChecks: ${issues}. MCP health checks are declared on the server with defineMcp({ healthChecks }).`,
+  );
+}
+
 export function defineStep<
   TInput extends ZodType = ZodType,
   TResult extends ZodType = ZodType,
@@ -478,6 +483,12 @@ export function defineStep<
     envJson,
     repo,
   } = compileEnvironment(config.environment, { stepKey: config.key });
+  assertStepMcpInput(config);
+  const mcpFields = mergeStepMcps(config.key, {
+    mcps: config.mcps,
+    healthChecks: config.healthChecks,
+    envJson,
+  });
 
   const spec: StepDefinitionSpec = {
     key: config.key,
@@ -525,10 +536,9 @@ export function defineStep<
         availableWhenResultStatusIn: s.availableWhenResultStatusIn ?? null,
       })),
     ],
-    opencodeMcpJson: config.mcpServers ?? null,
-    opencodePluginJson: config.plugins ?? null,
-    healthChecksJson: config.healthChecks ?? null,
-    envJson,
+    opencodeMcpJson: mcpFields.opencodeMcpJson,
+    healthChecksJson: mcpFields.healthChecksJson,
+    envJson: mcpFields.envJson,
     ...(repo !== undefined ? { repo } : {}),
   };
   return spec as TypedStepDefinitionSpec<

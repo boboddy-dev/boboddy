@@ -156,4 +156,5 @@ export const SetupErrorCodes = {
   DeviceLoginExpired: "DEVICE_LOGIN_EXPIRED",
   DeviceLoginDenied: "DEVICE_LOGIN_DENIED",
   DeviceLoginFailed: "DEVICE_LOGIN_FAILED",
+  NoOwnerUsername: "NO_OWNER_USERNAME",
 } as const;

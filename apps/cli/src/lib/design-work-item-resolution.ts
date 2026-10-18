@@ -72,7 +72,7 @@ export async function resolveFreeTextWorkItem(input: {
     throw new CliError("no_work_item", NO_WORK_ITEM_MESSAGE);
   }
 
-  const task = reporter.startTask("Creating the work item…");
+  const task = reporter.startActivity("Creating the work item…");
   try {
     const created = await ports.createWorkItem({ baseUrl, projectId, draft });
     task.succeed(`Created “${created.title}”`);
@@ -103,7 +103,7 @@ async function resolveWorkItemReference(input: {
     return undefined;
   }
 
-  const task = reporter.startTask(`Looking up ${reference.value}…`);
+  const task = reporter.startActivity(`Looking up ${reference.value}…`);
   try {
     const found =
       reference.kind === "id"

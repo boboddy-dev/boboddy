@@ -1,17 +1,22 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import { existsSync } from "node:fs";
 import * as clack from "@clack/prompts";
+import { isProjectRef, PROJECT_REF_FORMAT_HINT } from "@boboddy/sdk/defaults";
 import {
   assertInteractiveTerminal,
   checkOpencodeProviderCredentials,
   detectInstalledAiTools,
+  discoverRepoAgentTools,
   hasDevcontainer,
   launchOpencodeTui,
   localConfigSetup,
   readProjectConfig,
+  resolveHostHome,
   runPipelineStudioServer,
   scaffoldPipelineBuilderDirectory,
+  SdkMcpToolLister,
   verifyRequirements,
+  writeAgentToolsManifest,
 } from "@boboddy/worker";
 import { version as CLI_VERSION } from "../../package.json";
 import { openBrowser } from "../auth/browser";
@@ -26,7 +31,7 @@ import {
   promptRunNow,
   queueDesignRun,
   resolveAssignedPipeline,
-  runFirstStepDryRun,
+  runPipelineHealthDryRun,
 } from "../lib/design-run-adapters";
 import {
   runDesignRunOffer,
@@ -51,6 +56,7 @@ import {
   promptWorkItemText,
 } from "../lib/design-work-item-adapters";
 import { createSignInPorts } from "../lib/ensure-signed-in";
+import { readLocalEnvVars } from "../lib/local-env-vars";
 import {
   builderDependenciesInstalled,
   NO_PACKAGE_MANAGER_MESSAGE,
@@ -61,6 +67,10 @@ import { runWork } from "./work";
 import type { CommandContext } from "../lib/command-output";
 import type { BaseReporter } from "../lib/reporter-types";
 import { CliError } from "../lib/cli-error";
+import {
+  PROJECT_ACTIONS,
+  resolveCliProjectRef,
+} from "../lib/resolve-project-ref";
 
 /**
  * `boboddy pipelines design` — the guided path from "I have a repo" to "I have
@@ -92,16 +102,17 @@ function assertInsideRepository(paths: DesignPaths, cwd: string): void {
 /**
  * The last-resort prompt, reached only when the repository could not be matched
  * to a project (see `lib/design-preflight.ts`). It validates rather than
- * accepting an empty line, so a stray Enter re-asks instead of aborting the run.
+ * accepting an empty or malformed line, so a stray Enter re-asks instead of
+ * aborting the run.
  */
-async function promptProjectId(): Promise<string | undefined> {
+async function promptProject(): Promise<string | undefined> {
   const answer = await clack.text({
     message:
-      "Paste a project ID from the Boboddy dashboard (Ctrl+C to cancel):",
+      "Enter the project as owner/slug, as in its dashboard URL (Ctrl+C to cancel):",
     validate: (value) =>
-      (value ?? "").trim().length === 0
-        ? "Enter a project ID, or press Ctrl+C."
-        : undefined,
+      isProjectRef((value ?? "").trim())
+        ? undefined
+        : `${PROJECT_REF_FORMAT_HINT} Or press Ctrl+C.`,
   });
   if (clack.isCancel(answer)) {
     return undefined;
@@ -119,7 +130,7 @@ async function promptProjectId(): Promise<string | undefined> {
  * into a TUI session, which doesn't compose with waiting on a browser tab and
  * a keypress. `undefined` here just means "not found the easy way"; the
  * caller's existing fallback ladder (see `design-preflight.ts`) degrades to
- * prompting for a project id, same as the no-remote case always has.
+ * prompting for the project, same as the no-remote case always has.
  */
 async function resolveProjectFromRepo(
   baseUrl: string,
@@ -131,9 +142,9 @@ async function resolveProjectFromRepo(
     client,
     rootDir: projectRoot,
   });
-  if (result.status === "matched") return result.projectId;
+  if (result.status === "matched") return result.project;
   if (result.status === "already-configured") {
-    return (await readProjectConfig(projectRoot))?.projectId;
+    return (await readProjectConfig(projectRoot))?.project;
   }
   return undefined;
 }
@@ -149,11 +160,13 @@ export function buildDesignPreflightPorts(
   const { builderDir, projectRoot } = paths;
   return {
     ...createSignInPorts({ reporter: ctx.reporter, logger: ctx.logger }),
-    readConfiguredProjectId: async () =>
-      (await readProjectConfig(projectRoot))?.projectId,
+    readConfiguredProject: async () =>
+      (await readProjectConfig(projectRoot))?.project,
     resolveProjectFromRepo: (baseUrl) =>
       resolveProjectFromRepo(baseUrl, projectRoot),
-    promptProjectId,
+    promptProject,
+    resolveProjectRef: ({ baseUrl, ref }) =>
+      resolveCliProjectRef({ baseUrl, ref, action: PROJECT_ACTIONS.design }),
     listWorkItems: listRecentWorkItems,
     getWorkItemById: getDesignWorkItemById,
     findWorkItemByUrl,
@@ -183,7 +196,23 @@ export function buildDesignPreflightPorts(
       checkOpencodeProviderCredentials({ launcherPath }),
     detectInstalledTools: () => detectInstalledAiTools({}),
     runAuthLogin: runOpencodeAuthLogin,
+    discoverAgentTools: () => discoverRepoAgentTools(projectRoot),
+    readToolEnv: async () => ({
+      ...processEnvStrings(),
+      ...(await readLocalEnvVars(projectRoot)),
+    }),
+    mcpToolLister: new SdkMcpToolLister({ repoRoot: projectRoot }),
+    writeAgentToolsManifest: (input) =>
+      writeAgentToolsManifest({ homeDir: resolveHostHome(), ...input }),
   };
+}
+
+function processEnvStrings(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
 }
 
 /** Wire the closing run offer's ports to their real implementations. */
@@ -201,8 +230,8 @@ function buildRunOfferPorts(input: {
     pipelineNeedsProjectDevcontainer: (pipelineDefinitionId) =>
       pipelineNeedsProjectDevcontainer({ baseUrl, pipelineDefinitionId }),
     hasDevcontainer: () => hasDevcontainer(paths.projectRoot),
-    runFirstStepDryRun: (pipelineDefinitionId) =>
-      runFirstStepDryRun({
+    runPipelineHealthDryRun: (pipelineDefinitionId) =>
+      runPipelineHealthDryRun({
         baseUrl,
         projectId: target.projectId,
         pipelineDefinitionId,
@@ -223,7 +252,7 @@ function buildRunOfferPorts(input: {
     // have seen enough.
     runWorker: () =>
       runWork({
-        projectId: target.projectId,
+        project: target.project,
         baseUrl,
         workItemId: target.workItemId,
       }),
@@ -242,10 +271,10 @@ function buildDesignSessionPorts(
   ctx: CommandContext,
 ): DesignSessionPorts {
   return {
-    preflight: ({ baseUrl, paths, projectIdArgument, workItemIdArgument }) =>
+    preflight: ({ baseUrl, paths, projectArgument, workItemIdArgument }) =>
       runDesignPreflight({
         baseUrl,
-        projectIdArgument,
+        projectArgument,
         workItemIdArgument,
         reporter: ctx.reporter,
         ports: buildDesignPreflightPorts(paths, ctx),
@@ -290,13 +319,13 @@ export const runPipelineDesign = (args: DesignArguments): Promise<void> =>
   });
 
 export const designCommand: CommandModule<object, DesignArguments> = {
-  command: "design [projectId]",
+  command: "design [project]",
   describe: "Interactively design pipelines with an AI agent, then push them",
   builder: (argv: Argv<object>) =>
     argv
-      .positional("projectId", {
+      .positional("project", {
         describe:
-          "The project to design pipelines for (defaults to the id in .boboddy/boboddy.jsonc)",
+          'The project to design pipelines for, as owner/slug (defaults to "project" in .boboddy/boboddy.jsonc)',
         type: "string",
       })
       .option("baseUrl", {

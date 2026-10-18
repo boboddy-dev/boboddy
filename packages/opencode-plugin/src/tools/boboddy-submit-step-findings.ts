@@ -1,19 +1,23 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020";
-import { tool, type ToolDefinition } from "@opencode-ai/plugin";
+import type { Info as ToolInfo } from "@opencode/plugin/promise/tool";
 import { resolveWorktree } from "./_shared/resolve-worktree";
 
 export { resolveWorktree as resolveFindingsWorktree };
+
+export const BOBODDY_SUBMIT_STEP_FINDINGS_TOOL = "boboddy-submit-step-findings";
 
 const DEFAULT_OUTPUT_PATH = ".boboddy/step-findings-submission.json";
 const CURRENT_EXECUTION_INFO_RELATIVE_PATH =
   ".boboddy/current-execution/execution.json";
 
 type CurrentExecutionInfo = {
-  stepExecutionId: string;
+  taskId: string;
   resultSchemaJson: Record<string, unknown> | null;
 };
+
+type SubmitStepFindingsInput = { findingsJson: unknown };
 
 async function loadCurrentExecutionInfo(
   worktree: string,
@@ -41,12 +45,12 @@ async function loadCurrentExecutionInfo(
   }
 
   const parsedRecord = parsed as Record<string, unknown>;
-  const stepExecutionId = parsedRecord["stepExecutionId"];
+  const taskId = parsedRecord["taskId"];
   const resultSchemaJson = parsedRecord["resultSchemaJson"];
 
-  if (typeof stepExecutionId !== "string" || stepExecutionId.length === 0) {
+  if (typeof taskId !== "string" || taskId.length === 0) {
     throw new Error(
-      `Current execution metadata file at ${CURRENT_EXECUTION_INFO_RELATIVE_PATH} must contain a non-empty stepExecutionId`,
+      `Current execution metadata file at ${CURRENT_EXECUTION_INFO_RELATIVE_PATH} must contain a non-empty taskId`,
     );
   }
 
@@ -60,95 +64,124 @@ async function loadCurrentExecutionInfo(
   }
 
   return {
-    stepExecutionId,
+    taskId,
     resultSchemaJson: resultSchemaJson as Record<string, unknown> | null,
   };
 }
 
-const boboddySubmitStepFindings: ToolDefinition = tool({
-  description:
-    "Submit Boboddy step findings as JSON. The tool loads the current execution schema from disk and validates findingsJson against it.",
-  args: {
-    findingsJson: tool.schema
-      .json()
-      .describe("Structured findings payload for the current step"),
-  },
-  async execute(args, context) {
-    try {
-      const worktree = await resolveWorktree(context.worktree);
-      console.warn(
-        `[boboddy-submit-step-findings] start worktree=${context.worktree} resolvedWorktree=${worktree}`,
-      );
-      const currentExecutionInfo = await loadCurrentExecutionInfo(worktree);
-      console.warn(
-        `[boboddy-submit-step-findings] loaded current execution stepExecutionId=${currentExecutionInfo.stepExecutionId} hasResultSchema=${String(
-          !!currentExecutionInfo.resultSchemaJson,
-        )}`,
-      );
+/**
+ * Validates `findingsJson` against the current execution's stored result
+ * schema and writes it to {@link DEFAULT_OUTPUT_PATH} under the resolved
+ * worktree. Returns the JSON text the tool reports back to the model.
+ */
+export async function submitStepFindings(
+  input: SubmitStepFindingsInput,
+  directory: string,
+): Promise<string> {
+  try {
+    const worktree = await resolveWorktree(directory);
+    console.warn(
+      `[boboddy-submit-step-findings] start directory=${directory} resolvedWorktree=${worktree}`,
+    );
+    const currentExecutionInfo = await loadCurrentExecutionInfo(worktree);
+    console.warn(
+      `[boboddy-submit-step-findings] loaded current execution taskId=${currentExecutionInfo.taskId} hasResultSchema=${String(
+        !!currentExecutionInfo.resultSchemaJson,
+      )}`,
+    );
 
-      if (!currentExecutionInfo.resultSchemaJson) {
-        throw new Error(
-          `Current execution metadata file at ${CURRENT_EXECUTION_INFO_RELATIVE_PATH} is missing resultSchemaJson`,
-        );
-      }
-
-      const ajv = new Ajv2020({ allErrors: true, strict: false });
-      let validate: ReturnType<Ajv2020["compile"]>;
-
-      try {
-        validate = ajv.compile(currentExecutionInfo.resultSchemaJson);
-      } catch (error) {
-        throw new Error(
-          `Invalid resultSchemaJson in ${CURRENT_EXECUTION_INFO_RELATIVE_PATH}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          { cause: error },
-        );
-      }
-
-      const valid = validate(args.findingsJson);
-      console.warn(
-        `[boboddy-submit-step-findings] validation valid=${String(valid)}`,
+    if (!currentExecutionInfo.resultSchemaJson) {
+      throw new Error(
+        `Current execution metadata file at ${CURRENT_EXECUTION_INFO_RELATIVE_PATH} is missing resultSchemaJson`,
       );
-      if (!valid) {
-        const details = (validate.errors ?? [])
-          .map(
-            (issue) =>
-              `${issue.instancePath || "/"} ${issue.message ?? "invalid"}`,
-          )
-          .join("; ");
-        throw new Error(
-          `findingsJson does not match resultSchemaJson: ${details || "validation failed"}`,
-        );
-      }
-
-      const filePath = path.join(worktree, DEFAULT_OUTPUT_PATH);
-      console.warn(
-        `[boboddy-submit-step-findings] writing findings outputPath=${filePath}`,
-      );
-      await mkdir(path.dirname(filePath), { recursive: true });
-      await writeFile(
-        filePath,
-        `${JSON.stringify({ findingsJson: args.findingsJson }, null, 2)}\n`,
-        "utf8",
-      );
-      console.warn("[boboddy-submit-step-findings] write complete");
-
-      return JSON.stringify(
-        {
-          ok: true,
-          outputPath: DEFAULT_OUTPUT_PATH,
-        },
-        null,
-        2,
-      );
-    } catch (error) {
-      console.error(
-        `[boboddy-submit-step-findings] failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      throw error;
     }
-  },
-});
 
-export default boboddySubmitStepFindings;
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    let validate: ReturnType<Ajv2020["compile"]>;
+
+    try {
+      validate = ajv.compile(currentExecutionInfo.resultSchemaJson);
+    } catch (error) {
+      throw new Error(
+        `Invalid resultSchemaJson in ${CURRENT_EXECUTION_INFO_RELATIVE_PATH}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
+
+    const valid = validate(input.findingsJson);
+    console.warn(
+      `[boboddy-submit-step-findings] validation valid=${String(valid)}`,
+    );
+    if (!valid) {
+      const details = (validate.errors ?? [])
+        .map(
+          (issue) =>
+            `${issue.instancePath || "/"} ${issue.message ?? "invalid"}`,
+        )
+        .join("; ");
+      throw new Error(
+        `findingsJson does not match resultSchemaJson: ${details || "validation failed"}`,
+      );
+    }
+
+    const filePath = path.join(worktree, DEFAULT_OUTPUT_PATH);
+    console.warn(
+      `[boboddy-submit-step-findings] writing findings outputPath=${filePath}`,
+    );
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(
+      filePath,
+      `${JSON.stringify({ findingsJson: input.findingsJson }, null, 2)}\n`,
+      "utf8",
+    );
+    console.warn("[boboddy-submit-step-findings] write complete");
+
+    return JSON.stringify(
+      {
+        ok: true,
+        outputPath: DEFAULT_OUTPUT_PATH,
+      },
+      null,
+      2,
+    );
+  } catch (error) {
+    console.error(
+      `[boboddy-submit-step-findings] failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    throw error;
+  }
+}
+
+/**
+ * The `boboddy-submit-step-findings` tool, bound to the directory the plugin
+ * was loaded for (`ctx.location.directory`). `findingsJson` is deliberately
+ * unconstrained here: its real schema is per-step and lives on disk, so it is
+ * validated inside {@link submitStepFindings} instead.
+ */
+export function createBoboddySubmitStepFindingsTool(
+  directory: string,
+): ToolInfo {
+  return {
+    name: BOBODDY_SUBMIT_STEP_FINDINGS_TOOL,
+    description:
+      "Submit Boboddy step findings as JSON. The tool loads the current execution schema from disk and validates findingsJson against it.",
+    input: {
+      type: "object",
+      properties: {
+        findingsJson: {
+          description: "Structured findings payload for the current step",
+        },
+      },
+      required: ["findingsJson"],
+    },
+    options: { codemode: false },
+    execute: async (input) => ({
+      content: await submitStepFindings(
+        input as SubmitStepFindingsInput,
+        directory,
+      ),
+    }),
+  };
+}

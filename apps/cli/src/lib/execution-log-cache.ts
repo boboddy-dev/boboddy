@@ -1,29 +1,12 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { StepExecutionLogStream } from "@boboddy/platform-client";
+import type { FullLogSaver } from "@boboddy/platform-client";
 
 /**
- * Structurally mirrors `@boboddy/platform-client`'s `LogArtifactWriter`
- * (`packages/platform-client/src/lib/investigate-execution-client.ts`).
- * Defined locally rather than imported because the package only exposes a
- * single `"."` entry point (see its `package.json`), which does not
- * re-export that type; TypeScript's structural typing makes the two
- * interchangeable at the `investigateExecution({ writeLogArtifact })` call
- * site regardless.
- */
-type LogArtifactWriter = (input: {
-  stepExecutionId: string;
-  requestedStream: StepExecutionLogStream | "all";
-  fullText: string;
-}) => Promise<string>;
-
-/**
- * Where a step's full, untruncated log lands when `execution view --log`'s
- * rendered output would otherwise be truncated (decision 8 of
- * `docs/plans/execution-log-tail-truncation-and-file-cache.md`). A sibling
- * of `LOG_DIR` (`logger.ts:30`) rather than nested inside it — that
- * directory is the CLI's own diagnostic pino output, a different concern.
+ * Where `execution view --log` saves a step's full, uncapped log. A sibling
+ * of `LOG_DIR` (`logger.ts`) rather than nested inside it — that directory is
+ * the CLI's own diagnostic pino output, a different concern.
  */
 function resolveExecutionLogCacheDir(homeDir: string = os.homedir()): string {
   return path.join(homeDir, ".boboddy", "execution-logs");
@@ -38,23 +21,17 @@ export async function ensureExecutionLogCacheDir(
 }
 
 /**
- * Builds the real, disk-backed `writeLogArtifact` callback for
- * `investigateExecution` (`apps/cli/src/commands/execution.ts`). Every write
- * overwrites any existing file for the same `stepExecutionId`/stream
- * (decision 8 — no cache-hit/skip-refetch logic). Failures are left to
- * propagate: the caller (`investigateExecution`'s `renderAndCapLogs`) already
- * catches and swallows a rejecting writer (decision 9), so this function does
- * not need its own try/catch.
+ * Builds the disk-backed `saveFullLog` callback for `investigateExecution`
+ * (`apps/cli/src/commands/execution.ts`). Every call overwrites any existing
+ * file for the same `taskId`/stream. Failures propagate: `investigateExecution`
+ * turns a rejection into `full log: not saved (<reason>)` on the header line.
  */
-export function createExecutionLogArtifactWriter(
+export function createFullLogSaver(
   cacheDir: string = EXECUTION_LOG_CACHE_DIR,
-): LogArtifactWriter {
-  return async ({ stepExecutionId, requestedStream, fullText }) => {
+): FullLogSaver {
+  return async ({ taskId, requestedStream, fullText }) => {
     await ensureExecutionLogCacheDir(cacheDir);
-    const filePath = path.join(
-      cacheDir,
-      `${stepExecutionId}-${requestedStream}.log`,
-    );
+    const filePath = path.join(cacheDir, `${taskId}-${requestedStream}.log`);
     await writeFile(filePath, fullText, "utf8");
     return filePath;
   };

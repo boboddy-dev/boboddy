@@ -41,9 +41,30 @@ describe("validateDefinitionSpecs — health checks", () => {
               tool: "browser_navigate",
               args: { url: "about:blank" },
               severity: "required",
-              timeoutMs: 15000,
+              timeoutSeconds: 15,
             },
           ]),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  test("accepts a check naming a server declared as a ref", () => {
+    expect(
+      validateDefinitionSpecs({
+        pipelines: [],
+        steps: [
+          stepSpecWithOverrides("ref-step", {
+            opencodeMcpJson: { postgres: { type: "ref" } },
+            healthChecksJson: [
+              {
+                mcp: "postgres",
+                tool: "list_schemas",
+                severity: "required",
+                timeoutSeconds: 15,
+              },
+            ],
+          }),
         ],
       }),
     ).toEqual([]);
@@ -59,7 +80,7 @@ describe("validateDefinitionSpecs — health checks", () => {
               {
                 tool: "my_plugin_tool",
                 severity: "required",
-                timeoutMs: 15000,
+                timeoutSeconds: 15,
               },
             ],
           }),
@@ -68,7 +89,7 @@ describe("validateDefinitionSpecs — health checks", () => {
     ).toEqual([]);
   });
 
-  test("rejects a check naming an MCP server not declared in mcpServers", () => {
+  test("rejects a check naming an MCP server not declared in mcps", () => {
     const issues = validateDefinitionSpecs({
       pipelines: [],
       steps: [
@@ -77,7 +98,7 @@ describe("validateDefinitionSpecs — health checks", () => {
             mcp: "typo",
             tool: "browser_navigate",
             severity: "required",
-            timeoutMs: 15000,
+            timeoutSeconds: 15,
           },
         ]),
       ],
@@ -87,7 +108,9 @@ describe("validateDefinitionSpecs — health checks", () => {
     expect(issues[0]?.message).toContain(
       'Step "browser-step" health check #1 ("browser_navigate")',
     );
-    expect(issues[0]?.message).toContain('names MCP server "typo"');
+    expect(issues[0]?.message).toContain(
+      'names MCP server "typo", but the step declares no such server in mcps.',
+    );
     expect(issues[0]?.message).toContain("Declared servers: playwright.");
   });
 
@@ -100,7 +123,7 @@ describe("validateDefinitionSpecs — health checks", () => {
             mcp: "playwright",
             tool: "playwright_browser_navigate",
             severity: "required",
-            timeoutMs: 15000,
+            timeoutSeconds: 15,
           },
         ]),
       ],
@@ -125,7 +148,7 @@ describe("validateDefinitionSpecs — health checks", () => {
             tool: "browser_navigate",
             name: "Browser smoke test",
             severity: "required",
-            timeoutMs: 15000,
+            timeoutSeconds: 15,
           },
         ]),
       ],
@@ -144,7 +167,7 @@ describe("validateDefinitionSpecs — health checks", () => {
     ).toEqual([]);
   });
 
-  test("accepts a step declaring only a kind: \"cli\" check", () => {
+  test('accepts a step declaring only a kind: "cli" check', () => {
     expect(
       validateDefinitionSpecs({
         pipelines: [],
@@ -155,7 +178,7 @@ describe("validateDefinitionSpecs — health checks", () => {
                 kind: "cli",
                 command: ["gh", "--version"],
                 severity: "required",
-                timeoutMs: 15000,
+                timeoutSeconds: 15,
               },
             ],
           }),
@@ -175,13 +198,13 @@ describe("validateDefinitionSpecs — health checks", () => {
               tool: "browser_navigate",
               args: { url: "about:blank" },
               severity: "required",
-              timeoutMs: 15000,
+              timeoutSeconds: 15,
             },
             {
               kind: "cli",
               command: ["gh", "--version"],
               severity: "required",
-              timeoutMs: 15000,
+              timeoutSeconds: 15,
             },
           ]),
         ],
@@ -199,7 +222,7 @@ describe("validateDefinitionSpecs — health checks", () => {
               kind: "cli",
               command: ["gh", "--version"],
               severity: "required",
-              timeoutMs: 15000,
+              timeoutSeconds: 15,
             },
           ],
         }),

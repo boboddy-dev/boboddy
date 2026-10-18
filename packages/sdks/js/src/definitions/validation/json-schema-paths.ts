@@ -3,7 +3,7 @@
 //
 // `resultSchemaJson` is JSON Schema produced by Zod's `toJSONSchema`, and the
 // path grammar is the one the runtime extractor uses (see
-// `packages/core/.../extract-step-execution-signals.ts`): an optional `$` /
+// `packages/core/.../extract-task-signals.ts`): an optional `$` /
 // `$.` root prefix, `.` between object keys, and `[n]` or a bare numeric
 // segment to index an array.
 //

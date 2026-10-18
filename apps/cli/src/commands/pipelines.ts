@@ -10,7 +10,6 @@ import {
   loadAuthenticatedSession,
   PIPELINE_BUILDER_DIR,
   pullPipelineDefinitions,
-  readProjectConfig,
   resolveBoboddyBaseUrl,
   scaffoldPipelineBuilderDirectory,
   STARTER_PIPELINE_FILENAME,
@@ -29,6 +28,12 @@ import {
   PUSH_SCRIPT_TEMPLATE,
 } from "../templates/push-script";
 import { CliError } from "../lib/cli-error";
+import {
+  NO_PROJECT_MESSAGE,
+  pickProjectRef,
+  PROJECT_ACTIONS,
+  resolveCliProjectRef,
+} from "../lib/resolve-project-ref";
 
 // init
 
@@ -74,7 +79,7 @@ const initCommand: CommandModule<object, object> = {
 // push
 
 interface PushArguments {
-  projectId: string | undefined;
+  project: string | undefined;
   baseUrl: string | undefined;
 }
 
@@ -82,12 +87,9 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
   withReporter("pipelines-push", async ({ reporter, logger }) => {
     const baseUrl = resolveBoboddyBaseUrl(args.baseUrl);
 
-    const projectId = args.projectId ?? (await readProjectConfig())?.projectId;
-    if (!projectId) {
-      throw new CliError(
-        "no_project_id",
-        "No project ID provided. Pass one as an argument or run `boboddy init` first.",
-      );
+    const projectRef = await pickProjectRef(args.project);
+    if (!projectRef) {
+      throw new CliError("no_project_id", NO_PROJECT_MESSAGE);
     }
 
     const authenticated = await loadAuthenticatedSession(baseUrl);
@@ -98,6 +100,12 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
       );
     }
     syncIdentityFromDisk(baseUrl);
+
+    const { id: projectId } = await resolveCliProjectRef({
+      baseUrl,
+      ref: projectRef,
+      action: PROJECT_ACTIONS.push,
+    });
 
     const dir = join(process.cwd(), PIPELINE_BUILDER_DIR);
 
@@ -135,9 +143,10 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
       `Running ${runtime.kind} on ${PUSH_SCRIPT_FILENAME}…`,
     );
 
-    // The script reads auth from the same file the CLI writes, and projectId
+    // The script reads auth from the same file the CLI writes, and the project
     // from .boboddy/boboddy.jsonc — both already resolved above to fail fast.
-    // We forward overrides via env vars so positional CLI args still take effect.
+    // We forward the resolved id via env vars so the script skips its own lookup
+    // and a positional project still takes effect.
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       BOBODDY_PROJECT_ID: projectId,
@@ -145,7 +154,7 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
       BOBODDY_ACCESS_TOKEN: authenticated.profile.accessToken,
     };
 
-    const task = reporter.startTask(
+    const task = reporter.startActivity(
       `Running ${runtime.kind} on ${PUSH_SCRIPT_FILENAME}…`,
     );
 
@@ -183,13 +192,13 @@ const runPush = (args: ArgumentsCamelCase<PushArguments>): Promise<void> =>
   });
 
 const pushCommand: CommandModule<object, PushArguments> = {
-  command: "push [projectId]",
+  command: "push [project]",
   describe: `Push pipeline definitions from ${PIPELINE_BUILDER_DIR} to the server`,
   builder: (argv: Argv<object>) =>
     argv
-      .positional("projectId", {
+      .positional("project", {
         describe:
-          "The project to push pipelines to (defaults to the id in .boboddy/boboddy.jsonc)",
+          'The project to push pipelines to, as owner/slug (defaults to "project" in .boboddy/boboddy.jsonc)',
         type: "string",
       })
       .option("baseUrl", {
@@ -221,7 +230,7 @@ async function confirmOverwrite(files: string[]): Promise<boolean> {
 }
 
 interface PullArguments {
-  projectId: string | undefined;
+  project: string | undefined;
   baseUrl: string | undefined;
 }
 
@@ -229,11 +238,9 @@ const runPull = (args: ArgumentsCamelCase<PullArguments>): Promise<void> =>
   withReporter("pipelines-pull", async ({ reporter, logger }) => {
     const baseUrl = resolveBoboddyBaseUrl(args.baseUrl);
 
-    const projectId = args.projectId ?? (await readProjectConfig())?.projectId;
-    if (!projectId) {
-      throw new Error(
-        "No project ID provided. Pass one as an argument or run `boboddy init` first.",
-      );
+    const projectRef = await pickProjectRef(args.project);
+    if (!projectRef) {
+      throw new CliError("no_project_id", NO_PROJECT_MESSAGE);
     }
 
     const authenticated = await loadAuthenticatedSession(baseUrl);
@@ -242,6 +249,12 @@ const runPull = (args: ArgumentsCamelCase<PullArguments>): Promise<void> =>
         `Not signed in to ${baseUrl}. Run \`boboddy auth login\` first.`,
       );
     }
+
+    const { id: projectId } = await resolveCliProjectRef({
+      baseUrl,
+      ref: projectRef,
+      action: PROJECT_ACTIONS.pull,
+    });
 
     const headers = {
       Authorization: `Bearer ${authenticated.profile.accessToken}`,
@@ -288,13 +301,13 @@ const runPull = (args: ArgumentsCamelCase<PullArguments>): Promise<void> =>
   });
 
 const pullCommand: CommandModule<object, PullArguments> = {
-  command: "pull [projectId]",
+  command: "pull [project]",
   describe: `Pull pipeline and step definitions from the server into ${PIPELINE_BUILDER_DIR}`,
   builder: (argv: Argv<object>) =>
     argv
-      .positional("projectId", {
+      .positional("project", {
         describe:
-          "The project to pull pipelines from (defaults to the id in .boboddy/boboddy.jsonc)",
+          'The project to pull pipelines from, as owner/slug (defaults to "project" in .boboddy/boboddy.jsonc)',
         type: "string",
       })
       .option("baseUrl", {

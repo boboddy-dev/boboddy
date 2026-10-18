@@ -4,6 +4,7 @@ import {
   CoreError,
   SetupErrorCodes,
 } from "@boboddy/worker";
+import { ProjectRefError } from "@boboddy/sdk/defaults";
 import { CliError, classifyCliError } from "../src/lib/cli-error";
 import { concurrentTest as test } from "./utils";
 
@@ -25,6 +26,7 @@ describe("classifyCliError", () => {
       [SetupErrorCodes.DeviceLoginExpired, "device_login_expired"],
       [SetupErrorCodes.DeviceLoginDenied, "device_login_denied"],
       [SetupErrorCodes.DeviceLoginFailed, "device_login_failed"],
+      [SetupErrorCodes.NoOwnerUsername, "no_owner_username"],
     ] as const;
 
     for (const [workerCode, cliCode] of cases) {
@@ -32,6 +34,23 @@ describe("classifyCliError", () => {
         classifyCliError(new ConfigurationError("any wording", workerCode)),
       ).toBe(cliCode);
     }
+  });
+
+  test("maps a project ref failure by its kind", () => {
+    expect(
+      classifyCliError(
+        new ProjectRefError(
+          "forbidden",
+          "acme/web-app",
+          "You don't have permission",
+        ),
+      ),
+    ).toBe("project_forbidden");
+    expect(
+      classifyCliError(
+        new ProjectRefError("not_found", "acme/web-app", "No project"),
+      ),
+    ).toBe("project_not_found");
   });
 
   test("follows the cause chain of a wrapping error", () => {

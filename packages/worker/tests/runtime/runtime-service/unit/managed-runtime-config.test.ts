@@ -10,7 +10,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { MANAGED_RUNTIME_IDS } from "@boboddy/sdk/managed-runtimes";
 import { PIPELINE_BUILDER_DIR } from "@boboddy/sdk/push";
-import { patchDevcontainerEnv } from "../../../../src/work/step-execution/infra/local-project-runtime-environment-helpers";
+import { patchDevcontainerEnv } from "../../../../src/work/task/infra/local-project-runtime-environment-helpers";
 import { PIPELINE_BUILDER_LOCKFILES } from "../../../../src/runtime/runtime-service/domain/pipeline-builder-lockfiles";
 import {
   managedRuntimeConfigPath,

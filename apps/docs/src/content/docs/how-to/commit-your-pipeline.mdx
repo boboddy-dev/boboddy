@@ -19,7 +19,7 @@ changes to them in pull requests like any other file.
 
 - my-repo/
   - .boboddy/
-    - boboddy.jsonc the project id — commit
+    - boboddy.jsonc the project, as owner/slug — commit
     - .env.example secret variable names, no values — commit
     - .env your real secret values — **never commit**
     - pipeline-builder/
@@ -79,6 +79,6 @@ They get the definitions from git. Then, from the repository root:
 To change the pipeline, they [re-run the designer](/boboddy/how-to/change-a-pipeline/)
 or edit the files and push. If the server has definitions that never made it
 into git, bring them in with
-[`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-projectid).
+[`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-project).
 It asks before overwriting files and writes its own layout (one `steps.ts`,
 one file per pipeline), so review the diff before you commit it.

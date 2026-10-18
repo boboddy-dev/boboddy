@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { RemoteArtifactUploader } from "../../../work/step-execution/contracts/process-project-work-types";
+import type { RemoteArtifactUploader } from "../../../work/task/contracts/process-project-work-types";
 import type {
   ArtifactStore,
   SaveArtifactInput,
@@ -53,7 +53,7 @@ function detectContentType(relativeStorePath: string): string {
  *   3. `recordArtifact` — tell the API the upload succeeded so it can persist
  *      the artifact row (size, content type, object key).
  *
- * The API authorizes both control-plane calls with the step execution's
+ * The API authorizes both control-plane calls with the task's
  * `claimToken`, which is threaded through {@link SaveArtifactInput.claimToken}
  * (local stores ignore it). Because the store is built once and reused across
  * executions, it cannot close over a single token — it reads the token off each
@@ -65,7 +65,7 @@ export class RemoteArtifactStore implements ArtifactStore {
   async saveArtifact(input: SaveArtifactInput): Promise<SaveArtifactResult> {
     if (!input.claimToken) {
       throw new Error(
-        `RemoteArtifactStore requires a claimToken to upload artifact '${input.relativeStorePath}' for step execution ${input.stepExecutionId}.`,
+        `RemoteArtifactStore requires a claimToken to upload artifact '${input.relativeStorePath}' for task ${input.taskId}.`,
       );
     }
     const claimToken = input.claimToken;
@@ -76,7 +76,7 @@ export class RemoteArtifactStore implements ArtifactStore {
 
     const { uploadUrl, storeRef, objectKey } =
       await this.uploader.createArtifactUploadUrl({
-        stepExecutionId: input.stepExecutionId,
+        taskId: input.taskId,
         claimToken,
         relativeStorePath: input.relativeStorePath,
         contentType,
@@ -97,7 +97,7 @@ export class RemoteArtifactStore implements ArtifactStore {
     }
 
     await this.uploader.recordArtifact({
-      stepExecutionId: input.stepExecutionId,
+      taskId: input.taskId,
       claimToken,
       objectKey,
       relativeStorePath: input.relativeStorePath,

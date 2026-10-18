@@ -28,7 +28,7 @@ export default defineConfig({
     starlight({
       title: "Boboddy",
       description:
-        "Distributed step execution workflows with type-safe pipelines",
+        "Distributed AI workflows with type-safe pipelines",
       social: [
         {
           icon: "github",

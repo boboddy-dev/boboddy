@@ -1,0 +1,257 @@
+import { hostname } from "node:os";
+import type { DestinationStream } from "pino";
+import { parseUuidV7 } from "../../../common/contracts/uuid-v7";
+import type { ArtifactStore } from "../../../artifacts/artifact-store/domain/artifact-store";
+import { resolveArtifactStores } from "../../../artifacts/artifact-store/infra/resolve-artifact-stores";
+import { processProjectWork as processProjectWorkInCore } from "./process-project-work";
+import type {
+  ProcessProjectWorkResult,
+  ProjectWorkLogger,
+  TaskAgentRunner,
+  TaskRunTracker,
+  TaskRuntimeEnvironmentOrchestrator,
+  TaskWorkerClient,
+  WorkReporter,
+} from "../contracts/process-project-work-types";
+import { resolveBoboddyBaseUrl } from "../../../auth/session/infra/auth-config";
+import { createLogger } from "@boboddy/observability/logging/host";
+import {
+  type LocalRuntimeSessionStore,
+  SqliteLocalRuntimeSessionStore,
+} from "../infra/sqlite-local-runtime-session-store";
+import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../infra/local-project-runtime-environment";
+import { DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator } from "../infra/local-noworkspace-runtime-environment";
+import { DefaultOpencodeStepRunner } from "../infra/opencode-step-runner";
+import { createTaskPlaneWorkerClient } from "../infra/worker-api-client";
+
+const DEFAULT_WORK_CONCURRENCY = 1;
+const DEFAULT_POLL_INTERVAL_MS = 5_000;
+const DEFAULT_MAX_POLL_INTERVAL_MS = 60_000;
+const DEFAULT_LEASE_DURATION_SECONDS = 30;
+
+export type ProcessProjectWorkOptions = {
+  projectId: string;
+  baseUrl?: string | undefined;
+  batchSize?: number | undefined;
+  concurrency?: number | undefined;
+  pollIntervalMs?: number | undefined;
+  maxPollIntervalMs?: number | undefined;
+  leaseDurationSeconds?: number | undefined;
+  workerId?: string | undefined;
+  workItemId?: string | undefined;
+  preserveRuntimeOnComplete?: boolean | undefined;
+  once?: boolean | undefined;
+  /** Fail-fast cap on waiting for the agent session to start (ms). */
+  sessionStartTimeoutMs?: number | undefined;
+  dest?: DestinationStream | undefined;
+  /** Env vars read from .boboddy/.env in the user's local project directory. */
+  localEnvVars?: Record<string, string> | undefined;
+  reporter?: WorkReporter | undefined;
+  sourceBranch?: string | null | undefined;
+};
+
+export type ProcessProjectWorkDeps = {
+  createWorkerClient(baseUrl: string): Promise<TaskWorkerClient>;
+  createRunTracker(): TaskRunTracker;
+  runtimeEnvironmentOrchestrator: TaskRuntimeEnvironmentOrchestrator;
+  /** Orchestrator for `no_workspace` steps (host OpenCode, no clone/container). */
+  noWorkspaceRuntimeEnvironmentOrchestrator?:
+    TaskRuntimeEnvironmentOrchestrator | undefined;
+  agentRunner: TaskAgentRunner;
+  /**
+   * Override the artifact store. When omitted the store is resolved from the
+   * environment via `resolveArtifactStores` (local + remote by default; local
+   * copies land under ~/.boboddy/artifacts, remote uploads go through the API).
+   */
+  artifactStore?: ArtifactStore | undefined;
+  sleep(milliseconds: number): Promise<void>;
+  logger: ProjectWorkLogger;
+  reporter?: WorkReporter | undefined;
+};
+
+function loadDefaultDeps(
+  dest?: DestinationStream,
+  localEnvVars?: Record<string, string>,
+  reporter?: WorkReporter,
+): ProcessProjectWorkDeps {
+  const logger = createLogger(
+    {
+      name: "@boboddy/worker",
+      level: process.env["BOBODDY_LOG_LEVEL"] ?? "info",
+    },
+    dest,
+  );
+  const workLogger = logger.child({ scope: "work" });
+  return {
+    createWorkerClient: createTaskPlaneWorkerClient,
+    createRunTracker: () => new SqliteLocalRuntimeSessionStore(),
+    runtimeEnvironmentOrchestrator:
+      new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
+        logger.child({ scope: "runtime-environment-orchestrator" }),
+        localEnvVars,
+      ),
+    noWorkspaceRuntimeEnvironmentOrchestrator:
+      new DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator(
+        logger.child({ scope: "noworkspace-runtime-environment-orchestrator" }),
+      ),
+    agentRunner: new DefaultOpencodeStepRunner(),
+    sleep: (milliseconds) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, milliseconds);
+      }),
+    logger: {
+      debug: (scope, message, details) => {
+        workLogger.debug({ ...details, workScope: scope }, message);
+      },
+      log: (scope, message, details) => {
+        workLogger.info({ ...details, workScope: scope }, message);
+      },
+      error: (scope, message, details) => {
+        workLogger.error({ ...details, workScope: scope }, message);
+      },
+    },
+    reporter,
+  };
+}
+
+function parsePositiveInt(
+  value: string | number | undefined,
+  fallback: number,
+): number {
+  const parsedValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    return fallback;
+  }
+
+  return parsedValue;
+}
+
+function resolveConcurrency(value?: number): number {
+  return parsePositiveInt(
+    value ?? process.env["BOBODDY_WORK_CONCURRENCY"],
+    DEFAULT_WORK_CONCURRENCY,
+  );
+}
+
+function resolvePollIntervalMs(value?: number): number {
+  return parsePositiveInt(
+    value ?? process.env["BOBODDY_WORK_POLL_INTERVAL_MS"],
+    DEFAULT_POLL_INTERVAL_MS,
+  );
+}
+
+function resolveMaxPollIntervalMs(
+  value: number | undefined,
+  pollIntervalMs: number,
+): number {
+  const resolved = parsePositiveInt(
+    value ?? process.env["BOBODDY_WORK_MAX_POLL_INTERVAL_MS"],
+    DEFAULT_MAX_POLL_INTERVAL_MS,
+  );
+
+  // A caller-supplied cap smaller than the base interval would be a no-op
+  // backoff (or worse, invalid) rather than a way to disable it — clamp up to
+  // pollIntervalMs so "equal" is the documented way to opt out.
+  return Math.max(resolved, pollIntervalMs);
+}
+
+function resolveLeaseDurationSeconds(value?: number): number {
+  return parsePositiveInt(
+    value ?? process.env["BOBODDY_WORK_LEASE_DURATION_SECONDS"],
+    DEFAULT_LEASE_DURATION_SECONDS,
+  );
+}
+
+function resolveWorkerId(projectId: string, workerId?: string) {
+  const normalizedWorkerId = workerId?.trim();
+
+  if (normalizedWorkerId) {
+    return normalizedWorkerId;
+  }
+
+  return `boboddy-work-${hostname()}-${String(process.pid)}-${projectId}`;
+}
+
+export async function runProjectWork(
+  options: ProcessProjectWorkOptions,
+  deps?: ProcessProjectWorkDeps,
+): Promise<ProcessProjectWorkResult> {
+  const resolvedDeps =
+    deps ??
+    loadDefaultDeps(options.dest, options.localEnvVars, options.reporter);
+  const projectId = parseUuidV7(options.projectId);
+  const baseUrl = resolveBoboddyBaseUrl(options.baseUrl);
+  const workerClient = await resolvedDeps.createWorkerClient(baseUrl);
+  const concurrency = resolveConcurrency(options.concurrency);
+  const pollIntervalMs = resolvePollIntervalMs(options.pollIntervalMs);
+  const maxPollIntervalMs = resolveMaxPollIntervalMs(
+    options.maxPollIntervalMs,
+    pollIntervalMs,
+  );
+  const leaseDurationSeconds = resolveLeaseDurationSeconds(
+    options.leaseDurationSeconds,
+  );
+  const batchSize = parsePositiveInt(options.batchSize, concurrency);
+  const workerId = resolveWorkerId(projectId, options.workerId);
+
+  // .boboddy/.env (localEnvVars) overrides the ambient .env / process env.
+  const workerEnv = { ...process.env, ...(options.localEnvVars ?? {}) };
+  const artifactStore =
+    resolvedDeps.artifactStore ??
+    resolveArtifactStores(workerEnv, { remoteUploader: workerClient });
+
+  return await processProjectWorkInCore(
+    {
+      projectId,
+      workerId,
+      batchSize,
+      concurrency,
+      pollIntervalMs,
+      maxPollIntervalMs,
+      leaseDurationSeconds,
+      workItemId: options.workItemId,
+      preserveRuntimeOnComplete: options.preserveRuntimeOnComplete,
+      once: options.once,
+      sessionStartTimeoutMs: options.sessionStartTimeoutMs,
+      // Seed each claimed step's log masker with the .boboddy/.env values
+      // (Path A) so injected secrets are redacted from the shipped feed.
+      secretValues: Object.values(options.localEnvVars ?? {}),
+      sourceBranch: options.sourceBranch,
+      workerEnv,
+    },
+    {
+      workerClient,
+      createRunTracker: () => resolvedDeps.createRunTracker(),
+      runtimeEnvironmentOrchestrator:
+        resolvedDeps.runtimeEnvironmentOrchestrator,
+      noWorkspaceRuntimeEnvironmentOrchestrator:
+        resolvedDeps.noWorkspaceRuntimeEnvironmentOrchestrator,
+      agentRunner: resolvedDeps.agentRunner,
+      artifactStore,
+      sleep: (milliseconds) => resolvedDeps.sleep(milliseconds),
+      logger: {
+        debug: (scope, message, details) => {
+          resolvedDeps.logger.debug(scope, message, details);
+        },
+        log: (scope, message, details) => {
+          resolvedDeps.logger.log(scope, message, details);
+        },
+        error: (scope, message, details) => {
+          resolvedDeps.logger.error(scope, message, details);
+        },
+      },
+      reporter: resolvedDeps.reporter,
+    },
+  );
+}
+
+export const processProjectWork = runProjectWork;
+
+export type { ProcessProjectWorkResult };
+export type { LocalRuntimeSessionStore };

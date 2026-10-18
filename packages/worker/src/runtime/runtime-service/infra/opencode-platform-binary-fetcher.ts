@@ -12,15 +12,16 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { logWorkDebug } from "../../../work/step-execution/application/work-logger";
+import { logWorkDebug } from "../../../work/task/application/work-logger";
 import {
   opencodePlatformPackage,
+  opencodePlatformTarballUrl,
   type OpencodePayloadProgressListener,
   type PayloadPlatform,
 } from "../domain/opencode-runtime-payload";
 
 /**
- * Downloads a single `opencode-<platform>` standalone binary out of the npm
+ * Downloads a single `@opencode/cli-<platform>` standalone binary out of the npm
  * registry tarball.
  *
  * Extracted from {@link OpencodeRuntimePayloadProvisioner} so the provisioner
@@ -40,7 +41,7 @@ const PROGRESS_CHUNK_BYTES = 512 * 1024;
 export type FetchOpencodePlatformBinaryInput = {
   /** Pinned OpenCode version to fetch. */
   version: string;
-  /** Platform key (maps to the `opencode-<platform>` npm package). */
+  /** Platform key (maps to the `@opencode/cli-<platform>` npm package). */
   platform: PayloadPlatform;
   /** npm registry base URL, without a trailing slash. */
   registryBaseUrl: string;
@@ -64,7 +65,11 @@ export async function fetchOpencodePlatformBinary(
   input: FetchOpencodePlatformBinaryInput,
 ): Promise<FetchOpencodePlatformBinaryResult> {
   const pkg = opencodePlatformPackage(input.platform);
-  const tarballUrl = `${input.registryBaseUrl}/${pkg}/-/${pkg}-${input.version}.tgz`;
+  const tarballUrl = opencodePlatformTarballUrl(
+    input.registryBaseUrl,
+    input.platform,
+    input.version,
+  );
 
   const downloadDir = await mkdtemp(
     path.join(os.tmpdir(), `oc-payload-${input.platform}-`),

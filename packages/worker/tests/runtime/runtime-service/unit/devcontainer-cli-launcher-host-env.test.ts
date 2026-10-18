@@ -14,7 +14,11 @@ import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import type { LaunchDevcontainerInput } from "../../../../src/runtime/runtime-service/application/devcontainer-launcher";
 import { DevcontainerCliLauncher } from "../../../../src/runtime/runtime-service/infra/devcontainer-cli-launcher";
 
-const REPORTED_ENV_KEYS = ["BOBODDY_GIT_CACHE_DIR", "BOBODDY_HOST_ENV_OTHER"];
+const REPORTED_ENV_KEYS = [
+  "BOBODDY_GIT_CACHE_DIR",
+  "BOBODDY_HOST_ENV_OTHER",
+  "SETUP_TEST_NPM_TOKEN",
+];
 
 const STUB_SCRIPT = `
 const keys = ${JSON.stringify(REPORTED_ENV_KEYS)};
@@ -107,5 +111,19 @@ describe("devcontainer CLI launcher hostEnv", () => {
     const env = await spawnedEnv(launchInput());
 
     expect(env["BOBODDY_GIT_CACHE_DIR"]).toBeNull();
+  });
+
+  test("a step setup variable reaches the CLI and overrides the worker's process.env", async () => {
+    process.env["SETUP_TEST_NPM_TOKEN"] = "from-worker-env";
+
+    const env = await spawnedEnv(
+      launchInput({
+        SETUP_TEST_NPM_TOKEN: "from-step-setup",
+        BOBODDY_GIT_CACHE_DIR: "/var/cache/boboddy",
+      }),
+    );
+
+    expect(env["SETUP_TEST_NPM_TOKEN"]).toBe("from-step-setup");
+    expect(env["BOBODDY_GIT_CACHE_DIR"]).toBe("/var/cache/boboddy");
   });
 });

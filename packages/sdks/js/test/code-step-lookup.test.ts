@@ -41,7 +41,6 @@ function userDefinedStep(key: string): StepDefinitionSpec {
     resultSchemaJson: null,
     signalExtractorDefinitions: [],
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
   };
 }

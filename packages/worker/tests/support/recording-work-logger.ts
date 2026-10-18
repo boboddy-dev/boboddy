@@ -3,7 +3,7 @@
  * tests can assert which channel (`log` ships at the default ship level,
  * `debug` does not) a line was emitted on.
  */
-import type { ProjectWorkLogger } from "../../src/work/step-execution/contracts/process-project-work-types";
+import type { ProjectWorkLogger } from "../../src/work/task/contracts/process-project-work-types";
 
 export type RecordedLogEntry = {
   level: "debug" | "log" | "error";

@@ -2,11 +2,13 @@ import { describe, expect, test } from "bun:test";
 import type {
   HealthCheckReport,
   McpHandshakeReport,
+  PipelineHealthDryRunReport,
+  StepHealthCheckReport,
   WorkDryRunReport,
 } from "@boboddy/worker";
 import {
   renderDryRunReport,
-  summarizeDryRunFailure,
+  toDryRunGateResult,
 } from "../src/lib/dry-run-report";
 import type { BaseReporter } from "../src/lib/reporter-types";
 
@@ -14,7 +16,11 @@ function createSpyReporter(calls: string[]): BaseReporter {
   return {
     start: () => {},
     finish: () => {},
-    startTask: () => ({ update: () => {}, succeed: () => {}, fail: () => {} }),
+    startActivity: () => ({
+      update: () => {},
+      succeed: () => {},
+      fail: () => {},
+    }),
     info: (m) => calls.push(`info:${m}`),
     success: (m) => calls.push(`success:${m}`),
     warn: (m) => calls.push(`warn:${m}`),
@@ -257,92 +263,95 @@ describe("renderDryRunReport", () => {
   });
 });
 
-describe("summarizeDryRunFailure", () => {
-  test("names a launch error above everything else", () => {
-    const report: WorkDryRunReport = {
-      ...reportWith({}),
-      launchError: "devcontainer build failed: exit 1",
-    };
-
-    expect(summarizeDryRunFailure(report)).toBe(
-      "environment failed to launch: devcontainer build failed: exit 1",
-    );
+describe("toDryRunGateResult", () => {
+  const stepReport = (
+    overrides: Partial<StepHealthCheckReport>,
+  ): StepHealthCheckReport => ({
+    stepDefinitionId: "id",
+    stepKey: "fix",
+    stepName: "Fix",
+    runtime: "project devcontainer",
+    launchError: null,
+    environmentProblems: [],
+    mcpServers: [],
+    healthChecks: [],
+    ...overrides,
   });
 
-  test("names an unhealthy container", () => {
-    const report: WorkDryRunReport = {
-      ...reportWith({}),
-      containerHealth: { status: "exited", healthy: false },
-    };
-
-    expect(summarizeDryRunFailure(report)).toBe("container exited");
+  const gateReport = (
+    steps: StepHealthCheckReport[],
+    ok: boolean,
+  ): PipelineHealthDryRunReport => ({
+    ok,
+    pipelineDefinitionId: "pipeline-1",
+    launchCount: 1,
+    steps,
+    stepsWithoutChecks: [],
   });
 
-  test("names unhealthy OpenCode with its detail", () => {
-    const report: WorkDryRunReport = {
-      ...reportWith({}),
-      opencodeHealth: { healthy: false, detail: "connection refused" },
-    };
-
-    expect(summarizeDryRunFailure(report)).toBe(
-      "OpenCode unhealthy (connection refused)",
-    );
-  });
-
-  test("names every unhealthy MCP server", () => {
-    const report = reportWith({
-      mcpServers: [
-        connected("postgres"),
-        connected("playwright", { status: "failed", healthy: false }),
-      ],
-    });
-
-    expect(summarizeDryRunFailure(report)).toBe(
-      "MCP server(s) unhealthy: playwright",
-    );
-  });
-
-  test("names every health check that did not pass", () => {
-    const report = reportWith({
-      healthChecks: [
-        healthCheckReport({
-          name: "browser_navigate",
-          outcome: { kind: "passed" },
-        }),
-        healthCheckReport({
-          name: "not_a_real_tool",
-          outcome: {
-            kind: "failed",
-            reason: "not-registered",
-            detail: "not registered",
-          },
-        }),
-      ],
-    });
-
-    expect(summarizeDryRunFailure(report)).toBe(
-      "health check(s) did not pass: not_a_real_tool",
-    );
-  });
-
-  test("combines multiple problems", () => {
-    const report: WorkDryRunReport = {
-      ...reportWith({
-        mcpServers: [
-          connected("postgres", { status: "failed", healthy: false }),
+  test("reports each step's checks and summarizes only the blocking ones", () => {
+    const result = toDryRunGateResult(
+      gateReport(
+        [
+          stepReport({
+            stepName: "Investigate",
+            healthChecks: [
+              healthCheckReport({
+                name: "browser",
+                outcome: { kind: "passed" },
+              }),
+              healthCheckReport({
+                name: "playwright-cli",
+                severity: "warn",
+                outcome: {
+                  kind: "failed",
+                  reason: "nonzero-exit",
+                  detail: "missing",
+                },
+              }),
+            ],
+          }),
+          stepReport({
+            stepName: "Fix",
+            healthChecks: [
+              healthCheckReport({
+                name: "test-runner",
+                outcome: {
+                  kind: "failed",
+                  reason: "nonzero-exit",
+                  detail: "vitest: not found",
+                },
+              }),
+            ],
+          }),
         ],
-      }),
-      containerHealth: { status: "exited", healthy: false },
-    };
+        false,
+      ),
+    );
 
-    expect(summarizeDryRunFailure(report)).toBe(
-      "container exited; MCP server(s) unhealthy: postgres",
+    expect(result.ok).toBe(false);
+    expect(
+      result.findings.map((finding) => [
+        finding.stepName,
+        finding.checkName,
+        finding.passed,
+        finding.blocking,
+      ]),
+    ).toEqual([
+      ["Investigate", "browser", true, false],
+      ["Investigate", "playwright-cli", false, false],
+      ["Fix", "test-runner", false, true],
+    ]);
+    expect(result.summary).toBe(
+      "Fix › test-runner (required): [nonzero-exit] vitest: not found",
     );
   });
 
-  test("falls back to a generic line when nothing specific is unhealthy", () => {
-    expect(summarizeDryRunFailure(reportWith({}))).toBe(
-      "dry run reported unhealthy with no further detail",
-    );
+  test("says so when no step declares a check", () => {
+    expect(toDryRunGateResult(gateReport([], true))).toEqual({
+      ok: true,
+      summary: "no step declares health checks",
+      findings: [],
+    });
   });
 });

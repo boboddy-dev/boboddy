@@ -23,10 +23,23 @@ export type { ArtifactRetentionSettings, ConfigFile } from "./config-file";
 export { setHomeDirForTests } from "./home-dir";
 export { resolveBoboddyBaseUrl } from "./base-url";
 export {
+  formatProjectRef,
+  isProjectRef,
   loadProjectConfig,
+  parseProjectRef,
   PROJECT_CONFIG_RELATIVE_PATH,
 } from "./project-config";
-export type { ProjectConfig } from "./project-config";
+export type { ProjectConfig, ProjectRef } from "./project-config";
+export {
+  PROJECT_REF_FORMAT_HINT,
+  ProjectRefError,
+  resolveProjectRef,
+} from "./project-ref";
+export type {
+  ProjectRefErrorKind,
+  ResolvedProjectRef,
+  ResolveProjectRefOptions,
+} from "./project-ref";
 export { loadPushDefaults } from "./load-push-defaults";
 export type {
   LoadPushDefaultsOptions,

@@ -16,7 +16,7 @@ import { concurrentTest, hasReporterLine } from "./utils";
 
 const projectRoot = resolve(import.meta.dir, "..");
 const cliEntrypoint = resolve(projectRoot, "src/index.ts");
-const FAKE_PROJECT_ID = "019fd6f8-0000-7000-8000-000000000000";
+const FAKE_PROJECT = "acme/web-app";
 
 interface SpawnResult {
   readonly stdout: string;
@@ -30,7 +30,7 @@ function runWork(
 ): SpawnResult {
   const result = spawnSync(
     process.execPath,
-    ["run", cliEntrypoint, "work", FAKE_PROJECT_ID, ...args],
+    ["run", cliEntrypoint, "work", FAKE_PROJECT, ...args],
     {
       cwd: options.cwd,
       env: { ...process.env, HOME: options.home },

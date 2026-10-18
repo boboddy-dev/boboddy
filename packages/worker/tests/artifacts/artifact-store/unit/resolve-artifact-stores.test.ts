@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { getConfigFilePath, setHomeDirForTests } from "@boboddy/sdk/defaults";
 import { CompositeArtifactStore } from "../../../../src/artifacts/artifact-store/infra/composite-artifact-store";
 import { resolveArtifactStores } from "../../../../src/artifacts/artifact-store/infra/resolve-artifact-stores";
-import type { RemoteArtifactUploader } from "../../../../src/work/step-execution/contracts/process-project-work-types";
+import type { RemoteArtifactUploader } from "../../../../src/work/task/contracts/process-project-work-types";
 
 const stubRemoteUploader: RemoteArtifactUploader = {
   createArtifactUploadUrl: () =>
@@ -51,7 +51,7 @@ describe("resolveArtifactStores", () => {
     expect(store).toBeInstanceOf(CompositeArtifactStore);
 
     await store.saveArtifact({
-      stepExecutionId: "step-1",
+      taskId: "step-1",
       sourcePath: sourceFile,
       relativeStorePath: "out.txt",
       kind: "generic",
@@ -73,7 +73,7 @@ describe("resolveArtifactStores", () => {
         BOBODDY_ARTIFACT_LOCAL_DIR: overrideDir,
       });
       await store.saveArtifact({
-        stepExecutionId: "step-1",
+        taskId: "step-1",
         sourcePath: sourceFile,
         relativeStorePath: "out.txt",
         kind: "generic",
@@ -103,7 +103,7 @@ describe("resolveArtifactStores", () => {
     expect(store).toBeInstanceOf(CompositeArtifactStore);
 
     await store.saveArtifact({
-      stepExecutionId: "step-1",
+      taskId: "step-1",
       sourcePath: sourceFile,
       relativeStorePath: "out.txt",
       kind: "generic",

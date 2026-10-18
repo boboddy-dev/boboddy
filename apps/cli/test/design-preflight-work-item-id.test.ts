@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { OpencodeProviderCredentialCheck } from "@boboddy/worker";
+import {
+  OPENCODE_RUNTIME_VERSION,
+  type OpencodeProviderCredentialCheck,
+} from "@boboddy/worker";
 import {
   runDesignPreflight,
   workItemNotFoundMessage,
@@ -7,6 +10,7 @@ import {
 } from "../src/lib/design-preflight";
 import type { DesignWorkItem } from "../src/lib/design-work-item";
 import { noopBaseReporter } from "../src/lib/reporter-types";
+import { fakeAgentToolsPorts } from "./design-agent-tools-fakes";
 import { createReporterRecorder } from "./utils";
 
 /**
@@ -17,7 +21,7 @@ import { createReporterRecorder } from "./utils";
  */
 
 const BASE_URL = "https://app.example.com";
-const LAUNCHER = "/home/u/.boboddy/runtimes/opencode/1.18.11/launch.sh";
+const LAUNCHER = `/home/u/.boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}/launch.sh`;
 const OK_CREDENTIALS: OpencodeProviderCredentialCheck = {
   ok: true,
   providers: ["anthropic"],
@@ -46,9 +50,11 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
   const base: DesignPreflightPorts = {
     loadSession: () => Promise.resolve({ email: "user@example.com" }),
     login: () => Promise.resolve({ email: "user@example.com" }),
-    readConfiguredProjectId: () => Promise.resolve("project-from-config"),
+    readConfiguredProject: () => Promise.resolve("project-from-config"),
     resolveProjectFromRepo: () => Promise.resolve("project-from-repo"),
-    promptProjectId: () => Promise.resolve(undefined),
+    promptProject: () => Promise.resolve(undefined),
+    resolveProjectRef: ({ ref }) =>
+      Promise.resolve({ id: ref, owner: "acme", slug: ref }),
     listWorkItems: () => {
       calls.listWorkItems += 1;
       return Promise.resolve([RECENT_ITEM]);
@@ -73,6 +79,7 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
     checkCredentials: () => Promise.resolve(OK_CREDENTIALS),
     detectInstalledTools: () => Promise.resolve([]),
     runAuthLogin: () => Promise.reject(new Error("not expected")),
+    ...fakeAgentToolsPorts(),
   };
   return { ports: { ...base, ...overrides }, calls };
 }
@@ -92,11 +99,11 @@ async function expectRejection(promise: Promise<unknown>): Promise<Error> {
 function run(
   ports: DesignPreflightPorts,
   workItemIdArgument: string | undefined,
-  projectIdArgument = "project-from-arg",
+  projectArgument = "project-from-arg",
 ) {
   return runDesignPreflight({
     baseUrl: BASE_URL,
-    projectIdArgument,
+    projectArgument,
     workItemIdArgument,
     reporter: noopBaseReporter,
     ports,
@@ -174,7 +181,7 @@ describe("runDesignPreflight — --work-item-id", () => {
 
     await runDesignPreflight({
       baseUrl: BASE_URL,
-      projectIdArgument: "project-from-arg",
+      projectArgument: "project-from-arg",
       workItemIdArgument: "missing-id",
       reporter,
       ports,

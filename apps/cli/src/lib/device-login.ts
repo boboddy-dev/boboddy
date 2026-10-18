@@ -61,7 +61,7 @@ export async function performDeviceLogin(
     );
   }
 
-  const task = reporter.startTask("Waiting for approval…");
+  const task = reporter.startActivity("Waiting for approval…");
 
   let tokenResponse;
   try {

@@ -7,6 +7,10 @@ import {
   ensureProviderConnected,
   type ProviderConnectPorts,
 } from "./design-provider-connect";
+import {
+  ensureAgentToolsManifest,
+  type AgentToolsPorts,
+} from "./design-agent-tools";
 import { resolveFreeTextWorkItem } from "./design-work-item-resolution";
 import type { EnsureOpencodeRuntimePort } from "./design-runtime";
 import type {
@@ -17,6 +21,7 @@ import type {
 import type { BaseReporter } from "./reporter-types";
 import { CliError } from "./cli-error";
 import { ensureSignedIn, type SignInPorts } from "./ensure-signed-in";
+import type { ResolvedProjectRef } from "@boboddy/sdk/defaults";
 
 /**
  * The preflight for `boboddy pipelines design`.
@@ -26,7 +31,9 @@ import { ensureSignedIn, type SignInPorts } from "./ensure-signed-in";
  * session. A missing session triggers a login; a missing directory is
  * scaffolded; missing dependencies are installed; a missing runtime is
  * downloaded; a missing AI provider connection hands the user to OpenCode's
- * own `auth login`, with guidance for the AI tools they already have.
+ * own `auth login`, with guidance for the AI tools they already have. The
+ * repository's MCP servers and skills are recorded for the designer in
+ * `discovered-tools.json` (see `design-agent-tools.ts`), never fatally.
  *
  * All I/O is behind {@link DesignPreflightPorts} so the decision logic (which
  * branch runs when) is unit-testable without a network, a filesystem, or a
@@ -34,20 +41,33 @@ import { ensureSignedIn, type SignInPorts } from "./ensure-signed-in";
  */
 
 export interface DesignPreflightPorts
-  extends EnsureOpencodeRuntimePort, SignInPorts, ProviderConnectPorts {
-  /** The projectId recorded in `.boboddy/boboddy.jsonc`, if any. */
-  readConfiguredProjectId(): Promise<string | undefined>;
+  extends
+    EnsureOpencodeRuntimePort,
+    SignInPorts,
+    ProviderConnectPorts,
+    AgentToolsPorts {
+  /** The `owner/slug` ref recorded as `"project"` in `.boboddy/boboddy.jsonc`, if any. */
+  readConfiguredProject(): Promise<string | undefined>;
   /**
    * Identify the project for THIS repository against the server by matching
-   * its git remote, and persist the id to `.boboddy/boboddy.jsonc`. Resolves
-   * to `undefined` — falling through to `promptProjectId` below — both when
-   * the repository cannot be identified at all (no `origin` remote, not a
-   * git root) and when it's identified but no project matches its remote yet
-   * (that hand-off lives in `boboddy init`, see #141; run it first).
+   * its git remote, persist its `owner/slug` ref to `.boboddy/boboddy.jsonc`,
+   * and return that ref. Resolves to `undefined` — falling through to
+   * `promptProject` below — both when the repository cannot be identified at
+   * all (no `origin` remote, not a git root) and when it's identified but no
+   * project matches its remote yet (that hand-off lives in `boboddy init`, see
+   * #141; run it first).
    */
   resolveProjectFromRepo(baseUrl: string): Promise<string | undefined>;
-  /** Ask the user for a projectId. `undefined` when they cancel or leave it blank. */
-  promptProjectId(): Promise<string | undefined>;
+  /** Ask the user for an `owner/slug` ref. `undefined` when they cancel or leave it blank. */
+  promptProject(): Promise<string | undefined>;
+  /**
+   * Resolve the chosen `owner/slug` ref to the project id. Throws a message
+   * naming the ref (and the denied action) when it does not resolve.
+   */
+  resolveProjectRef(input: {
+    baseUrl: string;
+    ref: string;
+  }): Promise<ResolvedProjectRef>;
   /**
    * The project's most recent work items, newest first, already capped to
    * {@link WORK_ITEM_PICKER_LIMIT} — or, when `query` is given, the top items
@@ -120,8 +140,8 @@ export interface DesignPreflightPorts
 
 export type DesignPreflightInput = {
   baseUrl: string;
-  /** Positional `projectId`, when the user passed one. */
-  projectIdArgument: string | undefined;
+  /** Positional `owner/slug` project, when the user passed one. */
+  projectArgument: string | undefined;
   /** `--work-item-id`, when the user passed one. Wins outright over the picker. */
   workItemIdArgument: string | undefined;
   reporter: BaseReporter;
@@ -129,20 +149,28 @@ export type DesignPreflightInput = {
 };
 
 export type DesignPreflightResult = {
+  /** The resolved project id, for every API call and `BOBODDY_PROJECT_ID`. */
   projectId: string;
+  /** The `owner/slug` ref the id was resolved from — what the user sees. */
+  project: string;
   /** The item this session is anchored to. Always a real, persisted item. */
   workItem: DesignWorkItem;
   /** Absolute path to the provisioned `launch.sh`. */
   launcherPath: string;
   /** Provider NAMES only — never key material. */
   providers: readonly string[];
+  /**
+   * Absolute path to `discovered-tools.json`, or `null` when it could not be
+   * written — the session continues without it.
+   */
+  agentToolsManifestPath: string | null;
 };
 
 export const NO_PROJECT_ID_MESSAGE =
-  "No project ID. Boboddy could not identify a project for this repository " +
-  "automatically — run `boboddy pipelines design` from the root of a git repo " +
-  "with an `origin` remote, or pass an id explicitly: " +
-  "`boboddy pipelines design <projectId>`.";
+  "No project. Boboddy could not identify a project for this repository " +
+  "automatically — run `boboddy init` from the root of a git repo with an " +
+  "`origin` remote, or pass one explicitly: " +
+  "`boboddy pipelines design <owner>/<project-slug>`.";
 
 // Re-exported for callers that only know this module, not `design-work-item.ts`
 // where it actually lives (next to the other work-item-resolution pieces).
@@ -151,10 +179,10 @@ export { NO_WORK_ITEM_MESSAGE } from "./design-work-item";
 /** The message for an explicit `--work-item-id` that does not resolve. */
 export function workItemNotFoundMessage(
   workItemId: string,
-  projectId: string,
+  project: string,
 ): string {
   return (
-    `Work item ${workItemId} was not found in project ${projectId}. Check the ` +
+    `Work item ${workItemId} was not found in project ${project}. Check the ` +
     "id, or omit --work-item-id to pick from the project's recent items instead."
   );
 }
@@ -172,9 +200,14 @@ export async function runDesignPreflight(
   // `pipelines design` asserts a tty before the preflight runs, so a missing
   // session always heals through the device login.
   await ensureSignedIn({ baseUrl, interactive: true, reporter, ports });
-  const projectId = await ensureProjectId({
+  const {
+    id: projectId,
+    project,
+    owner,
+    slug,
+  } = await ensureProject({
     baseUrl,
-    projectIdArgument: input.projectIdArgument,
+    projectArgument: input.projectArgument,
     reporter,
     ports,
   });
@@ -184,11 +217,19 @@ export async function runDesignPreflight(
   const workItem = await ensureWorkItem({
     baseUrl,
     projectId,
+    project,
     workItemIdArgument: input.workItemIdArgument,
     reporter,
     ports,
   });
   await ensureBuilderDirectory(reporter, ports);
+  const agentToolsManifestPath = await ensureAgentToolsManifest({
+    project,
+    owner,
+    slug,
+    reporter,
+    ports,
+  });
   const launcherPath = await ports.ensureRuntime();
   const providers = await ensureProviderCredentials(
     launcherPath,
@@ -196,35 +237,57 @@ export async function runDesignPreflight(
     ports,
   );
 
-  return { projectId, workItem, launcherPath, providers };
+  return {
+    projectId,
+    project,
+    workItem,
+    launcherPath,
+    providers,
+    agentToolsManifestPath,
+  };
 }
 
 /**
- * Step 2 — project. Mirrors `pipelines push`: the positional argument wins,
- * then `.boboddy/boboddy.jsonc`.
+ * Step 2 — project. Mirrors `pipelines push`: the positional `owner/slug`
+ * wins, then `"project"` in `.boboddy/boboddy.jsonc`. Whichever ref is picked
+ * is then resolved to the project id once, here, so a stale or forbidden ref
+ * fails before any prompt — naming the ref, never an id.
  *
- * Unlike push, a miss HEALS: the project is looked up on the server from the
- * repository's git remote and written to `.boboddy/boboddy.jsonc`, exactly as
- * `boboddy init` does. Asking a first-time user to paste a UUID they have
- * never seen is a dead end, not a preflight — the prompt survives for the
- * case where the repo cannot be identified at all (no `origin` remote), and
- * for the case where no project exists for it yet (run `boboddy init` first,
- * which sends the user through the browser hand-off — see #141).
+ * Unlike push, a missing ref HEALS: the project is looked up on the server from
+ * the repository's git remote and written to `.boboddy/boboddy.jsonc`, exactly
+ * as `boboddy init` does. The prompt survives for the case where the repo
+ * cannot be identified at all (no `origin` remote), and for the case where no
+ * project exists for it yet (run `boboddy init` first, which sends the user
+ * through the browser hand-off — see #141).
  */
-async function ensureProjectId(input: {
+async function ensureProject(input: {
   baseUrl: string;
-  projectIdArgument: string | undefined;
+  projectArgument: string | undefined;
+  reporter: BaseReporter;
+  ports: DesignPreflightPorts;
+}): Promise<{ id: string; project: string; owner: string; slug: string }> {
+  const ref = await pickProjectRef(input);
+  const { id, owner, slug } = await input.ports.resolveProjectRef({
+    baseUrl: input.baseUrl,
+    ref,
+  });
+  return { id, project: ref, owner, slug };
+}
+
+async function pickProjectRef(input: {
+  baseUrl: string;
+  projectArgument: string | undefined;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
 }): Promise<string> {
   const { reporter, ports } = input;
 
-  const fromArgument = input.projectIdArgument?.trim() ?? "";
+  const fromArgument = input.projectArgument?.trim() ?? "";
   if (fromArgument.length > 0) {
     return fromArgument;
   }
 
-  const configured = (await ports.readConfiguredProjectId())?.trim() ?? "";
+  const configured = (await ports.readConfiguredProject())?.trim() ?? "";
   if (configured.length > 0) {
     return configured;
   }
@@ -234,12 +297,12 @@ async function ensureProjectId(input: {
     return resolved;
   }
 
-  const prompted = (await ports.promptProjectId())?.trim() ?? "";
+  const prompted = (await ports.promptProject())?.trim() ?? "";
   if (prompted.length === 0) {
     throw new CliError("no_project_id", NO_PROJECT_ID_MESSAGE);
   }
 
-  reporter.info("Using the project ID you entered for this session only.");
+  reporter.info("Using the project you entered for this session only.");
   return prompted;
 }
 
@@ -253,15 +316,15 @@ async function resolveProjectFromRepo(
   reporter: BaseReporter,
   ports: DesignPreflightPorts,
 ): Promise<string | undefined> {
-  const task = reporter.startTask("Finding this repository's project…");
+  const task = reporter.startActivity("Finding this repository's project…");
   try {
-    const projectId = (await ports.resolveProjectFromRepo(baseUrl))?.trim();
-    if (projectId === undefined || projectId.length === 0) {
+    const project = (await ports.resolveProjectFromRepo(baseUrl))?.trim();
+    if (project === undefined || project.length === 0) {
       task.fail("Could not identify this repository's project");
       return undefined;
     }
-    task.succeed(`Project ${projectId}`);
-    return projectId;
+    task.succeed(`Project ${project}`);
+    return project;
   } catch (error) {
     task.fail("Could not identify this repository's project");
     reporter.warn(error instanceof Error ? error.message : String(error));
@@ -300,6 +363,7 @@ async function resolveProjectFromRepo(
 async function ensureWorkItem(input: {
   baseUrl: string;
   projectId: string;
+  project: string;
   workItemIdArgument: string | undefined;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
@@ -311,6 +375,7 @@ async function ensureWorkItem(input: {
     const requested = await resolveRequestedWorkItem({
       baseUrl,
       projectId,
+      project: input.project,
       workItemId: requestedId,
       reporter,
       ports,
@@ -358,13 +423,14 @@ async function ensureWorkItem(input: {
 async function resolveRequestedWorkItem(input: {
   baseUrl: string;
   projectId: string;
+  project: string;
   workItemId: string;
   reporter: BaseReporter;
   ports: DesignPreflightPorts;
 }): Promise<DesignWorkItem | undefined> {
   const { reporter, ports } = input;
 
-  const task = reporter.startTask(`Loading work item ${input.workItemId}…`);
+  const task = reporter.startActivity(`Loading work item ${input.workItemId}…`);
   let item: DesignWorkItem | undefined;
   try {
     item = await ports.getWorkItemById({
@@ -379,7 +445,7 @@ async function resolveRequestedWorkItem(input: {
 
   if (item === undefined) {
     task.fail("Work item not found");
-    reporter.warn(workItemNotFoundMessage(input.workItemId, input.projectId));
+    reporter.warn(workItemNotFoundMessage(input.workItemId, input.project));
     return undefined;
   }
 
@@ -440,7 +506,7 @@ async function loadPickableItems(input: {
   const query = input.query?.trim();
   const isSearch = query !== undefined && query.length > 0;
 
-  const task = input.reporter.startTask(
+  const task = input.reporter.startActivity(
     isSearch
       ? `Searching this project's work items for “${query}”…`
       : "Loading this project's work items…",

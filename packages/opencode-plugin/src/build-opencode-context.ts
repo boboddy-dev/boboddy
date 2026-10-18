@@ -1,10 +1,9 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Config } from "@opencode-ai/sdk";
-import type { OpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
-import type { OpenCodePlugins } from "@boboddy/sdk/opencode-plugin";
+import type { OpenCodeOverlayConfig as Config } from "./opencode-overlay-config";
+import type { ResolvedOpenCodeMcpServers } from "@boboddy/sdk/opencode-mcp";
 import { parseJsonc } from "@boboddy/sdk/jsonc";
-import { buildBoboddyOverrideConfig } from "./build-step-execution-opencode-config";
+import { buildBoboddyOverrideConfig } from "./build-task-opencode-config";
 import embeddedOpencodeJsonc from "../opencode.jsonc" with { type: "text" };
 import embeddedOpencodeignore from "../opencodeignore.txt" with { type: "text" };
 import embeddedPluginSource from "../dist/plugin.js" with { type: "text" };
@@ -48,12 +47,12 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
 }
 
 /**
- * Build the Boboddy OpenCode context for a step execution.
+ * Build the Boboddy OpenCode context for a task.
  *
  * Returns a JSON string (`opencodeConfigContent`) that must be passed to the
  * in-container OpenCode as the `OPENCODE_CONFIG_CONTENT` environment variable.
  * This string carries Boboddy's required overrides (permission baseline, step
- * MCP servers, step plugins, AGENT_DEFAULT_MODEL) at precedence level #6
+ * MCP servers, AGENT_DEFAULT_MODEL) at precedence level #6
  * (inline), ensuring they win over the user's global (#2) and project (#4)
  * configs without modifying any files in the user's repo.
  *
@@ -66,24 +65,19 @@ async function prepareOpencodeDir(targetRoot: string): Promise<void> {
  */
 export async function buildOpencodeContext(input: {
   workspacePath: string;
-  stepMcpServers?: OpenCodeMcpServers | null | undefined;
-  /**
-   * User/npm plugins declared for the step. OpenCode runs in the same container
-   * as the workspace, so these are trusted and merged directly into
-   * `config.plugin[]` to load in-process.
-   */
-  stepPlugins?: OpenCodePlugins | null | undefined;
+  /** Step MCP servers with every `{ type: "ref" }` already resolved. */
+  stepMcpServers?: ResolvedOpenCodeMcpServers | null | undefined;
   agentPromptText?: string | null | undefined;
   /**
-   * Optional `provider` overlay (e.g. from `buildFakeProviderConfig`)
-   * merged onto `overrideConfig.provider`. This lets callers such as the
+   * Optional v2 `providers` overlay (e.g. from `buildFakeProviderConfig`)
+   * merged onto `overrideConfig.providers`. This lets callers such as the
    * dry-run MCP health check (#109) bake a fake AI provider into the same
    * launch-time inline config (precedence #6) as everything else, so it's
    * live from process boot — instead of PATCHing `/config` on an already-
    * running agent, which has zero live effect. The embedded baseline config
-   * never sets `provider`, so this merge is shallow-merge-safe.
+   * never sets `providers`, so this merge is shallow-merge-safe.
    */
-  providerOverride?: Partial<Config> | null | undefined;
+  providerOverride?: Pick<Config, "providers"> | null | undefined;
 }): Promise<{ opencodeConfigContent: string }> {
   const targetRoot = path.join(input.workspacePath, ".opencode");
 
@@ -98,17 +92,16 @@ export async function buildOpencodeContext(input: {
       buildBoboddyOverrideConfig({
         baseConfig: baselineConfig,
         stepMcpServers: input.stepMcpServers,
-        stepPlugins: input.stepPlugins,
         agentPromptText: input.agentPromptText,
       }),
     ),
     prepareOpencodeDir(targetRoot),
   ]);
 
-  if (input.providerOverride?.provider) {
-    overrideConfig.provider = {
-      ...overrideConfig.provider,
-      ...input.providerOverride.provider,
+  if (input.providerOverride?.providers) {
+    overrideConfig.providers = {
+      ...overrideConfig.providers,
+      ...input.providerOverride.providers,
     };
   }
 

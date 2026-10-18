@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { investigateExecution } from "../src/investigate-execution";
 import type {
+  FullLogSaver,
   InvestigateExecutionClient,
-  LogArtifactWriter,
 } from "../src/lib/investigate-execution-client";
 import type { ApiErrorBody, LogLine } from "../src/lib/api-types";
 import {
@@ -11,7 +11,7 @@ import {
   makeAttempt,
   makeExecution,
   makePipelineDefinition,
-  makeStepExecution,
+  makeTask,
   makeWorkItem,
 } from "./fixtures";
 
@@ -28,7 +28,7 @@ function buildFakeClient(): InvestigateExecutionClient {
   const workItem = makeWorkItem();
   // Live (not-yet-completed) by default, so tests that don't care about logs
   // never accidentally hit the archive path (which calls real `fetch`).
-  const stepExecution = makeStepExecution({ completedAt: null });
+  const task = makeTask({ completedAt: null });
 
   return {
     pipelineExecutions: {
@@ -42,21 +42,19 @@ function buildFakeClient(): InvestigateExecutionClient {
     workItems: {
       getWorkItem: () => Promise.resolve({ data: workItem, error: undefined }),
     },
-    stepExecutions: {
-      getStepExecution: () =>
-        Promise.resolve({ data: stepExecution, error: undefined }),
-      readStepExecutionLogs: () =>
+    tasks: {
+      getTask: () => Promise.resolve({ data: task, error: undefined }),
+      readTaskLogs: () =>
         Promise.resolve({
           data: { lines: [], nextOffset: 0, complete: false },
           error: undefined,
         }),
-      getStepExecutionLogArchive: () =>
+      getTaskLogArchive: () =>
         Promise.resolve({
           data: { url: null, sizeBytes: 0 },
           error: undefined,
         }),
-      listStepExecutionArtifacts: () =>
-        Promise.resolve({ data: [], error: undefined }),
+      listTaskArtifacts: () => Promise.resolve({ data: [], error: undefined }),
       getArtifactDownloadUrl: () =>
         Promise.resolve({ data: makeArtifactDownloadUrl(), error: undefined }),
     },
@@ -71,7 +69,7 @@ function errorResult(error: ApiErrorBody): {
 }
 
 /** Lines whose rendered form comfortably exceeds `MAX_LOG_RENDER_CHARS`
- * (20,000 chars), to exercise the truncation-triggers-a-write path. */
+ * (20,000 chars), to exercise the capped preview. */
 function makeOversizedLogLines(): LogLine[] {
   return Array.from({ length: 2_000 }, (_, index) => ({
     seq: index,
@@ -112,7 +110,7 @@ describe("investigateExecution", () => {
 
   test("happy path: --log fetches the live feed for a running step", async () => {
     const client = buildFakeClient();
-    client.stepExecutions.readStepExecutionLogs = () =>
+    client.tasks.readTaskLogs = () =>
       Promise.resolve({
         data: {
           lines: [
@@ -139,13 +137,13 @@ describe("investigateExecution", () => {
     });
 
     expect(output).toContain("Step: investigate");
-    expect(output).toContain("live, step still running");
+    expect(output).toContain("(live snapshot, step still running)");
     expect(output).toContain("starting up");
   });
 
   test("happy path: --artifacts lists artifacts with download URLs", async () => {
     const client = buildFakeClient();
-    client.stepExecutions.listStepExecutionArtifacts = () =>
+    client.tasks.listTaskArtifacts = () =>
       Promise.resolve({ data: [makeArtifact()], error: undefined });
 
     const output = await investigateExecution({
@@ -204,13 +202,13 @@ describe("investigateExecution", () => {
 
   test("log archive metered (402): surfaces a distinct quota message, not a generic failure", async () => {
     const client = buildFakeClient();
-    // Terminal step execution so investigateExecution takes the archive path.
-    client.stepExecutions.getStepExecution = () =>
+    // Terminal task so investigateExecution takes the archive path.
+    client.tasks.getTask = () =>
       Promise.resolve({
-        data: makeStepExecution({ completedAt: "2026-01-01T00:05:00.000Z" }),
+        data: makeTask({ completedAt: "2026-01-01T00:05:00.000Z" }),
         error: undefined,
       });
-    client.stepExecutions.getStepExecutionLogArchive = () =>
+    client.tasks.getTaskLogArchive = () =>
       Promise.resolve(
         errorResult({
           status: 402,
@@ -232,6 +230,43 @@ describe("investigateExecution", () => {
     expect(output).not.toContain("could not load log archive");
   });
 
+  test("log archive metered (402): saves no full log", async () => {
+    const client = buildFakeClient();
+    client.tasks.getTask = () =>
+      Promise.resolve({
+        data: makeTask({ completedAt: "2026-01-01T00:05:00.000Z" }),
+        error: undefined,
+      });
+    client.tasks.getTaskLogArchive = () =>
+      Promise.resolve(
+        errorResult({
+          status: 402,
+          title: "Payment Required",
+          detail: "USAGE_LIMIT_EXCEEDED_READ",
+        }),
+      );
+    let calledCount = 0;
+    const saveFullLog: FullLogSaver = () => {
+      calledCount++;
+      return Promise.resolve("/tmp/should-not-be-used.log");
+    };
+
+    const output = await investigateExecution({
+      client,
+      headers,
+      executionId: makeExecution().id,
+      step: "investigate",
+      log: true,
+      saveFullLog,
+    });
+
+    expect(calledCount).toBe(0);
+    expect(output).toContain(
+      "Logs for step investigate: log archive read quota exceeded",
+    );
+    expect(output).not.toContain("full log:");
+  });
+
   test("artifact expired (410): reports that one artifact expired without failing the rest", async () => {
     const client = buildFakeClient();
     const expiring = makeArtifact({
@@ -242,9 +277,9 @@ describe("investigateExecution", () => {
       id: "artifact-healthy",
       relativeStorePath: "fresh.log",
     });
-    client.stepExecutions.listStepExecutionArtifacts = () =>
+    client.tasks.listTaskArtifacts = () =>
       Promise.resolve({ data: [expiring, healthy], error: undefined });
-    client.stepExecutions.getArtifactDownloadUrl = (options) => {
+    client.tasks.getArtifactDownloadUrl = (options) => {
       if (options.path.artifactId === "artifact-expired") {
         return Promise.resolve(errorResult({ status: 410, title: "Gone" }));
       }
@@ -301,73 +336,9 @@ describe("investigateExecution", () => {
     expect(output).toContain("Showing --log/--artifacts for step investigate");
   });
 
-  test("--log writes the full text to writeLogArtifact when the render is truncated, and mentions its path", async () => {
+  test("--log saves the full log and names it on the header line, even when short", async () => {
     const client = buildFakeClient();
-    client.stepExecutions.readStepExecutionLogs = () =>
-      Promise.resolve({
-        data: {
-          lines: makeOversizedLogLines(),
-          nextOffset: 2_000,
-          complete: false,
-        },
-        error: undefined,
-      });
-
-    const calls: Parameters<LogArtifactWriter>[0][] = [];
-    const writeLogArtifact: LogArtifactWriter = (input) => {
-      calls.push(input);
-      return Promise.resolve("/tmp/example-step-execution-all.log");
-    };
-
-    const output = await investigateExecution({
-      client,
-      headers,
-      executionId: makeExecution().id,
-      step: "investigate",
-      log: true,
-      writeLogArtifact,
-    });
-
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.stepExecutionId).toBe("step-exec-1");
-    expect(calls[0]?.requestedStream).toBe("all");
-    expect(calls[0]?.fullText).toContain("line number 1999");
-    expect(output).toContain(
-      "Full log saved to /tmp/example-step-execution-all.log.",
-    );
-  });
-
-  test("--log falls back to the path-less notice when writeLogArtifact rejects", async () => {
-    const client = buildFakeClient();
-    client.stepExecutions.readStepExecutionLogs = () =>
-      Promise.resolve({
-        data: {
-          lines: makeOversizedLogLines(),
-          nextOffset: 2_000,
-          complete: false,
-        },
-        error: undefined,
-      });
-
-    const writeLogArtifact: LogArtifactWriter = () =>
-      Promise.reject(new Error("disk full"));
-
-    const output = await investigateExecution({
-      client,
-      headers,
-      executionId: makeExecution().id,
-      step: "investigate",
-      log: true,
-      writeLogArtifact,
-    });
-
-    expect(output).toContain("[omitted");
-    expect(output).not.toContain("Full log saved to");
-  });
-
-  test("--log never calls writeLogArtifact when the render fits under the cap", async () => {
-    const client = buildFakeClient();
-    client.stepExecutions.readStepExecutionLogs = () =>
+    client.tasks.readTaskLogs = () =>
       Promise.resolve({
         data: {
           lines: [
@@ -385,10 +356,10 @@ describe("investigateExecution", () => {
         error: undefined,
       });
 
-    let calledCount = 0;
-    const writeLogArtifact: LogArtifactWriter = () => {
-      calledCount++;
-      return Promise.resolve("/tmp/should-not-be-used.log");
+    const calls: Parameters<FullLogSaver>[0][] = [];
+    const saveFullLog: FullLogSaver = (input) => {
+      calls.push(input);
+      return Promise.resolve("/tmp/example-task-all.log");
     };
 
     const output = await investigateExecution({
@@ -397,11 +368,88 @@ describe("investigateExecution", () => {
       executionId: makeExecution().id,
       step: "investigate",
       log: true,
-      writeLogArtifact,
+      saveFullLog,
     });
 
-    expect(calledCount).toBe(0);
-    expect(output).toContain("starting up");
-    expect(output).not.toContain("Full log saved to");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.taskId).toBe("step-exec-1");
+    expect(calls[0]?.requestedStream).toBe("all");
+    expect(calls[0]?.fullText).toContain("starting up");
+    expect(output).toContain(
+      "Logs for step investigate (live snapshot, step still running) · full log: /tmp/example-task-all.log\n",
+    );
+    expect(output).not.toContain("earlier characters omitted");
+  });
+
+  test("--log saves the uncapped text and caps the preview when the log is long", async () => {
+    const client = buildFakeClient();
+    client.tasks.readTaskLogs = () =>
+      Promise.resolve({
+        data: {
+          lines: makeOversizedLogLines(),
+          nextOffset: 2_000,
+          complete: false,
+        },
+        error: undefined,
+      });
+
+    const calls: Parameters<FullLogSaver>[0][] = [];
+    const saveFullLog: FullLogSaver = (input) => {
+      calls.push(input);
+      return Promise.resolve("/tmp/example-task-all.log");
+    };
+
+    const output = await investigateExecution({
+      client,
+      headers,
+      executionId: makeExecution().id,
+      step: "investigate",
+      log: true,
+      saveFullLog,
+    });
+
+    expect(calls[0]?.fullText).toContain("line number 0 ");
+    expect(calls[0]?.fullText).toContain("line number 1999");
+    const logSection = output.slice(output.indexOf("Logs for step"));
+    const [header, blank, note] = logSection.split("\n");
+    expect(header).toBe(
+      "Logs for step investigate (live snapshot, step still running) · full log: /tmp/example-task-all.log",
+    );
+    expect(blank).toBe("");
+    expect(note).toMatch(
+      /^… [\d,]+ earlier characters omitted \(see full log above\)$/,
+    );
+    expect(output).not.toContain("line number 0 ");
+    expect(output).toContain("line number 1999");
+  });
+
+  test("--log names the reason on the header line when the full log can't be saved", async () => {
+    const client = buildFakeClient();
+    client.tasks.readTaskLogs = () =>
+      Promise.resolve({
+        data: {
+          lines: makeOversizedLogLines(),
+          nextOffset: 2_000,
+          complete: false,
+        },
+        error: undefined,
+      });
+
+    const saveFullLog: FullLogSaver = () =>
+      Promise.reject(new Error("disk full"));
+
+    const output = await investigateExecution({
+      client,
+      headers,
+      executionId: makeExecution().id,
+      step: "investigate",
+      log: true,
+      saveFullLog,
+    });
+
+    expect(output).toContain(
+      "Logs for step investigate (live snapshot, step still running) · full log: not saved (disk full)\n",
+    );
+    expect(output).toContain("earlier characters omitted");
   });
 });

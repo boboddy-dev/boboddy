@@ -7,18 +7,18 @@ import {
   PIPELINE_BUILDER_TYPECHECK_SCRIPT,
   PIPELINE_BUILDER_TYPECHECK_SCRIPT_NAME,
   PIPELINE_DESIGNER_AGENT_NAME,
-  PIPELINE_DESIGNER_BASH_PERMISSIONS,
+  PIPELINE_DESIGNER_SHELL_PERMISSIONS,
   resolvePermission,
   serializeOpencodeTuiConfig,
 } from "@boboddy/worker";
 import {
   buildPipelineDesignerPrompt,
+  DEFAULT_PIPELINE_TEMPLATE,
   DESIGN_AGENT_PROMPT,
-  PIPELINE_ARCHETYPES,
   PIPELINE_AUTHORING_REFERENCE,
   PIPELINE_DESIGNER_AGENT_DESCRIPTION,
 } from "../src/lib/design-agent-assets";
-import { extractFencedBlocks } from "./archetype-harness";
+import { extractFencedBlocks } from "./template-harness";
 
 describe("design agent assets", () => {
   test("both text assets load and are non-empty", () => {
@@ -35,18 +35,16 @@ describe("design agent assets", () => {
     expect(prompt.indexOf("# Authoring reference")).toBeLessThan(
       prompt.indexOf("# Boboddy pipeline authoring reference"),
     );
-    // The reference is no longer appended verbatim: the archetype sources are
-    // spliced into its section 7, between the catalog and section 8.
-    const catalog = prompt.indexOf("## 7. Archetype catalog");
-    const archetypes = prompt.indexOf("### The archetype files");
+    // The reference is no longer appended verbatim: the default pipeline source
+    // is spliced into its section 7, between the prose and section 8.
+    const prose = prompt.indexOf("## 7. The default pipeline");
+    const file = prompt.indexOf("### The default pipeline file");
     const nextSection = prompt.indexOf("## 8. Writing a good");
-    expect(catalog).toBeGreaterThan(0);
-    expect(archetypes).toBeGreaterThan(catalog);
-    expect(nextSection).toBeGreaterThan(archetypes);
-    for (const { name, source } of PIPELINE_ARCHETYPES) {
-      expect(prompt).toContain(`#### \`${name}.ts\``);
-      expect(prompt).toContain(source.trim());
-    }
+    expect(prose).toBeGreaterThan(0);
+    expect(file).toBeGreaterThan(prose);
+    expect(nextSection).toBeGreaterThan(file);
+    expect(prompt).toContain(`#### \`${DEFAULT_PIPELINE_TEMPLATE.name}.ts\``);
+    expect(prompt).toContain(DEFAULT_PIPELINE_TEMPLATE.source.trim());
   });
 
   test("tells the agent how to detect the pipeline studio", () => {
@@ -56,7 +54,7 @@ describe("design agent assets", () => {
   });
 
   test("every fence the composed prompt opens is closed", () => {
-    // The archetype sources are wrapped in three-backtick fences, so a stray
+    // The default pipeline is wrapped in a three-backtick fence, so a stray
     // fence inside one would truncate the block for whatever reads the prompt.
     const fences = buildPipelineDesignerPrompt().match(/^\s*```/gm) ?? [];
     expect(fences.length % 2).toBe(0);
@@ -115,7 +113,7 @@ describe("the commands the prompt documents still behave as documented", () => {
   });
 
   test("the push command the prompt tells the agent to run still asks", () => {
-    // The one command in the prompt whose permission still matters: `bash` is
+    // The one command in the prompt whose permission still matters: `shell` is
     // allow-by-default, so this is the whole publish gate. `$BOBODDY_CLI` is an
     // absolute path, which is why the rule matches the `pipelines push`
     // substring rather than a command anchored on `boboddy`.
@@ -123,7 +121,11 @@ describe("the commands the prompt documents still behave as documented", () => {
 
     expect(prompt).toContain(pushCommand);
     expect(
-      resolvePermission(PIPELINE_DESIGNER_BASH_PERMISSIONS, pushCommand),
+      resolvePermission(
+        PIPELINE_DESIGNER_SHELL_PERMISSIONS,
+        "shell",
+        pushCommand,
+      ),
     ).toBe("ask");
   });
 
@@ -133,7 +135,11 @@ describe("the commands the prompt documents still behave as documented", () => {
     // resolves to `ask` would still stall the session, so check the whole block.
     for (const command of documentedTypecheckCommands(prompt)) {
       expect(
-        resolvePermission(PIPELINE_DESIGNER_BASH_PERMISSIONS, command),
+        resolvePermission(
+          PIPELINE_DESIGNER_SHELL_PERMISSIONS,
+          "shell",
+          command,
+        ),
         command,
       ).toBe("allow");
     }
@@ -153,12 +159,23 @@ describe("composed prompt size", () => {
   // `definePipeline({states})`, the `choice`/routing sections, and the
   // router archetype's per-target dispatch-state pattern) to ~78,900, and the
   // pipeline-studio guidance (`$BOBODDY_STUDIO_URL` in phases 1, 7, 9, 10) to
-  // ~82,200 — the lower bound is set just under the current value so any
-  // further growth is a deliberate decision rather than a drift.
+  // ~82,200, later edits to ~84,200, and the discovered-tools manifest
+  // (phases 1, 3, 7: pick servers, pick each health check's tool) to ~86,600.
+  // Replacing the five archetype files and the ranked-options phase with the
+  // single default `bug-pipeline.ts` dropped it to ~69,000. The health-check
+  // rules (a check per ref, required vs warn, `cli` checks for Playwright and
+  // the test runner — phase 6, §7, §10, and the template's `healthChecks`)
+  // took it to ~72,100, and reusable MCP servers (`defineMcp` and its builder
+  // in §1, §7 and §10, phase 6, and the template's `playwright`) to ~76,700.
+  // Making `defineMcp` the only MCP API (its `ref`/`local`/`remote` types, the
+  // `{env:VAR}` rule and inferred env in §1, and the inline fallback in §10's
+  // catalog) took it to ~81,100 —
+  // the lower bound is set just under the current value so any further growth
+  // is a deliberate decision rather than a drift.
   test("stays within the expected envelope", () => {
     const length = buildPipelineDesignerPrompt().length;
-    expect(length).toBeGreaterThan(80_000);
-    expect(length).toBeLessThan(86_000);
+    expect(length).toBeGreaterThan(80_500);
+    expect(length).toBeLessThan(83_000);
   });
 
   test("survives a round trip through the injected TUI config", () => {
@@ -170,9 +187,9 @@ describe("composed prompt size", () => {
       }),
     );
     const parsed = JSON.parse(serialized) as {
-      agent: Record<string, { prompt: string }>;
+      agents: Record<string, { system: string }>;
     };
-    expect(parsed.agent[PIPELINE_DESIGNER_AGENT_NAME]?.prompt).toBe(prompt);
+    expect(parsed.agents[PIPELINE_DESIGNER_AGENT_NAME]?.system).toBe(prompt);
   });
 });
 
@@ -186,7 +203,7 @@ describe("composed prompt size", () => {
  * this prompt is markdown full of fenced code blocks and `${input.title}`
  * interpolations, so the stored form would be visibly unlike the shipped string
  * and noisy to read. Plaintext is byte-identical to what ships, greppable, and
- * git diffs it line by line: changing one archetype touches only that region of
+ * git diffs it line by line: changing one template touches only that region of
  * the file, not the whole 52 KB.
  *
  * It is also the artifact nothing else provides: every other test here asserts a

@@ -3,9 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { RemoteArtifactStore } from "../../../../src/artifacts/artifact-store/infra/remote-artifact-store";
-import type { RemoteArtifactUploader } from "../../../../src/work/step-execution/contracts/process-project-work-types";
+import type { RemoteArtifactUploader } from "../../../../src/work/task/contracts/process-project-work-types";
 
-type CreateArgs = Parameters<RemoteArtifactUploader["createArtifactUploadUrl"]>[0];
+type CreateArgs = Parameters<
+  RemoteArtifactUploader["createArtifactUploadUrl"]
+>[0];
 type RecordArgs = Parameters<RemoteArtifactUploader["recordArtifact"]>[0];
 
 // Records the control-plane calls the store makes and returns a canned upload
@@ -66,7 +68,7 @@ describe("RemoteArtifactStore", () => {
 
     const store = new RemoteArtifactStore(uploader);
     const result = await store.saveArtifact({
-      stepExecutionId: "step-1",
+      taskId: "step-1",
       sourcePath: sourceFile,
       relativeStorePath: "reports/report.json",
       claimToken: "claim-1",
@@ -80,7 +82,7 @@ describe("RemoteArtifactStore", () => {
     const expectedSizeBytes = '{"ok":true}'.length;
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0]).toMatchObject({
-      stepExecutionId: "step-1",
+      taskId: "step-1",
       claimToken: "claim-1",
       relativeStorePath: "reports/report.json",
       contentType: "application/json",
@@ -99,7 +101,7 @@ describe("RemoteArtifactStore", () => {
     const sizeBytes = '{"ok":true}'.length;
     expect(recordCalls).toHaveLength(1);
     expect(recordCalls[0]).toMatchObject({
-      stepExecutionId: "step-1",
+      taskId: "step-1",
       claimToken: "claim-1",
       objectKey: "derived-key",
       relativeStorePath: "reports/report.json",
@@ -114,13 +116,15 @@ describe("RemoteArtifactStore", () => {
   test("forwards the artifact kind through to recordArtifact", async () => {
     const { uploader, recordCalls } = recordingUploader();
     globalThis.fetch = (() =>
-      Promise.resolve(new Response(null, { status: 200 }))) as unknown as typeof fetch;
+      Promise.resolve(
+        new Response(null, { status: 200 }),
+      )) as unknown as typeof fetch;
 
     const store = new RemoteArtifactStore(uploader);
     const tracePath = path.join(dir, "trace.zip");
     await writeFile(tracePath, "trace-bytes");
     await store.saveArtifact({
-      stepExecutionId: "step-1",
+      taskId: "step-1",
       sourcePath: tracePath,
       relativeStorePath: "test-results/example/trace.zip",
       claimToken: "claim-1",
@@ -138,7 +142,7 @@ describe("RemoteArtifactStore", () => {
     let caught: unknown;
     try {
       await store.saveArtifact({
-        stepExecutionId: "step-1",
+        taskId: "step-1",
         sourcePath: sourceFile,
         relativeStorePath: "reports/report.json",
         kind: "generic",
@@ -146,7 +150,9 @@ describe("RemoteArtifactStore", () => {
     } catch (error) {
       caught = error;
     }
-    expect((caught as Error | undefined)?.message).toMatch(/requires a claimToken/i);
+    expect((caught as Error | undefined)?.message).toMatch(
+      /requires a claimToken/i,
+    );
     // Fails before touching the control plane.
     expect(createCalls).toHaveLength(0);
   });
@@ -162,7 +168,7 @@ describe("RemoteArtifactStore", () => {
     let caught: unknown;
     try {
       await store.saveArtifact({
-        stepExecutionId: "step-1",
+        taskId: "step-1",
         sourcePath: sourceFile,
         relativeStorePath: "reports/report.json",
         claimToken: "claim-1",
@@ -180,7 +186,11 @@ describe("RemoteArtifactStore", () => {
     const cases: { file: string; relative: string; expected: string }[] = [
       { file: "notes.md", relative: "notes.md", expected: "text/markdown" },
       { file: "image.png", relative: "image.png", expected: "image/png" },
-      { file: "blob.bin", relative: "blob.bin", expected: "application/octet-stream" },
+      {
+        file: "blob.bin",
+        relative: "blob.bin",
+        expected: "application/octet-stream",
+      },
     ];
 
     for (const { file, relative, expected } of cases) {
@@ -188,11 +198,13 @@ describe("RemoteArtifactStore", () => {
       await writeFile(filePath, "x");
       const { uploader, createCalls } = recordingUploader();
       globalThis.fetch = (() =>
-        Promise.resolve(new Response(null, { status: 200 }))) as unknown as typeof fetch;
+        Promise.resolve(
+          new Response(null, { status: 200 }),
+        )) as unknown as typeof fetch;
 
       const store = new RemoteArtifactStore(uploader);
       await store.saveArtifact({
-        stepExecutionId: "step-1",
+        taskId: "step-1",
         sourcePath: filePath,
         relativeStorePath: relative,
         claimToken: "claim-1",

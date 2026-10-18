@@ -69,8 +69,8 @@ export function createReporterRecorder(): {
     reporter: {
       start: push("start"),
       finish: push("finish"),
-      startTask: (message: string) => {
-        tasks.push({ method: "startTask", message });
+      startActivity: (message: string) => {
+        tasks.push({ method: "startActivity", message });
         return {
           update: pushTask("update"),
           succeed: pushTask("succeed"),

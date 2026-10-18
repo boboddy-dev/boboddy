@@ -9,7 +9,7 @@ describe("classifyArtifactSaveError", () => {
         title: "Request Failed",
         status: 402,
         detail: "Usage limit exceeded for storage",
-        instance: "/api/step-executions/abc/artifact-upload-url",
+        instance: "/api/tasks/abc/artifact-upload-url",
         code: "USAGE_LIMIT_EXCEEDED_STORAGE",
       }),
     );
@@ -27,12 +27,12 @@ describe("classifyArtifactSaveError", () => {
         type: "urn:problem-type:boboddy:api:http-404",
         title: "Not Found",
         status: 404,
-        code: "STEP_EXECUTION_NOT_FOUND",
+        code: "TASK_NOT_FOUND",
       }),
     );
 
     expect(classifyArtifactSaveError(error)).toEqual({
-      errorCode: "STEP_EXECUTION_NOT_FOUND",
+      errorCode: "TASK_NOT_FOUND",
       errorMessage: "Not Found",
       httpStatus: 404,
     });

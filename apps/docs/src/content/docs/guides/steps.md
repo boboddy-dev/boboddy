@@ -39,9 +39,8 @@ The agent is automatically given the step's input as default context — the ful
 | `additionalInput` | `ZodType`                         | No       | Zod schema for the step's additional input fields; bound in the pipeline mapper |
 | `result`          | `ZodType`                         | No       | Zod schema for the step's output                                                |
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result for pipeline advancement logic                |
-| `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configurations for tool-using agents                                 |
-| `healthChecks`    | `HealthCheck[]`                   | No       | Real tool calls forced against the environment before the agent is prompted     |
-| `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the generated config when this step runs           |
+| `mcps`            | `Record<string, McpHandle>`       | No       | The MCP servers the step runs with, each built with `defineMcp` together with its env vars and health checks. See [MCP servers](#mcp-servers) |
+| `healthChecks`    | `StepHealthCheck[]`               | No       | `cli` checks and non-MCP `tool` checks forced against the environment before the agent is prompted. See [Health checks](#health-checks) |
 | `features`        | `StepFeature[]`                   | No       | Built-in feature plugins that extend the result schema, signals, and prompt     |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are not executed; defaults to `"active"`                            |
 | `environment`     | `{ runtime?, vars?, repo? }`      | No       | Where the step runs, which environment variables it gets, and what it does to your repository. Declare it before `agentPrompt`. See [Environment](#environment) |
@@ -114,6 +113,12 @@ export const buildFrontend = defineStep({
 Declare `environment` **before** `agentPrompt`. TypeScript infers the keys declared in `vars` into the prompt's `env`, so `environment` has to come first in the object for `agentPrompt`'s `env` to be typed from it.
 :::
 
+### Repo config first, step overrides second
+
+A step runs with your repository's own config by default: `.devcontainer/` for the container, `.opencode/` for OpenCode config, plugins, tools and MCP servers, and `.boboddy/` for local settings. Put anything every step needs there, so it lives in one place and works the same outside Boboddy.
+
+Put config in the step only when it is about that step: a different devcontainer config, the variables this step needs, its repo access, the MCP servers it mounts, and its health checks. Boboddy stores only these overrides; a step that sets none runs with the repo config as is.
+
 ### Runtime
 
 `runtime` controls whether a step gets a checkout of your repository, and which container it runs in.
@@ -138,7 +143,7 @@ export const classifyStep = defineStep({
 });
 ```
 
-`Runtime.host()` steps are faster and cheaper because they skip the clone and container startup, and they run even for projects without a dev container. Everything else works the same: bound input, `agentPrompt`, `result`, `signals`, and `mcpServers` all behave identically. Because there is no checkout, the agent has no access to your repository files; if a step needs to read or change your code, keep the default `Runtime.devcontainer()`. `Runtime.host()` takes no options, so a host step cannot name a devcontainer config.
+`Runtime.host()` steps are faster and cheaper because they skip the clone and container startup, and they run even for projects without a dev container. Everything else works the same: bound input, `agentPrompt`, `result`, `signals`, and `mcps` all behave identically, except that a host step can't use a [`ref`](#referencing-a-server-from-your-repository) MCP server: give it [`local`](#local-servers) or [`remote`](#remote-servers) servers instead. Because there is no checkout, the agent has no access to your repository files; if a step needs to read or change your code, keep the default `Runtime.devcontainer()`. `Runtime.host()` takes no options, so a host step cannot name a devcontainer config.
 
 See [Running Workers](/boboddy/guides/workers/) for how each runtime is executed.
 
@@ -280,14 +285,14 @@ export const implement = defineStep({
 
 | Option          | Type                  | Default                          | Description                                                                                      |
 | --------------- | --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `message`       | `string`              | `boboddy: step <stepExecutionId>` | The commit message, rendered from the step's input and result                                    |
+| `message`       | `string`              | `boboddy: task <taskId>`         | The commit message, rendered from the step's input and result                                    |
 | `onPushFailure` | `"fail" \| "warn"`    | `"fail"`                         | Whether a failed push fails the step (`"fail"`) or is logged and ignored (`"warn"`)              |
 
 **Commit message.** `repo` is a function of `{ input, result }`, the same way `vars` is a function of `{ input }`: both are typed from the step's `additionalInput` and `result`, and a template literal built from them (`` `fix: ${result.summary}` ``) becomes a `{{result.summary}}` token that the worker renders when the step finishes. Write the string with a prefix before the interpolation, since a bare `` `${result.summary}` `` trips a lint rule. A static `Repo.readWrite({ message: "fix: {{result.summary}}" })` is the same thing, and the common case when the message needs no tokens.
 
 - Only `{{input.…}}` and `{{result.…}}` tokens are allowed. `{{env.…}}` is rejected, so an environment value can never reach git history.
 - The template is one line and at most 500 characters.
-- The rendered text carries agent output, so the worker reduces it to a safe subject: whitespace runs collapse to one space, control characters are stripped, and the subject is cut to 200 characters. If nothing is left (an empty template, or tokens that render empty), the message is `boboddy: step <stepExecutionId>`.
+- The rendered text carries agent output, so the worker reduces it to a safe subject: whitespace runs collapse to one space, control characters are stripped, and the subject is cut to 200 characters. If nothing is left (an empty template, or tokens that render empty), the message is `boboddy: task <taskId>`.
 - The same message is used for the superproject commit and for each submodule commit.
 
 **Push failure.** By default a failed push of the work branch, or of a submodule's copy of it, fails the step with a message naming the branch and the underlying git error. See [Work branches](/boboddy/guides/workers/#work-branches) for the behavior change this made and the consequences.
@@ -330,8 +335,10 @@ export const accountInvestigation = defineStep({
 | Form                                                   | Source                                                                                      | Stored in the definition | Masked in logs |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------ | -------------- |
 | A bare string                                          | The literal, which may interpolate `input`                                                  | The template, plaintext  | No             |
-| `Env.value({ value, secret? })`                        | Same, with an explicit secret flag                                                          | The template, plaintext  | When `secret`  |
-| `Env.inherit({ from?, secret?, optional?, default? })` | The **worker**. The name defaults to the key; `from` reads a differently named variable     | The name only            | When `secret`  |
+| `Env.value({ value, secret?, applies? })`                        | Same, with an explicit secret flag                                                          | The template, plaintext  | When `secret`  |
+| `Env.inherit({ from?, secret?, optional?, default?, applies? })` | The **worker**. The name defaults to the key; `from` reads a differently named variable     | The name only            | When `secret`  |
+
+`applies` says which process gets the variable; see [Setup variables](#setup-variables). A bare string always applies to the agent.
 
 `Env.inherit` fails the step before it starts if the variable is missing from the worker, unless it is `optional` (the variable is omitted) or has a `default`. A variable set to an empty string counts as set.
 
@@ -361,7 +368,43 @@ Resolution happens once, in the worker, before anything launches. Only injection
 | `secret`    | Masked in logs                                                                  | Masked in logs                                                                                |
 | Code steps  | `docker exec -e` on the runner; the function reads `process.env`                | Passed to the runner process's environment; the function reads `process.env`                   |
 
-Step `vars` also feed MCP `{env:VAR}` substitution (see [Secrets](#secrets)), because OpenCode reads it from its own process environment — this works for the generated `OPENCODE_CONFIG_CONTENT` as well as for config files (verified on OpenCode 1.18.11).
+Step `vars` also feed MCP `{env:VAR}` substitution (see [Secrets](#secrets)), because OpenCode reads it from its own process environment — this works for the generated `OPENCODE_CONFIG_CONTENT` as well as for config files (verified on OpenCode 2.0.28).
+
+#### Setup variables
+
+By default a variable reaches the agent (or a code step's function) only. `applies` changes that:
+
+| `applies`         | Reaches                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `"agent"` (default) | The agent or code step process, with `docker exec -e`                                         |
+| `"setup"`         | Only the `devcontainer up` process, so your devcontainer's `initializeCommand` sees it          |
+| `"both"`          | Both                                                                                            |
+
+A setup variable overrides the worker's own variable of the same name for `devcontainer up`. Boboddy does not add it to the container's `containerEnv`; if the container needs it too, forward it from `devcontainer.json` with `${localEnv:NAME:default}`.
+
+For example, a repo whose `initializeCommand` clones sub-repositories can let a step that never touches them skip that work:
+
+```typescript
+environment: {
+  vars: () => ({
+    INIT_SUBREPOS: Env.value({ value: "false", applies: "setup" }),
+  }),
+},
+```
+
+```jsonc title=".devcontainer/devcontainer.json"
+{
+  "initializeCommand": "./scripts/init-subrepos.sh",
+  "containerEnv": { "INIT_SUBREPOS": "${localEnv:INIT_SUBREPOS:true}" }
+}
+```
+
+Here `init-subrepos.sh` reads `INIT_SUBREPOS` on the host, and the `containerEnv` line passes the same value into the container, with `true` when no step sets it.
+
+- `setup` and `both` need a container to set up, so they are rejected on `Runtime.host()`.
+- A variable that belongs to an MCP server (see [Missing environment variables](#missing-environment-variables)) is always `agent`: MCP servers run inside the agent.
+- Secrets are allowed; a secret setup value is masked in the devcontainer logs.
+- A `setup`-only variable is not given to the agent, so `env.NAME` for it renders empty in the prompt.
 
 #### Rules and limits
 
@@ -389,7 +432,7 @@ See [Running Workers](/boboddy/guides/workers/#step-environment-variables) for h
 
 ## Signals
 
-Signals are scalar values (numbers, strings, booleans) extracted from the step result. They drive pipeline advancement policies — e.g., "only advance to the next step if `clarity_score` is above 7".
+Signals are scalar values (numbers, strings, booleans) extracted from the step result. They drive pipeline advancement policies — e.g., "only advance to the next step if `clarity_score` is above 7". Declare a signal only when a rule reads it: a later step gets an earlier step's whole output through [`ctx.output(...)`](/boboddy/guides/pipelines/#ctxoutputnodekey--an-earlier-states-whole-output), not through signals.
 
 ```typescript
 export const reviewStep = defineStep({
@@ -443,84 +486,218 @@ computedSignals: [
 
 ## MCP servers
 
-Steps can be given access to MCP (Model Context Protocol) servers, giving the agent tools like database access, browser automation, or custom APIs. `mcpServers` is a record keyed by server name. Each value is one of three shapes: a **local** server, a **remote** server, or an **enabled override**.
+Steps can be given access to MCP (Model Context Protocol) servers, giving the agent tools like database access, browser automation, or custom APIs. Every server is declared with `defineMcp`, together with the environment variables it needs and its health checks, and mounted on a step under `mcps`. The `mcps` key is the name the step runs the server under: a server mounted as `postgres` exposes its tools as `postgres_<tool>`, and only the step's agent may call them.
+
+`defineMcp` takes a `type`:
+
+| `type`     | The server                                                                          |
+| ---------- | ----------------------------------------------------------------------------------- |
+| `"ref"`    | One your repository already defines. See [Referencing a server from your repository](#referencing-a-server-from-your-repository) |
+| `"local"`  | Written in TypeScript and launched as a subprocess. See [Local servers](#local-servers) |
+| `"remote"` | Written in TypeScript and reached over HTTP. See [Remote servers](#remote-servers)   |
+
+```typescript
+import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+
+const postgres = defineMcp({
+  type: "ref",
+  name: "postgres",
+  healthChecks: {
+    listSchemas: { tool: "list_schemas" },
+    listTables: { tool: "list_tables", args: { schema: "public" }, enabled: false },
+  },
+});
+
+export const triage = defineStep({
+  key: "triage",
+  name: "Triage",
+  agentPrompt: "Find the rows behind this report.",
+  mcps: { postgres },
+});
+```
+
+### The definition
+
+| Field          | Type                       | Required | Description |
+| -------------- | -------------------------- | -------- | ----------- |
+| `type`         | `"ref" \| "local" \| "remote"` | Yes  | Which kind of server, as above |
+| `name`         | `string`                   | Yes      | For a `ref`, the server's name in your repository's MCP config. For `local` and `remote`, a label used in error messages; the `mcps` key names the server at runtime |
+| `env`          | `string[]`                 | No       | Worker variables the server needs. Only for a server that reads `process.env` itself: every `{env:VAR}` in the server's definition is required automatically |
+| `optionalEnv`  | `string[]`                 | No       | Worker variables passed to the server when they are set. A `{env:VAR}` listed here is not made required |
+| `healthChecks` | `Record<string, McpCheck>` | No       | Checks keyed by name: `{ tool, args?, timeoutSeconds?, severity?, serialGroup?, enabled? }`, as in [Health checks](#health-checks) but without `mcp` or `name` |
+| `timeout`      | `{ startup?, catalog?, execution? }` | No | Timeouts in milliseconds: connecting, listing tools, and each tool call |
+| `codemode`     | `boolean`                  | No       | Defaults to `false` for step servers, so the agent and [health checks](#health-checks) can call each tool by name. `true` routes the tools through OpenCode's Code Mode instead |
+| `protocol`     | `"legacy" \| "auto" \| "2026-07-28"` | No | MCP protocol version to negotiate |
+
+`local` and `remote` add the fields in their sections below. `defineMcp` throws on an unknown field, so OpenCode v1 keys (`enabled`, a numeric `timeout`, camelCase `oauth` fields) are rejected. There is no `disabled`: a step that shouldn't run a server doesn't mount it.
+
+A compiled check is named `<mcpsKey>.<checkName>` (`postgres.listSchemas`). Checks on the same server run one at a time, as if they shared `serialGroup: <mcpsKey>`; give one an explicit `serialGroup` to change that. Different servers still run in parallel. `enabled: false` defines a check that only runs on steps that call `.enableCheck()`. Variable names follow the [environment variable rules](#rules-and-limits); a `BOBODDY_*` name is rejected because the worker never passes its own credentials on.
+
+### Referencing a server from your repository
+
+A `ref` uses a server your repository already defines, by name, without repeating its definition. Mounting it under a different key aliases it:
+
+```typescript
+const postgres = defineMcp({ type: "ref", name: "postgres" });
+
+defineStep({
+  // ...
+  mcps: { db: postgres },
+});
+```
+
+The worker resolves each ref just before it launches the step, on the machine running `boboddy work`, from files in the step's checkout only. Your global OpenCode config is never used. The first file that defines the name wins:
+
+1. `.opencode/opencode.json`
+2. `.opencode/opencode.jsonc`
+3. `opencode.json`
+4. `opencode.jsonc`
+5. `.mcp.json` (Claude Code)
+6. `.cursor/mcp.json`
+7. `.vscode/mcp.json`
+8. `.codex/config.toml`
+
+Each definition is converted to OpenCode's shape. OpenCode configs may use the v2 `mcp.servers.<name>` shape or the v1 `mcp.<name>` shape. `${VAR}` and `${env:VAR}` become `{env:VAR}`, and every such variable is required on the worker (see [Secrets](#secrets)). A relative `cwd` is resolved against the agent's workspace. `timeout`, `codemode` and `protocol` on the `defineMcp` are applied on top of the resolved definition. These definitions can't be used:
+
+- a `.vscode/mcp.json` server that reads an `${input:…}` prompt
+- a server using an editor variable such as `${workspaceFolder}`
+- a server with a literal credential in its command or URL
+
+A literal credential in `env` or `headers` is dropped from the definition.
+
+A `Runtime.host()` step has no checkout, so it can't use a ref. Give it a [local](#local-servers) or [remote](#remote-servers) server instead.
+
+Push does not check that a ref exists, because the server can't see your machine. A ref that matches nothing fails the step before launch with an error that lists every file searched.
 
 ### Local servers
 
-A local server is launched as a subprocess. `command` is an **array** — the executable followed by its arguments (there is no separate `args` field).
+A server your repository doesn't define can be written inline. A `local` server is launched as a subprocess:
 
 ```typescript
-mcpServers: {
-  postgres: {
-    type: "local",
-    command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
-    environment: { DATABASE_URI: "{env:DATABASE_URI}" },
-    enabled: true,
-  },
-},
+const postgres = defineMcp({
+  type: "local",
+  name: "postgres",
+  command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+  environment: { DATABASE_URI: "{env:DATABASE_URI}" },
+  healthChecks: { listSchemas: { tool: "list_schemas" } },
+});
 ```
 
 | Field         | Type                     | Required | Description                                                        |
 | ------------- | ------------------------ | -------- | ------------------------------------------------------------------ |
-| `type`        | `"local"`                | Yes      | Marks a locally launched server                                    |
-| `command`     | `string[]`               | Yes      | Executable plus arguments; must have at least one entry            |
-| `environment` | `Record<string, string>` | No       | Environment variables. `{env:VAR}` interpolates a worker env var   |
-| `enabled`     | `boolean`                | No       | Set `false` to define but disable the server                       |
-| `timeout`     | `number`                 | No       | Startup/request timeout in milliseconds                            |
+| `command`     | `string[]`               | Yes      | Executable plus arguments; must have at least one entry. There is no separate `args` field |
+| `cwd`         | `string`                 | No       | Working directory for the subprocess                               |
+| `environment` | `Record<string, string>` | No       | Environment variables. Every value must be written as `{env:VAR}` |
+
+The command must be resolvable where the step runs: inside the devcontainer for a `Runtime.devcontainer()` step, on the worker host for a `Runtime.host()` step.
 
 ### Remote servers
 
-A remote server is reached over HTTP.
+A `remote` server is reached over HTTP:
 
 ```typescript
-mcpServers: {
-  docs: {
-    type: "remote",
-    url: "https://mcp.example.com/sse",
-    headers: { Authorization: "Bearer {env:MCP_TOKEN}" },
-    enabled: true,
+const linear = defineMcp({
+  type: "remote",
+  name: "linear",
+  url: "https://mcp.linear.app/mcp",
+  headers: { Authorization: "Bearer {env:LINEAR_API_KEY}" },
+});
+```
+
+| Field     | Type                     | Required | Description                                              |
+| --------- | ------------------------ | -------- | -------------------------------------------------------- |
+| `url`     | `string`                 | Yes      | Server URL                                               |
+| `headers` | `Record<string, string>` | No       | Extra request headers. Every value must be written as `{env:VAR}`, optionally after an auth scheme (`Bearer {env:TOKEN}`) |
+| `oauth`   | `object \| false`        | No       | OAuth config (`client_id`, `client_secret`, `scope`, `callback_port`, `redirect_uri`, `auth_server_metadata_url`), or `false` to disable |
+
+### Variables in inline servers
+
+`defineMcp` rejects a literal `environment` or `headers` value, because it would be pushed to the server and shown in the UI. Write each one as `{env:VAR}`.
+
+Every `{env:VAR}` in a `local` server's `command`, `cwd` or `environment`, or a `remote` server's `url` or `headers`, becomes a **required** worker variable for that server, the same way the worker infers them for a ref. The worker reads it from `.boboddy/.env`, then its own `process.env`, before launch. If it's missing, the step fails before launch, even on a `Runtime.devcontainer()` step whose container would have set it (for example in `containerEnv`). When the server can run without the variable, list it in `optionalEnv`, so the server launches without it (see [Missing environment variables](#missing-environment-variables)).
+
+### Reusing an MCP server across steps
+
+Define each server once and mount it on every step that uses it. Each step adjusts it with builder methods, so the checks and variables can't drift between copies.
+
+```typescript
+export const explain = defineStep({
+  key: "explain",
+  name: "Explain",
+  agentPrompt: "Explain the data problem.",
+  mcps: {
+    db: postgres
+      .enableCheck("listTables")
+      .overrideCheck("listSchemas", { timeoutSeconds: 30, severity: "warn" }),
   },
-},
+});
 ```
 
-| Field     | Type                          | Required | Description                                              |
-| --------- | ----------------------------- | -------- | -------------------------------------------------------- |
-| `type`    | `"remote"`                    | Yes      | Marks a remote HTTP server                               |
-| `url`     | `string`                      | Yes      | Server URL                                               |
-| `headers` | `Record<string, string>`      | No       | Extra request headers                                    |
-| `oauth`   | `object \| false`             | No       | OAuth config (`clientId`, `clientSecret`, `scope`, `redirectUri`), or `false` to disable |
-| `enabled` | `boolean`                     | No       | Set `false` to define but disable the server             |
-| `timeout` | `number`                      | No       | Request timeout in milliseconds                          |
+#### The builder
 
-### Enabled override
+Every method returns a new handle and leaves the one it was called on unchanged, so any number of steps can chain off one definition.
 
-To toggle an inherited server without redefining it, pass just `enabled`:
+| Method                        | Effect |
+| ----------------------------- | ------ |
+| `.overrideCheck(name, patch)` | Changes `tool`, `args`, `timeoutSeconds`, `severity` or `serialGroup`. `args` is replaced whole, not merged; later patches of the same field win |
+| `.disableCheck(name)`         | Turns a check off. A disabled check stays off whatever `overrideCheck` does, in either order |
+| `.enableCheck(name)`          | Turns a check on. Between `enableCheck` and `disableCheck`, the last call wins |
+| `.addCheck(name, check)`      | Adds a check for this step. The name must be new |
+| `.disableAllChecks()`         | Turns off every check defined so far; a later `enableCheck` or `addCheck` turns one back on |
+
+`name` is typed from the definition's check names (plus any added earlier in the chain), so a typo is a type error; an unknown name also throws at runtime.
+
+#### Severity
+
+Severity belongs to each check, not to the server. A check is `required` unless it sets `severity: "warn"`, either in `defineMcp`'s `healthChecks` or for one step with `.overrideCheck(name, { severity: "warn" })`:
 
 ```typescript
-mcpServers: {
-  postgres: { enabled: false },
-},
+const datadog = defineMcp({
+  type: "ref",
+  name: "datadog",
+  env: ["DATADOG_API_KEY", "DATADOG_APP_KEY"],
+  healthChecks: { monitors: { tool: "get_monitors", severity: "warn" } },
+});
+
+// or, on one step only:
+mcps: { datadog: datadog.overrideCheck("monitors", { severity: "warn" }) }
 ```
+
+A failed `warn` check is reported, and the step still runs with the server.
+
+#### Missing environment variables
+
+The worker checks a server's variables before it launches the step. A variable in `env`, or read by a `{env:VAR}` in the server's definition, is required: if it's missing, the step fails before launch, naming the variable and the server: `DATABASE_URI (for MCP "postgres")`. A variable listed in `optionalEnv` is passed when set and otherwise left out, without an error. A check's severity doesn't change this.
+
+A step's own [`environment.vars`](#environment-variables) entry with the same name wins over the server's, so a step can supply the value from its input. Two servers that need the same variable share one entry.
+
+:::note[Code steps in the same file]
+A step file that also exports a [`codeStep`](#code-steps) must keep its `defineMcp`s in that file. The code-step container can't resolve an extensionless relative import such as `./mcps`, so share definitions across files only between files with no code steps.
+:::
+
+### Servers a step doesn't list are turned off
+
+A step runs with only the servers in its `mcps`. Every other server defined in the files above is passed to OpenCode with `disabled: true`, including servers in `.opencode/opencode.json` that OpenCode would otherwise load on its own. With an alias (`mcps: { db: postgres }`), the server runs as `db` only.
 
 ### Secrets
 
 Never put a secret value directly in a step definition — it's pushed to the
-server and rendered in the UI. Reference it as `{env:VAR}` in `environment` or
-`headers` instead, as shown above. `{env:VAR}` is resolved by OpenCode at
-execution time from the environment of the OpenCode process, which depends on
-the [runtime](#runtime):
+server and rendered in the UI. Reference it as `{env:VAR}` in an inline
+server's `environment` or `headers` instead, as shown above; `defineMcp`
+rejects a literal value there.
 
-- **`Runtime.devcontainer()`**: your project's `.boboddy/.env` is merged into the container's
-  environment, so `{env:VAR}` finds those values. Variables you set yourself in
-  `devcontainer.json` `containerEnv` win over `.boboddy/.env`.
-- **`Runtime.host()`**: OpenCode runs on the worker host with the worker's
-  `process.env`. `.boboddy/.env` is **not** part of it.
+A `defineMcp` server's variables (its `env`, its `optionalEnv`, and every
+`{env:VAR}` in its definition, inline or in your repository) are read from the
+**worker** — `.boboddy/.env` first, then the worker's `process.env` — and
+passed to the server with either [runtime](#runtime). They are always treated
+as secrets: masked in logs and never added to the prompt's `env`. A required
+one that is missing fails the step before launch; see
+[Variables in inline servers](#variables-in-inline-servers).
 
-With either runtime, a variable the step declares in
-[`environment.vars`](#environment-variables) is also visible to `{env:VAR}` — for example
-`environment: { vars: () => ({ DATABASE_URI: Env.inherit({ secret: true }) }) }` makes `.boboddy/.env`'s
-`DATABASE_URI` available to the MCP server with both runtimes, masks it in logs, and
-fails the step up front if it is missing.
+A variable the step declares in [`environment.vars`](#environment-variables)
+is also visible to the server, and wins over the server's own entry — for
+example `environment: { vars: () => ({ DATABASE_URI: Env.inherit({ from: "REPLICA_URI", secret: true }) }) }`
+renames a worker variable for the server.
 
 `.boboddy/.env` is a plain dotenv file at your repository root that you create
 and manage yourself; Boboddy never writes it and never uploads it. Commit
@@ -534,61 +711,64 @@ asks for or writes the real value.
 
 ### Tools already available to every step
 
-If your project already has a `.opencode/opencode.json` (or `.jsonc`) or
-`.opencode/tools/` at the repository root, whatever it declares loads for
-every devcontainer step automatically — you don't need to repeat it in
-`mcpServers`. Reserve a step's own `mcpServers` for servers that step needs
-and the project doesn't already provide.
+Custom tools in `.opencode/tools/` at the repository root load for every
+devcontainer step automatically. MCP servers don't: a step gets only the
+servers it lists, so a server your repository already defines is pulled in
+with a [`ref`](#referencing-a-server-from-your-repository), not repeated.
 
 ## Health checks
 
-Steps can declare `healthChecks` — real tool calls Boboddy forces against the launched environment (MCP servers, plugin tools, standalone tools) **before the agent is prompted**. A broken tool fails the step immediately instead of quietly wasting an agent turn discovering it.
+Health checks are real calls Boboddy forces against the launched environment **before the agent is prompted**. A broken tool fails the step immediately instead of quietly wasting an agent turn discovering it.
+
+A check on an MCP tool is declared on its server, in the `defineMcp`'s `healthChecks` (see [The definition](#the-definition)); every step that mounts the server gets it. A step's own `healthChecks` holds everything else: `cli` checks, which run a command, and `tool` checks on plugin, standalone and built-in tools. It runs after the server checks.
 
 ```typescript
+const playwright = defineMcp({
+  type: "local",
+  name: "playwright",
+  command: ["npx", "-y", "@playwright/mcp@0.0.68", "--headless"],
+  healthChecks: {
+    navigate: { tool: "browser_navigate", args: { url: "about:blank" } },
+  },
+});
+
 export const browserStep = defineStep({
   key: "browser-repro",
   name: "Browser Repro",
-  mcpServers: {
-    playwright: {
-      type: "local",
-      command: ["npx", "-y", "@playwright/mcp"],
-      enabled: true,
-    },
-  },
+  mcps: { playwright },
   healthChecks: [
-    { mcp: "playwright", tool: "browser_navigate", args: { url: "about:blank" } },
+    { kind: "cli", command: ["npx", "--no-install", "playwright", "--version"], severity: "warn" },
   ],
   agentPrompt: "Reproduce the reported bug.",
 });
 ```
 
-`tool` is a bare tool name when `mcp` names one of the step's own `mcpServers` keys (resolved to `${mcp}_${tool}` at runtime, matching OpenCode's MCP tool-naming convention); otherwise it's a flat plugin/standalone/built-in tool id.
+A `tool` check's `tool` is a flat plugin/standalone/built-in tool id. A step's `healthChecks` doesn't accept `mcp`; on a `defineMcp` check, `tool` is the bare tool name, resolved to `<mcpsKey>_<tool>` at runtime (OpenCode's MCP tool-naming convention).
 
 | Field         | Type                      | Required | Description                                                                          |
 | ------------- | ------------------------- | -------- | ------------------------------------------------------------------------------------- |
-| `tool`        | `string`                  | Yes      | Tool name to call. Bare name when `mcp` is set, otherwise a flat tool id              |
-| `mcp`         | `string`                  | No       | One of the step's declared `mcpServers` keys                                          |
+| `kind`        | `"tool" \| "cli"`         | No       | `"tool"` (default) calls a tool; `"cli"` runs a command                              |
+| `tool`        | `string`                  | `tool`   | Tool id to call                                                                       |
+| `args`        | `Record<string, unknown>` | No       | Arguments passed to the tool call (`tool` only)                                       |
+| `command`     | `string[]`                | `cli`    | Executable plus arguments, run through OpenCode's `bash` tool in the step's environment |
+| `expectExitCode` | `number`               | No       | Exit code that counts as passing (`cli` only). Defaults to `0`                        |
 | `name`        | `string`                  | No       | Human-readable label shown in logs/UI. Defaults to the resolved tool id               |
-| `args`        | `Record<string, unknown>` | No       | Arguments passed to the tool call                                                     |
 | `severity`    | `"required" \| "warn"`    | No       | `"required"` (default) fails the step immediately if the check fails; `"warn"` is advisory — reported but never fails the step |
-| `timeoutMs`   | `number`                  | No       | How long to wait for the forced call before failing it as a timeout. Defaults to `15000` |
+| `timeoutSeconds` | `number`               | No       | Seconds to wait for the forced call before failing it as a timeout. Fractions allowed; must be above `0` and at most `3600`. Defaults to `15` |
 | `serialGroup` | `string`                  | No       | Checks sharing the same value run one at a time, in declaration order. See [Running checks in parallel](#running-checks-in-parallel) |
 
 ### Running checks in parallel
 
 By default, every declared check runs in its own parallel lane — a step with several health checks isn't slowed down by running them one after another. `required` checks all run before any `warn` check, and the first `required` failure stops every check that hasn't started yet (a check already in flight still finishes and reports its real outcome).
 
-Give two or more checks the same `serialGroup` value to force them to run one at a time, in declaration order, when they contend over the same underlying resource — e.g. two checks against the same database connection:
+Give two or more checks the same `serialGroup` value to force them to run one at a time, in declaration order, when they contend over the same underlying resource. Checks on one `defineMcp` server already share a `serialGroup` (its `mcps` key); set it explicitly to serialize across servers, or across a step's own checks:
 
 ```typescript
 healthChecks: [
-  { mcp: "postgres", tool: "list_schemas", serialGroup: "db" },
-  { mcp: "postgres", tool: "list_tables", serialGroup: "db" },
-  { mcp: "playwright", tool: "browser_navigate", args: { url: "about:blank" } },
+  { kind: "cli", command: ["npx", "--no-install", "vitest", "--version"], serialGroup: "npx" },
+  { kind: "cli", command: ["npx", "--no-install", "playwright", "--version"], serialGroup: "npx" },
 ],
 ```
-
-The two `postgres` checks run serially against each other, while the `playwright` check — no `serialGroup` — runs concurrently with them.
 
 :::caution
 No secrets in `args`. Health check arguments are persisted in the database, returned by the API, and rendered in the UI, with no interpolation mechanism. Put a secret in the MCP server's `environment`/`headers` instead, referenced as `{env:VAR}` — see [Secrets](#secrets).
@@ -596,18 +776,16 @@ No secrets in `args`. Health check arguments are persisted in the database, retu
 
 ## Plugins
 
-Attach Opencode plugins to a step with `plugins`. When the step runs, Boboddy merges these into the generated Opencode config for that execution. Use plain package names, or the `[packageName, options]` tuple form when a plugin needs configuration.
+Steps don't declare OpenCode plugins. Add plugins to `.opencode/opencode.json` in your repo: the OpenCode that runs each step loads that file, so every step that runs against the repo gets them.
 
-```typescript
-export const investigateStep = defineStep({
-  key: "bad-data-investigation",
-  name: "Bad Data Investigation",
-  agentPrompt: "Investigate the reported data issue.",
-  plugins: ["@datadog/opencode-plugin"],
-});
+```json title=".opencode/opencode.json"
+{
+  "plugins": [
+    "opencode-wakatime",
+    { "package": "@my-org/opencode-plugin", "options": { "region": "us" } }
+  ]
+}
 ```
-
-Plugin entries are deduplicated by package name when Boboddy combines your baseline Opencode config with the step-specific plugins.
 
 ## Features
 
@@ -638,7 +816,7 @@ Each notification item has:
 | `body`              | `string`                                                                    | Yes      | Notification details                                               |
 | `priority`          | `"low" \| "normal" \| "high" \| "urgent"`                                   | Yes      | How important the notification is                                  |
 | `suggestedChannels` | `("in_app" \| "work_item_platform_comment" \| "email" \| "slack")[]`        | No       | Channels the agent suggests; the platform policy decides the final channels |
-| `payload`           | `Record<string, unknown>`                                                   | No       | Kind-specific data. For `feedback_request`: `{ category, urgency, suggestedKey? }` |
+| `payload`           | `Record<string, unknown>`                                                   | No       | Kind-specific data. For `feedback_request`: `{ category, urgency }` |
 
 The feature contributes a single signal, `$boboddy_notifications_v1` (type `array`, not required), so downstream advancement rules can react to emitted notifications.
 
@@ -658,7 +836,7 @@ Returns `{ $boboddy_notifications_v1: [item] }` — return it directly if the no
 
 `inApp` is the only channel with dedicated sugar, because it's the only channel the platform actually delivers today — `work_item_platform_comment`, `email`, and `slack` suggestions are accepted by the schema but currently have no delivery adapter, so they'll always end up as a failed delivery rather than a silent no-op. To suggest one of those anyway (e.g. once its adapter ships), use `Notify.create({ ..., suggestedChannels: [...] })` directly — `suggestedChannels` is always just a suggestion the platform's notification policy decides on, never a delivery guarantee, which is why it isn't hidden behind a same-looking function per channel.
 
-`Notify.feedbackRequest(question, category, urgency, suggestedKey?)` is the value-builder counterpart to `Features.feedbackRequests()`. `Notify.merge(...)` combines fragments from more than one `Notify.*` call into a single result.
+`Notify.feedbackRequest(question, category, urgency)` is the value-builder counterpart to `Features.feedbackRequests()`. `Notify.merge(...)` combines fragments from more than one `Notify.*` call into a single result.
 
 ```typescript
 import { codeStep, Features, Notify } from "@boboddy/sdk/definitions/steps";
@@ -678,7 +856,7 @@ export const notifyBlocked = codeStep({
 
 ### Reading notifications back out — `NotificationSignal`
 
-`NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key, and `NotificationSignal.find(signals)` parses a step execution's signals array back into `NotificationItem[]` (or `undefined` if none were emitted or the value doesn't parse).
+`NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key, and `NotificationSignal.find(signals)` parses a task's signals array back into `NotificationItem[]` (or `undefined` if none were emitted or the value doesn't parse).
 
 ## Versioning
 
@@ -745,7 +923,7 @@ Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal
 
 `codeStep()` also accepts [`environment`](#environment), with the same `vars` forms and rules as `defineStep()` and a `runtime` of `Runtime.managed.<id>()` (the default, `bun1`) or `Runtime.devcontainer()` (see [Runtime for code steps](#runtime-for-code-steps)). It takes `repo` with the same rules too (see [Repo access](#repo-access)): a code step that edits files is committed and pushed like an agent step, unless it uses `Repo.readOnly()`. There is no typed env argument to `fn`: the function reads the resolved variables from `process.env`.
 
-A code step never starts OpenCode. The worker launches the step's container (a managed runtime, or your devcontainer), runs the entrypoint, and reads the findings file the runner wrote, so a code step needs no AI provider credentials, and none (nor your host `auth.json`) are placed in its container. Boboddy does not inject the OpenCode runtime mount, published port or host-gateway run args into its devcontainer, and writes no `.opencode/` files into the workspace. Those injections are what reject `docker-compose`-based devcontainer configs for AI steps, so a code step is not subject to that restriction. If the runner finishes without writing its findings file, the step fails immediately.
+A code step never starts OpenCode. The worker launches the step's container (a managed runtime, or your devcontainer), runs the entrypoint, and reads the findings file the runner wrote, so a code step needs no AI provider credentials, and Boboddy neither exports nor injects any for it. Boboddy does not inject the OpenCode runtime mount, published port or host-gateway run args into its devcontainer, and writes no `.opencode/` files into the workspace. Those injections are what reject `docker-compose`-based devcontainer configs for AI steps, so a code step is not subject to that restriction. If the runner finishes without writing its findings file, the step fails immediately.
 
 ## Pushing steps
 

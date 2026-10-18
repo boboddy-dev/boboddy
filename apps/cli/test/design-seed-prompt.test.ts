@@ -44,6 +44,34 @@ describe("buildDesignSeedPrompt", () => {
     expect(prompt).not.toContain("Pipeline definitions already exist");
   });
 
+  test("names the discovered-tools manifest path for phase 1", () => {
+    const manifestPath =
+      "/home/u/.boboddy/projects/acme/app/discovered-tools.json";
+    const prompt = buildDesignSeedPrompt({
+      workItem: ITEM,
+      hasExistingDefinitions: false,
+      agentToolsManifestPath: manifestPath,
+    });
+
+    expect(prompt).toContain(
+      `recorded in the discovered-tools manifest at ${manifestPath} — read it in phase 1.`,
+    );
+  });
+
+  test("says when no discovered-tools manifest was written", () => {
+    for (const agentToolsManifestPath of [null, undefined]) {
+      const prompt = buildDesignSeedPrompt({
+        workItem: ITEM,
+        hasExistingDefinitions: false,
+        agentToolsManifestPath,
+      });
+
+      expect(prompt).toContain(
+        "No discovered-tools manifest was written this session",
+      );
+    }
+  });
+
   test("states that definitions already exist", () => {
     const prompt = buildDesignSeedPrompt({
       workItem: ITEM,

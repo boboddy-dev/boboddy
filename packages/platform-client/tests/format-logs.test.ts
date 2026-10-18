@@ -3,7 +3,9 @@ import {
   capLogBody,
   formatLogs,
   MAX_LOG_RENDER_CHARS,
+  renderConversationTranscript,
   renderLogText,
+  withFullLogLocation,
 } from "../src/format-logs";
 import type { LogLine } from "../src/lib/api-types";
 
@@ -44,14 +46,19 @@ describe("formatLogs", () => {
       requestedStream: "all",
       source: "live",
     });
-    expect(live).toContain("live, step still running");
+    expect(live).toContain("(live snapshot, step still running)");
   });
 
   test("renders worker/ai-server lines as [level] ts content", () => {
     const output = formatLogs({
       stepKey: "investigate",
       lines: [
-        line({ seq: 1, stream: "worker", level: "warn", content: "lease renewed" }),
+        line({
+          seq: 1,
+          stream: "worker",
+          level: "warn",
+          content: "lease renewed",
+        }),
       ],
       requestedStream: "all",
       source: "live",
@@ -78,8 +85,20 @@ describe("formatLogs", () => {
   test("renders a conversation transcript, deduping streamed part updates by partId", () => {
     const events = [
       { kind: "message", id: "msg-1", role: "assistant", createdMs: 1 },
-      { kind: "text", messageId: "msg-1", partId: "part-1", role: "assistant", text: "Look" },
-      { kind: "text", messageId: "msg-1", partId: "part-1", role: "assistant", text: "Looking into it" },
+      {
+        kind: "text",
+        messageId: "msg-1",
+        partId: "part-1",
+        role: "assistant",
+        text: "Look",
+      },
+      {
+        kind: "text",
+        messageId: "msg-1",
+        partId: "part-1",
+        role: "assistant",
+        text: "Looking into it",
+      },
       {
         kind: "tool",
         messageId: "msg-1",
@@ -98,7 +117,11 @@ describe("formatLogs", () => {
       },
     ];
     const lines = events.map((event, index) =>
-      line({ seq: index, stream: "conversation", content: JSON.stringify(event) }),
+      line({
+        seq: index,
+        stream: "conversation",
+        content: JSON.stringify(event),
+      }),
     );
 
     const output = formatLogs({
@@ -142,22 +165,18 @@ describe("formatLogs", () => {
       source: "archive",
     });
 
-    expect(output.length).toBeLessThanOrEqual(MAX_LOG_RENDER_CHARS + 300);
-    expect(output).toContain("[omitted");
+    expect(output.length).toBeLessThanOrEqual(MAX_LOG_RENDER_CHARS);
 
-    // The tail survives — the last generated line is present...
-    expect(output).toContain("line number 1999");
-    // ...but the head of the body was dropped, not the tail.
-    expect(output).not.toContain("line number 0 ");
-
-    // No line is split mid-content: the shown tail's first content line
-    // must be one of the original rendered lines verbatim, immediately
-    // preceded by a newline (i.e. it starts at a line boundary).
-    const noticeEnd = output.indexOf("]\n\n") + 3;
-    const shownTail = output.slice(noticeEnd);
-    const firstShownLine = shownTail.split("\n")[0];
+    const [header, blank, note, firstShownLine] = output.split("\n");
+    expect(header).toBe("Logs for step investigate (complete)");
+    expect(blank).toBe("");
+    expect(note).toMatch(
+      /^… \d{1,3}(,\d{3})+ earlier characters omitted \(see full log above\)$/,
+    );
     expect(firstShownLine).toMatch(/^\[info\] .* line number \d+ .*$/);
-    expect(output[noticeEnd - 1]).toBe("\n");
+
+    expect(output).toContain("line number 1999");
+    expect(output).not.toContain("line number 0 ");
   });
 
   test("capLogBody leaves short text untouched", () => {
@@ -165,22 +184,25 @@ describe("formatLogs", () => {
     expect(capLogBody(short, MAX_LOG_RENDER_CHARS)).toBe(short);
   });
 
-  test("capLogBody includes the file path in the notice when provided", () => {
+  test("capLogBody's note counts exactly the characters it dropped", () => {
     const header = "Logs for step investigate (complete)\n\n";
     const body = Array.from(
       { length: 1_000 },
       (_, index) => `line ${String(index)}`,
     ).join("\n");
-    const rendered = header + body;
 
-    const withPath = capLogBody(rendered, 500, {
-      filePath: "/tmp/example.log",
-    });
-    expect(withPath).toContain("Full log saved to /tmp/example.log.");
+    const capped = capLogBody(header + body, 500);
+    const [, noteAndTail] = capped.split(header);
+    const [note = "", ...tail] = (noteAndTail ?? "").split("\n");
+    const omitted = Number(/^… ([\d,]+) /.exec(note)?.[1]?.replace(/,/g, ""));
+    expect(omitted + tail.join("\n").length).toBe(body.length);
+  });
 
-    const withoutPath = capLogBody(rendered, 500);
-    expect(withoutPath).not.toContain("Full log saved to");
-    expect(withoutPath).toContain("[omitted");
+  test("withFullLogLocation puts the location on the header line", () => {
+    const rendered = "Logs for step investigate (complete)\n\nline one";
+    expect(withFullLogLocation(rendered, "/tmp/task-all.log")).toBe(
+      "Logs for step investigate (complete) · full log: /tmp/task-all.log\n\nline one",
+    );
   });
 
   test("renderLogText/capLogBody are directly testable in isolation", () => {
@@ -195,6 +217,35 @@ describe("formatLogs", () => {
 
     expect(capLogBody(rendered, MAX_LOG_RENDER_CHARS)).toBe(rendered);
     const capped = capLogBody(rendered, 10);
-    expect(capped).toContain("[omitted");
+    expect(capped).toContain("earlier characters omitted");
+  });
+});
+
+describe("renderConversationTranscript", () => {
+  test("renders only the conversation stream, uncapped", () => {
+    const longText = "x".repeat(MAX_LOG_RENDER_CHARS * 2);
+    const transcript = renderConversationTranscript({
+      stepKey: "investigate",
+      lines: [
+        line({ seq: 0, stream: "worker", content: "worker noise" }),
+        line({
+          seq: 1,
+          stream: "conversation",
+          content: JSON.stringify({
+            kind: "text",
+            partId: "part-1",
+            messageId: "message-1",
+            role: "assistant",
+            text: longText,
+          }),
+        }),
+      ],
+      source: "archive",
+    });
+
+    expect(transcript).not.toContain("worker noise");
+    expect(transcript).toContain("== conversation ==");
+    expect(transcript).toContain(`[assistant] ${longText}`);
+    expect(transcript).not.toContain("earlier characters omitted");
   });
 });

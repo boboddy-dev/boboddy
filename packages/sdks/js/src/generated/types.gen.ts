@@ -359,6 +359,8 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
             createdByUsername: string | unknown;
             createdByImage: string | unknown;
             parentWorkItemId: string | unknown;
+            status: 'open' | 'closed';
+            spawnedByTaskId: string | unknown;
             createdAt: string;
             updatedAt: string;
             signalScore: number | unknown;
@@ -1459,34 +1461,57 @@ export type GetApiStepDefinitionsResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -1497,7 +1522,7 @@ export type GetApiStepDefinitionsResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -1508,6 +1533,7 @@ export type GetApiStepDefinitionsResponses = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -1515,6 +1541,8 @@ export type GetApiStepDefinitionsResponses = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath: string | unknown;
         managedRuntime: 'bun1' | 'node24' | unknown;
@@ -1568,34 +1596,57 @@ export type PostApiStepDefinitionsData = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson?: Array<string | Array<unknown>> | unknown;
         healthChecksJson?: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -1606,7 +1657,7 @@ export type PostApiStepDefinitionsData = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -1617,6 +1668,7 @@ export type PostApiStepDefinitionsData = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -1624,6 +1676,8 @@ export type PostApiStepDefinitionsData = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath?: string | unknown;
         managedRuntime?: 'bun1' | 'node24' | unknown;
@@ -1794,34 +1848,57 @@ export type PostApiStepDefinitionsResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -1832,7 +1909,7 @@ export type PostApiStepDefinitionsResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -1843,6 +1920,7 @@ export type PostApiStepDefinitionsResponses = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -1850,6 +1928,8 @@ export type PostApiStepDefinitionsResponses = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath: string | unknown;
         managedRuntime: 'bun1' | 'node24' | unknown;
@@ -1903,34 +1983,57 @@ export type PutApiStepDefinitionsData = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson?: Array<string | Array<unknown>> | unknown;
         healthChecksJson?: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -1941,7 +2044,7 @@ export type PutApiStepDefinitionsData = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -1952,6 +2055,7 @@ export type PutApiStepDefinitionsData = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -1959,6 +2063,8 @@ export type PutApiStepDefinitionsData = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath?: string | unknown;
         managedRuntime?: 'bun1' | 'node24' | unknown;
@@ -2097,34 +2203,57 @@ export type PutApiStepDefinitionsResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -2135,7 +2264,7 @@ export type PutApiStepDefinitionsResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -2146,6 +2275,7 @@ export type PutApiStepDefinitionsResponses = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -2153,6 +2283,8 @@ export type PutApiStepDefinitionsResponses = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath: string | unknown;
         managedRuntime: 'bun1' | 'node24' | unknown;
@@ -2304,34 +2436,57 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -2342,7 +2497,7 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -2353,6 +2508,7 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -2360,6 +2516,8 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath: string | unknown;
         managedRuntime: 'bun1' | 'node24' | unknown;
@@ -2511,34 +2669,57 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -2549,7 +2730,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -2560,6 +2741,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -2567,6 +2749,8 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath: string | unknown;
         managedRuntime: 'bun1' | 'node24' | unknown;
@@ -2597,7 +2781,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
 
 export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponse = PutApiStepDefinitionsByStepDefinitionIdArchiveResponses[keyof PutApiStepDefinitionsByStepDefinitionIdArchiveResponses];
 
-export type PostApiStepExecutionsClaimsData = {
+export type PostApiTasksClaimsData = {
     body: {
         projectId: string;
         workerId: string;
@@ -2607,10 +2791,10 @@ export type PostApiStepExecutionsClaimsData = {
     };
     path?: never;
     query?: never;
-    url: '/api/step-executions/claims';
+    url: '/api/tasks/claims';
 };
 
-export type PostApiStepExecutionsClaimsErrors = {
+export type PostApiTasksClaimsErrors = {
     /**
      * Response for status 400
      */
@@ -2693,19 +2877,23 @@ export type PostApiStepExecutionsClaimsErrors = {
     };
 };
 
-export type PostApiStepExecutionsClaimsError = PostApiStepExecutionsClaimsErrors[keyof PostApiStepExecutionsClaimsErrors];
+export type PostApiTasksClaimsError = PostApiTasksClaimsErrors[keyof PostApiTasksClaimsErrors];
 
-export type PostApiStepExecutionsClaimsResponses = {
+export type PostApiTasksClaimsResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
-        stepExecution: {
+        task: {
             id: string;
             projectId: string;
-            stepDefinitionId: string;
-            stepDefinitionVersion: number;
-            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+            workItemId: string;
+            taskExecutionConfigId: string | unknown;
+            name: string | unknown;
+            kind: 'agent' | 'code';
+            resumeFromAgentSessionId: string | unknown;
+            previousTaskId: string | unknown;
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
             inputJson: unknown;
             claimedBy: string | unknown;
             claimedAt: string | unknown;
@@ -2717,13 +2905,13 @@ export type PostApiStepExecutionsClaimsResponses = {
             completedAt: string | unknown;
             result: {
                 id: string;
-                stepExecutionId: string;
+                taskId: string;
                 status: 'succeeded' | 'failed';
                 resultJson: unknown;
                 errorJson: unknown;
                 signals: Array<{
                     id: string;
-                    stepExecutionResultId: string;
+                    taskResultId: string;
                     key: string;
                     type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                     source: 'extracted' | 'computed';
@@ -2741,18 +2929,18 @@ export type PostApiStepExecutionsClaimsResponses = {
     }>;
 };
 
-export type PostApiStepExecutionsClaimsResponse = PostApiStepExecutionsClaimsResponses[keyof PostApiStepExecutionsClaimsResponses];
+export type PostApiTasksClaimsResponse = PostApiTasksClaimsResponses[keyof PostApiTasksClaimsResponses];
 
-export type GetApiStepExecutionsData = {
+export type GetApiTasksData = {
     body?: never;
     path?: never;
     query: {
         projectId: string;
     };
-    url: '/api/step-executions';
+    url: '/api/tasks';
 };
 
-export type GetApiStepExecutionsErrors = {
+export type GetApiTasksErrors = {
     /**
      * Response for status 401
      */
@@ -2819,18 +3007,22 @@ export type GetApiStepExecutionsErrors = {
     };
 };
 
-export type GetApiStepExecutionsError = GetApiStepExecutionsErrors[keyof GetApiStepExecutionsErrors];
+export type GetApiTasksError = GetApiTasksErrors[keyof GetApiTasksErrors];
 
-export type GetApiStepExecutionsResponses = {
+export type GetApiTasksResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
         id: string;
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        taskExecutionConfigId: string | unknown;
+        name: string | unknown;
+        kind: 'agent' | 'code';
+        resumeFromAgentSessionId: string | unknown;
+        previousTaskId: string | unknown;
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -2842,13 +3034,13 @@ export type GetApiStepExecutionsResponses = {
         completedAt: string | unknown;
         result: {
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             status: 'succeeded' | 'failed';
             resultJson: unknown;
             errorJson: unknown;
             signals: Array<{
                 id: string;
-                stepExecutionResultId: string;
+                taskResultId: string;
                 key: string;
                 type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                 source: 'extracted' | 'computed';
@@ -2864,23 +3056,24 @@ export type GetApiStepExecutionsResponses = {
     }>;
 };
 
-export type GetApiStepExecutionsResponse = GetApiStepExecutionsResponses[keyof GetApiStepExecutionsResponses];
+export type GetApiTasksResponse = GetApiTasksResponses[keyof GetApiTasksResponses];
 
-export type PostApiStepExecutionsData = {
+export type PostApiTasksData = {
     body: {
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status?: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        status?: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson?: unknown;
         executionTimeoutSeconds?: number | unknown;
+        stepDefinitionId: string;
+        stepDefinitionVersion: number;
     };
     path?: never;
     query?: never;
-    url: '/api/step-executions';
+    url: '/api/tasks';
 };
 
-export type PostApiStepExecutionsErrors = {
+export type PostApiTasksErrors = {
     /**
      * Response for status 400
      */
@@ -2995,18 +3188,22 @@ export type PostApiStepExecutionsErrors = {
     };
 };
 
-export type PostApiStepExecutionsError = PostApiStepExecutionsErrors[keyof PostApiStepExecutionsErrors];
+export type PostApiTasksError = PostApiTasksErrors[keyof PostApiTasksErrors];
 
-export type PostApiStepExecutionsResponses = {
+export type PostApiTasksResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        taskExecutionConfigId: string | unknown;
+        name: string | unknown;
+        kind: 'agent' | 'code';
+        resumeFromAgentSessionId: string | unknown;
+        previousTaskId: string | unknown;
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -3018,13 +3215,13 @@ export type PostApiStepExecutionsResponses = {
         completedAt: string | unknown;
         result: {
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             status: 'succeeded' | 'failed';
             resultJson: unknown;
             errorJson: unknown;
             signals: Array<{
                 id: string;
-                stepExecutionResultId: string;
+                taskResultId: string;
                 key: string;
                 type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                 source: 'extracted' | 'computed';
@@ -3040,21 +3237,21 @@ export type PostApiStepExecutionsResponses = {
     };
 };
 
-export type PostApiStepExecutionsResponse = PostApiStepExecutionsResponses[keyof PostApiStepExecutionsResponses];
+export type PostApiTasksResponse = PostApiTasksResponses[keyof PostApiTasksResponses];
 
-export type PutApiStepExecutionsByStepExecutionIdHeartbeatData = {
+export type PutApiTasksByTaskIdHeartbeatData = {
     body: {
         claimToken: string;
         leaseDurationSeconds: number;
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/heartbeat';
+    url: '/api/tasks/{taskId}/heartbeat';
 };
 
-export type PutApiStepExecutionsByStepExecutionIdHeartbeatErrors = {
+export type PutApiTasksByTaskIdHeartbeatErrors = {
     /**
      * Response for status 401
      */
@@ -3153,18 +3350,22 @@ export type PutApiStepExecutionsByStepExecutionIdHeartbeatErrors = {
     };
 };
 
-export type PutApiStepExecutionsByStepExecutionIdHeartbeatError = PutApiStepExecutionsByStepExecutionIdHeartbeatErrors[keyof PutApiStepExecutionsByStepExecutionIdHeartbeatErrors];
+export type PutApiTasksByTaskIdHeartbeatError = PutApiTasksByTaskIdHeartbeatErrors[keyof PutApiTasksByTaskIdHeartbeatErrors];
 
-export type PutApiStepExecutionsByStepExecutionIdHeartbeatResponses = {
+export type PutApiTasksByTaskIdHeartbeatResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        taskExecutionConfigId: string | unknown;
+        name: string | unknown;
+        kind: 'agent' | 'code';
+        resumeFromAgentSessionId: string | unknown;
+        previousTaskId: string | unknown;
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -3176,13 +3377,13 @@ export type PutApiStepExecutionsByStepExecutionIdHeartbeatResponses = {
         completedAt: string | unknown;
         result: {
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             status: 'succeeded' | 'failed';
             resultJson: unknown;
             errorJson: unknown;
             signals: Array<{
                 id: string;
-                stepExecutionResultId: string;
+                taskResultId: string;
                 key: string;
                 type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                 source: 'extracted' | 'computed';
@@ -3198,20 +3399,20 @@ export type PutApiStepExecutionsByStepExecutionIdHeartbeatResponses = {
     };
 };
 
-export type PutApiStepExecutionsByStepExecutionIdHeartbeatResponse = PutApiStepExecutionsByStepExecutionIdHeartbeatResponses[keyof PutApiStepExecutionsByStepExecutionIdHeartbeatResponses];
+export type PutApiTasksByTaskIdHeartbeatResponse = PutApiTasksByTaskIdHeartbeatResponses[keyof PutApiTasksByTaskIdHeartbeatResponses];
 
-export type PostApiStepExecutionsByStepExecutionIdWorkerContextData = {
+export type PostApiTasksByTaskIdWorkerContextData = {
     body: {
         claimToken: string;
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/worker-context';
+    url: '/api/tasks/{taskId}/worker-context';
 };
 
-export type PostApiStepExecutionsByStepExecutionIdWorkerContextErrors = {
+export type PostApiTasksByTaskIdWorkerContextErrors = {
     /**
      * Response for status 401
      */
@@ -3310,9 +3511,9 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextErrors = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdWorkerContextError = PostApiStepExecutionsByStepExecutionIdWorkerContextErrors[keyof PostApiStepExecutionsByStepExecutionIdWorkerContextErrors];
+export type PostApiTasksByTaskIdWorkerContextError = PostApiTasksByTaskIdWorkerContextErrors[keyof PostApiTasksByTaskIdWorkerContextErrors];
 
-export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
+export type PostApiTasksByTaskIdWorkerContextResponses = {
     /**
      * Response for status 200
      */
@@ -3341,86 +3542,24 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                 };
             }>;
         };
-        stepExecution: {
+        task: {
             id: string;
-            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
-            inputJson: unknown;
-            executionTimeoutSeconds: number | unknown;
-        };
-        stepDefinition: {
-            id: string;
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
+            kind: 'agent' | 'code';
             key: string;
             name: string;
+            inputJson: unknown;
+            executionTimeoutSeconds: number | unknown;
             prompt: string | unknown;
-            kind: 'built_in' | 'user_defined' | 'code';
             entrypointJson: {
                 sourceFile: string;
             } | unknown;
-            executionMode: 'workspace' | 'no_workspace';
             resultSchemaJson: {
                 [key: string]: unknown;
             } | unknown;
-            opencodeMcpJson: {
-                [key: string]: {
-                    type: string;
-                    command: Array<string>;
-                    environment?: {
-                        [key: string]: string;
-                    };
-                    enabled?: boolean;
-                    timeout?: number;
-                } | {
-                    type: string;
-                    url: string;
-                    enabled?: boolean;
-                    headers?: {
-                        [key: string]: string;
-                    };
-                    oauth?: {
-                        clientId?: string;
-                        clientSecret?: string;
-                        scope?: string;
-                        redirectUri?: string;
-                    } | boolean;
-                    timeout?: number;
-                } | {
-                    enabled: boolean;
-                };
-            } | unknown;
-            opencodePluginJson: Array<string | Array<unknown>> | unknown;
-            healthChecksJson: Array<{
-                name?: string;
-                severity: 'required' | 'warn';
-                timeoutMs: number;
-                serialGroup?: string;
-                kind: string;
-                tool: string;
-                mcp?: string;
-                args?: {
-                    [key: string]: unknown;
-                };
-            } | {
-                name?: string;
-                severity: 'required' | 'warn';
-                timeoutMs: number;
-                serialGroup?: string;
-                kind: string;
-                command: Array<string>;
-                expectExitCode: number;
-            }> | unknown;
-            envJson: Array<{
-                name: string;
-                source: string;
-                value: string;
-                secret: boolean;
-            } | {
-                name: string;
-                source: string;
-                from: string;
-                secret: boolean;
-                optional: boolean;
-                default?: string;
-            }> | unknown;
+        };
+        runtime: {
+            executionMode: 'workspace' | 'no_workspace';
             devcontainerConfigPath: string | unknown;
             managedRuntime: 'bun1' | 'node24' | unknown;
             repo: {
@@ -3432,18 +3571,112 @@ export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponses = {
                 message: string | unknown;
                 onPushFailure: 'fail' | 'warn';
             };
+            envJson: Array<{
+                name: string;
+                source: string;
+                value: string;
+                secret: boolean;
+                applies: 'agent' | 'setup' | 'both';
+            } | {
+                name: string;
+                source: string;
+                from: string;
+                secret: boolean;
+                optional: boolean;
+                default?: string;
+                mcp?: string;
+                applies: 'agent' | 'setup' | 'both';
+            }> | unknown;
+            healthChecksJson: Array<{
+                name?: string;
+                severity: 'required' | 'warn';
+                timeoutSeconds: number;
+                serialGroup?: string;
+                kind: string;
+                tool: string;
+                mcp?: string;
+                args?: {
+                    [key: string]: unknown;
+                };
+            } | {
+                name?: string;
+                severity: 'required' | 'warn';
+                timeoutSeconds: number;
+                serialGroup?: string;
+                kind: string;
+                command: Array<string>;
+                expectExitCode: number;
+            }> | unknown;
+            opencodeMcpJson: {
+                [key: string]: {
+                    type: string;
+                    command: Array<string>;
+                    cwd?: string;
+                    environment?: {
+                        [key: string]: string;
+                    };
+                    disabled?: boolean;
+                    codemode?: boolean;
+                    timeout?: {
+                        startup?: number;
+                        catalog?: number;
+                        execution?: number;
+                    };
+                    protocol?: 'legacy' | 'auto' | '2026-07-28';
+                } | {
+                    type: string;
+                    url: string;
+                    headers?: {
+                        [key: string]: string;
+                    };
+                    oauth?: {
+                        client_id?: string;
+                        client_secret?: string;
+                        scope?: string;
+                        callback_port?: number;
+                        redirect_uri?: string;
+                        auth_server_metadata_url?: string;
+                    } | boolean;
+                    disabled?: boolean;
+                    codemode?: boolean;
+                    timeout?: {
+                        startup?: number;
+                        catalog?: number;
+                        execution?: number;
+                    };
+                    protocol?: 'legacy' | 'auto' | '2026-07-28';
+                } | {
+                    type: string;
+                    name?: string;
+                    disabled?: boolean;
+                    codemode?: boolean;
+                    timeout?: {
+                        startup?: number;
+                        catalog?: number;
+                        execution?: number;
+                    };
+                    protocol?: 'legacy' | 'auto' | '2026-07-28';
+                };
+            } | unknown;
         };
         agentPrompt: {
             sessionTitle: string;
             promptText: string;
-            stepInstructionsPlaceholder: string;
+            instructionsPlaceholder: string;
         };
+        previousRun: {
+            taskId: string;
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
+            transcriptRelativePath: string;
+            findingsRelativePath: string;
+            findingsJson: unknown;
+        } | unknown;
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdWorkerContextResponse = PostApiStepExecutionsByStepExecutionIdWorkerContextResponses[keyof PostApiStepExecutionsByStepExecutionIdWorkerContextResponses];
+export type PostApiTasksByTaskIdWorkerContextResponse = PostApiTasksByTaskIdWorkerContextResponses[keyof PostApiTasksByTaskIdWorkerContextResponses];
 
-export type PostApiStepExecutionsByStepExecutionIdCompletionsData = {
+export type PostApiTasksByTaskIdCompletionsData = {
     body: {
         claimToken: string;
         status: 'succeeded' | 'failed';
@@ -3453,13 +3686,13 @@ export type PostApiStepExecutionsByStepExecutionIdCompletionsData = {
         createdFromBranch?: string | unknown;
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/completions';
+    url: '/api/tasks/{taskId}/completions';
 };
 
-export type PostApiStepExecutionsByStepExecutionIdCompletionsErrors = {
+export type PostApiTasksByTaskIdCompletionsErrors = {
     /**
      * Response for status 401
      */
@@ -3558,18 +3791,22 @@ export type PostApiStepExecutionsByStepExecutionIdCompletionsErrors = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdCompletionsError = PostApiStepExecutionsByStepExecutionIdCompletionsErrors[keyof PostApiStepExecutionsByStepExecutionIdCompletionsErrors];
+export type PostApiTasksByTaskIdCompletionsError = PostApiTasksByTaskIdCompletionsErrors[keyof PostApiTasksByTaskIdCompletionsErrors];
 
-export type PostApiStepExecutionsByStepExecutionIdCompletionsResponses = {
+export type PostApiTasksByTaskIdCompletionsResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        taskExecutionConfigId: string | unknown;
+        name: string | unknown;
+        kind: 'agent' | 'code';
+        resumeFromAgentSessionId: string | unknown;
+        previousTaskId: string | unknown;
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -3581,13 +3818,13 @@ export type PostApiStepExecutionsByStepExecutionIdCompletionsResponses = {
         completedAt: string | unknown;
         result: {
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             status: 'succeeded' | 'failed';
             resultJson: unknown;
             errorJson: unknown;
             signals: Array<{
                 id: string;
-                stepExecutionResultId: string;
+                taskResultId: string;
                 key: string;
                 type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                 source: 'extracted' | 'computed';
@@ -3603,18 +3840,18 @@ export type PostApiStepExecutionsByStepExecutionIdCompletionsResponses = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdCompletionsResponse = PostApiStepExecutionsByStepExecutionIdCompletionsResponses[keyof PostApiStepExecutionsByStepExecutionIdCompletionsResponses];
+export type PostApiTasksByTaskIdCompletionsResponse = PostApiTasksByTaskIdCompletionsResponses[keyof PostApiTasksByTaskIdCompletionsResponses];
 
-export type PutApiStepExecutionsByStepExecutionIdRunningData = {
+export type PutApiTasksByTaskIdRunningData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/running';
+    url: '/api/tasks/{taskId}/running';
 };
 
-export type PutApiStepExecutionsByStepExecutionIdRunningErrors = {
+export type PutApiTasksByTaskIdRunningErrors = {
     /**
      * Response for status 401
      */
@@ -3697,18 +3934,22 @@ export type PutApiStepExecutionsByStepExecutionIdRunningErrors = {
     };
 };
 
-export type PutApiStepExecutionsByStepExecutionIdRunningError = PutApiStepExecutionsByStepExecutionIdRunningErrors[keyof PutApiStepExecutionsByStepExecutionIdRunningErrors];
+export type PutApiTasksByTaskIdRunningError = PutApiTasksByTaskIdRunningErrors[keyof PutApiTasksByTaskIdRunningErrors];
 
-export type PutApiStepExecutionsByStepExecutionIdRunningResponses = {
+export type PutApiTasksByTaskIdRunningResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        taskExecutionConfigId: string | unknown;
+        name: string | unknown;
+        kind: 'agent' | 'code';
+        resumeFromAgentSessionId: string | unknown;
+        previousTaskId: string | unknown;
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -3720,13 +3961,13 @@ export type PutApiStepExecutionsByStepExecutionIdRunningResponses = {
         completedAt: string | unknown;
         result: {
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             status: 'succeeded' | 'failed';
             resultJson: unknown;
             errorJson: unknown;
             signals: Array<{
                 id: string;
-                stepExecutionResultId: string;
+                taskResultId: string;
                 key: string;
                 type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                 source: 'extracted' | 'computed';
@@ -3742,21 +3983,21 @@ export type PutApiStepExecutionsByStepExecutionIdRunningResponses = {
     };
 };
 
-export type PutApiStepExecutionsByStepExecutionIdRunningResponse = PutApiStepExecutionsByStepExecutionIdRunningResponses[keyof PutApiStepExecutionsByStepExecutionIdRunningResponses];
+export type PutApiTasksByTaskIdRunningResponse = PutApiTasksByTaskIdRunningResponses[keyof PutApiTasksByTaskIdRunningResponses];
 
-export type PostApiStepExecutionResultsData = {
+export type PostApiTaskResultsData = {
     body: {
-        stepExecutionId: string;
+        taskId: string;
         status: 'succeeded' | 'failed';
         resultJson: unknown;
         errorJson: unknown;
     };
     path?: never;
     query?: never;
-    url: '/api/step-execution-results';
+    url: '/api/task-results';
 };
 
-export type PostApiStepExecutionResultsErrors = {
+export type PostApiTaskResultsErrors = {
     /**
      * Response for status 401
      */
@@ -3855,21 +4096,21 @@ export type PostApiStepExecutionResultsErrors = {
     };
 };
 
-export type PostApiStepExecutionResultsError = PostApiStepExecutionResultsErrors[keyof PostApiStepExecutionResultsErrors];
+export type PostApiTaskResultsError = PostApiTaskResultsErrors[keyof PostApiTaskResultsErrors];
 
-export type PostApiStepExecutionResultsResponses = {
+export type PostApiTaskResultsResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
-        stepExecutionId: string;
+        taskId: string;
         status: 'succeeded' | 'failed';
         resultJson: unknown;
         errorJson: unknown;
         signals: Array<{
             id: string;
-            stepExecutionResultId: string;
+            taskResultId: string;
             key: string;
             type: 'string' | 'number' | 'boolean' | 'object' | 'array';
             source: 'extracted' | 'computed';
@@ -3882,18 +4123,18 @@ export type PostApiStepExecutionResultsResponses = {
     };
 };
 
-export type PostApiStepExecutionResultsResponse = PostApiStepExecutionResultsResponses[keyof PostApiStepExecutionResultsResponses];
+export type PostApiTaskResultsResponse = PostApiTaskResultsResponses[keyof PostApiTaskResultsResponses];
 
-export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractData = {
+export type PostApiTaskResultsByTaskResultIdSignalsExtractData = {
     body?: never;
     path: {
-        stepExecutionResultId: string;
+        taskResultId: string;
     };
     query?: never;
-    url: '/api/step-execution-results/{stepExecutionResultId}/signals/extract';
+    url: '/api/task-results/{taskResultId}/signals/extract';
 };
 
-export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractErrors = {
+export type PostApiTaskResultsByTaskResultIdSignalsExtractErrors = {
     /**
      * Response for status 401
      */
@@ -3976,15 +4217,15 @@ export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractErro
     };
 };
 
-export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractError = PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractErrors[keyof PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractErrors];
+export type PostApiTaskResultsByTaskResultIdSignalsExtractError = PostApiTaskResultsByTaskResultIdSignalsExtractErrors[keyof PostApiTaskResultsByTaskResultIdSignalsExtractErrors];
 
-export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractResponses = {
+export type PostApiTaskResultsByTaskResultIdSignalsExtractResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
         id: string;
-        stepExecutionResultId: string;
+        taskResultId: string;
         key: string;
         type: 'string' | 'number' | 'boolean' | 'object' | 'array';
         source: 'extracted' | 'computed';
@@ -3995,21 +4236,21 @@ export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractResp
     }>;
 };
 
-export type PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractResponse = PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractResponses[keyof PostApiStepExecutionResultsByStepExecutionResultIdSignalsExtractResponses];
+export type PostApiTaskResultsByTaskResultIdSignalsExtractResponse = PostApiTaskResultsByTaskResultIdSignalsExtractResponses[keyof PostApiTaskResultsByTaskResultIdSignalsExtractResponses];
 
-export type GetApiStepExecutionsByStepExecutionIdLogsData = {
+export type GetApiTasksByTaskIdLogsData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query: {
         from: number;
         limit: number;
     };
-    url: '/api/step-executions/{stepExecutionId}/logs';
+    url: '/api/tasks/{taskId}/logs';
 };
 
-export type GetApiStepExecutionsByStepExecutionIdLogsErrors = {
+export type GetApiTasksByTaskIdLogsErrors = {
     /**
      * Response for status 401
      */
@@ -4092,9 +4333,9 @@ export type GetApiStepExecutionsByStepExecutionIdLogsErrors = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdLogsError = GetApiStepExecutionsByStepExecutionIdLogsErrors[keyof GetApiStepExecutionsByStepExecutionIdLogsErrors];
+export type GetApiTasksByTaskIdLogsError = GetApiTasksByTaskIdLogsErrors[keyof GetApiTasksByTaskIdLogsErrors];
 
-export type GetApiStepExecutionsByStepExecutionIdLogsResponses = {
+export type GetApiTasksByTaskIdLogsResponses = {
     /**
      * Response for status 200
      */
@@ -4111,9 +4352,9 @@ export type GetApiStepExecutionsByStepExecutionIdLogsResponses = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdLogsResponse = GetApiStepExecutionsByStepExecutionIdLogsResponses[keyof GetApiStepExecutionsByStepExecutionIdLogsResponses];
+export type GetApiTasksByTaskIdLogsResponse = GetApiTasksByTaskIdLogsResponses[keyof GetApiTasksByTaskIdLogsResponses];
 
-export type PostApiStepExecutionsByStepExecutionIdLogsData = {
+export type PostApiTasksByTaskIdLogsData = {
     body: {
         claimToken: string;
         lines: Array<{
@@ -4125,13 +4366,13 @@ export type PostApiStepExecutionsByStepExecutionIdLogsData = {
         }>;
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/logs';
+    url: '/api/tasks/{taskId}/logs';
 };
 
-export type PostApiStepExecutionsByStepExecutionIdLogsErrors = {
+export type PostApiTasksByTaskIdLogsErrors = {
     /**
      * Response for status 401
      */
@@ -4230,9 +4471,9 @@ export type PostApiStepExecutionsByStepExecutionIdLogsErrors = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdLogsError = PostApiStepExecutionsByStepExecutionIdLogsErrors[keyof PostApiStepExecutionsByStepExecutionIdLogsErrors];
+export type PostApiTasksByTaskIdLogsError = PostApiTasksByTaskIdLogsErrors[keyof PostApiTasksByTaskIdLogsErrors];
 
-export type PostApiStepExecutionsByStepExecutionIdLogsResponses = {
+export type PostApiTasksByTaskIdLogsResponses = {
     /**
      * Response for status 200
      */
@@ -4241,18 +4482,18 @@ export type PostApiStepExecutionsByStepExecutionIdLogsResponses = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdLogsResponse = PostApiStepExecutionsByStepExecutionIdLogsResponses[keyof PostApiStepExecutionsByStepExecutionIdLogsResponses];
+export type PostApiTasksByTaskIdLogsResponse = PostApiTasksByTaskIdLogsResponses[keyof PostApiTasksByTaskIdLogsResponses];
 
-export type GetApiStepExecutionsByStepExecutionIdData = {
+export type GetApiTasksByTaskIdData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}';
+    url: '/api/tasks/{taskId}';
 };
 
-export type GetApiStepExecutionsByStepExecutionIdErrors = {
+export type GetApiTasksByTaskIdErrors = {
     /**
      * Response for status 401
      */
@@ -4335,18 +4576,22 @@ export type GetApiStepExecutionsByStepExecutionIdErrors = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdError = GetApiStepExecutionsByStepExecutionIdErrors[keyof GetApiStepExecutionsByStepExecutionIdErrors];
+export type GetApiTasksByTaskIdError = GetApiTasksByTaskIdErrors[keyof GetApiTasksByTaskIdErrors];
 
-export type GetApiStepExecutionsByStepExecutionIdResponses = {
+export type GetApiTasksByTaskIdResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
         projectId: string;
-        stepDefinitionId: string;
-        stepDefinitionVersion: number;
-        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+        workItemId: string;
+        taskExecutionConfigId: string | unknown;
+        name: string | unknown;
+        kind: 'agent' | 'code';
+        resumeFromAgentSessionId: string | unknown;
+        previousTaskId: string | unknown;
+        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
         inputJson: unknown;
         claimedBy: string | unknown;
         claimedAt: string | unknown;
@@ -4358,13 +4603,13 @@ export type GetApiStepExecutionsByStepExecutionIdResponses = {
         completedAt: string | unknown;
         result: {
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             status: 'succeeded' | 'failed';
             resultJson: unknown;
             errorJson: unknown;
             signals: Array<{
                 id: string;
-                stepExecutionResultId: string;
+                taskResultId: string;
                 key: string;
                 type: 'string' | 'number' | 'boolean' | 'object' | 'array';
                 source: 'extracted' | 'computed';
@@ -4380,18 +4625,18 @@ export type GetApiStepExecutionsByStepExecutionIdResponses = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdResponse = GetApiStepExecutionsByStepExecutionIdResponses[keyof GetApiStepExecutionsByStepExecutionIdResponses];
+export type GetApiTasksByTaskIdResponse = GetApiTasksByTaskIdResponses[keyof GetApiTasksByTaskIdResponses];
 
-export type GetApiStepExecutionsByStepExecutionIdLogsArchiveData = {
+export type GetApiTasksByTaskIdLogsArchiveData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/logs/archive';
+    url: '/api/tasks/{taskId}/logs/archive';
 };
 
-export type GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors = {
+export type GetApiTasksByTaskIdLogsArchiveErrors = {
     /**
      * Response for status 401
      */
@@ -4490,9 +4735,9 @@ export type GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdLogsArchiveError = GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors[keyof GetApiStepExecutionsByStepExecutionIdLogsArchiveErrors];
+export type GetApiTasksByTaskIdLogsArchiveError = GetApiTasksByTaskIdLogsArchiveErrors[keyof GetApiTasksByTaskIdLogsArchiveErrors];
 
-export type GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses = {
+export type GetApiTasksByTaskIdLogsArchiveResponses = {
     /**
      * Response for status 200
      */
@@ -4502,9 +4747,127 @@ export type GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdLogsArchiveResponse = GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses[keyof GetApiStepExecutionsByStepExecutionIdLogsArchiveResponses];
+export type GetApiTasksByTaskIdLogsArchiveResponse = GetApiTasksByTaskIdLogsArchiveResponses[keyof GetApiTasksByTaskIdLogsArchiveResponses];
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData = {
+export type GetApiTasksByTaskIdHistoryData = {
+    body?: never;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/api/tasks/{taskId}/history';
+};
+
+export type GetApiTasksByTaskIdHistoryErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiTasksByTaskIdHistoryError = GetApiTasksByTaskIdHistoryErrors[keyof GetApiTasksByTaskIdHistoryErrors];
+
+export type GetApiTasksByTaskIdHistoryResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        runs: Array<{
+            taskId: string;
+            previousTaskId: string | unknown;
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
+            createdAt: string;
+            messages: Array<{
+                id: string;
+                taskId: string;
+                authorUserId: string;
+                body: string;
+                quoteText: string | unknown;
+                createdAt: string;
+            }>;
+        }>;
+    };
+};
+
+export type GetApiTasksByTaskIdHistoryResponse = GetApiTasksByTaskIdHistoryResponses[keyof GetApiTasksByTaskIdHistoryResponses];
+
+export type PostApiTasksByTaskIdArtifactUploadUrlData = {
     body: {
         claimToken: string;
         relativeStorePath: string;
@@ -4512,13 +4875,13 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlData = {
         sizeBytes?: number;
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/artifact-upload-url';
+    url: '/api/tasks/{taskId}/artifact-upload-url';
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors = {
+export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
     /**
      * Response for status 401
      */
@@ -4633,9 +4996,9 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlError = PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors[keyof PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlErrors];
+export type PostApiTasksByTaskIdArtifactUploadUrlError = PostApiTasksByTaskIdArtifactUploadUrlErrors[keyof PostApiTasksByTaskIdArtifactUploadUrlErrors];
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses = {
+export type PostApiTasksByTaskIdArtifactUploadUrlResponses = {
     /**
      * Response for status 200
      */
@@ -4647,18 +5010,18 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponse = PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses[keyof PostApiStepExecutionsByStepExecutionIdArtifactUploadUrlResponses];
+export type PostApiTasksByTaskIdArtifactUploadUrlResponse = PostApiTasksByTaskIdArtifactUploadUrlResponses[keyof PostApiTasksByTaskIdArtifactUploadUrlResponses];
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsData = {
+export type GetApiTasksByTaskIdArtifactsData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/artifacts';
+    url: '/api/tasks/{taskId}/artifacts';
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsErrors = {
+export type GetApiTasksByTaskIdArtifactsErrors = {
     /**
      * Response for status 401
      */
@@ -4741,15 +5104,15 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsErrors = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsError = GetApiStepExecutionsByStepExecutionIdArtifactsErrors[keyof GetApiStepExecutionsByStepExecutionIdArtifactsErrors];
+export type GetApiTasksByTaskIdArtifactsError = GetApiTasksByTaskIdArtifactsErrors[keyof GetApiTasksByTaskIdArtifactsErrors];
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsResponses = {
+export type GetApiTasksByTaskIdArtifactsResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
         id: string;
-        stepExecutionId: string;
+        taskId: string;
         projectId: string;
         relativeStorePath: string;
         storeRef: string | unknown;
@@ -4761,9 +5124,9 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsResponses = {
     }>;
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsResponse = GetApiStepExecutionsByStepExecutionIdArtifactsResponses[keyof GetApiStepExecutionsByStepExecutionIdArtifactsResponses];
+export type GetApiTasksByTaskIdArtifactsResponse = GetApiTasksByTaskIdArtifactsResponses[keyof GetApiTasksByTaskIdArtifactsResponses];
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactsData = {
+export type PostApiTasksByTaskIdArtifactsData = {
     body: {
         claimToken: string;
         objectKey: string;
@@ -4773,13 +5136,13 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactsData = {
         kind?: 'generic' | 'playwright-trace';
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/artifacts';
+    url: '/api/tasks/{taskId}/artifacts';
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactsErrors = {
+export type PostApiTasksByTaskIdArtifactsErrors = {
     /**
      * Response for status 401
      */
@@ -4878,15 +5241,15 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactsErrors = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactsError = PostApiStepExecutionsByStepExecutionIdArtifactsErrors[keyof PostApiStepExecutionsByStepExecutionIdArtifactsErrors];
+export type PostApiTasksByTaskIdArtifactsError = PostApiTasksByTaskIdArtifactsErrors[keyof PostApiTasksByTaskIdArtifactsErrors];
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactsResponses = {
+export type PostApiTasksByTaskIdArtifactsResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
-        stepExecutionId: string;
+        taskId: string;
         projectId: string;
         relativeStorePath: string;
         storeRef: string | unknown;
@@ -4898,19 +5261,19 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactsResponses = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactsResponse = PostApiStepExecutionsByStepExecutionIdArtifactsResponses[keyof PostApiStepExecutionsByStepExecutionIdArtifactsResponses];
+export type PostApiTasksByTaskIdArtifactsResponse = PostApiTasksByTaskIdArtifactsResponses[keyof PostApiTasksByTaskIdArtifactsResponses];
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlData = {
+export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
         artifactId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/artifacts/{artifactId}/download-url';
+    url: '/api/tasks/{taskId}/artifacts/{artifactId}/download-url';
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors = {
+export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
     /**
      * Response for status 401
      */
@@ -5025,9 +5388,9 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUr
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlError = GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors[keyof GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlErrors];
+export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlError = GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors[keyof GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors];
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses = {
+export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlResponses = {
     /**
      * Response for status 200
      */
@@ -5039,18 +5402,18 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUr
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponse = GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses[keyof GetApiStepExecutionsByStepExecutionIdArtifactsByArtifactIdDownloadUrlResponses];
+export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlResponse = GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlResponses[keyof GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlResponses];
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresData = {
+export type GetApiTasksByTaskIdArtifactFailuresData = {
     body?: never;
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/artifact-failures';
+    url: '/api/tasks/{taskId}/artifact-failures';
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresErrors = {
+export type GetApiTasksByTaskIdArtifactFailuresErrors = {
     /**
      * Response for status 401
      */
@@ -5133,15 +5496,15 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresErrors = {
     };
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresError = GetApiStepExecutionsByStepExecutionIdArtifactFailuresErrors[keyof GetApiStepExecutionsByStepExecutionIdArtifactFailuresErrors];
+export type GetApiTasksByTaskIdArtifactFailuresError = GetApiTasksByTaskIdArtifactFailuresErrors[keyof GetApiTasksByTaskIdArtifactFailuresErrors];
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresResponses = {
+export type GetApiTasksByTaskIdArtifactFailuresResponses = {
     /**
      * Response for status 200
      */
     200: Array<{
         id: string;
-        stepExecutionId: string;
+        taskId: string;
         relativeStorePath: string;
         attemptedSizeBytes: number;
         kind: 'generic' | 'playwright-trace';
@@ -5152,9 +5515,9 @@ export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresResponses = {
     }>;
 };
 
-export type GetApiStepExecutionsByStepExecutionIdArtifactFailuresResponse = GetApiStepExecutionsByStepExecutionIdArtifactFailuresResponses[keyof GetApiStepExecutionsByStepExecutionIdArtifactFailuresResponses];
+export type GetApiTasksByTaskIdArtifactFailuresResponse = GetApiTasksByTaskIdArtifactFailuresResponses[keyof GetApiTasksByTaskIdArtifactFailuresResponses];
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresData = {
+export type PostApiTasksByTaskIdArtifactFailuresData = {
     body: {
         claimToken: string;
         relativeStorePath: string;
@@ -5165,13 +5528,13 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresData = {
         httpStatus?: number;
     };
     path: {
-        stepExecutionId: string;
+        taskId: string;
     };
     query?: never;
-    url: '/api/step-executions/{stepExecutionId}/artifact-failures';
+    url: '/api/tasks/{taskId}/artifact-failures';
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresErrors = {
+export type PostApiTasksByTaskIdArtifactFailuresErrors = {
     /**
      * Response for status 401
      */
@@ -5270,15 +5633,15 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresErrors = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresError = PostApiStepExecutionsByStepExecutionIdArtifactFailuresErrors[keyof PostApiStepExecutionsByStepExecutionIdArtifactFailuresErrors];
+export type PostApiTasksByTaskIdArtifactFailuresError = PostApiTasksByTaskIdArtifactFailuresErrors[keyof PostApiTasksByTaskIdArtifactFailuresErrors];
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresResponses = {
+export type PostApiTasksByTaskIdArtifactFailuresResponses = {
     /**
      * Response for status 200
      */
     200: {
         id: string;
-        stepExecutionId: string;
+        taskId: string;
         relativeStorePath: string;
         attemptedSizeBytes: number;
         kind: 'generic' | 'playwright-trace';
@@ -5289,7 +5652,7 @@ export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresResponses = {
     };
 };
 
-export type PostApiStepExecutionsByStepExecutionIdArtifactFailuresResponse = PostApiStepExecutionsByStepExecutionIdArtifactFailuresResponses[keyof PostApiStepExecutionsByStepExecutionIdArtifactFailuresResponses];
+export type PostApiTasksByTaskIdArtifactFailuresResponse = PostApiTasksByTaskIdArtifactFailuresResponses[keyof PostApiTasksByTaskIdArtifactFailuresResponses];
 
 export type PostApiPipelineDefinitionsData = {
     body: {
@@ -7994,11 +8357,11 @@ export type PostApiPipelineExecutionsResponses = {
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -8013,8 +8376,8 @@ export type PostApiPipelineExecutionsResponses = {
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -8183,11 +8546,11 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartResponses = {
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -8202,8 +8565,8 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartResponses = {
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -8372,11 +8735,11 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -8391,8 +8754,8 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstResponses
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -8562,11 +8925,11 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -8581,8 +8944,8 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -8758,11 +9121,11 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -8777,8 +9140,8 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -8820,8 +9183,8 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
 export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepRunIdAcceptData = {
     body: {
         projectId: string;
-        stepExecutionId: string;
-        stepExecutionResultId: string;
+        taskId: string;
+        taskResultId: string;
         acceptedByUserId: string;
         acceptanceReason: string;
     };
@@ -8954,11 +9317,11 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -8973,8 +9336,8 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -9147,11 +9510,11 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -9166,8 +9529,8 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -9339,11 +9702,11 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses = {
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -9358,8 +9721,8 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunResponses = {
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -9528,11 +9891,11 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses = {
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -9547,8 +9910,8 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelResponses = {
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -9693,6 +10056,209 @@ export type PutApiPipelineExecutionsBatchCancelResponses = {
 
 export type PutApiPipelineExecutionsBatchCancelResponse = PutApiPipelineExecutionsBatchCancelResponses[keyof PutApiPipelineExecutionsBatchCancelResponses];
 
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesData = {
+    body: {
+        body: string;
+        quoteText?: string;
+    };
+    path: {
+        pipelineExecutionId: string;
+        stepKey: string;
+    };
+    query?: never;
+    url: '/api/pipeline-executions/{pipelineExecutionId}/steps/{stepKey}/messages';
+};
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesError = PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesErrors[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesErrors];
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        message: {
+            id: string;
+            taskId: string;
+            authorUserId: string;
+            body: string;
+            quoteText: string | unknown;
+            createdAt: string;
+        };
+        pipelineExecution: {
+            id: string;
+            projectId: string;
+            workItemId: string;
+            workItemTitle: string;
+            pipelineDefinitionId: string;
+            pipelineDefinitionVersionId: string;
+            definitionStepCount: number;
+            inputJson: unknown;
+            status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+            attempts: Array<{
+                id: string;
+                pipelineExecutionId: string;
+                attemptNumber: number;
+                currentStepKey: string | unknown;
+                startedAt: string | unknown;
+                completedAt: string | unknown;
+                routedToPipelineExecutionId: string | unknown;
+                status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'blocked' | 'routed';
+                stepRuns: Array<{
+                    id: string;
+                    pipelineExecutionAttemptId: string;
+                    pipelineStepDefinitionId: string;
+                    stepDefinitionId: string | unknown;
+                    stepDefinitionVersion: number | unknown;
+                    stepKey: string;
+                    position: number;
+                    nodeKind: 'step' | 'fanOut' | 'cohortGate' | 'choice' | 'parallel' | 'loop' | 'succeed' | 'fail' | 'split';
+                    branchIndex: number | unknown;
+                    branchKey: string | unknown;
+                    status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
+                    satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
+                    taskSnapshot: {
+                        id: string;
+                        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
+                        startedAt: string | unknown;
+                        completedAt: string | unknown;
+                        updatedAt: string;
+                    } | unknown;
+                    inheritedFromStepRunId: string | unknown;
+                    acceptedByUserId: string | unknown;
+                    acceptedAt: string | unknown;
+                    acceptanceReason: string | unknown;
+                    workBranch: string | unknown;
+                    outputJson: unknown;
+                    evaluation: {
+                        id: string;
+                        pipelineExecutionAttemptId: string;
+                        pipelineStepRunId: string;
+                        taskId: string | unknown;
+                        taskResultId: string | unknown;
+                        pipelineStepAdvancementPolicyDefinitionId: string | unknown;
+                        decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
+                        policySnapshotJson: {
+                            [key: string]: unknown;
+                        } | unknown;
+                        factsSnapshotJson: {
+                            [key: string]: unknown;
+                        };
+                        ruleResultsJson: unknown;
+                        finalStatus: 'pass' | 'fail';
+                        finalAction: 'continue' | 'block' | 'complete' | 'route' | 'route_to_node' | 'repeat';
+                        finalPayloadJson: {
+                            [key: string]: unknown;
+                        } | unknown;
+                        createdAt: string;
+                    } | unknown;
+                    createdAt: string;
+                    updatedAt: string;
+                }>;
+                events: Array<{
+                    id: string;
+                    pipelineExecutionAttemptId: string;
+                    type: 'pipeline_queued' | 'pipeline_started' | 'step_run_created' | 'step_attempt_queued' | 'step_attempt_started' | 'step_attempt_succeeded' | 'step_attempt_failed' | 'step_evaluated' | 'step_satisfied_by_policy' | 'step_satisfied_by_user' | 'step_unsatisfied_by_policy' | 'step_retriggered' | 'step_blocked' | 'step_routed' | 'pipeline_succeeded' | 'pipeline_failed' | 'pipeline_blocked' | 'pipeline_routed' | 'pipeline_cancelled';
+                    payloadJson: {
+                        [key: string]: unknown;
+                    } | unknown;
+                    createdAt: string;
+                }>;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            createdAt: string;
+            updatedAt: string;
+        };
+    };
+};
+
+export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesResponse = PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesResponses[keyof PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessagesResponses];
+
 export type GetApiPipelineExecutionsByPipelineExecutionIdData = {
     body?: never;
     path: {
@@ -9823,11 +10389,11 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdResponses = {
                 branchKey: string | unknown;
                 status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                 satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                stepExecutionId: string | unknown;
-                stepExecutionResultId: string | unknown;
-                stepExecutionSnapshot: {
+                taskId: string | unknown;
+                taskResultId: string | unknown;
+                taskSnapshot: {
                     id: string;
-                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                    status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                     startedAt: string | unknown;
                     completedAt: string | unknown;
                     updatedAt: string;
@@ -9842,8 +10408,8 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdResponses = {
                     id: string;
                     pipelineExecutionAttemptId: string;
                     pipelineStepRunId: string;
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
                     pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                     decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                     policySnapshotJson: {
@@ -10013,11 +10579,11 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses = 
                     branchKey: string | unknown;
                     status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
                     satisfactionStatus: 'not_evaluated' | 'satisfied_by_policy' | 'satisfied_by_user' | 'unsatisfied_by_policy' | 'not_applicable';
-                    stepExecutionId: string | unknown;
-                    stepExecutionResultId: string | unknown;
-                    stepExecutionSnapshot: {
+                    taskId: string | unknown;
+                    taskResultId: string | unknown;
+                    taskSnapshot: {
                         id: string;
-                        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped';
+                        status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
                         startedAt: string | unknown;
                         completedAt: string | unknown;
                         updatedAt: string;
@@ -10032,8 +10598,8 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses = 
                         id: string;
                         pipelineExecutionAttemptId: string;
                         pipelineStepRunId: string;
-                        stepExecutionId: string | unknown;
-                        stepExecutionResultId: string | unknown;
+                        taskId: string | unknown;
+                        taskResultId: string | unknown;
                         pipelineStepAdvancementPolicyDefinitionId: string | unknown;
                         decisionKind: 'step_policy' | 'choice' | 'loop_until' | 'advance_each' | 'advance_all';
                         policySnapshotJson: {
@@ -10073,6 +10639,130 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses = 
 };
 
 export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponse = GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses[keyof GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainResponses];
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadData = {
+    body?: never;
+    path: {
+        pipelineExecutionId: string;
+        stepKey: string;
+    };
+    query?: never;
+    url: '/api/pipeline-executions/{pipelineExecutionId}/steps/{stepKey}/thread';
+};
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadError = GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErrors[keyof GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErrors];
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        stepKey: string;
+        runs: Array<{
+            taskId: string;
+            previousTaskId: string | unknown;
+            attemptNumber: number;
+            nodeRunId: string;
+            status: 'pending' | 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'abandoned' | 'cancelled' | 'skipped' | 'yielded';
+            startedAt: string | unknown;
+            completedAt: string | unknown;
+            workBranch: string | unknown;
+            messages: Array<{
+                id: string;
+                taskId: string;
+                authorUserId: string;
+                body: string;
+                quoteText: string | unknown;
+                createdAt: string;
+            }>;
+        }>;
+    };
+};
+
+export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadResponse = GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadResponses[keyof GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadResponses];
 
 export type GetApiPipelineExecutionsCountsByPipelineData = {
     body?: never;
@@ -10269,7 +10959,7 @@ export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionI
             pipelineStepRunId: string;
             pipelineExecutionId: string;
             status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
-            stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
+            taskResultStatus: 'succeeded' | 'failed' | unknown;
             evaluationFinalAction: 'continue' | 'block' | 'complete' | 'route' | 'route_to_node' | 'repeat' | unknown;
             createdAt: string;
         } | unknown;
@@ -10382,7 +11072,7 @@ export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdRe
         pipelineStepRunId: string;
         pipelineExecutionId: string;
         status: 'pending' | 'queued' | 'running' | 'satisfied' | 'unsatisfied' | 'blocked' | 'cancelled' | 'abandoned' | 'timeout';
-        stepExecutionResultStatus: 'succeeded' | 'failed' | unknown;
+        taskResultStatus: 'succeeded' | 'failed' | unknown;
         evaluationFinalAction: 'continue' | 'block' | 'complete' | 'route' | 'route_to_node' | 'repeat' | unknown;
         createdAt: string;
     }>;
@@ -10609,6 +11299,8 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -10751,6 +11443,8 @@ export type PatchApiWorkItemsByWorkItemIdResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -10874,6 +11568,8 @@ export type GetApiWorkItemsByWorkItemIdChildrenResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -10895,6 +11591,7 @@ export type PostApiWorkItemsData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
+        status?: 'open' | 'closed';
     };
     path?: never;
     query?: never;
@@ -11040,6 +11737,8 @@ export type PostApiWorkItemsResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -11061,6 +11760,7 @@ export type PutApiWorkItemsData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
+        status?: 'open' | 'closed';
     };
     path?: never;
     query?: never;
@@ -11190,6 +11890,8 @@ export type PutApiWorkItemsResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -11314,6 +12016,7 @@ export type PostApiWorkItemsBatchData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
+        status?: 'open' | 'closed';
     }>;
     path?: never;
     query?: never;
@@ -11459,6 +12162,8 @@ export type PostApiWorkItemsBatchResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -11480,6 +12185,7 @@ export type PutApiWorkItemsBatchData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
+        status?: 'open' | 'closed';
     }>;
     path?: never;
     query?: never;
@@ -11609,6 +12315,8 @@ export type PutApiWorkItemsBatchResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     }>;
@@ -11750,6 +12458,8 @@ export type PatchApiWorkItemsByWorkItemIdParentResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
+        status: 'open' | 'closed';
+        spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
     };
@@ -12525,8 +13235,8 @@ export type GetApiWorkItemCommentDraftsResponses = {
             projectId: string;
             workItemId: string | unknown;
             pipelineExecutionId: string | unknown;
-            stepExecutionId: string | unknown;
-            stepSignalId: string | unknown;
+            taskId: string | unknown;
+            taskSignalId: string | unknown;
             agentSessionId: string | unknown;
             kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
             audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
@@ -12836,8 +13546,8 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectResponses = {
         projectId: string;
         workItemId: string | unknown;
         pipelineExecutionId: string | unknown;
-        stepExecutionId: string | unknown;
-        stepSignalId: string | unknown;
+        taskId: string | unknown;
+        taskSignalId: string | unknown;
         agentSessionId: string | unknown;
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
         audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
@@ -13238,348 +13948,6 @@ export type DeleteApiWorkItemBlocksByBlockIdResponses = {
 
 export type DeleteApiWorkItemBlocksByBlockIdResponse = DeleteApiWorkItemBlocksByBlockIdResponses[keyof DeleteApiWorkItemBlocksByBlockIdResponses];
 
-export type GetApiProjectsByProjectIdContextEntriesData = {
-    body?: never;
-    path: {
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/context-entries';
-};
-
-export type GetApiProjectsByProjectIdContextEntriesErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type GetApiProjectsByProjectIdContextEntriesError = GetApiProjectsByProjectIdContextEntriesErrors[keyof GetApiProjectsByProjectIdContextEntriesErrors];
-
-export type GetApiProjectsByProjectIdContextEntriesResponses = {
-    /**
-     * Response for status 200
-     */
-    200: Array<{
-        id: string;
-        projectId: string;
-        category: 'persona' | 'product' | 'workflows' | 'glossary' | 'compliance' | 'billing' | 'app-surfaces';
-        key: string;
-        value: string;
-        createdByUserId: string | unknown;
-        createdAt: string;
-        updatedAt: string;
-    }>;
-};
-
-export type GetApiProjectsByProjectIdContextEntriesResponse = GetApiProjectsByProjectIdContextEntriesResponses[keyof GetApiProjectsByProjectIdContextEntriesResponses];
-
-export type PostApiProjectsByProjectIdContextEntriesData = {
-    body: unknown;
-    path: {
-        projectId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/context-entries';
-};
-
-export type PostApiProjectsByProjectIdContextEntriesErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type PostApiProjectsByProjectIdContextEntriesError = PostApiProjectsByProjectIdContextEntriesErrors[keyof PostApiProjectsByProjectIdContextEntriesErrors];
-
-export type PostApiProjectsByProjectIdContextEntriesResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        id: string;
-        projectId: string;
-        category: 'persona' | 'product' | 'workflows' | 'glossary' | 'compliance' | 'billing' | 'app-surfaces';
-        key: string;
-        value: string;
-        createdByUserId: string | unknown;
-        createdAt: string;
-        updatedAt: string;
-    };
-};
-
-export type PostApiProjectsByProjectIdContextEntriesResponse = PostApiProjectsByProjectIdContextEntriesResponses[keyof PostApiProjectsByProjectIdContextEntriesResponses];
-
-export type DeleteApiProjectsByProjectIdContextEntriesByEntryIdData = {
-    body?: never;
-    path: {
-        projectId: string;
-        entryId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/context-entries/{entryId}';
-};
-
-export type DeleteApiProjectsByProjectIdContextEntriesByEntryIdErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type DeleteApiProjectsByProjectIdContextEntriesByEntryIdError = DeleteApiProjectsByProjectIdContextEntriesByEntryIdErrors[keyof DeleteApiProjectsByProjectIdContextEntriesByEntryIdErrors];
-
-export type DeleteApiProjectsByProjectIdContextEntriesByEntryIdResponses = {
-    /**
-     * Response for status 200
-     */
-    200: unknown;
-};
-
 export type GetApiProjectsByProjectIdArtifactsData = {
     body?: never;
     path: {
@@ -13665,7 +14033,7 @@ export type GetApiProjectsByProjectIdArtifactsResponses = {
     200: {
         artifacts: Array<{
             id: string;
-            stepExecutionId: string;
+            taskId: string;
             projectId: string;
             relativeStorePath: string;
             storeRef: string | unknown;
@@ -13997,8 +14365,8 @@ export type GetApiProjectsByProjectIdNotificationsResponses = {
         projectId: string;
         workItemId: string | unknown;
         pipelineExecutionId: string | unknown;
-        stepExecutionId: string | unknown;
-        stepSignalId: string | unknown;
+        taskId: string | unknown;
+        taskSignalId: string | unknown;
         agentSessionId: string | unknown;
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
         audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
@@ -14121,8 +14489,8 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdResponses = {
         projectId: string;
         workItemId: string | unknown;
         pipelineExecutionId: string | unknown;
-        stepExecutionId: string | unknown;
-        stepSignalId: string | unknown;
+        taskId: string | unknown;
+        taskSignalId: string | unknown;
         agentSessionId: string | unknown;
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
         audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
@@ -14360,8 +14728,8 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondRespon
         projectId: string;
         workItemId: string | unknown;
         pipelineExecutionId: string | unknown;
-        stepExecutionId: string | unknown;
-        stepSignalId: string | unknown;
+        taskId: string | unknown;
+        taskSignalId: string | unknown;
         agentSessionId: string | unknown;
         kind: 'feedback_request' | 'status_update' | 'blocked' | 'result_ready' | 'warning';
         audience: 'assignee' | 'reporter' | 'project_admins' | 'specific_users';
@@ -14682,34 +15050,57 @@ export type GetApiStepDefinitionTemplatesResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -14720,7 +15111,7 @@ export type GetApiStepDefinitionTemplatesResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -14847,34 +15238,57 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -14885,7 +15299,7 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -15073,34 +15487,57 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             [key: string]: {
                 type: string;
                 command: Array<string>;
+                cwd?: string;
                 environment?: {
                     [key: string]: string;
                 };
-                enabled?: boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
                 type: string;
                 url: string;
-                enabled?: boolean;
                 headers?: {
                     [key: string]: string;
                 };
                 oauth?: {
-                    clientId?: string;
-                    clientSecret?: string;
+                    client_id?: string;
+                    client_secret?: string;
                     scope?: string;
-                    redirectUri?: string;
+                    callback_port?: number;
+                    redirect_uri?: string;
+                    auth_server_metadata_url?: string;
                 } | boolean;
-                timeout?: number;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             } | {
-                enabled: boolean;
+                type: string;
+                name?: string;
+                disabled?: boolean;
+                codemode?: boolean;
+                timeout?: {
+                    startup?: number;
+                    catalog?: number;
+                    execution?: number;
+                };
+                protocol?: 'legacy' | 'auto' | '2026-07-28';
             };
         } | unknown;
-        opencodePluginJson: Array<string | Array<unknown>> | unknown;
         healthChecksJson: Array<{
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             tool: string;
@@ -15111,7 +15548,7 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
         } | {
             name?: string;
             severity: 'required' | 'warn';
-            timeoutMs: number;
+            timeoutSeconds: number;
             serialGroup?: string;
             kind: string;
             command: Array<string>;
@@ -15122,6 +15559,7 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             source: string;
             value: string;
             secret: boolean;
+            applies: 'agent' | 'setup' | 'both';
         } | {
             name: string;
             source: string;
@@ -15129,6 +15567,8 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             secret: boolean;
             optional: boolean;
             default?: string;
+            mcp?: string;
+            applies: 'agent' | 'setup' | 'both';
         }> | unknown;
         devcontainerConfigPath: string | unknown;
         managedRuntime: 'bun1' | 'node24' | unknown;

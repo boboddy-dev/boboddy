@@ -26,7 +26,7 @@ export type ReadWriteRepoSpec = {
   readonly mode: "readWrite";
   /**
    * Commit message template; `{{input.…}}` and `{{result.…}}` tokens only, one
-   * line, at most 500 characters. Defaults to `boboddy: step <stepExecutionId>`.
+   * line, at most 500 characters. Defaults to `boboddy: task <taskId>`.
    */
   readonly message?: string;
   /** Defaults to `"fail"`: a failed push fails the step. */

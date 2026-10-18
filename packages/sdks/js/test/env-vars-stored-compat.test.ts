@@ -24,6 +24,7 @@ const V1_ROWS: readonly {
         source: "value",
         value: "https://warehouse.internal",
         secret: false,
+        applies: "agent",
       },
     ],
   },
@@ -36,6 +37,7 @@ const V1_ROWS: readonly {
         source: "value",
         value: "{{input.tenant}}-key",
         secret: true,
+        applies: "agent",
       },
     ],
   },
@@ -49,6 +51,7 @@ const V1_ROWS: readonly {
         from: "SENTRY_DSN",
         secret: false,
         optional: false,
+        applies: "agent",
       },
     ],
   },
@@ -62,6 +65,7 @@ const V1_ROWS: readonly {
         from: "STAGING_DB_PASSWORD",
         secret: true,
         optional: false,
+        applies: "agent",
       },
     ],
   },
@@ -76,6 +80,7 @@ const V1_ROWS: readonly {
         secret: false,
         optional: true,
         default: "info",
+        applies: "agent",
       },
     ],
   },
@@ -102,6 +107,21 @@ describe("storedEnvVarsSchema v1 compatibility", () => {
     expect(storedEnvVarsSchema.safeParse(merged).success).toBe(true);
   });
 
+  test.concurrent("reads an inherit entry's mcp owner", () => {
+    const entry = {
+      name: "DATADOG_API_KEY",
+      source: "inherit",
+      from: "DATADOG_API_KEY",
+      secret: true,
+      optional: false,
+      mcp: "datadog",
+    } as const;
+    const result = storedEnvVarsSchema.safeParse([entry]);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual([{ ...entry, applies: "agent" }]);
+  });
+
   test.concurrent("ignores keys added by a newer writer", () => {
     const result = storedEnvVarsSchema.safeParse([
       {
@@ -122,9 +142,41 @@ describe("storedEnvVarsSchema v1 compatibility", () => {
         from: "LOG_LEVEL",
         secret: false,
         optional: true,
+        applies: "agent",
       },
     ]);
   });
+
+  test.concurrent(
+    "reads a missing applies as agent and keeps a stored one",
+    () => {
+      const result = storedEnvVarsSchema.safeParse([
+        { name: "A_VAR", source: "value", value: "a", secret: false },
+        {
+          name: "B_VAR",
+          source: "value",
+          value: "b",
+          secret: false,
+          applies: "setup",
+        },
+        {
+          name: "C_VAR",
+          source: "inherit",
+          from: "C_VAR",
+          secret: false,
+          optional: false,
+          applies: "both",
+        },
+      ]);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.map((entry) => entry.applies)).toEqual([
+        "agent",
+        "setup",
+        "both",
+      ]);
+    },
+  );
 
   test.concurrent(
     "does not re-apply write-time rules, so stricter rules never orphan old rows",

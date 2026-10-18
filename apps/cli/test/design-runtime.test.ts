@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { OPENCODE_RUNTIME_VERSION } from "@boboddy/worker";
 import {
   createRuntimeProgressRenderer,
   describeRuntimeProvisionFailure,
   ensureDesignRuntime,
 } from "../src/lib/design-runtime";
-import type { BaseReporter, WorkTask } from "../src/lib/reporter-types";
+import type { BaseReporter, WorkActivity } from "../src/lib/reporter-types";
 import { noopBaseReporter } from "../src/lib/reporter-types";
 
 /**
@@ -17,7 +18,7 @@ type Recorded = { messages: string[]; started: string[]; outcome?: string };
 
 function recordingReporter(): { reporter: BaseReporter; recorded: Recorded } {
   const recorded: Recorded = { messages: [], started: [] };
-  const task: WorkTask = {
+  const task: WorkActivity = {
     update: (message) => {
       recorded.messages.push(message);
     },
@@ -32,7 +33,7 @@ function recordingReporter(): { reporter: BaseReporter; recorded: Recorded } {
   return {
     reporter: {
       ...noopBaseReporter,
-      startTask: (message: string) => {
+      startActivity: (message: string) => {
         recorded.started.push(message);
         return task;
       },
@@ -48,7 +49,7 @@ describe("createRuntimeProgressRenderer", () => {
 
     renderer.onProgress({
       phase: "provision-start",
-      version: "1.18.11",
+      version: OPENCODE_RUNTIME_VERSION,
       platforms: ["darwin-arm64"],
     });
 
@@ -62,7 +63,10 @@ describe("createRuntimeProgressRenderer", () => {
     const { reporter, recorded } = recordingReporter();
     const renderer = createRuntimeProgressRenderer(reporter);
 
-    renderer.onProgress({ phase: "cache-hit", version: "1.18.11" });
+    renderer.onProgress({
+      phase: "cache-hit",
+      version: OPENCODE_RUNTIME_VERSION,
+    });
     renderer.succeed();
 
     expect(recorded.started).toEqual([]);
@@ -75,12 +79,12 @@ describe("createRuntimeProgressRenderer", () => {
 
     renderer.onProgress({
       phase: "provision-start",
-      version: "1.18.11",
+      version: OPENCODE_RUNTIME_VERSION,
       platforms: ["darwin-arm64"],
     });
     renderer.onProgress({
       phase: "platform-progress",
-      version: "1.18.11",
+      version: OPENCODE_RUNTIME_VERSION,
       platform: "darwin-arm64",
       receivedBytes: 25 * 1024 * 1024,
       totalBytes: 100 * 1024 * 1024,
@@ -95,12 +99,12 @@ describe("createRuntimeProgressRenderer", () => {
 
     renderer.onProgress({
       phase: "provision-start",
-      version: "1.18.11",
+      version: OPENCODE_RUNTIME_VERSION,
       platforms: ["darwin-arm64"],
     });
     renderer.onProgress({
       phase: "platform-progress",
-      version: "1.18.11",
+      version: OPENCODE_RUNTIME_VERSION,
       platform: "darwin-arm64",
       receivedBytes: 7 * 1024 * 1024,
       totalBytes: null,
@@ -127,16 +131,15 @@ describe("ensureDesignRuntime", () => {
       reporter: noopBaseReporter,
       ensurePayload: () =>
         Promise.resolve({
-          version: "1.18.11",
-          hostPayloadDir: "/home/u/.boboddy/runtimes/opencode/1.18.11",
-          containerPayloadDir: "/opt/boboddy/runtimes/opencode/1.18.11",
-          containerLaunchWrapperPath:
-            "/opt/boboddy/runtimes/opencode/1.18.11/launch.sh",
+          version: OPENCODE_RUNTIME_VERSION,
+          hostPayloadDir: `/home/u/.boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}`,
+          containerPayloadDir: `/opt/boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}`,
+          containerLaunchWrapperPath: `/opt/boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}/launch.sh`,
         }),
     });
 
     expect(launcher).toBe(
-      "/home/u/.boboddy/runtimes/opencode/1.18.11/launch.sh",
+      `/home/u/.boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}/launch.sh`,
     );
   });
 
@@ -150,7 +153,7 @@ describe("ensureDesignRuntime", () => {
         ensurePayload: (options) => {
           options?.onProgress?.({
             phase: "provision-start",
-            version: "1.18.11",
+            version: OPENCODE_RUNTIME_VERSION,
             platforms: ["darwin-arm64"],
           });
           return Promise.reject(new Error("socket hang up"));

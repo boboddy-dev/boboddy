@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import type {
-  InstalledAiTool,
-  OpencodeProviderCredentialCheck,
+import {
+  OPENCODE_RUNTIME_VERSION,
+  type InstalledAiTool,
+  type OpencodeProviderCredentialCheck,
 } from "@boboddy/worker";
 import { CliError } from "../src/lib/cli-error";
 import {
@@ -23,7 +24,7 @@ import { createReporterRecorder, type RecordedReport } from "./utils";
  * the clack block closes before the login owns the tty and reopens after.
  */
 
-const LAUNCHER = "/home/u/.boboddy/runtimes/opencode/1.18.11/launch.sh";
+const LAUNCHER = `/home/u/.boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}/launch.sh`;
 const OK: OpencodeProviderCredentialCheck = {
   ok: true,
   providers: ["anthropic"],

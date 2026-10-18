@@ -1,5 +1,6 @@
 import { saveProjectConfig } from "../infra/fs-project-config-repo";
 
-export async function writeProjectConfig(projectId: string, rootDir = process.cwd()) {
-  await saveProjectConfig(projectId, rootDir);
+/** Writes `project` (an `owner/slug` ref) into `.boboddy/boboddy.jsonc`, merging with what's there. */
+export async function writeProjectConfig(project: string, rootDir = process.cwd()) {
+  await saveProjectConfig(project, rootDir);
 }

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "figma": { "url": "http://127.0.0.1:3845/mcp" },
+    "stripe": {
+      "command": "npx",
+      "args": ["-y", "@stripe/mcp", "--tools=all"],
+      "env": { "STRIPE_SECRET_KEY": "${env:STRIPE_SECRET_KEY}" }
+    }
+  }
+}

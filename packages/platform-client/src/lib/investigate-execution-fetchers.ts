@@ -2,8 +2,8 @@ import type {
   LogLine,
   PipelineDefinition,
   PipelineExecution,
-  StepExecution,
-  StepExecutionLogStream,
+  Task,
+  TaskLogStream,
   WorkItem,
 } from "./api-types";
 import { describeApiError } from "./api-errors";
@@ -70,18 +70,18 @@ export async function fetchWorkItem(
   return data;
 }
 
-export async function fetchStepExecution(
+export async function fetchTask(
   client: InvestigateExecutionClient,
   headers: AuthHeaders,
-  stepExecutionId: string,
-): Promise<StepExecution> {
-  const { data, error } = await client.stepExecutions.getStepExecution({
-    path: { stepExecutionId },
+  taskId: string,
+): Promise<Task> {
+  const { data, error } = await client.tasks.getTask({
+    path: { taskId: taskId },
     headers,
   });
   if (error !== undefined) {
     throw new Error(
-      `Could not load step execution ${stepExecutionId}: ${describeApiError(error)}`,
+      `Could not load task ${taskId}: ${describeApiError(error)}`,
     );
   }
   return data;
@@ -89,7 +89,7 @@ export async function fetchStepExecution(
 
 export function filterByStream(
   lines: readonly LogLine[],
-  requestedStream: StepExecutionLogStream | "all",
+  requestedStream: TaskLogStream | "all",
 ): LogLine[] {
   if (requestedStream === "all") return [...lines];
   return lines.filter((line) => line.stream === requestedStream);
@@ -97,7 +97,7 @@ export function filterByStream(
 
 /**
  * Downloads and parses the NDJSON log archive at a presigned URL.
- * `finalize-step-execution-log.ts` stores the archive gzip-compressed with
+ * `finalize-task-log.ts` stores the archive gzip-compressed with
  * `Content-Encoding: gzip` (see `object-store.ts`'s `PutObjectInput.compress`
  * doc comment: "HTTP clients fetching via a presigned URL decompress
  * transparently"), so a plain `fetch` already receives decompressed bytes —

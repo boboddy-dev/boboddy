@@ -33,7 +33,7 @@ describe("reportDevcontainerStatus", () => {
 
     expect(result).toEqual({ present: true });
     expect(tasks[0]?.message).toBe(DEVCONTAINER_TASK_LABEL);
-    expect(methods(tasks)).toEqual(["startTask", "succeed"]);
+    expect(methods(tasks)).toEqual(["startActivity", "succeed"]);
     expect(tasks[1]?.message).toBe(DEVCONTAINER_PRESENT_LABEL);
     // Nothing to caution about when one already exists.
     expect(methods(calls)).not.toContain("warn");
@@ -50,7 +50,7 @@ describe("reportDevcontainerStatus", () => {
     expect(result).toEqual({ present: false });
     // `succeed`, never `fail`: init did its job: it looked, and it is telling
     // the user what it found. A failed task reads like a blocked install.
-    expect(methods(tasks)).toEqual(["startTask", "succeed"]);
+    expect(methods(tasks)).toEqual(["startActivity", "succeed"]);
     expect(tasks[1]?.message).toBe(DEVCONTAINER_MISSING_LABEL);
     expect(messages(calls)).toContain(DEVCONTAINER_NOTICE_MESSAGE);
   });
@@ -100,6 +100,6 @@ describe("reportDevcontainerStatus", () => {
     }
 
     expect(caught).toBe(boom);
-    expect(methods(tasks)).toEqual(["startTask", "fail"]);
+    expect(methods(tasks)).toEqual(["startActivity", "fail"]);
   });
 });

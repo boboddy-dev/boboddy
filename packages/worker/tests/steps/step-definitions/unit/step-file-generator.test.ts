@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import type { EnvVarSpec } from "@boboddy/sdk/env-vars";
+import { envVarsSchema, type EnvVarSpec } from "@boboddy/sdk/env-vars";
 import { resolveRepoConfig } from "@boboddy/sdk/repo-config";
 import {
   generateStepsFileContent,
@@ -22,7 +22,6 @@ function makeStep(overrides: Partial<StepDefContract> = {}): StepDefContract {
     inputSchemaJson: null,
     resultSchemaJson: null,
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
     envJson: null,
     signalExtractorDefinitions: [],
@@ -93,28 +92,7 @@ describe("generateStepsFileContent", () => {
     expect(emptyContent).not.toContain("mcpServers:");
   });
 
-  test("emits plugins when present and non-empty", () => {
-    const content = generateStepsFileContent([
-      makeStep({ opencodePluginJson: [{ path: "./my-plugin.ts" }] }),
-    ]);
-
-    expect(content).toContain("plugins: [");
-    expect(content).toContain("./my-plugin.ts");
-  });
-
-  test("omits plugins when null or empty", () => {
-    const nullContent = generateStepsFileContent([
-      makeStep({ opencodePluginJson: null }),
-    ]);
-    const emptyContent = generateStepsFileContent([
-      makeStep({ opencodePluginJson: [] }),
-    ]);
-
-    expect(nullContent).not.toContain("plugins:");
-    expect(emptyContent).not.toContain("plugins:");
-  });
-
-  test("emits healthChecks when present and non-empty, formatted like mcpServers/plugins", () => {
+  test("emits healthChecks when present and non-empty, formatted like mcpServers", () => {
     const content = generateStepsFileContent([
       makeStep({
         healthChecksJson: [
@@ -160,6 +138,7 @@ describe("generateStepsFileContent", () => {
             source: "value",
             value: "https://warehouse.internal",
             secret: false,
+            applies: "agent",
           },
         ],
       }),
@@ -183,12 +162,14 @@ describe("generateStepsFileContent", () => {
             source: "value",
             value: "{{input.accountId}}",
             secret: false,
+            applies: "agent",
           },
           {
             name: "TENANT_URL",
             source: "value",
             value: "https://{{input.tenant}}.example.com",
             secret: false,
+            applies: "agent",
           },
         ],
       }),
@@ -210,6 +191,7 @@ describe("generateStepsFileContent", () => {
             source: "value",
             value: "{{env.OTHER}} for {{input.id}}",
             secret: false,
+            applies: "agent",
           },
         ],
       }),
@@ -227,6 +209,7 @@ describe("generateStepsFileContent", () => {
             source: "value",
             value: "{{input.tenant}}-key",
             secret: true,
+            applies: "agent",
           },
           {
             name: "WAREHOUSE_TOKEN",
@@ -234,6 +217,7 @@ describe("generateStepsFileContent", () => {
             from: "WAREHOUSE_TOKEN",
             secret: true,
             optional: false,
+            applies: "agent",
           },
           {
             name: "DB_PASSWORD",
@@ -241,6 +225,7 @@ describe("generateStepsFileContent", () => {
             from: "STAGING_DB_PASSWORD",
             secret: true,
             optional: false,
+            applies: "agent",
           },
           {
             name: "LOG_LEVEL",
@@ -249,6 +234,7 @@ describe("generateStepsFileContent", () => {
             secret: false,
             optional: true,
             default: "info",
+            applies: "agent",
           },
           {
             name: "SENTRY_DSN",
@@ -256,6 +242,7 @@ describe("generateStepsFileContent", () => {
             from: "SENTRY_DSN",
             secret: false,
             optional: false,
+            applies: "agent",
           },
         ],
       }),
@@ -286,12 +273,14 @@ describe("generateStepsFileContent", () => {
             source: "value",
             value: "pk_live_123",
             secret: false,
+            applies: "agent",
           },
           {
             name: "TOKEN_URL",
             source: "value",
             value: "{{input.tenant}}/token",
             secret: false,
+            applies: "agent",
           },
         ],
       }),
@@ -313,6 +302,7 @@ describe("generateStepsFileContent", () => {
             source: "value",
             value: "https://warehouse.internal",
             secret: false,
+            applies: "agent",
           },
         ],
       }),
@@ -331,24 +321,28 @@ describe("generateStepsFileContent", () => {
         source: "value",
         value: "https://warehouse.internal",
         secret: false,
+        applies: "agent",
       },
       {
         name: "ACCOUNT_ID",
         source: "value",
         value: "{{input.accountId}}",
         secret: false,
+        applies: "agent",
       },
       {
         name: "PUBLIC_API_KEY",
         source: "value",
         value: "pk_live_123",
         secret: false,
+        applies: "agent",
       },
       {
         name: "TENANT_API_KEY",
         source: "value",
         value: "{{input.tenant}}-key",
         secret: true,
+        applies: "agent",
       },
       {
         name: "WAREHOUSE_TOKEN",
@@ -356,6 +350,7 @@ describe("generateStepsFileContent", () => {
         from: "WAREHOUSE_TOKEN",
         secret: true,
         optional: false,
+        applies: "agent",
       },
       {
         name: "DB_PASSWORD",
@@ -363,6 +358,7 @@ describe("generateStepsFileContent", () => {
         from: "STAGING_DB_PASSWORD",
         secret: true,
         optional: false,
+        applies: "agent",
       },
       {
         name: "LOG_LEVEL",
@@ -371,6 +367,7 @@ describe("generateStepsFileContent", () => {
         secret: false,
         optional: true,
         default: "info",
+        applies: "agent",
       },
       {
         name: "SENTRY_DSN",
@@ -378,6 +375,7 @@ describe("generateStepsFileContent", () => {
         from: "SENTRY_DSN",
         secret: false,
         optional: false,
+        applies: "agent",
       },
     ];
     const content = generateStepsFileContent([
@@ -404,7 +402,7 @@ describe("generateStepsFileContent", () => {
         accountInvestigation: { envJson: EnvVarSpec[] | null };
       };
 
-      expect(loaded.accountInvestigation.envJson).toEqual(envJson);
+      expect(envVarsSchema.parse(loaded.accountInvestigation.envJson)).toEqual(envJson);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

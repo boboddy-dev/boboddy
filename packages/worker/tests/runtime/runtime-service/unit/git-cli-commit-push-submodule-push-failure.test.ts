@@ -11,7 +11,7 @@ import { GitCliSubmoduleService } from "../../../../src/runtime/runtime-service/
 import {
   buildCommitAndPushWorkBranch,
   WorkBranchPushError,
-} from "../../../../src/work/step-execution/infra/work-branch-manager";
+} from "../../../../src/work/task/infra/work-branch-manager";
 import { captureRejection } from "../../../support/capture-rejection";
 import { git, writeRepoFile } from "./git-test-fixtures";
 import {
@@ -59,7 +59,7 @@ describe("buildCommitAndPushWorkBranch submodule push failure", () => {
           submoduleService,
           workspacePath: workspace,
           workBranch: "boboddy/broken",
-          stepExecutionId: "step-exec-broken",
+          taskId: "step-exec-broken",
         });
 
         const failure = await captureRejection(closure({ result: {} }));
@@ -85,7 +85,7 @@ describe("buildCommitAndPushWorkBranch submodule push failure", () => {
           submoduleService,
           workspacePath: workspace,
           workBranch: "boboddy/broken",
-          stepExecutionId: "step-exec-broken",
+          taskId: "step-exec-broken",
           onPushFailure: "fail",
         });
 

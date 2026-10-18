@@ -31,14 +31,14 @@ afterEach(async () => {
 });
 
 async function writeStepDir(
-  stepExecutionId: string,
+  taskId: string,
   {
     bytes = 100,
     ageMs = 0,
     nested = false,
   }: { bytes?: number; ageMs?: number; nested?: boolean } = {},
 ): Promise<string> {
-  const dirPath = path.join(baseDir, stepExecutionId);
+  const dirPath = path.join(baseDir, taskId);
   await mkdir(dirPath, { recursive: true });
   const filePath = nested
     ? (await mkdir(path.join(dirPath, "nested"), { recursive: true }),

@@ -2,16 +2,10 @@ import { mkdir, mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import boboddySubmitStepFindings, {
+import {
   resolveFindingsWorktree,
+  submitStepFindings,
 } from "./boboddy-submit-step-findings";
-
-type SubmitStepFindingsTool = {
-  execute(
-    args: { findingsJson: unknown },
-    context: { worktree: string },
-  ): Promise<string>;
-};
 
 const CURRENT_EXECUTION_INFO_RELATIVE_PATH =
   ".boboddy/current-execution/execution.json";
@@ -31,21 +25,14 @@ async function writeCurrentExecutionInfo(
   );
 }
 
-function getTool(): SubmitStepFindingsTool {
-  return boboddySubmitStepFindings as unknown as SubmitStepFindingsTool;
-}
-
 describe("boboddySubmitStepFindings", () => {
-  test.concurrent(
-    "keeps non-root worktrees unchanged",
-    async () => {
-      const workspacePath = await mkdtemp(
-        path.join(os.tmpdir(), "boboddy-submit-findings-"),
-      );
+  test.concurrent("keeps non-root worktrees unchanged", async () => {
+    const workspacePath = await mkdtemp(
+      path.join(os.tmpdir(), "boboddy-submit-findings-"),
+    );
 
-      expect(await resolveFindingsWorktree(workspacePath)).toBe(workspacePath);
-    },
-  );
+    expect(await resolveFindingsWorktree(workspacePath)).toBe(workspacePath);
+  });
 
   test.concurrent(
     "throws when the current execution metadata file is missing",
@@ -55,9 +42,9 @@ describe("boboddySubmitStepFindings", () => {
       );
 
       try {
-        await getTool().execute(
+        await submitStepFindings(
           { findingsJson: { summary: "done" } },
-          { worktree: workspacePath },
+          workspacePath,
         );
         throw new Error("Expected missing current execution metadata to throw");
       } catch (error) {
@@ -77,7 +64,7 @@ describe("boboddySubmitStepFindings", () => {
       );
 
       await writeCurrentExecutionInfo(workspacePath, {
-        stepExecutionId: "step-execution-id",
+        taskId: "task-id",
         resultSchemaJson: {
           type: "object",
           required: ["summary"],
@@ -88,9 +75,9 @@ describe("boboddySubmitStepFindings", () => {
         },
       });
 
-      const result = await getTool().execute(
+      const result = await submitStepFindings(
         { findingsJson: { summary: "done" } },
-        { worktree: workspacePath },
+        workspacePath,
       );
 
       expect(JSON.parse(result)).toEqual({
@@ -111,14 +98,14 @@ describe("boboddySubmitStepFindings", () => {
   );
 
   test.concurrent(
-    "accepts draft 2020-12 schemas written by step execution metadata",
+    "accepts draft 2020-12 schemas written by task metadata",
     async () => {
       const workspacePath = await mkdtemp(
         path.join(os.tmpdir(), "boboddy-submit-findings-"),
       );
 
       await writeCurrentExecutionInfo(workspacePath, {
-        stepExecutionId: "step-execution-id",
+        taskId: "task-id",
         resultSchemaJson: {
           $schema: "https://json-schema.org/draft/2020-12/schema",
           type: "object",
@@ -130,9 +117,9 @@ describe("boboddySubmitStepFindings", () => {
         },
       });
 
-      const result = await getTool().execute(
+      const result = await submitStepFindings(
         { findingsJson: { confidence: 1 } },
-        { worktree: workspacePath },
+        workspacePath,
       );
 
       expect(JSON.parse(result)).toEqual({
@@ -150,7 +137,7 @@ describe("boboddySubmitStepFindings", () => {
       );
 
       await writeCurrentExecutionInfo(workspacePath, {
-        stepExecutionId: "step-execution-id",
+        taskId: "task-id",
         resultSchemaJson: {
           type: "object",
           required: ["summary"],
@@ -161,9 +148,9 @@ describe("boboddySubmitStepFindings", () => {
       });
 
       try {
-        await getTool().execute(
+        await submitStepFindings(
           { findingsJson: { summary: 123 } },
-          { worktree: workspacePath },
+          workspacePath,
         );
         throw new Error("Expected invalid findings to throw");
       } catch (error) {

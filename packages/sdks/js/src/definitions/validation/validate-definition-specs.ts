@@ -4,8 +4,8 @@
 // definition file was written in JS, generated, or hand-edited, or because the
 // fact being checked spans two files (a route target, a cross-step binding).
 // Everything here is pure: no network, no token, no server. `pushFromDirectory`
-// runs it before it mutates anything, and the archetype tests run it with no
-// server at all.
+// runs it before it mutates anything, and the CLI's default-pipeline test runs it
+// with no server at all.
 //
 // Findings are hard errors. A signal whose `sourcePath` never resolves is
 // silently dead at execution time, which is strictly worse than failing the
@@ -134,7 +134,7 @@ function checkHealthChecks(
           severity: "error",
           message:
             `${where} names MCP server "${check.mcp}", but the step declares no ` +
-            `such server in mcpServers. Declared servers: ${mcpServerKeys.length > 0 ? listPaths([...mcpServerKeys].sort()) : "(none)"}.`,
+            `such server in mcps. Declared servers: ${mcpServerKeys.length > 0 ? listPaths([...mcpServerKeys].sort()) : "(none)"}.`,
         });
       }
 

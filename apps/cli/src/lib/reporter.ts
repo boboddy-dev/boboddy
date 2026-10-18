@@ -5,13 +5,19 @@ import {
   type CliReporter,
   type WorkEvent,
   type WorkReporter,
-  type WorkTask,
+  type WorkActivity,
   noopBaseReporter,
   noopReporter,
 } from "./reporter-types";
 
 export { noopReporter, noopBaseReporter };
-export type { WorkReporter, WorkTask, WorkEvent, BaseReporter, CliReporter };
+export type {
+  WorkReporter,
+  WorkActivity,
+  WorkEvent,
+  BaseReporter,
+  CliReporter,
+};
 
 /**
  * Build the concrete reporter for the current environment. Returns a

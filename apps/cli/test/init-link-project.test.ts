@@ -30,6 +30,8 @@ function fakeClient(
         return Promise.resolve({
           data: (projects ?? []).map((project) => ({
             name: project.id,
+            slug: project.id,
+            ownerUsername: "acme",
             createdAt: "2026-01-01T00:00:00.000Z",
             ...project,
           })),
@@ -99,7 +101,7 @@ describe("linkInitProject from a nested directory", () => {
     });
 
     expect(await readProjectConfig(repoRoot)).toEqual({
-      projectId: "existing",
+      project: "acme/existing",
     });
     expect(existsSync(join(nested, ".boboddy"))).toBe(false);
   });
@@ -127,7 +129,7 @@ describe("linkInitProject from a nested directory", () => {
     });
 
     expect(await readProjectConfig(repoRoot)).toEqual({
-      projectId: "created-in-browser",
+      project: "acme/created-in-browser",
     });
     expect(existsSync(join(nested, ".boboddy"))).toBe(false);
   });

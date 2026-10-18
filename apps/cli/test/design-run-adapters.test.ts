@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test";
 import {
   assignedPipelineSchema,
-  stepExecutionTargetSchema,
+  stepRuntimeTargetSchema,
   stepNeedsProjectDevcontainer,
 } from "../src/lib/design-run-adapters";
 import { concurrentTest as test } from "./utils";
@@ -74,7 +74,7 @@ describe("stepNeedsProjectDevcontainer", () => {
   });
 
   test("reads the execution target off a step definition response", () => {
-    const parsed = stepExecutionTargetSchema.parse({
+    const parsed = stepRuntimeTargetSchema.parse({
       id: "019ed1c9-3333-7170-a08a-1ff912085f7b",
       executionMode: "workspace",
       managedRuntime: null,

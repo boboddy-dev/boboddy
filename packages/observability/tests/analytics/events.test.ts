@@ -32,6 +32,13 @@ describe("AnalyticsEvents", () => {
     expect(AnalyticsEvents.GithubAppInstalled).toBe("github_app_installed");
   });
 
+  test("evidence milestones use the snake_case wire name", () => {
+    expect(AnalyticsEvents.ArtifactProduced).toBe("artifact_produced");
+    expect(AnalyticsEvents.InvestigationReportProduced).toBe(
+      "investigation_report_produced",
+    );
+  });
+
   test("share link click event uses the snake_case wire name", () => {
     expect(AnalyticsEvents.ShareLinkClicked).toBe("share_link_clicked");
   });

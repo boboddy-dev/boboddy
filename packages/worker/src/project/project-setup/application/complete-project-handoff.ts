@@ -1,5 +1,6 @@
 import type { createBoboddyClient } from "@boboddy/sdk";
 import { createLazyLogger } from "@boboddy/observability/logging/host";
+import { projectConfigRef } from "../../project-config/domain/project-config";
 import { writeProjectConfig } from "../../project-config/application/write-project-config";
 import { findMatchingProject } from "./find-matching-project";
 
@@ -23,17 +24,18 @@ export async function completeProjectHandoff(input: {
   gitUrl: string;
   /** The repo root to write `.boboddy/` into. Defaults to `process.cwd()`. */
   rootDir?: string;
-}): Promise<{ projectId: string } | undefined> {
+}): Promise<{ projectId: string; project: string } | undefined> {
   const match = await findMatchingProject(input);
   if (!match) {
     return undefined;
   }
 
   const { project } = match;
-  await writeProjectConfig(project.id, input.rootDir);
+  const ref = projectConfigRef(project);
+  await writeProjectConfig(ref, input.rootDir);
   logger.info(
-    { projectId: project.id, matchCount: match.matchCount },
+    { projectId: project.id, project: ref, matchCount: match.matchCount },
     "Project linked via browser hand-off.",
   );
-  return { projectId: project.id };
+  return { projectId: project.id, project: ref };
 }

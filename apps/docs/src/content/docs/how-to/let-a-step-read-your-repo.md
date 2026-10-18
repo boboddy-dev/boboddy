@@ -75,5 +75,5 @@ Pick the step when asked. The dry run brings up the same devcontainer and
 OpenCode runtime a real run would and reports their health, without running
 the step's prompt. Because the designer never builds the image, this — or
 your next real run — is the first time it's built; if that fails, suspect the
-container before the pipeline. Flags: [`boboddy work`](/boboddy/reference/cli/#boboddy-work-projectid)
+container before the pipeline. Flags: [`boboddy work`](/boboddy/reference/cli/#boboddy-work-project)
 and [What a dry run tests](/boboddy/reference/cli/#what-a-dry-run-tests).

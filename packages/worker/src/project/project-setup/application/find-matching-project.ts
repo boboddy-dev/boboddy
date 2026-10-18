@@ -6,6 +6,9 @@ import { ConfigurationError } from "../../../lib/errors";
 export interface MatchedProject {
   id: string;
   name: string;
+  slug: string;
+  /** `null` until the owner finishes username onboarding. */
+  ownerUsername: string | null;
   gitUrl: string;
   createdAt: string;
 }
@@ -38,7 +41,19 @@ export async function findMatchingProject(input: {
   const listResponse = await input.client.projects.listProjects({
     headers: input.headers,
   });
-  const projects: MatchedProject[] = listResponse.data ?? [];
+  const projects: MatchedProject[] = (listResponse.data ?? []).map(
+    (project) => ({
+      id: project.id,
+      name: project.name,
+      slug: project.slug,
+      ownerUsername:
+        typeof project.ownerUsername === "string"
+          ? project.ownerUsername
+          : null,
+      gitUrl: project.gitUrl,
+      createdAt: project.createdAt,
+    }),
+  );
   if (listResponse.error !== undefined) {
     throw new ConfigurationError(
       listProjectsFailedMessage(listResponse.response.status),

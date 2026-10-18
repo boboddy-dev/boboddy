@@ -12,21 +12,17 @@
 // with a prompt file. Inline keeps the user's directory clean and makes the
 // prompt atomic with the config that carries it.
 //
-// The archetypes use the `.ts.tmpl` extension rather than `.ts` deliberately.
-// `apps/cli/tsconfig.json` includes `src/**/*.ts`, so a `.ts` file here would be
-// typechecked — but TypeScript then resolves the import path as a module and
-// rejects a string default export, making `with { type: "text" }` impossible.
-// The source of truth therefore stays a text asset, and
-// `test/design-agent-archetypes.test.ts` compiles all of them against the real
-// SDK in one `tsc` pass, so SDK drift fails the build instead of silently
-// rotting the agent's reference material.
+// The default pipeline uses the `.ts.tmpl` extension rather than `.ts`
+// deliberately. `apps/cli/tsconfig.json` includes `src/**/*.ts`, so a `.ts` file
+// here would be typechecked — but TypeScript then resolves the import path as a
+// module and rejects a string default export, making `with { type: "text" }`
+// impossible. The source of truth therefore stays a text asset, and
+// `test/design-agent-default-pipeline.test.ts` compiles it against the real SDK
+// in one `tsc` pass, so SDK drift fails the build instead of silently rotting
+// the agent's reference material.
 import agentPrompt from "../templates/design-agent/AGENT_PROMPT.md" with { type: "text" };
 import authoringReference from "../templates/design-agent/AUTHORING.md" with { type: "text" };
-import browserRepro from "../templates/design-agent/archetypes/browser-repro.ts.tmpl" with { type: "text" };
-import dataInvestigation from "../templates/design-agent/archetypes/data-investigation.ts.tmpl" with { type: "text" };
-import failingTestRepro from "../templates/design-agent/archetypes/failing-test-repro.ts.tmpl" with { type: "text" };
-import intakeTriage from "../templates/design-agent/archetypes/intake-triage.ts.tmpl" with { type: "text" };
-import router from "../templates/design-agent/archetypes/router.ts.tmpl" with { type: "text" };
+import bugPipeline from "../templates/design-agent/bug-pipeline.ts.tmpl" with { type: "text" };
 import {
   HEALTH_CHECK_CATALOG,
   type HealthCheckCatalogEntry,
@@ -38,48 +34,18 @@ export { HEALTH_CHECK_CATALOG, type HealthCheckCatalogEntry };
 export const DESIGN_AGENT_PROMPT: string = agentPrompt;
 
 /**
- * The SDK cheatsheet, invariant catalog, archetype selection guidance, prompt-
+ * The SDK cheatsheet, invariant catalog, default pipeline guidance, prompt-
  * writing guidance, and validation workflow.
  */
 export const PIPELINE_AUTHORING_REFERENCE: string = authoringReference;
 
-/** One complete, compile-verified pipeline file the agent copies and adapts. */
-export type PipelineArchetype = {
-  /** Filename stem, matching the `File` column of the section 7 table. */
+/** The one complete, compile-verified pipeline file the agent copies and adapts. */
+export const DEFAULT_PIPELINE_TEMPLATE: {
+  /** Filename stem the agent writes it under, as named in section 7. */
   readonly name: string;
-  /** The `A.`–`E.` catalog entry it implements. */
-  readonly heading: string;
   /** Verbatim file contents. */
   readonly source: string;
-};
-
-/**
- * Ordered to match section 7's `A.`–`E.` catalog, so the agent reads them in
- * the order it was told to choose between them.
- */
-export const PIPELINE_ARCHETYPES: readonly PipelineArchetype[] = [
-  {
-    name: "browser-repro",
-    heading: "A. Browser / deployed-app reproduction",
-    source: browserRepro,
-  },
-  {
-    name: "failing-test-repro",
-    heading: "B. Code-level failing-test reproduction",
-    source: failingTestRepro,
-  },
-  {
-    name: "data-investigation",
-    heading: "C. Read-only data / state investigation",
-    source: dataInvestigation,
-  },
-  {
-    name: "intake-triage",
-    heading: "D. Triage / intake quality scoring",
-    source: intakeTriage,
-  },
-  { name: "router", heading: "E. Router → other pipelines", source: router },
-];
+} = { name: "bug-pipeline", source: bugPipeline };
 
 /** Shown in the OpenCode agent picker. */
 export const PIPELINE_DESIGNER_AGENT_DESCRIPTION =
@@ -87,61 +53,61 @@ export const PIPELINE_DESIGNER_AGENT_DESCRIPTION =
   "authors and pushes Boboddy pipeline definitions.";
 
 /**
- * Where the archetype sources are spliced into the authoring reference: the
- * start of the section that follows the archetype catalog.
+ * Where the default pipeline source is spliced into the authoring reference:
+ * the start of the section that follows section 7, which describes it.
  *
- * They are injected rather than written into `AUTHORING.md` so there is exactly
- * one copy of each archetype in the repo — the `.ts.tmpl` file, which the
- * archetype test compiles. Splicing (rather than appending at the end) keeps
- * each file next to the catalog entry that tells the agent when to pick it.
+ * It is injected rather than written into `AUTHORING.md` so there is exactly
+ * one copy of it in the repo — the `.ts.tmpl` file, which the default pipeline
+ * test compiles. Splicing (rather than appending at the end) keeps the file
+ * next to the prose that explains how to adapt it.
  */
-const ARCHETYPE_SPLICE_MARKER = "\n## 8. Writing a good `agentPrompt`";
+const DEFAULT_PIPELINE_SPLICE_MARKER = "\n## 8. Writing a good `agentPrompt`";
 
-const ARCHETYPE_SECTION_PREAMBLE = `### The archetype files
+const DEFAULT_PIPELINE_SECTION_PREAMBLE = `### The default pipeline file
 
-Each block below is a complete file that compiles against the shipped SDK. Copy
-the one you picked above into \`.boboddy/pipeline-builder/<pipeline-key>.ts\`,
-then adapt it: rename the keys, rewrite every prompt for this user's domain and
-vocabulary, and delete what they do not need. Never author the state objects
-from scratch, and never paste an archetype without rewriting its
-prompts — prompt text is where a pipeline's quality lives, and these are
-written for a generic project.`;
+The block below is a complete file that compiles against the shipped SDK. Copy
+it into \`.boboddy/pipeline-builder/bug-pipeline.ts\`, then adapt it as
+described above: configure \`investigateAndReproduce\` for what the agent can
+reach, and rewrite every prompt for this user's repository and vocabulary.
+Never author the state objects from scratch, and never paste it without
+rewriting its prompts — prompt text is where a pipeline's quality lives, and
+these are written for a generic project.`;
 
 /**
- * Render the archetypes as one markdown block.
+ * Render the default pipeline as one markdown block.
  *
- * Fenced with three backticks, which is safe because no archetype contains a
- * fence of its own — asserted in `test/design-agent-archetypes.test.ts`.
+ * Fenced with three backticks, which is safe because the template contains no
+ * fence of its own — asserted in `test/design-agent-default-pipeline.test.ts`.
  */
-function buildArchetypeSection(): string {
-  const blocks = PIPELINE_ARCHETYPES.map(
-    ({ name, heading, source }) =>
-      `#### \`${name}.ts\` — ${heading}\n\n\`\`\`ts\n${source.trim()}\n\`\`\``,
-  );
-  return [ARCHETYPE_SECTION_PREAMBLE, ...blocks].join("\n\n");
+function buildDefaultPipelineSection(): string {
+  const { name, source } = DEFAULT_PIPELINE_TEMPLATE;
+  return [
+    DEFAULT_PIPELINE_SECTION_PREAMBLE,
+    `#### \`${name}.ts\`\n\n\`\`\`ts\n${source.trim()}\n\`\`\``,
+  ].join("\n\n");
 }
 
-/** The authoring reference with the archetype sources spliced into section 7. */
+/** The authoring reference with the default pipeline spliced into section 7. */
 export function buildPipelineAuthoringReference(): string {
   const reference = PIPELINE_AUTHORING_REFERENCE.trim();
-  const at = reference.indexOf(ARCHETYPE_SPLICE_MARKER);
+  const at = reference.indexOf(DEFAULT_PIPELINE_SPLICE_MARKER);
   if (at === -1) {
     throw new Error(
-      `AUTHORING.md no longer contains ${JSON.stringify(ARCHETYPE_SPLICE_MARKER)}, ` +
-        "so the archetype sources have nowhere to go. Update ARCHETYPE_SPLICE_MARKER.",
+      `AUTHORING.md no longer contains ${JSON.stringify(DEFAULT_PIPELINE_SPLICE_MARKER)}, ` +
+        "so the default pipeline has nowhere to go. Update DEFAULT_PIPELINE_SPLICE_MARKER.",
     );
   }
   return [
     reference.slice(0, at).trimEnd(),
-    buildArchetypeSection(),
+    buildDefaultPipelineSection(),
     reference.slice(at).trim(),
     buildHealthCheckCatalogSection(),
   ].join("\n\n");
 }
 
 /**
- * Origination rules for a step's `healthChecks` field, appended to the
- * authoring reference as section 10.
+ * Origination rules for health checks, appended to the authoring reference as
+ * section 10.
  *
  * Constrains ORIGIN, not content, because the designer cannot verify anything
  * it writes: it has no MCP servers of its own, no enforced typecheck, and push
@@ -149,7 +115,7 @@ export function buildPipelineAuthoringReference(): string {
  * runner fails on it in milliseconds — but a guessed *argument set* on a
  * *real* tool would run automatically forever with nothing to catch it.
  */
-const HEALTH_CHECK_RULES = `1. Add a catalogued server's health check to \`healthChecks\` **without
+const HEALTH_CHECK_RULES = `1. Add a catalogued server's health check to its \`defineMcp\` **without
    asking** — every call below is safe by construction (it navigates to a
    blank page or lists schema names), so there is nothing to confirm.
 2. Add a health check for any other tool **only if the user supplied the
@@ -157,12 +123,28 @@ const HEALTH_CHECK_RULES = `1. Add a catalogued server's health check to \`healt
 3. **Never invent a tool name or arguments.** A fabricated tool name is cheap
    to catch — the runner fails on it in milliseconds. A guessed argument set
    on a real tool is not: it runs automatically, at \`required\` severity by
-   default, with nothing to catch it.`;
+   default, with nothing to catch it.
+4. **Every server a step mounts under \`mcps\` gets a \`tool\` check** calling
+   the tool the user chose for it, defined once in its \`defineMcp\`. Keep the
+   server's checks \`required\` (the default) when the step cannot do its job
+   without it, and set its checks to \`warn\` when it only helps. A missing
+   env var the server needs fails the step either way, unless it is listed in
+   \`optionalEnv\`.
+5. **Playwright and the test runner get \`cli\` checks** in the step's own
+   \`healthChecks\` — a command that proves the binary is installed without
+   doing any work, such as
+   \`["npx", "--no-install", "playwright", "--version"]\`. \`--no-install\` stops
+   \`npx\` downloading what the environment lacks, which is the thing being
+   checked. The test runner's check is \`required\` on a step that writes or
+   runs tests; the Playwright CLI's is \`warn\` when the browser is driven
+   through its MCP server.`;
 
 const HEALTH_CHECK_GUIDANCE = `- **No secrets in check arguments.** There is no interpolation mechanism, and
   the values are persisted in the database, returned by the API, and rendered
-  in the UI. Put a secret in the MCP server's \`environment\` or \`headers\`
-  instead, referenced as \`{env:VAR}\`, and record the variable name in
+  in the UI. A secret belongs in the server's definition (the repository's,
+  or an inline \`local\`/\`remote\` \`defineMcp\`'s \`environment\`/\`headers\`),
+  referenced as \`{env:VAR}\` (or in \`defineMcp\`'s \`env\` when the server
+  reads \`process.env\` itself), with the variable name recorded in
   \`.boboddy/.env.example\` per §1's "Secrets" note.
 - **Prefer tools whose output is trivial.** Health check output is logged in
   full.`;
@@ -173,22 +155,23 @@ const HEALTH_CHECK_GUIDANCE = `- **No secrets in check arguments.** There is no 
  * from the data the examples below are rendered from.
  */
 function buildHealthCheckCatalogTable(): string {
-  const header = "| Server | Package hint | `mcpServers` key | Tool |";
-  const separator = "| --- | --- | --- | --- |";
+  const header = "| Server | Package hint | `ref` | Check | Tool |";
+  const separator = "| --- | --- | --- | --- | --- |";
   const rows = HEALTH_CHECK_CATALOG.map(
-    ({ label, packageHint, mcp, tool }) =>
-      `| ${label} | \`${packageHint}\` | \`${mcp}\` | \`${tool}\` |`,
+    ({ label, packageHint, ref, checkName, tool }) =>
+      `| ${label} | \`${packageHint}\` | \`${ref}\` | \`${checkName}\` | \`${tool}\` |`,
   );
   return [header, separator, ...rows].join("\n");
 }
 
 /**
- * A complete, compilable step definition demonstrating one catalog entry's
- * `mcpServers` + `healthChecks` shape.
+ * A complete, compilable step file demonstrating one catalog entry as a
+ * `defineMcp` with its health check, mounted on a step under `mcps`.
  *
- * `command` is deliberately a placeholder string, not a launch command built
- * from `packageHint` — writing one would be exactly the literal the catalog
- * exists to avoid (see `HealthCheckCatalogEntry.packageHint`'s doc comment).
+ * The server itself is a `ref` to the repository's own definition, so the
+ * example never builds a launch command from `packageHint` — writing one would
+ * be exactly the literal the catalog exists to avoid (see
+ * `HealthCheckCatalogEntry.packageHint`'s doc comment).
  */
 export function buildHealthCheckExampleSource(
   entry: HealthCheckCatalogEntry,
@@ -197,23 +180,24 @@ export function buildHealthCheckExampleSource(
   const varName = `${entry.id}HealthCheckExample`;
   const argsLiteral = JSON.stringify(entry.args);
   return `import { z } from "zod";
-import { defineStep } from "@boboddy/sdk/definitions/steps";
+import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+
+// The repository's "${entry.ref}" server launches "${entry.packageHint}". See
+// the caveats above for what its definition needs.
+const ${entry.ref} = defineMcp({
+  type: "ref",
+  name: "${entry.ref}",
+  healthChecks: {
+    ${entry.checkName}: { tool: "${entry.tool}", args: ${argsLiteral} },
+  },
+});
 
 export const ${varName} = defineStep({
   key: "${stepKey}",
   name: "${entry.label}",
   status: "active",
-  agentPrompt: "Use the ${entry.mcp} MCP tools.",
-  mcpServers: {
-    ${entry.mcp}: {
-      type: "local",
-      // "${entry.packageHint}" is the package to launch — a hint, not a
-      // literal command. See the caveats above for what this needs.
-      command: ["<launch ${entry.packageHint} here>"],
-      enabled: true,
-    },
-  },
-  healthChecks: [{ mcp: "${entry.mcp}", tool: "${entry.tool}", args: ${argsLiteral} }],
+  agentPrompt: "Use the ${entry.ref} MCP tools.",
+  mcps: { ${entry.ref} },
   result: z.object({ ok: z.boolean() }),
   signals: [{ sourcePath: "ok" }],
 });
@@ -239,10 +223,10 @@ const HEALTH_CHECK_CATALOG_RENDERED: readonly HealthCheckCatalogExample[] =
 /**
  * Rendered examples, one per catalog entry, in catalog order.
  *
- * Exported so `test/design-agent-archetypes.test.ts` can compile each one
- * against the real SDK through the same harness the archetypes use, the same
- * way `PIPELINE_ARCHETYPES` is compiled directly rather than re-extracted
- * from markdown.
+ * Exported so `test/design-agent-default-pipeline.test.ts` can compile each
+ * one against the real SDK through the same harness the default pipeline uses,
+ * the same way `DEFAULT_PIPELINE_TEMPLATE` is compiled directly rather than
+ * re-extracted from markdown.
  */
 export const HEALTH_CHECK_CATALOG_EXAMPLES: readonly {
   readonly id: string;
@@ -264,20 +248,20 @@ function buildHealthCheckExampleBlock({
  * section: the origination rules, the two guidance lines, a table of every
  * entry, then one compilable example per entry.
  *
- * Entirely generated — unlike the archetype catalog table, which stays
- * hand-authored in `AUTHORING.md` — because every fact here (rules, guidance,
- * and the table) is either fixed policy or catalog data, so generating all of
- * it keeps this section's only source of truth {@link HEALTH_CHECK_CATALOG}.
+ * Entirely generated — unlike section 7's prose, which stays hand-authored in
+ * `AUTHORING.md` — because every fact here (rules, guidance, and the table) is
+ * either fixed policy or catalog data, so generating all of it keeps this
+ * section's only source of truth {@link HEALTH_CHECK_CATALOG}.
  */
 export function buildHealthCheckCatalogSection(): string {
   return [
     "## 10. Well-known MCP server health checks",
-    "A step's `healthChecks` field runs a real tool call against its launched " +
+    "A health check runs a real tool call against a step's launched " +
       "environment before the agent starts working. Never ask the user about " +
       "this feature; just apply the rules below.",
     HEALTH_CHECK_RULES,
     HEALTH_CHECK_GUIDANCE,
-    "If this step's `mcpServers` declares one of these servers, add its row's " +
+    "If a step mounts one of these servers, its `defineMcp` carries the row's " +
       "health check:",
     buildHealthCheckCatalogTable(),
     "### The catalog examples",

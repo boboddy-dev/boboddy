@@ -54,8 +54,8 @@ describe("PlainReporter", () => {
     expect(out).toContain("/tmp/boboddy.log");
   });
 
-  test("startTask returns a handle whose succeed writes a `✓` line", () => {
-    const task = new PlainReporter().startTask("working");
+  test("startActivity returns a handle whose succeed writes a `✓` line", () => {
+    const task = new PlainReporter().startActivity("working");
     task.succeed("ok");
     expect(captured()).toContain("✓ ok\n");
   });

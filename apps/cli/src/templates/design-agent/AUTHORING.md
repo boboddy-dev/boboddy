@@ -25,7 +25,13 @@ Imports:
 
 ```ts
 import { z } from "zod";
-import { defineStep, Env, Features, Runtime } from "@boboddy/sdk/definitions/steps";
+import {
+  defineMcp,
+  defineStep,
+  Env,
+  Features,
+  Runtime,
+} from "@boboddy/sdk/definitions/steps";
 import {
   definePipeline,
   defaultPipelineAssignment,
@@ -68,16 +74,12 @@ The read-only database is at ${env.READONLY_DB_URL}.
   result: z.object({
     findings: z.string(),
     rootCause: z.string(),
-    confidence: z.number().min(0).max(1),
-    identifiedFix: z.boolean(),
+    severity: z.enum(["low", "high", "critical"]),
   }),
 
-  signals: [
-    { sourcePath: "findings" },
-    { sourcePath: "rootCause" },
-    { sourcePath: "confidence" },
-    { sourcePath: "identifiedFix" },
-  ],
+  // Only `severity` is a signal: a `choice` rule routes on it. Later steps
+  // read `findings` and `rootCause` through `ctx.output("investigate")`.
+  signals: [{ sourcePath: "severity" }],
 
   features: [Features.notifications()],
 });
@@ -97,9 +99,14 @@ The read-only database is at ${env.READONLY_DB_URL}.
 - **`additionalInput`** — extra fields the state that runs this step must bind
   via its own `input` mapper (see §3). `z.unknown()` means "no declared extra
   input" and keeps the mapper optional.
-- **`result`** — the schema the agent's structured answer must satisfy. Keep it
-  flat and scalar-heavy; every field you want to branch on must be a signal.
-- **`signals`** — `{ sourcePath, key?, type?, required?, availableWhenResultStatusIn? }`.
+- **`result`** — the schema the agent's structured answer must satisfy. Later
+  steps consume the **whole** result: bind it with `ctx.output(stateKey)`
+  (see §3), not field by field.
+- **`signals`** — a signal exists only because a rule reads it: a `choice`
+  branch's `when`, a `loop`'s `until`. Do not declare a signal to pass data to
+  a later step; that is what `ctx.output()` is for. A step no rule reads has no
+  `signals` at all.
+  `{ sourcePath, key?, type?, required?, availableWhenResultStatusIn? }`.
   `key` defaults to `sourcePath`; `type` is inferred from the result schema;
   `required` defaults to `true`. Dot paths work: `{ sourcePath: "scores.clarity", key: "clarity" }`.
   - **`sourcePath` is NOT type-checked.** A typo compiles cleanly and fails only
@@ -120,6 +127,15 @@ The read-only database is at ${env.READONLY_DB_URL}.
     step. A plain string is a value, `Env.inherit()` reads the worker's own
     variable of that name, and `Env.value({ value, secret: true })` marks a
     secret. Never write a secret value into a step file.
+    By default a variable reaches the agent only. `applies: "setup"` on
+    `Env.value` or `Env.inherit` hands it to `devcontainer up` instead, so the
+    repo's `initializeCommand` sees it (`"both"` does both). It is not added
+    to the container; the repo's `devcontainer.json` forwards it with
+    `${localEnv:NAME:default}` if the container needs it. For example, a step
+    that never touches sub-repos sets
+    `INIT_SUBREPOS: Env.value({ value: "false", applies: "setup" })` and the
+    repo has `"containerEnv": { "INIT_SUBREPOS": "${localEnv:INIT_SUBREPOS:true}" }`.
+    Not allowed on `Runtime.host()` steps or on a `defineMcp`'s variables.
   - `repo`: what the step does to the repository, from the `Repo` export of
     `@boboddy/sdk/definitions/steps`. A devcontainer step defaults to
     `Repo.readWrite()` (work branch, commit and push when the step succeeds; a
@@ -132,46 +148,193 @@ The read-only database is at ${env.READONLY_DB_URL}.
     `repo: ({ result }) => Repo.readWrite({ message: \`fix: ${result.summary}\` })`.
     `Runtime.host()` has no clone, so it takes only `Repo.none()`, which is its
     default and never needs writing. Omit `repo` unless a step needs one of these.
-- **`mcpServers`** — per-step MCP servers **beyond what the project already
-  configures**. Check `.opencode/opencode.json` / `.opencode/opencode.jsonc`
-  and `.opencode/tools/` at the repository root first (phase 1 of the
-  interview): anything declared there loads natively for every `workspace`
-  step already, so only declare a server here if it is not already present.
+- **Repo config first, step config second.** A step already runs with the
+  repository's own `.devcontainer/`, `.opencode/` and `.boboddy/`. Anything
+  every step needs belongs there, not copied into each step. Put in a step only
+  what is about that step: its runtime, its `vars`, its `repo`, the MCP servers
+  it mounts and its health checks. Steps have no `plugins` option: OpenCode
+  plugins go in the repository's `.opencode/opencode.json`, which every step
+  loads. That file is outside this directory, so if a plugin is needed, tell
+  the user what to add rather than editing it.
+- **`mcps`** — the MCP servers this step runs with, each a `defineMcp` (see
+  "MCP servers — `defineMcp`" below). A step gets **only** the servers it
+  lists in `mcps`: every server the repository defines (see the files below)
+  is turned off for a step that does not list it, even one in
+  `.opencode/opencode.json`. `defineMcp` is the only way to give a step an MCP
+  server or an MCP health check. `.opencode/tools/` custom tools are not MCP
+  servers and still load for every `workspace` step. Skills are not chosen per
+  step either: every skill under `.claude/skills/`, `.agents/skills/`,
+  `.opencode/skill/` or `.opencode/skills/` in the repository is available to
+  every `workspace` step.
 
-  ```ts fragment
-  mcpServers: {
-    browser: {
-      type: "local",
-      command: ["<launch your local MCP server package here>"],
-      enabled: true,
-    },
-    warehouse: {
-      type: "remote",
-      url: "https://mcp.internal.example/warehouse",
-      enabled: true,
-    },
+### MCP servers — `defineMcp`
+
+Every MCP server a step uses is a `defineMcp`: which server it is, the env
+vars it needs, and its health checks, written once. Each step that uses it
+mounts it under `mcps` in one line, and adjusts it for that step with the
+builder methods below.
+
+A `defineMcp` takes a `type`:
+
+| `type`     | Use it for                                                        | Fields                                                              |
+| ---------- | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `"ref"`    | A server the repository already defines                           | `name`: its name in the repository's MCP config                     |
+| `"local"`  | A server the repository does not define, launched as a subprocess | `name`, `command` (`[executable, ...args]`), `cwd?`, `environment?` |
+| `"remote"` | A server the repository does not define, reached over HTTP        | `name`, `url`, `headers?`, `oauth?`                                 |
+
+All three also take `env?`, `optionalEnv?`, `healthChecks?`, and OpenCode's
+`timeout` (`{ startup, catalog, execution }` in milliseconds), `protocol` and
+`codemode`. Prefer a `ref` whenever the repository defines the server.
+
+**Define each server once per file, and override it per step.** Never write
+the same server's checks or env vars into two steps: copies drift.
+
+```ts
+import { z } from "zod";
+import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+
+const postgres = defineMcp({
+  type: "ref",
+  name: "postgres",
+  healthChecks: {
+    listSchemas: { tool: "list_schemas" },
+    listTables: { tool: "list_tables", args: { schema: "public" }, enabled: false },
   },
-  ```
+});
 
-  For a Playwright or Postgres server specifically, see §10 below — do not
+export const triageData = defineStep({
+  key: "triage-data",
+  name: "Triage Data",
+  status: "active",
+  agentPrompt: "Use the postgres tools to find the rows behind this report.",
+  mcps: { postgres },
+  result: z.object({ summary: z.string() }),
+});
+
+export const explainData = defineStep({
+  key: "explain-data",
+  name: "Explain Data",
+  status: "active",
+  agentPrompt: "Explain the data problem. Query postgres if it helps.",
+  mcps: {
+    db: postgres
+      .enableCheck("listTables")
+      .overrideCheck("listSchemas", { timeoutSeconds: 30 }),
+  },
+  result: z.object({ summary: z.string() }),
+});
+```
+
+A server the repository does not define is written inline as `local` or
+`remote`. Use this for a `Runtime.host()` step too: it has no checkout, so it
+cannot use a `ref`.
+
+```ts
+import { z } from "zod";
+import { defineMcp, defineStep, Runtime } from "@boboddy/sdk/definitions/steps";
+
+const warehouse = defineMcp({
+  type: "local",
+  name: "warehouse",
+  command: ["<launch command for the server, from the user>"],
+  environment: { WAREHOUSE_URL: "{env:WAREHOUSE_URL}" },
+  healthChecks: { listTables: { tool: "list_tables" } },
+});
+
+const tracker = defineMcp({
+  type: "remote",
+  name: "tracker",
+  url: "https://mcp.internal.example/tracker",
+  headers: { Authorization: "Bearer {env:TRACKER_TOKEN}" },
+});
+
+export const classify = defineStep({
+  key: "classify",
+  name: "Classify",
+  status: "active",
+  environment: { runtime: Runtime.host() },
+  agentPrompt: "Classify the report. Check the warehouse and tracker if it helps.",
+  mcps: { warehouse, tracker },
+  result: z.object({ category: z.string() }),
+});
+```
+
+- `name` — for a `ref`, the server's name in the repository's MCP config. The
+  `mcps` key is the name the step runs it under; mounting it under a
+  different key (`db` above) aliases it. For `local` and `remote`, `name`
+  only labels the server in errors; the `mcps` key names it at runtime.
+- `command`, `cwd`, `environment` (`local`) and `url`, `headers`, `oauth`
+  (`remote`) are OpenCode v2's `mcp.servers.<name>` fields. A `local` command
+  must be resolvable **inside the execution environment** (the devcontainer
+  for `workspace` steps, the worker host for `Runtime.host()`), not on the
+  user's laptop. For a Playwright or Postgres server, see §10 below — do not
   invent a command for either; there is no single correct invocation.
+- Every `environment` and `headers` value must be written as `{env:VAR}`
+  (`"Bearer {env:TOKEN}"` is fine); `defineMcp` throws on a literal value,
+  because it would be stored in plaintext. Never put a secret in `command` or
+  `url` either.
+- Every `{env:VAR}` in a `local` server's `command`, `cwd` or `environment`,
+  or a `remote` server's `url` or `headers`, becomes a **required** worker
+  variable for that server — do not list it in `env`. When the server can run
+  without it, list it in `optionalEnv`.
+- `healthChecks` — a record keyed by check name: `{ tool, args?,
+  timeoutSeconds?, severity?, serialGroup?, enabled? }`. `tool` is the bare
+  tool name; there is no `mcp` field, the step's key supplies it. Checks on
+  one server run one at a time; different servers run in parallel.
+  `enabled: false` defines a check a step must turn on with `enableCheck`.
+- `env` — only for a server that reads `process.env` directly. A variable the
+  server's definition (the repository's, for a `ref`) references as
+  `{env:VAR}` is required automatically; do not list it. `optionalEnv` is
+  passed through when set.
 
-  A `local` command must be resolvable **inside the execution environment**
-  (the devcontainer for `workspace` steps), not on the user's laptop.
+Builder methods, each returning a new server and leaving the original
+untouched, so chain them freely off a shared definition:
 
-  If a server needs a secret, see "Secrets" below — never inline one into
-  `command`, and never invent a placeholder that looks like a real value.
+| Method | Effect |
+| --- | --- |
+| `.overrideCheck(name, patch)` | Changes `tool`, `args`, `timeoutSeconds`, `severity` or `serialGroup`; `args` is replaced whole |
+| `.disableCheck(name)` / `.enableCheck(name)` | Turns one check off or on; the last of the two wins, and a disabled check stays off whatever is overridden |
+| `.addCheck(name, check)` | Adds a check for this step only; the name must be new |
+| `.disableAllChecks()` | Turns off every check defined so far |
+
+Severity belongs to each check, not the server: a check is `required` unless
+its `severity` is `"warn"`, set in `defineMcp` or for one step with
+`.overrideCheck(name, { severity: "warn" })`. A server's variables are
+required unless listed in `optionalEnv`; when one is missing on the worker,
+the step fails before launch.
+
+The step's own `healthChecks` holds only `cli` checks and checks on tools that
+are not MCP tools (no `mcp` field); every MCP check lives in its `defineMcp`.
+A step file that also exports a
+`codeStep` must keep its `defineMcp`s in that file: the code-step container
+cannot resolve an extensionless relative import such as `./mcps`.
+
+The worker resolves each `ref` against the repository only — never the user's
+global OpenCode config — just before launch, first match wins:
+`.opencode/opencode.json`, `.opencode/opencode.jsonc`, `opencode.json`,
+`opencode.jsonc`, `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`,
+`.codex/config.toml` (all at the repository root). Each is converted to
+OpenCode's shape, with `${VAR}` and `${env:VAR}` turned into `{env:VAR}`. A
+`.vscode/mcp.json` server that reads an `${input:…}` prompt cannot be used,
+and a literal credential in a source file is dropped. A `Runtime.host()` step
+has no checkout, so it cannot use a `ref`: give it `local` or `remote`
+servers. Push does not check that a ref exists; one that
+matches nothing fails the step before launch, listing every file searched.
+Only write a `ref` for a server you saw defined in one of those files.
 
 ### Secrets
 
 Never write a secret **value** into a step file: it is pushed to the server,
 persisted in the database, and rendered in the UI. Reference it as
-`{env:VAR}` inside `mcpServers.<server>.environment` or `.headers` instead —
-OpenCode substitutes it at execution time from whatever env vars are present
-in the container, which is `.boboddy/.env` at the repository root, injected as
-`containerEnv`.
+`{env:VAR}` in a `local` server's `environment` or a `remote` server's
+`headers` instead (`defineMcp` rejects anything else there). A `defineMcp`
+server's variables (its `env`, `optionalEnv`, and every `{env:VAR}` in its
+definition) are read from the worker — `.boboddy/.env` at the repository root,
+then the worker's own environment — always masked in logs, and never put in
+the prompt. A required one that is missing fails the step before launch.
 
-Whenever you introduce a `{env:VAR}` reference that is new to this directory:
+Whenever you introduce a `{env:VAR}` reference (or a `defineMcp` `env` name)
+that is new to this directory:
 
 1. Ask the user only for the **name** of the variable (or propose a sensible
    one yourself) and how a human obtains the real value — never for the value
@@ -216,9 +379,7 @@ export default definePipeline({
     writeFix: {
       kind: "step",
       step: writeFix,
-      input: (ctx) => ({
-        context: ctx.signal("investigate", "rootCause"),
-      }),
+      input: (ctx) => ({ investigate: ctx.output("investigate") }),
       next: "done",
     },
     done: { kind: "succeed" },
@@ -257,9 +418,21 @@ called with a context object (`ctx`) offering every binding source. There is
 no separate pipeline-level "inject into every step" layer to keep in sync
 with — if two states need the same value, both mappers ask for it explicitly.
 
+**The default binding is `ctx.output(stateKey)`: an earlier state's whole
+result.** Bind the output of every earlier state the step could use, under a
+field named after that state, and declare each as an `additionalInput` field
+whose schema is the producer's `result` (share the `z.object` between the two
+steps). A bound field the consumer does not declare is dropped. Bind only
+states that run on **every** path to this one: a state on another `choice`
+branch, a later state, or a `choice`/`succeed`/`fail` state (none of which has
+an output) is rejected by push.
+
 1. **Automatic, on every state** — `workItemTitle` and `workItemDescription`
    are bound automatically; you never declare them yourself.
 2. **`ctx` inside a state's `input` mapper** — the only other binding surface:
+   - `ctx.output(nodeKey)` — an earlier state's whole result output, addressed
+     by that **state's own key** (not the step's key — two states can run the
+     same step). Reach for this first.
    - `ctx.workItem.title` / `ctx.workItem.description` /
      `ctx.workItem.field("Account")` — reads directly off the current work
      item. Call this from any state that needs it; there is no separate
@@ -268,10 +441,9 @@ with — if two states need the same value, both mappers ask for it explicitly.
      `input` schema (`definePipeline({ input: z.object({...}) })`). Only
      useful if you declared one; omit `input` entirely if the pipeline takes
      none.
-   - `ctx.signal(nodeKey, signalKey)` — an earlier state's signal, addressed
-     by that **state's own key** (not the step's key — two states can run the
-     same step).
-   - `ctx.output(nodeKey)` — an earlier state's whole result output.
+   - `ctx.signal(nodeKey, signalKey)` — one signal of an earlier state. Rarely
+     needed: a signal exists for a rule, and `ctx.output()` already carries
+     the same value.
    - `ctx.signalsList(nodeKey)` — a `fanOut`'s whole cohort (every terminal
      branch's signals + output); see the fan-out entry in §4's kind catalog.
    - `ctx.literal(value)` — a fixed value that doesn't come from anywhere at
@@ -365,8 +537,8 @@ routeBySeverity: {
 Every `choices[].next` and `default` must name another state **in this same
 pipeline** — a `choice` cannot route to a different pipeline, and it cannot
 block, directly. To route conditionally to one of several pipelines, point
-each `choice` branch at its own small `step` state that does the routing —
-see the router archetype in §7E, which is the worked example for exactly this.
+each `choice` branch at its own small `step` state whose `next` is that
+branch's `{ routeToPipeline: ... }` (below).
 
 ### Routing to another pipeline
 
@@ -438,8 +610,8 @@ refineUntilPasses: {
 ```
 
 Reach for `fanOut`/`parallel`/`loop` only when a plain `step` chain can't
-express the shape you need — most pipelines, including every archetype in
-§7, are `step`/`choice`/`succeed`/`fail` only.
+express the shape you need — most pipelines, including the default pipeline
+in §7, are `step`/`choice`/`succeed`/`fail` only.
 
 ## 5. `default-pipeline-assignment.ts`
 
@@ -448,7 +620,7 @@ runs automatically — this file is what makes a pipeline real.
 
 ```ts
 import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";
-import browserRepro from "./browser-repro";
+import bugPipeline from "./bug-pipeline";
 
 export default defaultPipelineAssignment(
   ({ workItem, context, all, assign, skip }) => ({
@@ -458,7 +630,7 @@ export default defaultPipelineAssignment(
       all(
         workItem.field("issueType").eq("Bug"),
         context.isNew.eq(true),
-      ).then(assign(browserRepro)),
+      ).then(assign(bugPipeline)),
     ],
   }),
 );
@@ -511,106 +683,78 @@ export default defaultPipelineAssignment(
     following those forward edges. `definePipeline` throws at build time on
     an orphaned state it can't reach from `startAt`.
 
-## 7. Archetype catalog
+## 7. The default pipeline
 
-Pick by **what the execution environment can reach**, not by what the app is.
+Every new pipeline starts from one compile-verified file, `bug-pipeline.ts`, in
+*The default pipeline file* at the end of this section. Do not author the state
+objects from scratch and do not pick a different shape: copy it, then adapt it
+to this repository. What the agent can reach changes how
+`investigateAndReproduce` is configured, not which pipeline you build.
 
-Every archetype has a complete, compile-verified implementation in *The
-archetype files* at the end of this section. Do not author the state objects
-from scratch: copy the closest file, rename its keys, and rewrite its
-prompts for this user's domain.
+| State | Kind | What it produces |
+| --- | --- | --- |
+| `evaluate` | step, `Runtime.host()` | `quality` (0–1), `missingDetails[]`, a restated summary |
+| `checkQuality` | `choice` on `quality < 0.1` | routes to `requestDetails`, otherwise onward |
+| `requestDetails` | `codeStep`, then `insufficientDetail` (`fail`) | a comment draft asking for the missing details |
+| `investigateAndReproduce` | step, devcontainer, `Repo.readOnly()` | report, `reproduced`, trace path, suspected root cause, evidence |
+| `failingTest` | step, devcontainer | a failing test, or `testWritten: false` with a reason |
+| `fix` | step, devcontainer | a minimal candidate fix with a stated confidence |
 
-| Reachability                              | Archetype                   | File                     |
-| ----------------------------------------- | --------------------------- | ------------------------ |
-| A running URL + a way to authenticate     | A — Browser repro           | `browser-repro.ts`       |
-| Repo only; nothing runnable               | B — Failing-test repro      | `failing-test-repro.ts`  |
-| A read-only data or observability surface | C — Read-only investigation | `data-investigation.ts`  |
-| Nothing but the work item text            | D — Intake scoring          | `intake-triage.ts`       |
-| Two or more pipelines already exist       | E — Router                  | `router.ts`              |
+How it is wired, and why:
 
-### A. Browser / deployed-app reproduction
+- **Whole outputs, one signal.** Each state's `input` binds `ctx.output(...)`
+  of every earlier state on its path, and each step declares those fields in
+  `additionalInput`. `quality` is the only signal because `checkQuality` is
+  the only rule. Keep it that way when you adapt it: add a signal only for a
+  new rule.
+- **No gates.** Nothing uses `blockWhen`. Each step reports what it could not
+  do (`reproduced: false`, `testWritten: false`, a low confidence) and the next
+  one works from that, so the run always ends with the best artifact the
+  evidence allowed. Do not add a gate unless the user asks for one.
+- **`requestDetails` is code, not an agent.** It turns `missingDetails` into a
+  `feedback_request` notification suggesting `work_item_platform_comment`,
+  which becomes a draft a human approves before it is posted on the work item.
+  The run then ends at `insufficientDetail`. Leave the `0.1` threshold alone:
+  it only catches reports with nothing to start from.
+- **Branches.** `investigateAndReproduce` is read-only, so it pushes nothing.
+  `failingTest` commits its test on a work branch, and `fix` starts from that
+  branch, so the fix lands on top of the test.
 
-**Choose when** reachability = a URL the execution environment can load, plus
-credentials it can obtain. Not for apps that only run on a developer laptop.
+Adapting `investigateAndReproduce` to what the agent can reach:
 
-Shape: `reproduce (workspace, playwright MCP)` → blocks unless
-`reproduced == true && confidence >= 0.8` → `failing test` → blocks unless
-confident → `fix`.
+- **A running app it can sign in to.** Keep the Playwright server and the trace
+  choreography in its prompt: set the viewport before starting the trace,
+  wait after the final triggering action, stop the trace last. **Keep that
+  ordering.** Stopping the trace immediately after the triggering action is
+  the single most common way to lose the evidence, because delayed redirects,
+  toasts, validation errors and forced logouts are the actual bug more often
+  than not. Replace the URL and the sign-in instructions: tell the agent
+  exactly how to obtain credentials (a named tool, named env vars, or a
+  documented test account), and if it cannot, it must report auth as blocked
+  rather than guess.
+- **No reachable app.** There is no trace. Remove the Playwright `defineMcp`
+  and its `mcps` entry, the URL and the browser procedure; have it reproduce
+  from the code and the tests, and say in its prompt that `tracePath` is
+  always null. The report and the failing test carry the evidence.
+- **Other tools the user picked** (a read-only database, logs, an internal
+  API). Define each once with `defineMcp` next to `playwright`, mount it in
+  the `mcps` of every step that uses it, and name in the prompt what it is
+  for and when to use it.
 
-The reproduction prompt encodes a hard-won choreography — set the viewport
-before starting the trace, wait after the final triggering action, stop the
-trace last. **Keep that ordering when you adapt it.** Stopping the trace
-immediately after the triggering action is the single most common way to lose
-the evidence, because delayed redirects, toasts, validation errors and forced
-logouts are the actual bug more often than not.
+Health checks, per §10's rules: every `defineMcp` gets a `tool` check calling
+the tool the user chose. Keep a server's checks `required` when the step
+cannot work without it, and set its checks to `warn` when it only helps;
+change a check for one step with the builder, never by copying the server.
+`investigateAndReproduce` also checks the Playwright CLI (`warn`), and
+`failingTest` and `fix` each check the test runner (`required`), in their own
+`healthChecks`. Replace the template's `vitest` with this repository's runner,
+keeping `npx --no-install` and a flag that does no work. Drop the Playwright
+CLI check along with the server when there is no reachable app.
+- **Off-limits systems.** Write what must never be touched into every step's
+  prompt, not just this one.
 
-You must replace: the URL, and the credential instructions. Tell the agent
-exactly how to obtain credentials — a named tool, named env vars, or a
-documented test account. If it cannot, it must report auth as blocked rather
-than guess.
-
-### B. Code-level failing-test reproduction
-
-**Choose when** reachability = the repository only. No running app, no
-deployment, no database. This is the safe default for backend services,
-libraries, CLIs, embedded code, and any system that cannot be stood up.
-
-Shape: `failing test (workspace)` → blocks unless `confidence >= 0.8` →
-`fix`.
-
-The reproduction step writes tests that fail for the reported reason and returns
-their paths; the fix step consumes those paths as its validation target. Adapt
-the prompt to name this repository's test framework and conventions explicitly.
-
-### C. Read-only data / state investigation
-
-**Choose when** reachability = a read-only database, warehouse, log store, or
-observability MCP — and the report is about wrong, missing, or stale data rather
-than broken code paths. `Runtime.host()`, because no repository
-is needed to run queries.
-
-Shape: `investigate (host runtime, data MCP)` → blocks unless
-`confidence >= 0.8 && identifiedRequiredChanges == true`.
-
-Note the split between `suspectedRootCause` (a theory) and
-`identifiedRequiredChanges` (a boolean naming a specific change): the gate reads
-the boolean. Replace the MCP server, and replace the work-item field that scopes
-the queries with one the user actually has. To hand the fix off, replace the
-`next: "done"` target with `next: { routeToPipeline: "failing-test-repro" }`.
-
-### D. Triage / intake quality scoring
-
-**Choose when** reachability = nothing. Needs no repo, no app, no data — only
-the work item's title and description. `Runtime.host()`.
-
-Shape: `score (host runtime)` → blocks unless the average of the sub-scores
-clears the bar.
-
-Independent dimensions are scored separately and combined with
-`Computed.average(...)` inside `blockWhen` rather than asking the model for
-one holistic number, which keeps the sub-scores visible and the threshold
-tunable without touching the prompt. Adapt the dimensions to what this user's
-reports should contain.
-
-### E. Router → other pipelines
-
-**Choose when** two or more target pipelines already exist. A router with one
-target is pointless — build the target first.
-
-Shape: `classify (host runtime)` → blocks unless confident → a `choice` state
-picks one of the target pipelines by the classified `routeKey` → a tiny
-`dispatch` state per target that does no real work of its own, whose only job
-is to carry that target's `next: { routeToPipeline: ... }` (a `choice` branch
-can only target another state in this pipeline — see §4 — so reaching a
-different pipeline conditionally needs one such state per target).
-
-`routeKey` is constrained by `z.enum([...])` whose members are the exact pipeline
-keys, and those keys are repeated with selection criteria in the prompt. Replace
-both lists with the user's real pipeline keys. Push targets first (or in the same
-batch) — push validates route keys and throws otherwise.
-
-Note that `router.ts` builds a pipeline keyed `work-item-router`; unlike the
-others, its filename stem is not its key.
+Rename keys only if the user asks; rewrite every prompt for this repository's
+test framework, vocabulary and conventions.
 
 ## 8. Writing a good `agentPrompt`
 
@@ -622,13 +766,10 @@ Most of a pipeline's quality lives here.
   agent that lacks a credential, a workflow, or a term will invent one. Give it
   an explicit escape hatch: check a named source first, otherwise emit a
   `feedback_request` notification with a concrete question — never guess.
-- **Define confidence.** "Confidence from 0 to 1" is meaningless on its own.
-  Write what 0 and 1 mean for *this* step ("how confident you are that the
-  failing test genuinely captures the reported bug"), and tell it to score low
-  when unsure. Every gate you write depends on this being calibrated.
-- **Split judgement from evidence.** A boolean like `reproduced` or
-  `identifiedRequiredChanges` gates cleanly; a prose summary does not. Ask for
-  both and gate on the boolean.
+- **Ask for an honest "could not".** A step that could not reproduce the bug
+  or write the test should say so in a field (`reproduced: false`,
+  `testWritten: false` with a `reason`) rather than produce something that
+  looks like success. The next step reads that and adjusts.
 - **Demand structured evidence.** Paths, URLs, query results, log excerpts —
   concrete artifacts the next step can consume, not a narrative.
 - **Explain the inputs.** For each bound field, say what it means and what to do

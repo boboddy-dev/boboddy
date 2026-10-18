@@ -1,15 +1,29 @@
-import type { PluginModule } from "@opencode-ai/plugin";
-import boboddySubmitStepFindings from "./tools/boboddy-submit-step-findings";
-import playwrightTraceAnalyzer from "./tools/playwright-trace-analyzer";
+import type { Plugin } from "@opencode/plugin";
+import { createBoboddySubmitStepFindingsTool } from "./tools/boboddy-submit-step-findings";
+import { createPlaywrightTraceAnalyzerTool } from "./tools/playwright-trace-analyzer";
+import { BOBODDY_RPC_DEFINITION, describeRegisteredTools } from "./boboddy-rpc";
 
-const BoboddyOpencodePlugin: PluginModule = {
+/**
+ * The Boboddy OpenCode plugin: registers Boboddy's tools, and exposes a
+ * `boboddy.listTools` RPC so the worker can enumerate registered tool ids and
+ * input schemas (v2 has no server route for that).
+ *
+ * A plain object rather than `Plugin.define(...)`: `define` is an identity
+ * function, and avoiding the runtime import keeps the bundled
+ * `.opencode/plugins/boboddy.js` free of any module it would have to resolve
+ * from the user's workspace.
+ */
+const BoboddyOpencodePlugin: Plugin.Plugin = {
   id: "boboddy",
-  server: () => {
-    return Promise.resolve({
-      tool: {
-        "boboddy-submit-step-findings": boboddySubmitStepFindings,
-        "playwright-trace-analyzer": playwrightTraceAnalyzer,
-      },
+  async setup(ctx) {
+    await ctx.tool.transform((editor) => {
+      editor.add(createBoboddySubmitStepFindingsTool(ctx.location.directory));
+      editor.add(createPlaywrightTraceAnalyzerTool());
+    });
+    await ctx.rpc.register(BOBODDY_RPC_DEFINITION, {
+      listTools: async () => ({
+        tools: describeRegisteredTools(await ctx.tool.list()),
+      }),
     });
   },
 };

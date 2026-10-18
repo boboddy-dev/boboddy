@@ -3,20 +3,24 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { checkOpencodeProviderCredentials } from "../../../../src/runtime/host-opencode-tui/application/check-opencode-provider-credentials";
-import { listOpencodeAuthProviders } from "../../../../src/work/step-execution/infra/provider-access/opencode-credential-discovery";
+import type {
+  LoadOpencodeCredentialsInput,
+  OpencodeCredential,
+} from "../../../../src/runtime/runtime-service/infra/opencode-credential-source";
 
 /**
- * Credential pre-flight coverage. Uses a temp HOME fixture; nothing reads the
- * developer's real `~/.local/share/opencode/auth.json`.
+ * Credential pre-flight coverage. Uses a temp HOME fixture with no provisioned
+ * runtime (so no export runs) or an injected loader; nothing reads the
+ * developer's real OpenCode credentials.
  *
  * Every assertion here is about provider NAMES and remediation text — no test
  * asserts on, or expects the code to surface, a token value.
  */
 
-const LAUNCHER = "/Users/dev/.boboddy/runtimes/opencode/1.18.11/launch.sh";
+const LAUNCHER = "/Users/dev/.boboddy/runtimes/opencode/2.0.28/launch.sh";
 
-/** Env source that sees nothing, so the ambient shell cannot leak in. */
-const emptyEnv = (): string | undefined => undefined;
+/** An env that sees nothing, so the ambient shell cannot leak in. */
+const emptyEnv: NodeJS.ProcessEnv = {};
 
 async function writeAuthJson(
   homeDir: string,
@@ -26,50 +30,6 @@ async function writeAuthJson(
   await mkdir(authDir, { recursive: true });
   await writeFile(path.join(authDir, "auth.json"), JSON.stringify(contents));
 }
-
-describe("listOpencodeAuthProviders", () => {
-  let homeDir: string;
-
-  beforeEach(async () => {
-    homeDir = await mkdtemp(path.join(os.tmpdir(), "opencode-cred-check-"));
-  });
-
-  afterEach(async () => {
-    await rm(homeDir, { recursive: true, force: true });
-  });
-
-  test("returns sorted provider names for api and oauth entries", async () => {
-    await writeAuthJson(homeDir, {
-      openai: { type: "api", key: "sk-openai" },
-      anthropic: { type: "oauth", access: "oat" },
-    });
-
-    expect(await listOpencodeAuthProviders({ homeDir })).toEqual([
-      "anthropic",
-      "openai",
-    ]);
-  });
-
-  test("skips unrecognised and empty entries", async () => {
-    await writeAuthJson(homeDir, {
-      anthropic: { type: "api", key: "sk-a" },
-      broken: { type: "wat" },
-      emptyOauth: { type: "oauth", access: "" },
-    });
-
-    expect(await listOpencodeAuthProviders({ homeDir })).toEqual(["anthropic"]);
-  });
-
-  test("returns an empty list when auth.json is missing or unparseable", async () => {
-    expect(await listOpencodeAuthProviders({ homeDir })).toEqual([]);
-
-    const authDir = path.join(homeDir, ".local", "share", "opencode");
-    await mkdir(authDir, { recursive: true });
-    await writeFile(path.join(authDir, "auth.json"), "{ not json");
-
-    expect(await listOpencodeAuthProviders({ homeDir })).toEqual([]);
-  });
-});
 
 describe("checkOpencodeProviderCredentials", () => {
   let homeDir: string;
@@ -88,22 +48,18 @@ describe("checkOpencodeProviderCredentials", () => {
     });
 
     const result = await checkOpencodeProviderCredentials({
-      launcherPath: LAUNCHER,
       homeDir,
       env: emptyEnv,
     });
 
     expect(result).toEqual({ ok: true, providers: ["anthropic"] });
-    // Belt and braces: the token value must never appear in the result.
     expect(JSON.stringify(result)).not.toContain("oat-secret");
   });
 
   test("accepts a provider API key from the environment", async () => {
     const result = await checkOpencodeProviderCredentials({
-      launcherPath: LAUNCHER,
       homeDir,
-      env: (name) =>
-        name === "ANTHROPIC_API_KEY" ? "sk-ant-secret" : undefined,
+      env: { ANTHROPIC_API_KEY: "sk-ant-secret" },
     });
 
     expect(result).toEqual({ ok: true, providers: ["anthropic"] });
@@ -112,9 +68,8 @@ describe("checkOpencodeProviderCredentials", () => {
 
   test("ignores a blank env var", async () => {
     const result = await checkOpencodeProviderCredentials({
-      launcherPath: LAUNCHER,
       homeDir,
-      env: (name) => (name === "ANTHROPIC_API_KEY" ? "   " : undefined),
+      env: { ANTHROPIC_API_KEY: "   " },
     });
 
     expect(result.ok).toBe(false);
@@ -126,12 +81,37 @@ describe("checkOpencodeProviderCredentials", () => {
     });
 
     const result = await checkOpencodeProviderCredentials({
-      launcherPath: LAUNCHER,
       homeDir,
-      env: (name) => (name === "ANTHROPIC_API_KEY" ? "sk-a" : undefined),
+      env: { ANTHROPIC_API_KEY: "sk-a" },
     });
 
     expect(result).toEqual({ ok: true, providers: ["anthropic"] });
+  });
+
+  test("runs the export with the given launcher and reports its providers", async () => {
+    const calls: LoadOpencodeCredentialsInput[] = [];
+    const exported: OpencodeCredential[] = [
+      {
+        integrationID: "openai",
+        source: "export",
+        value: { type: "key", key: "sk-exported" },
+      },
+    ];
+
+    const result = await checkOpencodeProviderCredentials({
+      launcherPath: LAUNCHER,
+      homeDir,
+      env: emptyEnv,
+      loadCredentials: (input) => {
+        calls.push(input);
+        return Promise.resolve(exported);
+      },
+    });
+
+    expect(result).toEqual({ ok: true, providers: ["openai"] });
+    expect(calls[0]?.launcherPath).toBe(LAUNCHER);
+    expect(calls[0]?.homeDir).toBe(homeDir);
+    expect(JSON.stringify(result)).not.toContain("sk-exported");
   });
 
   test("remediation points at the provisioned binary, quoted for spaces", async () => {
@@ -139,6 +119,7 @@ describe("checkOpencodeProviderCredentials", () => {
       launcherPath: LAUNCHER,
       homeDir,
       env: emptyEnv,
+      loadCredentials: () => Promise.resolve([]),
     });
 
     expect(result.ok).toBe(false);
@@ -157,8 +138,7 @@ describe("checkOpencodeProviderCredentials", () => {
     // `opencode auth login` inline, so `launcherPath` is optional.
     const okResult = await checkOpencodeProviderCredentials({
       homeDir,
-      env: (name) =>
-        name === "ANTHROPIC_API_KEY" ? "sk-ant-secret" : undefined,
+      env: { ANTHROPIC_API_KEY: "sk-ant-secret" },
     });
     expect(okResult).toEqual({ ok: true, providers: ["anthropic"] });
 

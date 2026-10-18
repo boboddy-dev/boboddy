@@ -100,6 +100,108 @@ describe("validateDefinitionSpecs — env vars", () => {
     expect(issues[0]?.message).toContain("secret cannot carry a default");
   });
 
+  test.concurrent("accepts an env var owned by a declared ref server", () => {
+    expect(
+      validate([
+        stepSpecWithOverrides("env-step", {
+          opencodeMcpJson: { datadog: { type: "ref" } },
+          envJson: [
+            {
+              name: "DATADOG_API_KEY",
+              source: "inherit",
+              from: "DATADOG_API_KEY",
+              secret: true,
+              optional: false,
+              mcp: "datadog",
+            },
+          ],
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  test.concurrent("accepts an env var owned by an inline server", () => {
+    expect(
+      validate([
+        stepSpecWithOverrides("env-step", {
+          opencodeMcpJson: {
+            playwright: { type: "local", command: ["npx", "x"] },
+            linear: { type: "remote", url: "https://x" },
+          },
+          envJson: [
+            {
+              name: "PW_TOKEN",
+              source: "inherit",
+              from: "PW_TOKEN",
+              secret: true,
+              optional: false,
+              mcp: "playwright",
+            },
+            {
+              name: "LINEAR_API_KEY",
+              source: "inherit",
+              from: "LINEAR_API_KEY",
+              secret: true,
+              optional: false,
+              mcp: "linear",
+            },
+          ],
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  test.concurrent("rejects an env var owned by an undeclared server", () => {
+    const issues = validate([
+      stepSpecWithOverrides("env-step", {
+        opencodeMcpJson: {
+          postgres: { type: "ref" },
+          playwright: { type: "local", command: ["npx", "x"] },
+        },
+        envJson: [
+          {
+            name: "A",
+            source: "inherit",
+            from: "A",
+            secret: true,
+            optional: false,
+            mcp: "datadog",
+          },
+        ],
+      }),
+    ]);
+    expect(issues.map((issue) => issue.check)).toEqual(["env-var-mcp"]);
+    expect(issues[0]?.severity).toBe("error");
+    expect(issues[0]?.message).toContain(
+      'Step "env-step" env var #1 ("A") belongs to MCP server "datadog"',
+    );
+    expect(issues[0]?.message).toContain(
+      "Declared servers: playwright, postgres.",
+    );
+  });
+
+  test.concurrent(
+    "rejects an mcp-owned env var on a step with no servers",
+    () => {
+      const issues = validate([
+        stepSpecWithOverrides("env-step", {
+          envJson: [
+            {
+              name: "TOKEN",
+              source: "inherit",
+              from: "TOKEN",
+              secret: true,
+              optional: false,
+              mcp: "tch",
+            },
+          ],
+        }),
+      ]);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]?.message).toContain("Declared servers: (none).");
+    },
+  );
+
   test.concurrent("rejects duplicate names at the list level", () => {
     const entry = {
       name: "A",
@@ -113,5 +215,72 @@ describe("validateDefinitionSpecs — env vars", () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]?.message).toContain('Step "env-step" env:');
     expect(issues[0]?.message).toContain("unique");
+  });
+
+  test.concurrent("accepts setup and both vars on a workspace step", () => {
+    expect(
+      validate([
+        stepSpecWithOverrides("env-step", {
+          envJson: [
+            {
+              name: "NPM_TOKEN",
+              source: "inherit",
+              from: "NPM_TOKEN",
+              secret: true,
+              optional: false,
+              applies: "setup",
+            },
+            {
+              name: "REGISTRY",
+              source: "value",
+              value: "r",
+              secret: false,
+              applies: "both",
+            },
+          ],
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  test.concurrent("rejects a setup var on a no_workspace step", () => {
+    const issues = validate([
+      stepSpecWithOverrides("host-step", {
+        executionMode: "no_workspace",
+        envJson: [
+          {
+            name: "NPM_TOKEN",
+            source: "value",
+            value: "x",
+            secret: false,
+            applies: "setup",
+          },
+        ],
+      }),
+    ]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.check).toBe("env-var-applies");
+    expect(issues[0]?.message).toContain("no_workspace");
+  });
+
+  test.concurrent("rejects a setup var on an MCP-owned entry", () => {
+    const issues = validate([
+      stepSpecWithOverrides("mcp-step", {
+        opencodeMcpJson: { datadog: { type: "ref" } },
+        envJson: [
+          {
+            name: "DATADOG_API_KEY",
+            source: "inherit",
+            from: "DATADOG_API_KEY",
+            secret: true,
+            optional: false,
+            mcp: "datadog",
+            applies: "both",
+          },
+        ],
+      }),
+    ]);
+    expect(issues.map((issue) => issue.check)).toEqual(["env-var-applies"]);
+    expect(issues[0]?.message).toContain("MCP server");
   });
 });

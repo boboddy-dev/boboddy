@@ -37,7 +37,7 @@ export async function startDesignStudio(input: {
 }): Promise<DesignStudioHandle | null> {
   const { builderDir, reporter, ports } = input;
 
-  const task = reporter.startTask("Starting the pipeline studio…");
+  const task = reporter.startActivity("Starting the pipeline studio…");
   let server: PipelineStudioServerHandle;
   try {
     server = await ports.startServer({ builderDir });

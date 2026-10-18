@@ -14,7 +14,8 @@ import { captureMilestone } from "./telemetry";
  * The design preflight's provider-connect step: make sure OpenCode has a
  * model to talk to before the TUI launches, and heal it in place when not.
  *
- * With no credential (auth.json entry or recognized API-key env var — see
+ * With no credential (an `opencode auth export --standalone` entry, a v1
+ * auth.json entry, or a recognized API-key env var — see
  * `checkOpencodeProviderCredentials`), it names the AI tools the user already
  * has (see `detectInstalledAiTools`), tells them which entry to pick in
  * OpenCode's own `auth login` picker for each, hands the terminal to that
@@ -22,25 +23,25 @@ import { captureMilestone } from "./telemetry";
  * tool's tokens — the connection is always the user's action in OpenCode.
  *
  * Picker labels below were transcribed from a live capture of
- * `~/.boboddy/runtimes/opencode/1.18.11/launch.sh auth login` (OpenCode
- * 1.18.11, the pinned `BOBODDY_OPENCODE_RUNTIME_VERSION`). Re-check them
+ * `launch.sh auth login --standalone` on OpenCode 2.0.28 (the pinned
+ * `OPENCODE_RUNTIME_VERSION`) with an empty sandboxed HOME. Re-check them
  * whenever that pin moves.
  *
- *   ◆  Select provider            (searchable list; first entries shown)
- *   │  ● OpenCode Zen (recommended)
- *   │  ○ OpenAI                   (search hint: "OpenAI (ChatGPT Plus/Pro or API key)")
+ *   ◆  Select integration         (searchable list; "Popular" group shown)
+ *   │  ● OpenCode Go
+ *   │  ○ OpenCode Console
+ *   │  ○ OpenAI
  *   │  ○ GitHub Copilot
- *   │  ○ Google
  *   │  ○ Anthropic
- *   │  ○ OpenRouter
- *   │  ○ Vercel AI Gateway
+ *   │  ○ Google
  *
- *   Anthropic      → no method picker; goes straight to "Enter your API key".
- *                    There is no Claude Pro/Max subscription option.
- *   OpenAI         → "Login method":
- *                      ● ChatGPT Pro/Plus (browser)
- *                      ○ ChatGPT Pro/Plus (headless)
- *                      ○ Manually enter API Key
+ *   Anthropic      → no method picker; goes straight to "Enter your Anthropic
+ *                    API key". There is no Claude Pro/Max subscription option.
+ *   OpenAI         → "Select login method":
+ *                      ● Sign in with ChatGPT
+ *                      ○ Codex browser (legacy)
+ *                      ○ Codex device code (legacy)
+ *                      ○ API key
  *   GitHub Copilot → "Select GitHub deployment type":
  *                      ● GitHub.com (Public)
  *                      ○ GitHub Enterprise
@@ -49,7 +50,7 @@ import { captureMilestone } from "./telemetry";
  */
 
 export interface ProviderConnectPorts {
-  /** Does a usable OpenCode credential exist (auth.json or env var)? */
+  /** Does a usable OpenCode credential exist (auth export, auth.json or env var)? */
   checkCredentials(
     launcherPath: string,
   ): Promise<OpencodeProviderCredentialCheck>;
@@ -79,9 +80,9 @@ export const CONNECT_TOOL_LINES: Readonly<Record<InstalledAiTool, string>> = {
     '"GitHub.com (Public)" (or "GitHub Enterprise"), and enter the device ' +
     "code it shows at github.com/login/device.",
   codex:
-    'You have Codex. In the picker choose "OpenAI", then "ChatGPT Pro/Plus ' +
-    '(browser)" to use your ChatGPT subscription (or "Manually enter API ' +
-    'Key"), and approve in the browser.',
+    'You have Codex. In the picker choose "OpenAI", then "Sign in with ' +
+    'ChatGPT" to use your ChatGPT subscription (or "API key"), and approve ' +
+    "in the browser.",
 };
 
 const CONNECT_TOOL_ORDER: readonly InstalledAiTool[] = [

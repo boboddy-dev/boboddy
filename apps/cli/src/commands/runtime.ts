@@ -12,7 +12,7 @@ async function cleanupNetworksHandler(
   await withReporter(
     "runtime-cleanup-networks-command",
     async ({ reporter, logger }) => {
-      const task = reporter.startTask("Cleaning up runtime networks…");
+      const task = reporter.startActivity("Cleaning up runtime networks…");
       const collector = new RuntimeNetworkGarbageCollector();
       const result = await collector.cleanupUnusedNetworks();
 

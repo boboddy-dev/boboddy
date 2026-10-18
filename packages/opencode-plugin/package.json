@@ -17,18 +17,21 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun build src/plugin.ts --bundle --outfile dist/plugin.js --target bun --external @opencode-ai/plugin",
+    "build": "bun build src/plugin.ts --bundle --outfile dist/plugin.js --target bun --external @opencode/plugin",
     "declarations": "bun run build && find dist -name '*.d.ts' -delete 2>/dev/null; bunx tsgo -p tsconfig.build.json",
     "typecheck": "tsgo -p tsconfig.json --noEmit",
     "test": "bun test"
   },
   "dependencies": {
     "@boboddy/sdk": "workspace:*",
-    "@opencode-ai/sdk": "1.18.11",
-    "ajv": "^8.17.1",
-    "@opencode-ai/plugin": "1.18.11"
+    "ajv": "^8.17.1"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": "2.0.28"
   },
   "devDependencies": {
+    "@opencode/client": "2.0.28",
+    "@opencode/plugin": "2.0.28",
     "bun-types": "^1.4.0"
   }
 }

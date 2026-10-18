@@ -56,7 +56,7 @@ export async function reportDevcontainerStatus(input: {
 }): Promise<{ present: boolean }> {
   const { reporter, ports } = input;
 
-  const task = reporter.startTask(DEVCONTAINER_TASK_LABEL);
+  const task = reporter.startActivity(DEVCONTAINER_TASK_LABEL);
   let present: boolean;
   try {
     present = await ports.hasDevcontainer();

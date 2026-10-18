@@ -89,7 +89,6 @@ function makeSpec(overrides?: Partial<StepDefinitionSpec>): StepDefinitionSpec {
     resultSchemaJson: null,
     signalExtractorDefinitions: [],
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
     ...overrides,
   };

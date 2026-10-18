@@ -51,7 +51,7 @@ describe("buildOpencodeContext", () => {
     }).not.toThrow();
   });
 
-  test("opencodeConfigContent has no plugin key when no plugins provided", async () => {
+  test("opencodeConfigContent has no plugins key when the baseline has none", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
@@ -61,8 +61,8 @@ describe("buildOpencodeContext", () => {
       stepMcpServers: null,
     });
 
-    const config = JSON.parse(opencodeConfigContent) as { plugin?: unknown };
-    expect(config.plugin).toBeUndefined();
+    const config = JSON.parse(opencodeConfigContent) as { plugins?: unknown };
+    expect(config.plugins).toBeUndefined();
   });
 
   test("does not create .opencode/package.json", async () => {
@@ -96,28 +96,7 @@ describe("buildOpencodeContext", () => {
     expect(pluginsDirExists).toBe(true);
   });
 
-  test("stepPlugins are present in opencodeConfigContent.plugin (trusted, same-container)", async () => {
-    // Single-container model: user/npm plugins run in the same container as the
-    // workspace and are trusted, so they appear in the override config's plugin[].
-    const workspacePath = await mkdtemp(
-      path.join(os.tmpdir(), "build-opencode-context-test-"),
-    );
-
-    const { opencodeConfigContent } = await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      stepPlugins: ["opencode-wakatime", ["@my-org/plugin", { key: "val" }]],
-    });
-
-    const config = JSON.parse(opencodeConfigContent) as {
-      plugin?: unknown[];
-    };
-
-    expect(config.plugin).toContain("opencode-wakatime");
-    expect(config.plugin).toContainEqual(["@my-org/plugin", { key: "val" }]);
-  });
-
-  test("step agent prompt appears in opencodeConfigContent agent.build.prompt", async () => {
+  test("step agent prompt appears in opencodeConfigContent agents.build.system", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
@@ -129,10 +108,10 @@ describe("buildOpencodeContext", () => {
     });
 
     const config = JSON.parse(opencodeConfigContent) as {
-      agent?: { build?: { prompt?: string } };
+      agents?: { build?: { system?: string } };
     };
 
-    expect(config.agent?.build?.prompt).toBe("Execute the Boboddy step.");
+    expect(config.agents?.build?.system).toBe("Execute the Boboddy step.");
   });
 
   test("user's .opencode/opencode.json is NOT merged into opencodeConfigContent (loaded natively by OpenCode at #4)", async () => {
@@ -150,10 +129,11 @@ describe("buildOpencodeContext", () => {
       path.join(opencodeDir, "opencode.json"),
       JSON.stringify({
         mcp: {
-          postgres: {
-            type: "local",
-            command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
-            enabled: true,
+          servers: {
+            postgres: {
+              type: "local",
+              command: ["uvx", "postgres-mcp", "--access-mode=restricted"],
+            },
           },
         },
       }),
@@ -166,12 +146,12 @@ describe("buildOpencodeContext", () => {
     });
 
     const config = JSON.parse(opencodeConfigContent) as {
-      mcp?: Record<string, unknown>;
+      mcp?: { servers?: Record<string, unknown> };
     };
 
     // The postgres MCP server from the project config must NOT be in the
     // override layer — OpenCode loads it natively via project config (#4).
-    expect(config.mcp?.["postgres"]).toBeUndefined();
+    expect(config.mcp?.servers?.["postgres"]).toBeUndefined();
   });
 
   test("step MCP servers ARE present in opencodeConfigContent", async () => {
@@ -185,23 +165,22 @@ describe("buildOpencodeContext", () => {
         playwright: {
           type: "local",
           command: ["npx", "-y", "@playwright/mcp@0.0.68"],
-          enabled: true,
         },
       },
     });
 
     const config = JSON.parse(opencodeConfigContent) as {
-      mcp?: Record<string, unknown>;
+      mcp?: { servers?: Record<string, unknown> };
     };
 
-    expect(config.mcp?.["playwright"]).toEqual({
+    expect(config.mcp?.servers?.["playwright"]).toEqual({
       type: "local",
       command: ["npx", "-y", "@playwright/mcp@0.0.68"],
-      enabled: true,
+      codemode: false,
     });
   });
 
-  test("Boboddy permission block is in opencodeConfigContent", async () => {
+  test("Boboddy permission rules are in opencodeConfigContent", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
@@ -212,13 +191,16 @@ describe("buildOpencodeContext", () => {
     });
 
     const config = JSON.parse(opencodeConfigContent) as {
-      permission?: Record<string, unknown>;
+      permissions?: unknown[];
     };
 
-    // Permission block from embedded opencode.jsonc must be present in the
-    // override layer so it wins as the security boundary at precedence #6.
-    expect(config.permission).toBeDefined();
-    expect(config.permission?.["boboddy*"]).toBe("allow");
+    // Rules from the embedded opencode.jsonc must be present in the override
+    // layer so they are appended last and win as the security boundary.
+    expect(config.permissions).toEqual([
+      { action: "*", resource: "*", effect: "allow" },
+      { action: "boboddy*", resource: "*", effect: "allow" },
+      { action: "question", resource: "*", effect: "deny" },
+    ]);
   });
 
   test(".opencode/tools/ left in place — trusted and loaded in-container", async () => {
@@ -311,7 +293,7 @@ describe("buildOpencodeContext", () => {
     expect(afterContent).toBe(originalContent);
   });
 
-  test("providerOverride is absent by default (no provider key in output)", async () => {
+  test("providerOverride is absent by default (no providers key in output)", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
@@ -322,45 +304,40 @@ describe("buildOpencodeContext", () => {
     });
 
     const config = JSON.parse(opencodeConfigContent) as {
-      provider?: unknown;
+      providers?: unknown;
     };
-    expect(config.provider).toBeUndefined();
+    expect(config.providers).toBeUndefined();
   });
 
-  test("providerOverride is merged into opencodeConfigContent.provider", async () => {
+  test("providerOverride is merged into opencodeConfigContent.providers", async () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "build-opencode-context-test-"),
     );
 
-    const { opencodeConfigContent } = await buildOpencodeContext({
-      workspacePath,
-      stepMcpServers: null,
-      providerOverride: {
-        provider: {
-          anthropic: {
-            options: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
-            models: {
-              "boboddy-healthchecker-model": {
-                name: "Boboddy Health Checker (internal)",
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const config = JSON.parse(opencodeConfigContent) as {
-      provider?: Record<string, unknown>;
-    };
-
-    expect(config.provider?.["anthropic"]).toEqual({
-      options: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
+    const fakeProvider = {
+      package: "aisdk:@ai-sdk/anthropic",
+      name: "Boboddy Health Checker (internal)",
+      settings: { baseURL: "http://fake-ai:9999", apiKey: "fake-key" },
       models: {
         "boboddy-healthchecker-model": {
           name: "Boboddy Health Checker (internal)",
         },
       },
+    };
+
+    const { opencodeConfigContent } = await buildOpencodeContext({
+      workspacePath,
+      stepMcpServers: null,
+      providerOverride: {
+        providers: { "boboddy-healthchecker": fakeProvider },
+      },
     });
+
+    const config = JSON.parse(opencodeConfigContent) as {
+      providers?: Record<string, unknown>;
+    };
+
+    expect(config.providers?.["boboddy-healthchecker"]).toEqual(fakeProvider);
   });
 
   test("providerOverride of null/undefined leaves rest of config identical to omitting it", async () => {

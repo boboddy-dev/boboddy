@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  OPENCODE_RUNTIME_VERSION,
   PAYLOAD_FORMAT_REVISION,
   type PayloadPlatform,
 } from "../../../../src/runtime/runtime-service/domain/opencode-runtime-payload";
@@ -29,7 +30,7 @@ import {
  * re-download ~100 MB apiece forever. These tests pin that behaviour.
  */
 
-const VERSION = "1.18.11";
+const VERSION = OPENCODE_RUNTIME_VERSION;
 
 async function writeBinary(
   payloadDir: string,

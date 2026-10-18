@@ -33,7 +33,7 @@ describe("reportProviderStatus", () => {
 
     expect(result).toEqual({ connected: true });
     expect(tasks[0]?.message).toBe(PROVIDER_TASK_LABEL);
-    expect(methods(tasks)).toEqual(["startTask", "succeed"]);
+    expect(methods(tasks)).toEqual(["startActivity", "succeed"]);
     expect(tasks[1]?.message).toBe("AI provider ready (anthropic, openai)");
     expect(tasks[1]?.message).toBe(
       PROVIDER_PRESENT_LABEL(["anthropic", "openai"]),
@@ -53,7 +53,7 @@ describe("reportProviderStatus", () => {
     });
 
     expect(result).toEqual({ connected: false });
-    expect(methods(tasks)).toEqual(["startTask", "succeed"]);
+    expect(methods(tasks)).toEqual(["startActivity", "succeed"]);
     expect(tasks[1]?.message).toBe(PROVIDER_MISSING_LABEL);
     expect(methods(calls)).toEqual(["info"]);
     expect(messages(calls)).toEqual([PROVIDER_NOTICE_MESSAGE]);
@@ -74,7 +74,7 @@ describe("reportProviderStatus", () => {
     }
 
     expect(caught).toBe(boom);
-    expect(methods(tasks)).toEqual(["startTask", "fail"]);
+    expect(methods(tasks)).toEqual(["startActivity", "fail"]);
     expect(messages(calls)).not.toContain(PROVIDER_NOTICE_MESSAGE);
   });
 });

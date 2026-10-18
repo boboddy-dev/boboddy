@@ -1,6 +1,7 @@
 import type { createBoboddyClient } from "@boboddy/sdk";
 import { stripGitUrlCredentials } from "@boboddy/sdk/git-url";
 import { createLazyLogger } from "@boboddy/observability/logging/host";
+import { projectConfigRef } from "../../project-config/domain/project-config";
 import { deriveProjectName } from "../../project-config/infra/fs-project-config-repo";
 import { readProjectConfig } from "../../project-config/application/read-project-config";
 import { writeProjectConfig } from "../../project-config/application/write-project-config";
@@ -16,10 +17,10 @@ const logger = createLazyLogger({
  * The three ways `localConfigSetup` can leave things (#141):
  *
  * - `already-configured` — `.boboddy/boboddy.jsonc` already has a
- *   `projectId`; nothing else ran.
+ *   `project`; nothing else ran.
  * - `matched` — an existing project's `gitUrl` points at the same repository
- *   as this repo's remote (see `findMatchingProject`); it's been persisted to
- *   `.boboddy/boboddy.jsonc`. `matchCount` above one means several projects
+ *   as this repo's remote (see `findMatchingProject`); its `owner/slug` ref
+ *   has been persisted to `.boboddy/boboddy.jsonc`. `matchCount` above one means several projects
  *   point at this repo and the oldest was picked.
  * - `handoff-required` — no project matches this remote. Nothing is created
  *   here. The caller (`boboddy init`) either creates the project through the
@@ -32,6 +33,8 @@ export type LocalConfigSetupResult =
   | {
       status: "matched";
       projectId: string;
+      /** The `owner/slug` ref written to `.boboddy/boboddy.jsonc`. */
+      project: string;
       projectName: string;
       matchCount: number;
     }
@@ -47,7 +50,7 @@ export async function localConfigSetup(input: {
   rootDir?: string;
 }): Promise<LocalConfigSetupResult> {
   const existingConfig = await readProjectConfig(input.rootDir);
-  if (existingConfig?.projectId) {
+  if (existingConfig?.project) {
     logger.info("Local setup already complete, skipping.");
     return { status: "already-configured" };
   }
@@ -64,14 +67,16 @@ export async function localConfigSetup(input: {
 
   if (match) {
     const { project, matchCount } = match;
-    await writeProjectConfig(project.id, input.rootDir);
+    const ref = projectConfigRef(project);
+    await writeProjectConfig(ref, input.rootDir);
     logger.info(
-      { projectId: project.id, matchCount },
+      { projectId: project.id, project: ref, matchCount },
       "Found existing project for this repository.",
     );
     return {
       status: "matched",
       projectId: project.id,
+      project: ref,
       projectName: project.name,
       matchCount,
     };

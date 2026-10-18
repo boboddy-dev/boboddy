@@ -1,0 +1,21 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "perplexity-key",
+      "description": "Perplexity API Key",
+      "password": true
+    }
+  ],
+  "servers": {
+    // prompts for a value, so it cannot run unattended
+    "perplexity": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "server-perplexity-ask"],
+      "env": { "PERPLEXITY_API_KEY": "${input:perplexity-key}" }
+    },
+    "fetch": { "type": "stdio", "command": "uvx", "args": ["mcp-server-fetch"] },
+    "context7": { "type": "http", "url": "https://mcp.context7.com/mcp" }
+  }
+}

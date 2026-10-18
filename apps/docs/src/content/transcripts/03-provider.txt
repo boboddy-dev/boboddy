@@ -1,8 +1,10 @@
-# @boboddy/cli 0.0.0 — derived from reporter strings in apps/cli/src (lib/design-preflight.ts, lib/design-runtime.ts, lib/design-provider-connect.ts), rendered through ClackReporter; not a live capture.
-# Trimmed by hand: clack's blank "│" spacer lines are dropped. The guidance line shown is the one for a machine with Claude Code installed.
+# @boboddy/cli 0.0.0 — derived from reporter strings in apps/cli/src (lib/design-preflight.ts, lib/design-agent-tools.ts, lib/design-runtime.ts, lib/design-provider-connect.ts), rendered through ClackReporter; not a live capture. Re-derived for the repository tool discovery step.
+# Trimmed by hand: clack's blank "│" spacer lines are dropped. The repository shown defines one MCP server and two skills; the guidance line shown is the one for a machine with Claude Code installed.
 ◆  Scaffolded the pipeline builder directory
 ●  Installing pipeline builder dependencies…
 ◆  Dependencies installed
+◇  Listed the tools of 1 of 1 MCP server(s) [4s]
+◆  Found 1 MCP server(s) and 2 skill(s) in this repository
 ◇  AI runtime ready [41s]
 ●  Connect an AI provider
 ●  The designer runs on OpenCode, which needs its own connection to a model.

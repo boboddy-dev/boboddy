@@ -24,7 +24,6 @@ describe("defineStep", () => {
       resultSchemaJson: null,
       signalExtractorDefinitions: [],
       opencodeMcpJson: null,
-      opencodePluginJson: null,
     });
   });
 
@@ -58,12 +57,11 @@ describe("defineStep", () => {
         expectedBehavior: z.string().nullable().optional(),
         failureReason: z.string().nullable().optional(),
         rawResultJson: z.record(z.string(), z.unknown()).nullable().optional(),
-        feedbackRequestsV1: z
+        itemsV1: z
           .array(
             z.object({
               question: z.string(),
               category: z.string(),
-              suggestedKey: z.string(),
             }),
           )
           .optional(),
@@ -103,21 +101,16 @@ describe("defineStep", () => {
           type: "array",
           items: { type: "string", minLength: 1 },
         },
-        feedbackRequestsV1: {
+        itemsV1: {
           type: "array",
           items: {
             type: "object",
 
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            required: expect.arrayContaining([
-              "question",
-              "category",
-              "suggestedKey",
-            ]),
+            required: expect.arrayContaining(["question", "category"]),
             properties: {
               question: { type: "string" },
               category: { type: "string" },
-              suggestedKey: { type: "string" },
             },
           },
         },

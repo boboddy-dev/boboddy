@@ -12,9 +12,20 @@ export {
   type FormatStepDetailInput,
   type StepArtifactEntry,
 } from "./format-step-detail";
-export { formatLogs, type FormatLogsInput } from "./format-logs";
+export {
+  formatLogs,
+  renderConversationTranscript,
+  renderLogText,
+  type FormatLogsInput,
+} from "./format-logs";
+export {
+  loadTaskLogLines,
+  type TaskLogLinesResult,
+  type TaskLogsClient,
+} from "./load-task-log-lines";
 export type {
   AuthHeaders,
+  FullLogSaver,
   InvestigateExecutionClient,
 } from "./lib/investigate-execution-client";
 export { describeApiError } from "./lib/api-errors";
@@ -31,11 +42,11 @@ export type {
   PipelineStepDefinition,
   PipelineStepRun,
   PipelineStepRunStatus,
-  ReadStepExecutionLogsResult,
-  StepExecution,
-  StepExecutionLogArchive,
-  StepExecutionLogStream,
-  StepExecutionStatus,
+  ReadTaskLogsResult,
+  Task,
+  TaskLogArchive,
+  TaskLogStream,
+  TaskStatus,
   WorkItem,
 } from "./lib/api-types";
 export type { ExecutionStepItem } from "./lib/execution-step-items";

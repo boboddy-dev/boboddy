@@ -106,7 +106,7 @@ const notificationItemSchema = z
       .record(z.string(), z.unknown())
       .optional()
       .describe(
-        'Kind-specific structured data. For "feedback_request": { category, urgency, suggestedKey? }.',
+        'Kind-specific structured data. For "feedback_request": { category, urgency }.',
       ),
   })
   .describe("A single user notification emitted by the agent.");
@@ -148,7 +148,7 @@ const notificationsFeature: NotificationsFeature = {
     '- **suggestedChannels** *(optional)*: Channels you think are worth using (e.g. `["in_app", "work_item_platform_comment"]`).',
     "  You only *suggest* channels — the platform policy decides the final delivery channels.",
     '  Suggesting `work_item_platform_comment` does NOT post anything directly: it always requires a human to review the exact text and explicitly approve it before it\'s posted to the work item\'s originating platform issue (e.g. GitHub) — it becomes a pending draft on that comment thread, not an immediate post.',
-    '- **payload** *(optional)*: Kind-specific data. For `feedback_request`, include `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational", "suggestedKey"?: string }`.',
+    '- **payload** *(optional)*: Kind-specific data. For `feedback_request`, include `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational" }`.',
   ].join("\n"),
   _signals: [
     {
@@ -166,7 +166,6 @@ export type FeedbackRequestItem = {
   question: string;
   category: string;
   urgency: FeedbackRequestUrgency;
-  suggestedKey?: string;
 };
 
 /**
@@ -192,7 +191,7 @@ const feedbackRequestsFeature: NotificationsFeature = {
     "- **title**: A short, human-readable summary of the question.",
     "- **body**: The full question.",
     "- **priority**: One of `low`, `normal`, `high`, `urgent`.",
-    '- **payload**: `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational", "suggestedKey"?: string }`.',
+    '- **payload**: `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational" }`.',
   ].join("\n"),
   _signals: notificationsFeature._signals,
 };
@@ -274,18 +273,13 @@ export const Notify = {
     question: string,
     category: string,
     urgency: FeedbackRequestUrgency,
-    suggestedKey?: string,
   ): NotificationResultFragment =>
     Notify.create({
       kind: "feedback_request",
       title: question,
       body: question,
       priority: "normal",
-      payload: {
-        category,
-        urgency,
-        ...(suggestedKey ? { suggestedKey } : {}),
-      },
+      payload: { category, urgency },
     }),
   /** Combine several notification result fragments (e.g. more than one
    * `Notify.*` call) into a single result value. */

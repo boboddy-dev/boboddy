@@ -1,6 +1,7 @@
 import {
   containsInputToken,
-  type EnvVarSpec,
+  type EnvVarApplies,
+  type EnvVarSpecInput,
   type EnvVarsInput,
 } from "../../env-vars";
 import {
@@ -25,7 +26,20 @@ export function isSecretLookingEnvName(name: string): boolean {
   return SECRET_LOOKING_NAME.test(name);
 }
 
-export type ValueOpts = {
+/**
+ * Which process a variable reaches. `agent` (the default) is the agent or code
+ * step process. `setup` is only the `devcontainer up` process, where
+ * `initializeCommand` runs; it overrides the worker's own variable of the same
+ * name and is not added to the container, so forward it with
+ * `${localEnv:NAME:default}` in `devcontainer.json` if the container needs it.
+ * `both` is both. `setup` and `both` are rejected on `Runtime.host()`, which
+ * has no container to set up.
+ */
+export type EnvAppliesOpt = {
+  readonly applies?: EnvVarApplies;
+};
+
+export type ValueOpts = EnvAppliesOpt & {
   readonly value: string;
   readonly secret?: boolean;
   /**
@@ -40,25 +54,28 @@ export type ValueOpts = {
  * `secret: true` and `default` are mutually exclusive: a default is stored in
  * the definition in plaintext.
  */
-export type InheritOpts =
-  | {
-      readonly from?: string;
-      readonly secret: true;
-      readonly optional?: boolean;
-      readonly default?: never;
-    }
-  | {
-      readonly from?: string;
-      readonly secret?: false;
-      readonly optional?: boolean;
-      readonly default?: string;
-    };
+export type InheritOpts = EnvAppliesOpt &
+  (
+    | {
+        readonly from?: string;
+        readonly secret: true;
+        readonly optional?: boolean;
+        readonly default?: never;
+      }
+    | {
+        readonly from?: string;
+        readonly secret?: false;
+        readonly optional?: boolean;
+        readonly default?: string;
+      }
+  );
 
 export type EnvValue<TSecret extends boolean = boolean> = {
   readonly kind: "value";
   readonly value: string;
   readonly secret: TSecret;
   readonly unsafeAllowStatic: boolean;
+  readonly applies: EnvVarApplies;
 };
 
 export type EnvInherit<
@@ -71,6 +88,7 @@ export type EnvInherit<
   readonly secret: TSecret;
   readonly optional: TOptional;
   readonly default: TDefault;
+  readonly applies: EnvVarApplies;
 };
 
 export type EnvEntry = string | EnvValue | EnvInherit;
@@ -160,6 +178,7 @@ export const Env = {
       value: opts.value,
       secret: (opts.secret ?? false) as SecretOf<O>,
       unsafeAllowStatic: opts.unsafeAllowStatic ?? false,
+      applies: opts.applies ?? "agent",
     });
   },
 
@@ -175,6 +194,9 @@ export const Env = {
    *
    * A required variable that is missing from the worker fails the step before
    * it starts; `optional` omits it, and `default` fills it.
+   *
+   * `applies: "setup"` hands it to `devcontainer up` instead of the agent, for
+   * example to steer the repo's `initializeCommand`.
    */
   inherit<const O extends InheritOpts = Record<never, never>>(
     opts?: O,
@@ -185,6 +207,7 @@ export const Env = {
       secret: (opts?.secret ?? false) as SecretOf<O>,
       optional: (opts?.optional ?? false) as OptionalOf<O>,
       default: opts?.default as DefaultOf<O>,
+      applies: opts?.applies ?? "agent",
     });
   },
 } as const;
@@ -212,7 +235,12 @@ function assertNotStaticSecret(
   }
 }
 
-function toEnvVarSpec(name: string, entry: EnvEntry): EnvVarSpec {
+/** `agent` is the wire default, so it is left out. */
+function appliesField(applies: EnvVarApplies): { applies?: EnvVarApplies } {
+  return applies === "agent" ? {} : { applies };
+}
+
+function toEnvVarSpec(name: string, entry: EnvEntry): EnvVarSpecInput {
   if (!isHelperEntry(entry)) {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-template-expression -- a bare input reference is an input-proxy object typed as string; the template coerces it to its {{input.…}} token
     const value = `${entry}`;
@@ -224,7 +252,13 @@ function toEnvVarSpec(name: string, entry: EnvEntry): EnvVarSpec {
   }
   if (entry.kind === "value") {
     assertNotStaticSecret(name, entry.value, entry);
-    return { name, source: "value", value: entry.value, secret: entry.secret };
+    return {
+      name,
+      source: "value",
+      value: entry.value,
+      secret: entry.secret,
+      ...appliesField(entry.applies),
+    };
   }
   return {
     name,
@@ -233,6 +267,7 @@ function toEnvVarSpec(name: string, entry: EnvEntry): EnvVarSpec {
     secret: entry.secret,
     optional: entry.optional,
     ...(entry.default !== undefined ? { default: entry.default } : {}),
+    ...appliesField(entry.applies),
   };
 }
 

@@ -1,7 +1,7 @@
 import * as clack from "@clack/prompts";
 import type { createBoboddyClient } from "@boboddy/sdk";
 import { parseGitHubRepo } from "@boboddy/sdk/git-url";
-import { writeProjectConfig } from "@boboddy/worker";
+import { projectConfigRef, writeProjectConfig } from "@boboddy/worker";
 import { describeApiError } from "./cli-api-client";
 import type { BaseReporter } from "./reporter-types";
 
@@ -62,8 +62,8 @@ export interface ProjectAutocreatePorts {
     repo: GitHubRepoRef;
     name: string;
   }): Promise<CreateGitHubProjectResult>;
-  /** Persist the new project id to `.boboddy/boboddy.jsonc` at the repo root. */
-  writeConfig(projectId: string): Promise<void>;
+  /** Persist the new project's `owner/slug` ref to `.boboddy/boboddy.jsonc` at the repo root. */
+  writeConfig(project: string): Promise<void>;
 }
 
 export type ProjectAutocreateSkipReason =
@@ -76,7 +76,7 @@ export type ProjectAutocreateSkipReason =
   | "create-failed";
 
 export type ProjectAutocreateResult =
-  | { status: "created"; projectId: string }
+  | { status: "created"; projectId: string; project: string }
   | { status: "skipped"; reason: ProjectAutocreateSkipReason };
 
 export const REFRESH_TASK_LABEL = "Checking your GitHub installations…";
@@ -161,7 +161,7 @@ export async function tryAutocreateGitHubProject(input: {
 
   let hit = findRepo(listed.installations, fullName);
   if (!hit && listed.installations.length > 0) {
-    const task = reporter.startTask(REFRESH_TASK_LABEL);
+    const task = reporter.startActivity(REFRESH_TASK_LABEL);
     const refreshed = await Promise.all(
       listed.installations.map((installation) =>
         ports.refresh(installation.installationId),
@@ -188,7 +188,7 @@ export async function tryAutocreateGitHubProject(input: {
     return { status: "skipped", reason: "declined" };
   }
 
-  const task = reporter.startTask(CREATE_TASK_LABEL);
+  const task = reporter.startActivity(CREATE_TASK_LABEL);
   const created = await ports.create({
     installationId: hit.installationId,
     repo: hit.repo,
@@ -210,8 +210,13 @@ export async function tryAutocreateGitHubProject(input: {
     );
   }
 
-  await ports.writeConfig(project.projectId);
-  return { status: "created", projectId: project.projectId };
+  const ref = projectConfigRef({
+    name: suggestedName,
+    slug: project.slug,
+    ownerUsername: project.ownerUsername,
+  });
+  await ports.writeConfig(ref);
+  return { status: "created", projectId: project.projectId, project: ref };
 }
 
 type BoboddyClient = ReturnType<typeof createBoboddyClient>;
@@ -283,6 +288,6 @@ export function buildProjectAutocreatePorts(input: {
         },
       };
     },
-    writeConfig: (projectId) => writeProjectConfig(projectId, repoRoot),
+    writeConfig: (project) => writeProjectConfig(project, repoRoot),
   };
 }

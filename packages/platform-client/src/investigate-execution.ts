@@ -1,8 +1,8 @@
 import type {
   PipelineExecution,
   PipelineExecutionAttempt,
-  StepExecution,
-  StepExecutionLogStream,
+  Task,
+  TaskLogStream,
 } from "./lib/api-types";
 import { describeApiError } from "./lib/api-errors";
 import {
@@ -10,17 +10,16 @@ import {
   type ExecutionStepItem,
 } from "./lib/execution-step-items";
 import {
-  fetchArchiveLogLines,
   fetchExecution,
   fetchPipelineDefinition,
-  fetchStepExecution,
+  fetchTask,
   fetchWorkItem,
   filterByStream,
 } from "./lib/investigate-execution-fetchers";
 import type {
   AuthHeaders,
   InvestigateExecutionClient,
-  LogArtifactWriter,
+  FullLogSaver,
 } from "./lib/investigate-execution-client";
 import { formatExecutionSummary } from "./format-execution-summary";
 import {
@@ -28,7 +27,13 @@ import {
   formatStepDetail,
   type StepArtifactEntry,
 } from "./format-step-detail";
-import { capLogBody, MAX_LOG_RENDER_CHARS, renderLogText } from "./format-logs";
+import {
+  capLogBody,
+  MAX_LOG_RENDER_CHARS,
+  renderLogText,
+  withFullLogLocation,
+} from "./format-logs";
+import { loadTaskLogLines } from "./load-task-log-lines";
 
 export type InvestigateExecutionOptions = {
   client: InvestigateExecutionClient;
@@ -42,16 +47,14 @@ export type InvestigateExecutionOptions = {
   log?: boolean;
   /** Narrows `--log` to one stream; `"all"` (the default) fetches all
    * three. */
-  logStream?: StepExecutionLogStream | "all";
+  logStream?: TaskLogStream | "all";
   /** List this step's artifacts with presigned download URLs (decision
    * 11). Defaults `false`. */
   artifacts?: boolean;
-  /** Writes the full log to a local artifact when the rendered output
-   * would exceed {@link MAX_LOG_RENDER_CHARS}, so the truncation notice can
-   * point to it. Only invoked when truncation actually happens (decision
-   * 6 — lazy); a rejection is swallowed and the output falls back to the
-   * path-less notice (decision 9). */
-  writeLogArtifact?: LogArtifactWriter;
+  /** Saves the full, uncapped log on every successful `--log` load; the
+   * resolved path (or `not saved (<reason>)` on rejection) goes on the log
+   * header line. Not called when logs are unavailable. */
+  saveFullLog?: FullLogSaver;
 };
 
 function resolveAttempt(
@@ -96,121 +99,71 @@ function resolveDefaultStepKey(
   return touched?.stepKey ?? null;
 }
 
-/**
- * Renders a {@link renderLogText} input to its final, capped string,
- * writing the full text to `writeLogArtifact` first when (and only when —
- * decision 6) it would otherwise be truncated. A rejecting writer is
- * swallowed (decision 9): the caller still gets the path-less notice rather
- * than a failed `execution view` call.
- */
-async function renderAndCapLogs(
-  input: Parameters<typeof renderLogText>[0],
-  stepExecutionId: string,
-  requestedStream: StepExecutionLogStream | "all",
-  writeLogArtifact: LogArtifactWriter | undefined,
+/** Where the full log went, for the header line: the saved path, or why it
+ * was not saved. A rejecting saver never fails the `execution view` call. */
+async function saveFullLogText(
+  saveFullLog: FullLogSaver,
+  input: Parameters<FullLogSaver>[0],
 ): Promise<string> {
-  const fullText = renderLogText(input);
-
-  let filePath: string | undefined;
-  if (
-    fullText.length > MAX_LOG_RENDER_CHARS &&
-    writeLogArtifact !== undefined
-  ) {
-    try {
-      filePath = await writeLogArtifact({
-        stepExecutionId,
-        requestedStream,
-        fullText,
-      });
-    } catch {
-      filePath = undefined;
-    }
+  try {
+    return await saveFullLog(input);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return `not saved (${reason})`;
   }
-
-  return capLogBody(fullText, MAX_LOG_RENDER_CHARS, { filePath });
 }
 
 async function fetchAndFormatLogs(
   client: InvestigateExecutionClient,
   headers: AuthHeaders,
   stepKey: string,
-  stepExecutionId: string,
-  stepExecution: StepExecution | null,
-  requestedStream: StepExecutionLogStream | "all",
-  writeLogArtifact: LogArtifactWriter | undefined,
+  taskId: string,
+  task: Task,
+  requestedStream: TaskLogStream | "all",
+  saveFullLog: FullLogSaver | undefined,
 ): Promise<string> {
-  const isTerminal =
-    stepExecution !== null && stepExecution.completedAt !== null;
-
-  if (isTerminal) {
-    const { data, error } =
-      await client.stepExecutions.getStepExecutionLogArchive({
-        path: { stepExecutionId },
-        headers,
-      });
-    if (error !== undefined) {
-      if (error.status === 402) {
-        return `Logs for step ${stepKey}: log archive read quota exceeded for this org this month (402 USAGE_LIMIT_EXCEEDED_READ). Logs are unavailable until the quota resets.`;
-      }
-      return `Logs for step ${stepKey}: could not load log archive: ${describeApiError(error)}`;
-    }
-    if (data.url === null) {
-      return `Logs for step ${stepKey}: no log archive is available (not archived yet, or the object store cannot presign a URL).`;
-    }
-    const lines = await fetchArchiveLogLines(data.url);
-    return renderAndCapLogs(
-      {
-        stepKey,
-        lines: filterByStream(lines, requestedStream),
-        requestedStream,
-        source: "archive",
-      },
-      stepExecutionId,
-      requestedStream,
-      writeLogArtifact,
-    );
-  }
-
-  const { data, error } = await client.stepExecutions.readStepExecutionLogs({
-    path: { stepExecutionId },
-    query: { from: 0, limit: 2_000 },
-    headers,
+  const loaded = await loadTaskLogLines(client, headers, {
+    id: taskId,
+    completedAt: task.completedAt,
   });
-  if (error !== undefined) {
-    return `Logs for step ${stepKey}: could not load live logs: ${describeApiError(error)}`;
+  if ("unavailable" in loaded) {
+    return `Logs for step ${stepKey}: ${loaded.unavailable}`;
   }
-  return renderAndCapLogs(
-    {
-      stepKey,
-      lines: filterByStream(data.lines, requestedStream),
-      requestedStream,
-      source: "live",
-    },
-    stepExecutionId,
+  const fullText = renderLogText({
+    stepKey,
+    lines: filterByStream(loaded.lines, requestedStream),
     requestedStream,
-    writeLogArtifact,
-  );
+    source: loaded.source,
+  });
+  const preview = capLogBody(fullText, MAX_LOG_RENDER_CHARS);
+  if (saveFullLog === undefined) return preview;
+
+  const location = await saveFullLogText(saveFullLog, {
+    taskId,
+    requestedStream,
+    fullText,
+  });
+  return withFullLogLocation(preview, location);
 }
 
 async function fetchAndFormatArtifacts(
   client: InvestigateExecutionClient,
   headers: AuthHeaders,
   stepKey: string,
-  stepExecutionId: string,
+  taskId: string,
 ): Promise<string> {
-  const { data, error } =
-    await client.stepExecutions.listStepExecutionArtifacts({
-      path: { stepExecutionId },
-      headers,
-    });
+  const { data, error } = await client.tasks.listTaskArtifacts({
+    path: { taskId: taskId },
+    headers,
+  });
   if (error !== undefined) {
     return `Artifacts for step ${stepKey}: could not list artifacts: ${describeApiError(error)}`;
   }
 
   const entries: StepArtifactEntry[] = [];
   for (const artifact of data) {
-    const result = await client.stepExecutions.getArtifactDownloadUrl({
-      path: { stepExecutionId, artifactId: artifact.id },
+    const result = await client.tasks.getArtifactDownloadUrl({
+      path: { taskId: taskId, artifactId: artifact.id },
       headers,
     });
     if (result.error !== undefined) {
@@ -264,7 +217,7 @@ export async function investigateExecution(
     log = false,
     logStream = "all",
     artifacts = false,
-    writeLogArtifact,
+    saveFullLog,
   } = options;
 
   const execution = await fetchExecution(client, headers, executionId);
@@ -306,15 +259,13 @@ export async function investigateExecution(
     );
   }
 
-  const stepExecutionId = stepItem.stepRun?.stepExecutionId ?? null;
-  const stepExecution =
-    stepExecutionId !== null
-      ? await fetchStepExecution(client, headers, stepExecutionId)
-      : null;
+  const taskId = stepItem.stepRun?.taskId ?? null;
+  const task =
+    taskId !== null ? await fetchTask(client, headers, taskId) : null;
 
   const sections: string[] = [];
   if (explicitStepKey !== undefined) {
-    sections.push(formatStepDetail({ stepItem, stepExecution }));
+    sections.push(formatStepDetail({ stepItem, task }));
   } else {
     sections.push(
       `Showing --log/--artifacts for step ${resolvedStepKey} (attempt ${String(attempt.attemptNumber)}'s current step; pass --step explicitly to target a different one).`,
@@ -323,29 +274,29 @@ export async function investigateExecution(
 
   if (log) {
     sections.push(
-      stepExecutionId === null
-        ? `Logs for step ${resolvedStepKey}: no step execution yet.`
+      taskId === null || task === null
+        ? `Logs for step ${resolvedStepKey}: no task yet.`
         : await fetchAndFormatLogs(
             client,
             headers,
             resolvedStepKey,
-            stepExecutionId,
-            stepExecution,
+            taskId,
+            task,
             logStream,
-            writeLogArtifact,
+            saveFullLog,
           ),
     );
   }
 
   if (artifacts) {
     sections.push(
-      stepExecutionId === null
-        ? `Artifacts for step ${resolvedStepKey}: no step execution yet.`
+      taskId === null
+        ? `Artifacts for step ${resolvedStepKey}: no task yet.`
         : await fetchAndFormatArtifacts(
             client,
             headers,
             resolvedStepKey,
-            stepExecutionId,
+            taskId,
           ),
     );
   }

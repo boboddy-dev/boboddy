@@ -112,6 +112,7 @@ export async function findWorkItemByUrl(input: {
  */
 export async function getDesignWorkItemById(input: {
   baseUrl: string;
+  /** The resolved project id — never the `owner/slug` ref, which would never match. */
   projectId: string;
   workItemId: string;
 }): Promise<DesignWorkItem | undefined> {

@@ -65,8 +65,8 @@ function fakePorts(input: {
         },
       );
     },
-    writeConfig: (projectId) => {
-      written.push(projectId);
+    writeConfig: (project) => {
+      written.push(project);
       return Promise.resolve();
     },
   };
@@ -103,6 +103,7 @@ describe("tryAutocreateGitHubProject", () => {
     expect(await result).toEqual({
       status: "created",
       projectId: "project-123",
+      project: "octo/my-repo",
     });
     expect(fake.confirmations).toEqual([
       confirmCreateMessage("My-Repo", "acme/my-repo"),
@@ -110,10 +111,10 @@ describe("tryAutocreateGitHubProject", () => {
     expect(fake.created).toEqual([
       { installationId: "inst-1", repo: REPO, name: "My-Repo" },
     ]);
-    expect(fake.written).toEqual(["project-123"]);
+    expect(fake.written).toEqual(["octo/my-repo"]);
     expect(fake.calls).toEqual(["list"]);
     expect(tasks).toEqual([
-      { method: "startTask", message: CREATE_TASK_LABEL },
+      { method: "startActivity", message: CREATE_TASK_LABEL },
       { method: "succeed", message: "Created project “My-Repo”" },
     ]);
   });
@@ -138,11 +139,12 @@ describe("tryAutocreateGitHubProject", () => {
     expect(await result).toEqual({
       status: "created",
       projectId: "project-123",
+      project: "octo/my-repo",
     });
     expect(fake.calls).toEqual(["list", "refresh:inst-1", "refresh:inst-2"]);
     expect(fake.created[0]?.installationId).toBe("inst-2");
     expect(tasks[0]).toEqual({
-      method: "startTask",
+      method: "startActivity",
       message: REFRESH_TASK_LABEL,
     });
   });
@@ -262,6 +264,35 @@ describe("tryAutocreateGitHubProject", () => {
     expect(calls.map((call) => call.method)).toEqual(["warn"]);
   });
 
+  test("fails init, writing nothing, when the new project's owner has no username", async () => {
+    const fake = fakePorts({
+      list: {
+        status: "ok",
+        installations: [{ installationId: "inst-1", repos: [REPO] }],
+      },
+      create: {
+        status: "created",
+        project: {
+          projectId: "project-123",
+          slug: "my-repo",
+          ownerUsername: null,
+          initialSyncFailed: false,
+        },
+      },
+    });
+
+    const { result } = run(fake.ports);
+
+    let message = "";
+    try {
+      await result;
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toMatch(/no owner username yet/u);
+    expect(fake.written).toEqual([]);
+  });
+
   test("warns with the settings link when the initial issue sync failed", async () => {
     const fake = fakePorts({
       list: {
@@ -284,10 +315,11 @@ describe("tryAutocreateGitHubProject", () => {
     expect(await result).toEqual({
       status: "created",
       projectId: "project-123",
+      project: "octo/my-repo",
     });
     expect(messages(calls)).toContain(
       initialSyncFailedMessage(`${BASE_URL}/octo/my-repo/settings`),
     );
-    expect(fake.written).toEqual(["project-123"]);
+    expect(fake.written).toEqual(["octo/my-repo"]);
   });
 });

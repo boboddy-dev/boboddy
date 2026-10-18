@@ -33,6 +33,11 @@ export type DesignSeedPromptInput = {
    * report, which is the common case.
    */
   priorRunOfferFailure?: RunOfferGateFailure | undefined;
+  /**
+   * Absolute path to the preflight's `discovered-tools.json`, or `null` when
+   * it could not be written. Omitted is treated as `null`.
+   */
+  agentToolsManifestPath?: string | null;
 };
 
 /**
@@ -77,8 +82,8 @@ function describePriorRunOfferFailure(
   return [
     "## Before anything else",
     "",
-    "The pipeline this project pushed last session failed a dry run of its " +
-      `first step, after that session had already exited: ${failure.summary}. ` +
+    "The pipeline this project pushed last session failed its health-check " +
+      `dry run, after that session had already exited: ${failure.summary}. ` +
       "Investigate and fix this — it is why the run offer at the end of the " +
       "last session could not queue a run — before moving on to this " +
       "session's own work.",
@@ -103,6 +108,12 @@ export function buildDesignSeedPrompt(input: DesignSeedPromptInput): string {
     ? "Pipeline definitions already exist in this directory — read them, then state a change-size verdict (tweak / route / new pipeline) and get it confirmed before editing any file."
     : "No pipeline definitions exist yet in this directory.";
 
+  const manifestPath = input.agentToolsManifestPath ?? null;
+  const toolsLine =
+    manifestPath === null
+      ? "No discovered-tools manifest was written this session — read the repository's MCP and skill config directly in phase 1."
+      : `The repository's MCP servers (with their listed tools) and skills are recorded in the discovered-tools manifest at ${manifestPath} — read it in phase 1.`;
+
   return [
     "Design a Boboddy pipeline for this project, anchored to this work item.",
     "",
@@ -119,6 +130,8 @@ export function buildDesignSeedPrompt(input: DesignSeedPromptInput): string {
     "## Context",
     "",
     definitionsLine,
+    "",
+    toolsLine,
     "",
     ...describePriorRunOfferFailure(input.priorRunOfferFailure),
     "Start the interview.",

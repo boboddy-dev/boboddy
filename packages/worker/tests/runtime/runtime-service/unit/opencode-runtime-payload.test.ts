@@ -7,6 +7,7 @@ import {
   containerOpencodeRuntimeVersionDir,
   hostOpencodeRuntimeVersionDir,
   opencodePlatformPackage,
+  opencodePlatformTarballUrl,
   resolveHostHome,
   resolveHostNativePlatform,
   resolveOpencodeRuntimeVersion,
@@ -40,15 +41,38 @@ describe("opencode runtime payload domain", () => {
   });
 
   test("HOME env override is honored", () => {
-    expect(resolveHostHome((name) => (name === "HOME" ? "/tmp/h" : undefined))).toBe(
-      "/tmp/h",
+    expect(
+      resolveHostHome((name) => (name === "HOME" ? "/tmp/h" : undefined)),
+    ).toBe("/tmp/h");
+  });
+
+  test("platform package names map to scoped @opencode/cli npm packages", () => {
+    expect(opencodePlatformPackage("linux-arm64")).toBe(
+      "@opencode/cli-linux-arm64",
+    );
+    expect(opencodePlatformPackage("linux-x64-musl")).toBe(
+      "@opencode/cli-linux-x64-musl",
     );
   });
 
-  test("platform package names map to opencode npm packages", () => {
-    expect(opencodePlatformPackage("linux-arm64")).toBe("opencode-linux-arm64");
-    expect(opencodePlatformPackage("linux-x64-musl")).toBe(
-      "opencode-linux-x64-musl",
+  test("tarball URL puts the scoped name in the path and the basename in the file", () => {
+    expect(
+      opencodePlatformTarballUrl(
+        "https://registry.npmjs.org",
+        "linux-x64",
+        OPENCODE_RUNTIME_VERSION,
+      ),
+    ).toBe(
+      `https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-${OPENCODE_RUNTIME_VERSION}.tgz`,
+    );
+    expect(
+      opencodePlatformTarballUrl(
+        "http://localhost:4873",
+        "darwin-arm64",
+        "2.1.0",
+      ),
+    ).toBe(
+      "http://localhost:4873/@opencode/cli-darwin-arm64/-/cli-darwin-arm64-2.1.0.tgz",
     );
   });
 
@@ -94,7 +118,9 @@ describe("opencode runtime payload domain", () => {
   });
 
   test("darwin platform package names map to opencode npm packages", () => {
-    expect(opencodePlatformPackage("darwin-arm64")).toBe("opencode-darwin-arm64");
+    expect(opencodePlatformPackage("darwin-arm64")).toBe(
+      "@opencode/cli-darwin-arm64",
+    );
   });
 });
 
@@ -115,11 +141,23 @@ describe("opencode launch wrapper", () => {
   test("detects the OS via uname -s and selects the darwin binary on macOS", () => {
     expect(wrapper).toContain("uname -s");
     expect(wrapper).toContain('"$os" = "Darwin"');
-    expect(wrapper).toContain('BIN_ROOT/darwin-${arch}/opencode');
+    expect(wrapper).toContain("BIN_ROOT/darwin-${arch}/opencode");
   });
 
   test("resolves binaries relative to its own dir (mount-path agnostic)", () => {
-    expect(wrapper).toContain('SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")"');
+    expect(wrapper).toContain(
+      'SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")"',
+    );
     expect(wrapper).toContain('BIN_ROOT="$SCRIPT_DIR/bin"');
+  });
+
+  test("warns before exec when a musl binary lacks libstdc++ / libgcc", () => {
+    expect(wrapper).toContain("libstdc++.so.6 libgcc_s.so.1");
+    expect(wrapper).toContain(
+      "boboddy: Alpine images need 'apk add libstdc++ libgcc' for OpenCode",
+    );
+    expect(wrapper.indexOf("apk add libstdc++")).toBeLessThan(
+      wrapper.lastIndexOf('exec "$candidate" "$@"'),
+    );
   });
 });

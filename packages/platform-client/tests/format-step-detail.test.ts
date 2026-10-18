@@ -7,7 +7,7 @@ import {
 import {
   makeArtifact,
   makeStepDefinition,
-  makeStepExecution,
+  makeTask,
   makeStepRun,
 } from "./fixtures";
 
@@ -21,7 +21,7 @@ describe("formatStepDetail", () => {
         stepRun: null,
         runs: [],
       },
-      stepExecution: null,
+      task: null,
     });
 
     expect(output).toContain("Step: fix (Fix)");
@@ -43,7 +43,7 @@ describe("formatStepDetail", () => {
         createdAt: "2026-01-01T00:05:00.000Z",
       },
     });
-    const stepExecution = makeStepExecution({
+    const task = makeTask({
       result: {
         id: "result-1",
         status: "succeeded",
@@ -70,13 +70,13 @@ describe("formatStepDetail", () => {
         stepRun,
         runs: [stepRun],
       },
-      stepExecution,
+      task,
     });
 
     expect(output).toContain("Status: ✗ unsatisfied   Satisfaction: unsatisfied_by_policy");
     expect(output).toContain("Work branch: boboddy/investigate-1");
-    expect(output).toContain(`Started:   ${String(stepExecution.startedAt)}`);
-    expect(output).toContain(`Completed: ${String(stepExecution.completedAt)}`);
+    expect(output).toContain(`Started:   ${String(task.startedAt)}`);
+    expect(output).toContain(`Completed: ${String(task.completedAt)}`);
     expect(output).toContain("risk_level (string, extracted)");
     expect(output).toContain('"high"');
     expect(output).toContain('"finding": "root cause found"');
@@ -96,15 +96,15 @@ describe("formatStepDetail", () => {
         stepRun,
         runs: [stepRun],
       },
-      stepExecution: makeStepExecution(),
+      task: makeTask(),
     });
 
     expect(output).toContain("[truncated,");
     expect(output.length).toBeLessThan(bigValue.length + 1_000);
   });
 
-  test("notes when a step has no step execution yet", () => {
-    const stepRun = makeStepRun({ stepExecutionId: null, status: "queued" });
+  test("notes when a step has no task yet", () => {
+    const stepRun = makeStepRun({ taskId: null, status: "queued" });
     const output = formatStepDetail({
       stepItem: {
         stepKey: "investigate",
@@ -113,10 +113,10 @@ describe("formatStepDetail", () => {
         stepRun,
         runs: [stepRun],
       },
-      stepExecution: null,
+      task: null,
     });
 
-    expect(output).toContain("(no step execution yet)");
+    expect(output).toContain("(no task yet)");
     expect(output).toContain("Started:   —");
   });
 });

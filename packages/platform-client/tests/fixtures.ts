@@ -6,7 +6,7 @@ import type {
   PipelineExecutionAttempt,
   PipelineStepDefinition,
   PipelineStepRun,
-  StepExecution,
+  Task,
   WorkItem,
 } from "../src/lib/api-types";
 
@@ -33,7 +33,7 @@ export function makeStepRun(
     branchIndex: null,
     status: "satisfied",
     satisfactionStatus: "satisfied_by_policy",
-    stepExecutionId: "step-exec-1",
+    taskId: "step-exec-1",
     workBranch: "boboddy/investigate-1",
     outputJson: { summary: "looked good" },
     evaluation: null,
@@ -97,9 +97,7 @@ export function makeWorkItem(overrides: Partial<WorkItem> = {}): WorkItem {
   };
 }
 
-export function makeStepExecution(
-  overrides: Partial<StepExecution> = {},
-): StepExecution {
+export function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: "step-exec-1",
     status: "succeeded",

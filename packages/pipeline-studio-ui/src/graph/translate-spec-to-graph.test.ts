@@ -98,7 +98,6 @@ export function stepSpec(
     resultSchemaJson: null,
     signalExtractorDefinitions: [],
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
     ...overrides,
   };

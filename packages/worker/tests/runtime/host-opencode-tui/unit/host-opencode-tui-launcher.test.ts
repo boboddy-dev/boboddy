@@ -124,31 +124,34 @@ describe("ensureHostOpencodePayload", () => {
 describe("resolveHostOpencodeBinary", () => {
   test.concurrent("returns the launch.sh wrapper, not a raw binary", () => {
     expect(
-      resolveHostOpencodeBinary({ hostPayloadDir: "/cache/opencode/1.18.11" }),
-    ).toBe("/cache/opencode/1.18.11/launch.sh");
+      resolveHostOpencodeBinary({
+        hostPayloadDir: `/cache/opencode/${OPENCODE_RUNTIME_VERSION}`,
+      }),
+    ).toBe(`/cache/opencode/${OPENCODE_RUNTIME_VERSION}/launch.sh`);
   });
 });
 
 describe("buildOpencodeTuiArgs", () => {
-  test.concurrent("always passes --agent as the default_agent guard", () => {
-    expect(buildOpencodeTuiArgs({ agent: "pipeline-designer" })).toEqual([
-      "--agent",
-      "pipeline-designer",
-    ]);
-  });
+  test.concurrent(
+    "runs standalone and never passes --agent (v2 has none)",
+    () => {
+      const args = buildOpencodeTuiArgs({});
+      expect(args).toEqual(["--standalone"]);
+      expect(args).not.toContain("--agent");
+    },
+  );
 
   test.concurrent("adds --prompt only when a seed prompt is supplied", () => {
-    expect(
-      buildOpencodeTuiArgs({ agent: "a", seedPrompt: "hello there" }),
-    ).toEqual(["--agent", "a", "--prompt", "hello there"]);
-    expect(buildOpencodeTuiArgs({ agent: "a", seedPrompt: "" })).toEqual([
-      "--agent",
-      "a",
+    expect(buildOpencodeTuiArgs({ seedPrompt: "hello there" })).toEqual([
+      "--standalone",
+      "--prompt",
+      "hello there",
     ]);
+    expect(buildOpencodeTuiArgs({ seedPrompt: "" })).toEqual(["--standalone"]);
   });
 
   test.concurrent("never emits a serve subcommand or a port", () => {
-    const args = buildOpencodeTuiArgs({ agent: "a", seedPrompt: "s" });
+    const args = buildOpencodeTuiArgs({ seedPrompt: "s" });
     expect(args).not.toContain("serve");
     expect(args).not.toContain("--port");
   });
@@ -183,7 +186,6 @@ describe("launchOpencodeTui", () => {
     const pending = launchOpencodeTui({
       launcherPath: "/cache/launch.sh",
       cwd: "/project/.boboddy/pipeline-builder",
-      agent: "pipeline-designer",
       configContent: '{"default_agent":"pipeline-designer"}',
       seedPrompt: "Let's design a pipeline",
       spawnFn,
@@ -195,8 +197,7 @@ describe("launchOpencodeTui", () => {
     expect(call?.stdio).toBe("inherit");
     expect(call?.cwd).toBe("/project/.boboddy/pipeline-builder");
     expect(call?.args).toEqual([
-      "--agent",
-      "pipeline-designer",
+      "--standalone",
       "--prompt",
       "Let's design a pipeline",
     ]);
@@ -213,7 +214,6 @@ describe("launchOpencodeTui", () => {
     const pending = launchOpencodeTui({
       launcherPath: "/cache/launch.sh",
       cwd: "/tmp",
-      agent: "a",
       configContent: "{}",
       spawnFn,
     });
@@ -227,7 +227,6 @@ describe("launchOpencodeTui", () => {
     const pending = launchOpencodeTui({
       launcherPath: "/cache/launch.sh",
       cwd: "/tmp",
-      agent: "a",
       configContent: "{}",
       spawnFn,
     });
@@ -241,7 +240,6 @@ describe("launchOpencodeTui", () => {
     const pending = launchOpencodeTui({
       launcherPath: "/nope/launch.sh",
       cwd: "/tmp",
-      agent: "a",
       configContent: "{}",
       spawnFn,
     });
@@ -257,7 +255,6 @@ describe("launchOpencodeTui", () => {
     const pending = launchOpencodeTui({
       launcherPath: "/cache/launch.sh",
       cwd: "/tmp",
-      agent: "a",
       configContent: "{}",
       spawnFn,
     });
@@ -274,7 +271,6 @@ describe("launchOpencodeTui", () => {
     const pending = launchOpencodeTui({
       launcherPath: "/cache/launch.sh",
       cwd: "/tmp",
-      agent: "a",
       configContent: "{}",
       spawnFn,
     });
@@ -292,7 +288,7 @@ describe("launchOpencodeTui", () => {
 });
 
 describe("launchOpencodeAuthLogin", () => {
-  test("spawns `auth login` attached to the terminal", async () => {
+  test("spawns `auth login --standalone` attached to the terminal", async () => {
     const { spawnFn, calls, children } = makeSpawnFake();
 
     const pending = launchOpencodeAuthLogin({
@@ -304,7 +300,7 @@ describe("launchOpencodeAuthLogin", () => {
     const call = calls[0];
     expect(call).toBeDefined();
     expect(call?.command).toBe("/cache/launch.sh");
-    expect(call?.args).toEqual(["auth", "login"]);
+    expect(call?.args).toEqual(["auth", "login", "--standalone"]);
     expect(call?.stdio).toBe("inherit");
     expect(call?.cwd).toBe("/project");
 

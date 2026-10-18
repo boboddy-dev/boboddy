@@ -1,3 +1,7 @@
+import {
+  ProjectRefError,
+  type ProjectRefErrorKind,
+} from "@boboddy/sdk/defaults";
 import { CoreError, SetupErrorCodes } from "@boboddy/worker";
 
 /**
@@ -19,6 +23,11 @@ export const CLI_ERROR_CODES = [
   "project_handoff_unresolved",
   "project_handoff_noninteractive",
   "no_project_id",
+  "no_owner_username",
+  "invalid_project_ref",
+  "project_not_found",
+  "project_forbidden",
+  "project_lookup_failed",
   "no_work_item",
   "work_item_create_failed",
   "no_package_manager",
@@ -53,6 +62,15 @@ const CODE_BY_WORKER_CODE: Record<
   [SetupErrorCodes.DeviceLoginExpired]: "device_login_expired",
   [SetupErrorCodes.DeviceLoginDenied]: "device_login_denied",
   [SetupErrorCodes.DeviceLoginFailed]: "device_login_failed",
+  [SetupErrorCodes.NoOwnerUsername]: "no_owner_username",
+};
+
+const CODE_BY_PROJECT_REF_KIND: Record<ProjectRefErrorKind, CliErrorCode> = {
+  invalid: "invalid_project_ref",
+  not_found: "project_not_found",
+  forbidden: "project_forbidden",
+  unauthenticated: "not_signed_in_noninteractive",
+  failed: "project_lookup_failed",
 };
 
 const isWorkerSetupCode = (
@@ -63,7 +81,7 @@ const MAX_CAUSE_DEPTH = 5;
 
 /**
  * The {@link CliErrorCode} for a thrown value: a {@link CliError}'s own code,
- * or the mapped code of a worker setup error (matched on its `code`, never its
+ * a {@link ProjectRefError}'s kind, or the mapped code of a worker setup error (matched on its `code`, never its
  * message). Follows `cause` so a wrapped failure keeps its classification.
  */
 // eslint-disable-next-line local/no-unknown-parameter-type -- error boundary: caught values are `unknown`
@@ -72,6 +90,9 @@ export function classifyCliError(error: unknown): CliErrorCode | "unknown" {
   for (let depth = 0; depth <= MAX_CAUSE_DEPTH; depth += 1) {
     if (current instanceof CliError) {
       return current.code;
+    }
+    if (current instanceof ProjectRefError) {
+      return CODE_BY_PROJECT_REF_KIND[current.kind];
     }
     if (current instanceof CoreError && isWorkerSetupCode(current.code)) {
       return CODE_BY_WORKER_CODE[current.code];

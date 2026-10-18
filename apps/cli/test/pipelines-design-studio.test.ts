@@ -20,9 +20,11 @@ import { concurrentTest as test, createReporterRecorder } from "./utils";
  */
 
 const STUDIO_URL = "http://localhost:54321";
+const MANIFEST_PATH =
+  "/home/test/.boboddy/projects/acme/project-1/discovered-tools.json";
 
 const ARGS: DesignArguments = {
-  projectId: undefined,
+  project: undefined,
   baseUrl: "https://app.example.com",
   workItemId: undefined,
   studio: true,
@@ -49,6 +51,7 @@ function createPorts(
       recorded.order.push("preflight");
       return Promise.resolve({
         projectId: "project-1",
+        project: "acme/project-1",
         workItem: {
           id: "work-item-1",
           title: "Fix the flaky test",
@@ -57,6 +60,7 @@ function createPorts(
         },
         launcherPath: "/runtime/launch.sh",
         providers: ["anthropic"],
+        agentToolsManifestPath: MANIFEST_PATH,
       });
     },
     startStudio: () => {
@@ -189,6 +193,26 @@ describe("runDesignSession — studio companion", () => {
     expect(rejected).toBe(true);
 
     expect(recorded.order.at(-1)).toBe("closeStudio");
+  });
+});
+
+describe("runDesignSession — discovered-tools manifest", () => {
+  test("names the manifest in the seed prompt and lets the agent read it without asking", async () => {
+    const { ports, recorded } = createPorts();
+    const { ctx } = createContext();
+
+    await runDesignSession({ args: { ...ARGS, studio: false }, ctx, ports });
+
+    expect(recorded.tuiInput?.seedPrompt).toContain(MANIFEST_PATH);
+    const config = JSON.parse(recorded.tuiInput?.configContent ?? "{}") as {
+      agents: Record<string, { permissions: unknown[] }>;
+    };
+    const permissions = Object.values(config.agents)[0]?.permissions;
+    expect(permissions).toContainEqual({
+      action: "read",
+      resource: MANIFEST_PATH,
+      effect: "allow",
+    });
   });
 });
 

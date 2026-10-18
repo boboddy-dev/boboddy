@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "playwright": { "command": "npx", "args": ["-y", "@playwright/mcp@latest"] },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": { "Authorization": "Bearer ${GITHUB_TOKEN}" }
+    },
+    "linear": { "type": "sse", "url": "https://mcp.linear.app/sse" },
+    "sentry": { "type": "http", "url": "https://shadowed.example/mcp" }
+  }
+}

@@ -13,7 +13,7 @@ import { describe, expect, test } from "bun:test";
 import { GitCliCommitPushService } from "../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
 import { MANAGED_RUNTIME_INSTALL_ARTIFACT_PATHS } from "../../../../src/runtime/runtime-service/domain/managed-runtimes";
 import { managedRuntimeConfigPath } from "../../../../src/runtime/runtime-service/infra/managed-runtime-config";
-import { WORK_BRANCH_EXCLUDE_PATHS } from "../../../../src/work/step-execution/infra/work-branch-manager";
+import { WORK_BRANCH_EXCLUDE_PATHS } from "../../../../src/work/task/infra/work-branch-manager";
 import { git, writeRepoFile } from "./git-test-fixtures";
 
 const CONFIG_PATH = managedRuntimeConfigPath("bun1");

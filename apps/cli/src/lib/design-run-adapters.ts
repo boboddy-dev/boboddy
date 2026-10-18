@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
   resolveSourceBranch,
-  runPipelineFirstStepDryRun,
+  runPipelineHealthChecksDryRun,
 } from "@boboddy/worker";
 import { connectApi, describeApiError } from "./cli-api-client";
 import type { DryRunGateResult } from "./design-run-offer";
@@ -11,7 +11,7 @@ import {
   clearRunOfferGateFailure,
   writeRunOfferGateFailure,
 } from "./design-run-offer-gate-marker";
-import { summarizeDryRunFailure } from "./dry-run-report";
+import { toDryRunGateResult } from "./dry-run-report";
 import { readLocalEnvVars } from "./local-env-vars";
 import { createTransport } from "./logger";
 import type { BaseReporter } from "./reporter-types";
@@ -80,21 +80,19 @@ const pipelineStepRefsSchema = z.object({
  * the same reason as {@link assignedPipelineSchema}: the generated type
  * collapses the nullable `managedRuntime` to `unknown`.
  */
-export const stepExecutionTargetSchema = z.object({
+export const stepRuntimeTargetSchema = z.object({
   executionMode: z.enum(["workspace", "no_workspace"]),
   managedRuntime: z.string().nullable(),
 });
 
-export type StepExecutionTarget = z.infer<typeof stepExecutionTargetSchema>;
+export type StepRuntimeTarget = z.infer<typeof stepRuntimeTargetSchema>;
 
 /**
  * A step runs inside the project's devcontainer only when it needs a workspace
  * and no managed runtime supplies the container. `no_workspace` steps run on
  * the host; managed-runtime steps run in a Boboddy-provided image.
  */
-export function stepNeedsProjectDevcontainer(
-  step: StepExecutionTarget,
-): boolean {
+export function stepNeedsProjectDevcontainer(step: StepRuntimeTarget): boolean {
   return step.executionMode === "workspace" && step.managedRuntime === null;
 }
 
@@ -137,7 +135,7 @@ export async function pipelineNeedsProjectDevcontainer(input: {
           `Could not read step definition ${stepDefinitionId}: ${describeApiError(step.error)}`,
         );
       }
-      return stepExecutionTargetSchema.parse(step.data);
+      return stepRuntimeTargetSchema.parse(step.data);
     }),
   );
 
@@ -189,14 +187,13 @@ export async function queueDesignRun(input: {
 }
 
 /**
- * The real implementation of {@link DesignRunOfferPorts.runFirstStepDryRun}
- * (#146): resolve `pipelineDefinitionId` to its first step and run the full
- * environment rehearsal against it, then persist (or clear) the marker the
- * NEXT `pipelines design` session's orientation reads — see
- * `design-run-offer-gate-marker.ts`. There is no live session left to tell
- * right now; this is the only channel across the gap.
+ * The real implementation of {@link DesignRunOfferPorts.runPipelineHealthDryRun}:
+ * run every step's health checks, one launch per distinct runtime, then
+ * persist (or clear) the marker the NEXT `pipelines design` session's
+ * orientation reads — see `design-run-offer-gate-marker.ts`. There is no live
+ * session left to tell right now; this is the only channel across the gap.
  */
-export async function runFirstStepDryRun(input: {
+export async function runPipelineHealthDryRun(input: {
   baseUrl: string;
   projectId: string;
   pipelineDefinitionId: string;
@@ -212,31 +209,32 @@ export async function runFirstStepDryRun(input: {
     input.reporter.warn(sourceBranchResult.warning);
   }
 
-  const report = await runPipelineFirstStepDryRun({
-    projectId: input.projectId,
-    baseUrl: input.baseUrl,
-    pipelineDefinitionId: input.pipelineDefinitionId,
-    dest: createTransport(),
-    localEnvVars,
-    sourceBranch: sourceBranchResult.branch,
-  });
+  const result = toDryRunGateResult(
+    await runPipelineHealthChecksDryRun({
+      projectId: input.projectId,
+      baseUrl: input.baseUrl,
+      pipelineDefinitionId: input.pipelineDefinitionId,
+      dest: createTransport(),
+      localEnvVars,
+      sourceBranch: sourceBranchResult.branch,
+    }),
+  );
 
-  if (report.ok) {
+  if (result.ok) {
     // An old marker from an earlier, since-fixed failure no longer describes
     // reality — this run is the new source of truth.
     clearRunOfferGateFailure(input.builderDir);
     captureMilestone(AnalyticsEvents.CliDryRunPassed, {
       via: "pipelines-design",
     });
-    return { ok: true, summary: "healthy" };
+    return result;
   }
 
-  const summary = summarizeDryRunFailure(report);
   writeRunOfferGateFailure(input.builderDir, {
     pipelineDefinitionId: input.pipelineDefinitionId,
-    summary,
+    summary: result.summary,
   });
-  return { ok: false, summary };
+  return result;
 }
 
 /**

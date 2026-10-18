@@ -59,7 +59,7 @@ export async function reportResolvedRepository(input: {
 }): Promise<ResolvedRepository> {
   const { reporter, ports } = input;
 
-  const task = reporter.startTask(REPOSITORY_TASK_LABEL);
+  const task = reporter.startActivity(REPOSITORY_TASK_LABEL);
   let resolved: ResolvedRepository;
   try {
     resolved = await ports.resolveGitRepository();

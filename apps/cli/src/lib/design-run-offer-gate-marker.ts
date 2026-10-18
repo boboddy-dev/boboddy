@@ -4,7 +4,7 @@ import { join } from "node:path";
 /**
  * Persists the one fact phase-1 orientation needs on the NEXT
  * `pipelines design` invocation: did the previous session's post-push
- * run-offer gate (the first-step dry run, #146) fail?
+ * run-offer gate (every step's health checks, dry-run) fail?
  *
  * This has to be a file, not in-memory state: the run-offer runs in the host
  * CLI process, after the TUI — and the agent inside it — has already exited.
@@ -22,7 +22,7 @@ export const RUN_OFFER_GATE_FAILURE_FILENAME = ".run-offer-gate-failure.json";
 
 export type RunOfferGateFailure = {
   pipelineDefinitionId: string;
-  /** See `summarizeDryRunFailure` in `dry-run-report.ts`. */
+  /** The blocking findings, by step; see `toDryRunGateResult` in `dry-run-report.ts`. */
   summary: string;
   failedAt: string;
 };

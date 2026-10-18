@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import type { GitCommitPushService } from "../../../../src/runtime/runtime-service/application/git-commit-push-service";
 import type { SubmoduleService } from "../../../../src/runtime/runtime-service/application/submodule-service";
-import { buildCommitAndPushWorkBranch } from "../../../../src/work/step-execution/infra/work-branch-manager";
+import { buildCommitAndPushWorkBranch } from "../../../../src/work/task/infra/work-branch-manager";
 import { git, writeRepoFile } from "./git-test-fixtures";
 
 /** A bare remote seeded with one commit on `main` via a throwaway clone. */
@@ -165,7 +165,7 @@ export async function runClosure(
     submoduleService,
     workspacePath: workspace,
     workBranch,
-    stepExecutionId: "step-exec-1",
+    taskId: "step-exec-1",
   });
   await closure({ result: {} });
 }

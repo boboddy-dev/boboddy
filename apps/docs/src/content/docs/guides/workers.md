@@ -1,9 +1,9 @@
 ---
 title: Running Workers
-description: Use boboddy work to claim and execute step jobs from the server
+description: Use boboddy work to claim and run tasks from the server
 ---
 
-A **worker** is a long-running process that polls the Boboddy server for pending step executions, claims them under a time-limited lease, executes them using a local Docker environment, and reports results back.
+A **worker** is a long-running process that polls the Boboddy server for pending tasks, claims them under a time-limited lease, executes them using a local Docker environment, and reports results back.
 
 ## Start a worker
 
@@ -11,27 +11,27 @@ A **worker** is a long-running process that polls the Boboddy server for pending
 boboddy work
 ```
 
-By default the worker runs continuously, polling your project's step queue every 5 seconds. When a poll finds nothing to claim, the interval doubles, up to once a minute, and drops back to 5 seconds as soon as it claims work.
+By default the worker runs continuously, polling your project's task queue every 5 seconds. When a poll finds nothing to claim, the interval doubles, up to once a minute, and drops back to 5 seconds as soon as it claims work.
 
-If your current directory contains `.boboddy/boboddy.jsonc`, the project ID is read automatically. Otherwise pass it explicitly:
+If your current directory contains `.boboddy/boboddy.jsonc`, the project is read from it automatically. Otherwise pass it explicitly, as `owner/slug` (see [Project refs](/boboddy/reference/cli/#project-refs)):
 
 ```bash
-boboddy work <projectId>
+boboddy work <owner/slug>
 ```
 
 ## Worker flags
 
-Flags are in the [CLI reference](/boboddy/reference/cli/#boboddy-work-projectid).
+Flags are in the [CLI reference](/boboddy/reference/cli/#boboddy-work-project).
 
 ## How execution works
 
-1. **Poll** — The worker calls the server to claim a batch of pending step executions.
-2. **Claim** — Each claimed execution is assigned a lease. The worker sends heartbeats to extend the lease while processing.
+1. **Poll** — The worker calls the server to claim a batch of pending tasks.
+2. **Claim** — Each claimed task is assigned a lease. The worker sends heartbeats to extend the lease while processing.
 3. **Environment setup** — For `Runtime.devcontainer()` steps (the default), the worker clones your repository and launches a single Docker runtime from your devcontainer config: `.devcontainer/devcontainer.json` unless the step selects another with [`Runtime.devcontainer({ config })`](#devcontainer-config). Before bringing the container up, it injects mounts for a pinned, Boboddy-managed OpenCode runtime payload and a session-scoped agent home. For `Runtime.host()` steps, this is skipped entirely — see [Runtime](/boboddy/guides/steps/#runtime). [Code steps](/boboddy/guides/steps/#code-steps) default to a worker-supplied [managed runtime](#managed-runtimes) instead of your devcontainer.
 4. **Agent startup** — For `Runtime.devcontainer()` steps, OpenCode runs **inside that same devcontainer** (same environment as your workspace), launched by absolute path from the mounted runtime payload — never the project's Node or a global `opencode`. There is no separate AI container, cross-container network, or MCP-host bridge. For `Runtime.host()` steps, the same Boboddy-managed OpenCode runtime runs **directly on the worker host** against a temporary empty directory — no Docker, no clone.
 5. **Agent execution** — The step is handed to the in-container OpenCode agent with the step's prompt, input payload, and any configured MCP servers. Provider access is resolved through a normalized contract (currently `direct` mode: an explicit provider base URL + token, with your local OpenCode config as a fallback source).
 6. **Signal extraction** — The agent's structured output is parsed; signals are extracted per the step's `signals` definition.
-7. **Report** — The worker marks the execution complete (or failed) and posts output + signals back to the server.
+7. **Report** — The worker marks the task complete (or failed) and posts output + signals back to the server.
 8. **Cleanup** — The Docker environment is torn down (unless `--preserve-runtime-on-complete` is set).
 
 ### Devcontainer config
@@ -66,18 +66,18 @@ Upgrade the CLI on the worker host to fix it. Because image tags move with the w
 
 ## Work branches
 
-For devcontainer steps that use [`Repo.readWrite()`](/boboddy/guides/steps/#repo-access) (the default), the worker creates a dedicated git branch for each step execution right after cloning, commits the agent's changes to it, and pushes it. What a step does with the repository is set by its `repo` option: see [Read-only steps](#read-only-steps) and [Commit message and push failures](#commit-message-and-push-failures) below.
+For devcontainer steps that use [`Repo.readWrite()`](/boboddy/guides/steps/#repo-access) (the default), the worker creates a dedicated git branch for each task right after cloning, commits the agent's changes to it, and pushes it. What a step does with the repository is set by its `repo` option: see [Read-only steps](#read-only-steps) and [Commit message and push failures](#commit-message-and-push-failures) below.
 
-Branches are named `<prefix>/<stepKey>-<stepExecutionId>`. The prefix defaults to `boboddy`. To use your own prefix, add `branchPrefix` to the repo's `.boboddy/boboddy.jsonc`:
+Branches are named `<prefix>/<stepKey>-<taskId>`. The prefix defaults to `boboddy`. To use your own prefix, add `branchPrefix` to the repo's `.boboddy/boboddy.jsonc`:
 
 ```jsonc
 {
-  "projectId": "your-project-id",
+  "project": "acme/web-app",
   "branchPrefix": "myteam"
 }
 ```
 
-With the config above, a step keyed `build` produces a branch like `myteam/build-<stepExecutionId>`.
+With the config above, a step keyed `build` produces a branch like `myteam/build-<taskId>`.
 
 Notes:
 
@@ -86,13 +86,13 @@ Notes:
 
 ### Read-only steps
 
-A step with `Repo.readOnly()` still clones the repo and checks out its base branch (see [Base branch](#base-branch)), but the worker creates no work branch, commits nothing, and pushes nothing. The execution reports no work branch, so no branches pile up on your remote for steps that only read code. Edits the agent makes stay in the workspace and are discarded with it. This is a policy, not a sandbox: the repository is not mounted read-only.
+A step with `Repo.readOnly()` still clones the repo and checks out its base branch (see [Base branch](#base-branch)), but the worker creates no work branch, commits nothing, and pushes nothing. The task reports no work branch, so no branches pile up on your remote for steps that only read code. Edits the agent makes stay in the workspace and are discarded with it. This is a policy, not a sandbox: the repository is not mounted read-only.
 
 A step with `Repo.none()` (the `Runtime.host()` default) never clones, so none of this applies to it.
 
 ### Commit message and push failures
 
-The commit message defaults to `boboddy: step <stepExecutionId>`. A step sets its own with `Repo.readWrite({ message })`, rendered from the step's input and the result the agent submitted. The rendered subject is single-line, at most 200 characters, and falls back to the default when empty. The same message is used for submodule commits. See [Repo access](/boboddy/guides/steps/#repo-access) for the token rules.
+The commit message defaults to `boboddy: task <taskId>`. A step sets its own with `Repo.readWrite({ message })`, rendered from the step's input and the result the agent submitted. The rendered subject is single-line, at most 200 characters, and falls back to the default when empty. The same message is used for submodule commits. See [Repo access](/boboddy/guides/steps/#repo-access) for the token rules.
 
 :::caution[Behavior change: a failed push now fails the step]
 Previously the worker logged a failed push and carried on, so a step could finish green with its work pushed nowhere. Now a failed push of the work branch, or of a submodule's work branch, **fails the step** with a message that names the branch and carries the git error, for example `Failed to push work branch "boboddy/build-1234": <git error>`. This applies to every `readWrite` step, including steps that never wrote a `repo`. Existing steps get `onPushFailure: "fail"` recorded when the database is migrated.
@@ -123,7 +123,7 @@ The worker always clones the repo's default branch, then creates the step's work
 
      ```jsonc
      {
-       "projectId": "your-project-id",
+       "project": "acme/web-app",
        "baseWorkBranch": "develop"
      }
      ```
@@ -165,7 +165,7 @@ Only your repo itself is cached. Submodules are not touched. When the cache is o
 A step can declare the environment variables it needs with [`environment.vars`](/boboddy/guides/steps/#environment-variables). The worker handles them in three stages:
 
 1. **Resolution.** Right after claiming an execution and fetching its definition, and before anything launches, the worker resolves the declared variables into one set of values. `value` entries are rendered against the run's input. `inherit` entries are read from the worker's environment: `.boboddy/.env` merged over the worker's `process.env`, then the entry's `default`. A variable set to an empty string counts as set.
-2. **Injection.** The resolved values are passed to the agent and to code steps. With `Runtime.devcontainer()` they are added to the in-container OpenCode process (and a code step's runner) as `docker exec -e` arguments, so they override the devcontainer's `containerEnv`. With `Runtime.host()` they are merged into the host process's environment. Only variable names are logged, never values.
+2. **Injection.** The resolved values are passed to the agent and to code steps. With `Runtime.devcontainer()` they are added to the in-container OpenCode process (and a code step's runner) as `docker exec -e` arguments, so they override the devcontainer's `containerEnv`. With `Runtime.host()` they are merged into the host process's environment. Variables with `applies: "setup"` or `"both"` are also passed to the host-side environment of `devcontainer up`, where `initializeCommand` sees them (see [Setup variables](/boboddy/guides/steps/#setup-variables)). Only variable names are logged, never values.
 3. **Masking.** Values of `secret` entries are registered with the log masker before any runtime log is shipped. Values shorter than 4 characters are not masked.
 
 Because the lookup happens on the worker, an `inherit` variable has to be set where the worker runs — in `.boboddy/.env` or the worker's environment — not in `devcontainer.json`.

@@ -1,5 +1,7 @@
 export * from "./define-step";
 export * from "./define-code-step";
+export * from "./define-mcp";
+export { compileMcps, type CompiledMcps } from "./compile-mcps";
 export * from "./env";
 export * from "./prompt-template";
 export * from "./repo";

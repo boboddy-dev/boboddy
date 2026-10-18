@@ -153,11 +153,27 @@ export type CompileEnvironmentContext = CompileRepoContext & {
   readonly defaultRuntime?: ManagedRuntimeSpec;
 };
 
+/** A host step has no container, so nothing runs `devcontainer up`. */
+function assertNoSetupVarsOnHost(
+  envJson: EnvVarsInput | null,
+  runtime: RuntimeSpec | undefined,
+  stepKey: string | undefined,
+): void {
+  if (runtime?.kind !== "host") return;
+  const setupVar = (envJson ?? []).find(
+    (entry) => (entry.applies ?? "agent") !== "agent",
+  );
+  if (!setupVar) return;
+  throw new Error(
+    `${stepKey ? `Step "${stepKey}" ` : ""}env "${setupVar.name}": applies "${String(setupVar.applies)}" needs a container to set up, but Runtime.host() has none. Use applies "agent" or Runtime.devcontainer().`,
+  );
+}
+
 /**
  * Turns the authored `environment` into its wire fields. Runs `vars` and `repo`
  * once. Throws on a static secret, or a static literal on a secret-looking name,
- * and on a `repo` the runtime cannot honor or that breaks the commit message
- * rules.
+ * on a setup variable on the host runtime, and on a `repo` the runtime cannot
+ * honor or that breaks the commit message rules.
  */
 export function compileEnvironment<TInput, TEnv extends EnvRecord, TResult>(
   environment:
@@ -168,12 +184,14 @@ export function compileEnvironment<TInput, TEnv extends EnvRecord, TResult>(
 ): CompiledEnvironment {
   const runtime: RuntimeSpec | undefined =
     environment?.runtime ?? ctx.defaultRuntime;
+  const envJson = normalizeEnv(environment?.vars);
+  assertNoSetupVarsOnHost(envJson, runtime, ctx.stepKey);
   return {
     executionMode: runtime?.kind === "host" ? "no_workspace" : "workspace",
     devcontainerConfigPath:
       runtime?.kind === "devcontainer" ? (runtime.config ?? null) : null,
     managedRuntime: runtime?.kind === "managed" ? runtime.id : null,
-    envJson: normalizeEnv(environment?.vars),
+    envJson,
     repo: compileRepo(environment?.repo, runtime, ctx),
   };
 }

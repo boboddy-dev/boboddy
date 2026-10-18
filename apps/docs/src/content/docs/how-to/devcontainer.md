@@ -3,7 +3,7 @@ title: Set up a dev container
 description: Generate a minimal .devcontainer/devcontainer.json for your project using an AI prompt
 ---
 
-`boboddy work` spins up a single Docker container from your project's `.devcontainer/devcontainer.json` for every step execution, and runs the OpenCode agent **inside that same container** (from a Boboddy-managed mounted runtime payload). So your devcontainer is the one and only runtime — it must contain the language toolchain your steps need, but it does **not** need OpenCode installed; Boboddy mounts and launches its own pinned OpenCode runtime.
+`boboddy work` spins up a single Docker container from your project's `.devcontainer/devcontainer.json` for every task, and runs the OpenCode agent **inside that same container** (from a Boboddy-managed mounted runtime payload). So your devcontainer is the one and only runtime — it must contain the language toolchain your steps need, but it does **not** need OpenCode installed; Boboddy mounts and launches its own pinned OpenCode runtime.
 
 This page provides a prompt you can paste into any AI coding assistant (Claude, Copilot, etc.) to generate a minimal, project-appropriate devcontainer config.
 

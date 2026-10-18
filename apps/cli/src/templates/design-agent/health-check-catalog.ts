@@ -2,14 +2,14 @@
  * The well-known-server health check catalog.
  *
  * A user designing a pipeline with a Playwright or Postgres MCP server gets a
- * `healthChecks` entry written into their own step file — without knowing
+ * `defineMcp` health check written into their own step file — without knowing
  * this feature exists, and without being asked. `design-agent-assets.ts`
  * renders this catalog into the composed authoring reference as a generated
- * section, the same way `PIPELINE_ARCHETYPES` is spliced in.
+ * section, the same way `DEFAULT_PIPELINE_TEMPLATE` is spliced in.
  *
- * A regular (typechecked) module, unlike the archetypes: this is structured
- * data the render function consumes, not prose the agent copies verbatim, so
- * it needs none of the `.ts.tmpl` / `with { type: "text" }` machinery that
+ * A regular (typechecked) module, unlike the default pipeline: this is
+ * structured data the render function consumes, not prose the agent copies
+ * verbatim, so it needs none of the `.ts.tmpl` / `with { type: "text" }` machinery that
  * exists solely to smuggle raw text past `apps/cli/tsconfig.json`.
  *
  * `packageHint` is a package **name**, never a literal, runnable command.
@@ -36,11 +36,15 @@ export type HealthCheckCatalogEntry = {
    */
   readonly packageHint: string;
   /**
-   * The `mcpServers` key this kind of server is conventionally declared
-   * under, and the value the rendered example's `healthChecks[].mcp` names.
+   * The server's conventional name in the repository's MCP config: the
+   * rendered example's `defineMcp` `name` and the step's `mcps` key. The
+   * example is a `ref`; `caveats` says how to write the server inline as
+   * `local` when the repository does not define it.
    */
-  readonly mcp: string;
-  /** Bare tool name (unqualified; `mcp` supplies the qualifier at runtime). */
+  readonly ref: string;
+  /** The key of the check in the rendered `defineMcp` `healthChecks` record. */
+  readonly checkName: string;
+  /** Bare tool name (unqualified; the `mcps` key supplies the qualifier at runtime). */
   readonly tool: string;
   /** Arguments for the safe-by-construction call this entry proves works. */
   readonly args: Record<string, unknown>;
@@ -59,27 +63,36 @@ export const HEALTH_CHECK_CATALOG: readonly HealthCheckCatalogEntry[] = [
     id: "playwright",
     label: "Playwright (browser automation)",
     packageHint: "@playwright/mcp",
-    mcp: "playwright",
+    ref: "playwright",
+    checkName: "navigate",
     tool: "browser_navigate",
     args: { url: "about:blank" },
     caveats:
       "Needs a Chromium binary reachable inside the execution environment. " +
       "The shipped Playwright system template pins an exact version and " +
       "passes `--executable-path` for its own base image — copy neither " +
-      "verbatim; match both to whatever image this step actually runs in. " +
-      "Add `--headless` for a `workspace` step with no display.",
+      "verbatim; the server's definition must match both to whatever image " +
+      "this step actually runs in, and add `--headless` for a `workspace` " +
+      "step with no display. If the repository does not define the server, " +
+      'write it inline as `type: "local"` with a command the user confirms ' +
+      "for that environment, keeping the same check.",
   },
   {
     id: "postgres",
     label: "Postgres (read-only database access)",
     packageHint: "postgres-mcp",
-    mcp: "postgres",
+    ref: "postgres",
+    checkName: "listSchemas",
     tool: "list_schemas",
     args: {},
     caveats:
-      "Launched with `uvx`, not `npx` — it is a Python package. Needs a " +
-      "real connection string on the server's `environment`, referenced as " +
-      "`{env:VAR}`; never inline a connection string as a health check " +
-      "argument or write it into the command.",
+      "Launched with `uvx`, not `npx` — it is a Python package. The " +
+      "server's definition must read its connection string from the " +
+      "environment as `{env:VAR}`; that variable is then required " +
+      "automatically. If the repository does not define the server, write " +
+      'it inline as `type: "local"` with the connection string in ' +
+      "`environment` as `{env:VAR}`, keeping the same check. Never inline a " +
+      "connection string as a health check argument or write it into the " +
+      "command.",
   },
 ];

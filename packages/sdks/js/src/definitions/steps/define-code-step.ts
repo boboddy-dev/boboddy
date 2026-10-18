@@ -178,7 +178,6 @@ export function codeStep<
       })),
     ],
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
     envJson,
     ...(repo !== undefined ? { repo } : {}),

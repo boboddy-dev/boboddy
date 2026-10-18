@@ -16,6 +16,8 @@ export const AnalyticsEvents = {
   ProjectCreated: "project_created",
   PipelineCreated: "pipeline_created",
   PipelineRunCompleted: "pipeline_run_completed",
+  ArtifactProduced: "artifact_produced",
+  InvestigationReportProduced: "investigation_report_produced",
   InviteAccepted: "invite_accepted",
   GithubAppInstalled: "github_app_installed",
   // Captured by `@boboddy/growth` when a visitor opens a `/s/<code>` share
@@ -85,6 +87,29 @@ export type PipelineRunCompletedProperties = {
   status: PipelineRunCompletedStatus;
   trigger: "user" | "system";
   duration_ms: number;
+};
+
+/**
+ * One stored step artifact. `kind` mirrors `ArtifactKind` in `@boboddy/sdk`;
+ * the artifact's path is left out because it is named by the agent.
+ */
+export type ArtifactProducedProperties = {
+  project_id: string;
+  task_id: string;
+  artifact_id: string;
+  kind: "generic" | "playwright-trace";
+};
+
+/**
+ * A succeeded step whose result carries a non-empty `report` string, the
+ * default pipeline's investigation output. Only booleans derived from the
+ * result are sent, never its text.
+ */
+export type InvestigationReportProducedProperties = {
+  project_id: string;
+  task_id: string;
+  reproduced: boolean;
+  has_trace: boolean;
 };
 
 export type InviteAcceptedProperties = {
@@ -226,6 +251,8 @@ export type AnalyticsEventProperties = {
   project_created: ProjectCreatedProperties;
   pipeline_created: PipelineCreatedProperties;
   pipeline_run_completed: PipelineRunCompletedProperties;
+  artifact_produced: ArtifactProducedProperties;
+  investigation_report_produced: InvestigationReportProducedProperties;
   invite_accepted: InviteAcceptedProperties;
   github_app_installed: GithubAppInstalledProperties;
   share_link_clicked: ShareLinkClickedProperties;

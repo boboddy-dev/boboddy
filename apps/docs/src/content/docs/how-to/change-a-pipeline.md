@@ -23,7 +23,7 @@ first and fixes it before anything else.
 
 It only reads the local files. If a teammate pushed definitions that aren't in
 your checkout, pull them first with
-[`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-projectid).
+[`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-project).
 
 ## Agree on the size of the change
 
@@ -32,7 +32,7 @@ yes:
 
 | Verdict          | What changes                                                                                     |
 | ---------------- | ------------------------------------------------------------------------------------------------ |
-| **tweak**        | An existing pipeline: its prompts, a gate, an added step                                          |
+| **tweak**        | An existing pipeline: its prompts, its servers, an added step                                     |
 | **route**        | `default-pipeline-assignment.ts`, or a `route(...)` outcome, so items like this one reach an existing pipeline |
 | **new pipeline** | A new file, for a class of work item that needs a genuinely different shape                      |
 

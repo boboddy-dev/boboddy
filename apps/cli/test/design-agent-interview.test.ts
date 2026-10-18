@@ -39,12 +39,8 @@ describe("composed prompt covers the required sections", () => {
 
   test.each([
     // Authoring reference, from AUTHORING.md
-    "## 7. Archetype catalog",
-    "A. Browser / deployed-app reproduction",
-    "B. Code-level failing-test reproduction",
-    "C. Read-only data / state investigation",
-    "D. Triage / intake quality scoring",
-    "E. Router → other pipelines",
+    "## 7. The default pipeline",
+    "#### `bug-pipeline.ts`",
     "## 8. Writing a good `agentPrompt`",
     "## 9. Validate, then push",
     "bun run typecheck",
@@ -52,18 +48,6 @@ describe("composed prompt covers the required sections", () => {
     "`sourcePath` is NOT type-checked",
   ])("authoring section present: %s", (needle) => {
     expect(prompt).toContain(needle);
-  });
-
-  test("the devcontainer phase is reached before anything is authored", () => {
-    // Ordering is the requirement, not just presence: a pipeline is worthless in
-    // a repo whose steps have no container to run in, and the agent finishes the
-    // session at the push. Authoring the devcontainer after that never happens.
-    expect(prompt.indexOf(PHASE.devcontainer)).toBeGreaterThan(
-      prompt.indexOf(PHASE.proposals),
-    );
-    expect(prompt.indexOf(PHASE.devcontainer)).toBeLessThan(
-      prompt.indexOf(PHASE.build),
-    );
   });
 
   test("every phase cross-reference points at the phase it means", () => {
@@ -81,10 +65,10 @@ describe("composed prompt covers the required sections", () => {
 
     // The two that carry real meaning, pinned by what the phase is called rather
     // than by its number.
-    expectPhrase(prompt, "you need real field names in phase 8");
-    expect(PHASE_HEADINGS[8]).toBe(PHASE.assignment);
-    expectPhrase(prompt, "writing one is phase 6");
-    expect(PHASE_HEADINGS[6]).toBe(PHASE.devcontainer);
+    expectPhrase(prompt, 'see "Secrets" in phase 6');
+    expect(PHASE_HEADINGS[6]).toBe(PHASE.build);
+    expectPhrase(prompt, "writing one is phase 5");
+    expect(PHASE_HEADINGS[5]).toBe(PHASE.devcontainer);
   });
 
   test("the devcontainer phase is reached before anything is authored", () => {
@@ -92,7 +76,7 @@ describe("composed prompt covers the required sections", () => {
     // a repo whose steps have no container to run in, and the agent finishes the
     // session at the push. Authoring the devcontainer after that never happens.
     expect(prompt.indexOf(PHASE.devcontainer)).toBeGreaterThan(
-      prompt.indexOf(PHASE.proposals),
+      prompt.indexOf(PHASE.changeSize),
     );
     expect(prompt.indexOf(PHASE.devcontainer)).toBeLessThan(
       prompt.indexOf(PHASE.build),
@@ -130,11 +114,16 @@ describe("the interview is anchored to the seeded work item", () => {
     expect(goal.match(/^- /gm)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
-  test("the reachability probe is phrased through the item", () => {
+  test("the goal question proposes the default deliverable (D3)", () => {
+    const goal = sectionBetween(prompt, PHASE.goal, PHASE.reachability);
     expectPhrase(
-      prompt,
-      "To make progress on this ticket yourself, what's the first thing you'd do",
+      goal,
+      "an investigation report and a Playwright trace that reproduces the bug, plus a failing test and a candidate fix",
     );
+  });
+
+  test("the reachability probe is phrased through the item", () => {
+    expectPhrase(prompt, "To reproduce this one, is there a running instance");
   });
 
   test("the no-touch probe is phrased through the item", () => {
@@ -167,7 +156,7 @@ describe("edit sessions gate file edits behind a confirmed verdict", () => {
   const gate = sectionBetween(
     buildPipelineDesignerPrompt(),
     PHASE.changeSize,
-    PHASE.proposals,
+    PHASE.devcontainer,
   );
 
   test.each(["**tweak**", "**route**", "**new pipeline**"])(
@@ -311,58 +300,165 @@ describe("the assignment phase tells the truth about when it fires", () => {
 });
 
 describe("orientation discovers project tools before the interview asks about them", () => {
-  // Phase 1 is "read first, never ask for something you can discover" — a
-  // project's own `.opencode/opencode.json[c]` and `.opencode/tools/` are
-  // exactly that kind of discoverable fact, and every MCP server or tool
-  // declared there is already reachable for every workspace step without the
-  // designer redeclaring it.
+  // Phase 1 is "read first, never ask for something you can discover" — the
+  // preflight's discovered-tools manifest records every MCP server and skill
+  // the repository defines, with each server's listed tools. A step reaches
+  // a server only through a `ref` (D12), so phase 3 asks which ones to use
+  // and phase 6 asks which listed tool each health check calls (D14).
   const prompt = buildPipelineDesignerPrompt();
   const orient = sectionBetween(prompt, PHASE.orient, PHASE.goal);
+  const reachability = sectionBetween(
+    prompt,
+    PHASE.reachability,
+    PHASE.changeSize,
+  );
+  const build = sectionBetween(prompt, PHASE.build, PHASE.assignment);
 
-  test("phase 1 reads the project's own opencode config and tools", () => {
-    expectPhrase(orient, "Read `.opencode/opencode.json` or");
+  test("phase 1 reads the discovered-tools manifest, falling back to the config files", () => {
+    expectPhrase(
+      orient,
+      "Read the discovered-tools manifest at the path the opening message names",
+    );
+    expectPhrase(
+      orient,
+      "If no manifest was written, read the repository's MCP config files",
+    );
     expectPhrase(orient, "list `.opencode/tools/`");
   });
 
-  test("what phase 1 finds there is not re-asked about in phase 3", () => {
+  test("phase 1 says a step reaches a server only through a defineMcp, never natively", () => {
     expectPhrase(
       orient,
-      "you do not ask the user whether it exists",
+      "A `workspace` step gets only the MCP servers it lists",
     );
-    const reachability = sectionBetween(prompt, PHASE.reachability, PHASE.changeSize);
+    expectPhrase(
+      orient,
+      "a step reaches one with a `defineMcp` mounted under `mcps`",
+    );
+    expect(orient).not.toContain("loads natively");
+    expect(orient).not.toContain("do not redeclare");
+  });
+
+  test("what phase 1 finds there is not re-asked about in phase 3", () => {
+    expectPhrase(orient, "You do not ask the user whether any of these exist");
     expectPhrase(
       reachability,
-      "Already declared in `.opencode/opencode.json[c]` or `.opencode/tools/`? Say",
+      "Already defined as an MCP server in the repository? Say",
     );
   });
 
-  test("mcpServers in the authoring reference points back at the same discovery", () => {
+  test("phase 3 presents the servers and asks which the investigate step uses", () => {
+    expectPhrase(
+      reachability,
+      "Show the repository's MCP servers from phase 1",
+    );
+    expectPhrase(
+      reachability,
+      "ask which of them the investigate step should use",
+    );
+    expectPhrase(reachability, "`unavailable` (name the missing env var");
+  });
+
+  test("phase 6 asks per chosen server which listed tool its health check calls, and with what args", () => {
+    expectPhrase(
+      build,
+      "**Every server the user picked in phase 3 gets a health check**",
+    );
+    expectPhrase(build, "`readOnlyHint: true` first");
+    expectPhrase(build, "ask what arguments to call it with");
+  });
+
+  test("phase 6 gives every step mounting a server its check, required or warn by dependence, plus cli checks", () => {
+    expectPhrase(
+      build,
+      "Define each server once per file and mount it on every step that uses it",
+    );
+    expectPhrase(build, "every such step gets that server's check");
+    expectPhrase(
+      build,
+      "Keep its checks `required` when the step cannot do its job",
+    );
+    expectPhrase(build, "set its checks to `warn` when it only helps");
+    expectPhrase(build, "never by copying the server");
+    expectPhrase(
+      build,
+      "the Playwright CLI on the step that drives the browser",
+    );
+    expectPhrase(
+      build,
+      "the test runner on every step that writes or runs tests",
+    );
+    expectPhrase(build, "`npx --no-install`");
+  });
+
+  test("mcps in the authoring reference says a step gets only the servers it lists", () => {
+    expectPhrase(prompt, "A step gets **only** the servers it lists in `mcps`");
     expectPhrase(
       prompt,
-      "per-step MCP servers **beyond what the project already configures**",
+      "`defineMcp` is the only way to give a step an MCP server or an MCP health check",
+    );
+    expectNoPhrase(prompt, "mcpServers");
+    expectPhrase(
+      prompt,
+      "**Define each server once per file, and override it per step.**",
+    );
+    expectPhrase(
+      prompt,
+      "against the repository only — never the user's global OpenCode config",
     );
   });
 });
 
-describe("reachability is elicited as the user's own step-by-step process", () => {
+describe("the interview configures the default pipeline rather than choosing one", () => {
+  const prompt = buildPipelineDesignerPrompt();
   const reachability = sectionBetween(
-    buildPipelineDesignerPrompt(),
+    prompt,
     PHASE.reachability,
     PHASE.changeSize,
   );
+  const build = sectionBetween(prompt, PHASE.build, PHASE.assignment);
 
-  test("asks for an ordered walkthrough naming a tool per step, not a checklist", () => {
-    expectPhrase(reachability, "Get it as their **step-by-step process**");
-    expectPhrase(reachability, "what tool would you use for it");
+  test("phase 3 asks only about reach, tools, and what must never be touched", () => {
+    expect(reachability).toContain("You need three things, and nothing else");
+    expect(reachability).toContain("**a. What the agent can reach.**");
+    expect(reachability).toContain("**b. Which discovered tools to use.**");
+    expect(reachability).toContain("**c. What must never be touched.**");
+    expect(reachability.match(/^\*\*[a-z]\. /gmu)?.length).toBe(3);
+    // The old phase 3 also asked how representative the item was.
+    expectNoPhrase(reachability, "How representative this item is");
   });
 
-  test("keeps the concrete-category fallback for items with nothing to walk through", () => {
+  test("reachability configures investigateAndReproduce, not a pipeline shape", () => {
     expectPhrase(
       reachability,
-      'the item has no real "how would I do this"',
+      "this phase only decides how its `investigateAndReproduce` step is configured",
     );
-    // The original menu survives as a fallback, not the primary ask.
-    expectPhrase(reachability, "A read-only database, warehouse, or read replica?");
+    expectPhrase(build, "Never pick a different shape");
+  });
+
+  test("no reachable app means no trace, said out loud", () => {
+    expectPhrase(
+      reachability,
+      "there is no trace, and the report and the failing test carry the evidence",
+    );
+    expectPhrase(
+      build,
+      "With no reachable app it gets no browser and writes no trace",
+    );
+  });
+
+  test("ranked options and the archetype catalog are gone", () => {
+    expectNoPhrase(prompt, "ranked options");
+    expectNoPhrase(prompt, "archetype");
+  });
+
+  test("no gates by default (D6)", () => {
+    expectNoPhrase(build, "Gate on `block`");
+    expectNoPhrase(build, "define what confidence means");
+    expectPhrase(
+      build,
+      "Add no `blockWhen` gates unless the user asks for one",
+    );
   });
 });
 
@@ -371,32 +467,23 @@ describe("secrets are named, never asked for or written as values", () => {
   const build = sectionBetween(prompt, PHASE.build, PHASE.assignment);
   const close = sectionBetween(prompt, PHASE.close, "# How to behave");
 
-  test("phase 7 tells the agent to ask for the variable name, never the value", () => {
-    expectPhrase(
-      build,
-      "Secrets are a fact you never ask for directly",
-    );
+  test("phase 6 tells the agent to ask for the variable name, never the value", () => {
+    expectPhrase(build, "Secrets are a fact you never ask for directly");
     expectPhrase(build, "never the value itself");
   });
 
-  test("phase 7 routes new secrets into .boboddy/.env.example, never .env", () => {
+  test("phase 6 routes new secrets into .boboddy/.env.example, never .env", () => {
     expectPhrase(build, "Add `VAR=` to `.boboddy/.env.example`");
     expectPhrase(build, "never write to `.boboddy/.env` itself");
   });
 
-  test("phase 10 tells the user by name that .env needs real values", () => {
-    expectPhrase(
-      close,
-      "name every variable in",
-    );
+  test("phase 9 tells the user by name that .env needs real values", () => {
+    expectPhrase(close, "name every variable in");
     expectPhrase(close, "fill in the real values themselves");
   });
 
-  test("the authoring reference repeats the same rule for a step's mcpServers", () => {
-    expectPhrase(
-      prompt,
-      "Never write a secret **value** into a step file",
-    );
+  test("the authoring reference repeats the same rule for a step's MCP servers", () => {
+    expectPhrase(prompt, "Never write a secret **value** into a step file");
     expectPhrase(
       prompt,
       "`.boboddy/.env` itself is never a file you create or edit",

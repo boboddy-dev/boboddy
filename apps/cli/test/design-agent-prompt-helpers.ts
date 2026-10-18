@@ -47,12 +47,11 @@ export const PHASE = {
   goal: "## 2. Open with the goal",
   reachability: "## 3. Establish reachability",
   changeSize: "## 4. Name the change size",
-  proposals: "## 5. Propose 2–3 ranked options",
-  devcontainer: "## 6. Author a devcontainer if there is none",
-  build: "## 7. Build it",
-  assignment: "## 8. Wire the assignment",
-  validate: "## 9. Validate",
-  close: "## 10. Close",
+  devcontainer: "## 5. Author a devcontainer if there is none",
+  build: "## 6. Build it",
+  assignment: "## 7. Wire the assignment",
+  validate: "## 8. Validate",
+  close: "## 9. Close",
 } as const;
 
 /**

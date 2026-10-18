@@ -57,9 +57,10 @@ import { createSignInPorts, ensureSignedIn } from "../lib/ensure-signed-in";
  * non-interactive one stops with "run `boboddy auth login`". See
  * `lib/ensure-signed-in.ts`.
  *
- * The AI provider is only *reported*, never required: `init` checks for an
- * `auth.json` entry or a recognized provider env var without downloading the
- * runtime, and says what it found. Connecting one is the designer's job — the
+ * The AI provider is only *reported*, never required: `init` checks the
+ * already-provisioned runtime's `auth export`, a v1 `auth.json` entry, or a
+ * recognized provider env var without downloading the runtime, and says what
+ * it found. Connecting one is the designer's job — the
  * `pipelines design` preflight runs `opencode auth login` right before the TUI
  * launches. See `lib/init-provider-notice.ts` and
  * `lib/design-provider-connect.ts`.
@@ -112,7 +113,7 @@ export function buildDesignerHandoffPorts(input: {
   repoRoot: string;
   confirmLaunch: () => Promise<boolean>;
   launchDesign: (args: {
-    projectId: string | undefined;
+    project: string | undefined;
     baseUrl: string | undefined;
     workItemId: string | undefined;
     studio: boolean;
@@ -123,7 +124,7 @@ export function buildDesignerHandoffPorts(input: {
     confirmLaunch: input.confirmLaunch,
     launchDesign: () =>
       input.launchDesign({
-        projectId: undefined,
+        project: undefined,
         baseUrl: input.baseUrl,
         workItemId: input.workItemId,
         studio: input.studio ?? true,
@@ -171,7 +172,7 @@ export async function linkInitProject(input: {
   const { baseUrl, interactive, reporter, client, headers, repo, ports } =
     input;
 
-  const task = reporter.startTask("Configuring project…");
+  const task = reporter.startActivity("Configuring project…");
   // The remaining steps are idempotent either way, so a re-run still checks
   // the devcontainer and offers the handoff instead of exiting silently.
   const setupResult = await localConfigSetup({
@@ -273,7 +274,7 @@ function runInit(argv: ArgumentsCamelCase<InitArguments>): Promise<void> {
       ports: createSignInPorts({ reporter, logger }),
     });
 
-    const t1 = reporter.startTask("Verifying requirements…");
+    const t1 = reporter.startActivity("Verifying requirements…");
     let verified;
     try {
       verified = await verifyRequirements({ baseUrl });

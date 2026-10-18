@@ -12,7 +12,7 @@ describe("healthCheckSchema", () => {
       tool: "browser_navigate",
       mcp: "playwright",
       severity: "required",
-      timeoutMs: 15000,
+      timeoutSeconds: 15,
     });
   });
 
@@ -33,6 +33,32 @@ describe("healthCheckSchema", () => {
     ).toThrow();
   });
 
+  test.concurrent("rejects the removed timeoutMs field", () => {
+    expect(() =>
+      healthCheckSchema.parse({
+        tool: "browser_navigate",
+        timeoutMs: 15000,
+      }),
+    ).toThrow();
+  });
+
+  test.concurrent("accepts a fractional timeoutSeconds", () => {
+    const result = healthCheckSchema.parse({
+      tool: "browser_navigate",
+      timeoutSeconds: 0.5,
+    });
+    expect(result).toMatchObject({ timeoutSeconds: 0.5 });
+  });
+
+  test.concurrent("rejects a timeoutSeconds of zero or above an hour", () => {
+    expect(() =>
+      healthCheckSchema.parse({ tool: "browser_navigate", timeoutSeconds: 0 }),
+    ).toThrow();
+    expect(() =>
+      healthCheckSchema.parse({ tool: "browser_navigate", timeoutSeconds: 3601 }),
+    ).toThrow();
+  });
+
   test.concurrent("parses a kind: 'cli' shape, defaulting expectExitCode to 0", () => {
     const result = healthCheckSchema.parse({
       kind: "cli",
@@ -43,7 +69,7 @@ describe("healthCheckSchema", () => {
       command: ["gh", "--version"],
       expectExitCode: 0,
       severity: "required",
-      timeoutMs: 15000,
+      timeoutSeconds: 15,
     });
   });
 

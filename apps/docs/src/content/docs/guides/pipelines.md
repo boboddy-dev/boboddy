@@ -39,7 +39,7 @@ Every path through the pipeline ends at a `succeed` or `fail` state (`{ kind: "s
 
 ## Scaffold pipeline definitions
 
-Pipeline files live in `.boboddy/pipeline-builder/`. To edit what's already on the server by hand, the loop is [`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-projectid) → install dependencies → `npm run typecheck` → [`boboddy pipelines push`](/boboddy/reference/cli/#boboddy-pipelines-push-projectid). To start from nothing, see [`boboddy pipelines init`](/boboddy/reference/cli/#boboddy-pipelines-init) for when to use `design` instead.
+Pipeline files live in `.boboddy/pipeline-builder/`. To edit what's already on the server by hand, the loop is [`boboddy pipelines pull`](/boboddy/reference/cli/#boboddy-pipelines-pull-project) → install dependencies → `npm run typecheck` → [`boboddy pipelines push`](/boboddy/reference/cli/#boboddy-pipelines-push-project). To start from nothing, see [`boboddy pipelines init`](/boboddy/reference/cli/#boboddy-pipelines-init) for when to use `design` instead.
 
 ## `definePipeline()` options
 
@@ -181,31 +181,7 @@ No condition's signal argument is type-checked. `blockWhen`, a `choice` branch's
 
 ## Plugins in pipeline steps
 
-Opencode plugins are configured on the `defineStep()` itself, not on a state's `input` option. When that step runs inside a pipeline, Boboddy merges the step's `plugins` array into the generated Opencode config for that execution.
-
-Use plain package names for default plugin loading:
-
-```typescript
-import { defineStep } from "@boboddy/sdk/definitions/steps";
-
-export const reviewCodeStep = defineStep({
-  key: "review-code",
-  name: "Review Code",
-  agentPrompt: "Review the submitted code.",
-  plugins: ["opencode-wakatime", "opencode-helicone-session"],
-});
-```
-
-If a plugin needs configuration, use the tuple form `[packageName, options]`:
-
-```typescript
-plugins: [
-  "opencode-wakatime",
-  ["@my-org/plugin", { project: "platform" }],
-]
-```
-
-Plugin entries are deduplicated by package name when Boboddy combines your baseline Opencode config with the step-specific plugins.
+Pipelines and steps don't configure OpenCode plugins. Add plugins to `.opencode/opencode.json` in your repo; the OpenCode that runs each pipeline step loads that file. See [Plugins](/boboddy/guides/steps/#plugins).
 
 ## Timeouts
 

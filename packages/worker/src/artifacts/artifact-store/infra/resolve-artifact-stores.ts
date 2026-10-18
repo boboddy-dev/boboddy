@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { getArtifactRetentionSettings } from "../../../auth/session/infra/config-storage";
 import { ConfigurationError } from "../../../lib/errors";
-import type { RemoteArtifactUploader } from "../../../work/step-execution/contracts/process-project-work-types";
+import type { RemoteArtifactUploader } from "../../../work/task/contracts/process-project-work-types";
 import type { ArtifactStore } from "../domain/artifact-store";
 import { CompositeArtifactStore } from "./composite-artifact-store";
 import { LocalArtifactStore } from "./local-artifact-store";

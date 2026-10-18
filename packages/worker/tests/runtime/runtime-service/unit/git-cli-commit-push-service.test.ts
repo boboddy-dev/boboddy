@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
 import { GitCliCommitPushService } from "../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
-import { WORK_BRANCH_EXCLUDE_PATHS } from "../../../../src/work/step-execution/infra/work-branch-manager";
+import { WORK_BRANCH_EXCLUDE_PATHS } from "../../../../src/work/task/infra/work-branch-manager";
 import { git, writeRepoFile } from "./git-test-fixtures";
 
 async function setupFixture(): Promise<{
@@ -127,7 +127,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step 2",
+          message: "boboddy: task 2",
           excludePaths: WORK_BRANCH_EXCLUDE_PATHS,
         });
         expect(result.committed).toBe(true);
@@ -182,7 +182,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step 3",
+          message: "boboddy: task 3",
           excludePaths: WORK_BRANCH_EXCLUDE_PATHS,
         });
         expect(result.committed).toBe(true);
@@ -229,7 +229,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step alt",
+          message: "boboddy: task alt",
           excludePaths: [...WORK_BRANCH_EXCLUDE_PATHS, customConfig],
         });
         expect(result.committed).toBe(true);
@@ -263,7 +263,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step missing",
+          message: "boboddy: task missing",
           excludePaths: [
             ...WORK_BRANCH_EXCLUDE_PATHS,
             "devcontainer.json",
@@ -314,7 +314,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step ignored",
+          message: "boboddy: task ignored",
           excludePaths: [...WORK_BRANCH_EXCLUDE_PATHS, ignoredDir],
         });
         expect(result.committed).toBe(true);
@@ -349,7 +349,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step 4",
+          message: "boboddy: task 4",
           excludePaths: WORK_BRANCH_EXCLUDE_PATHS,
         });
         expect(result.committed).toBe(false);
@@ -371,7 +371,7 @@ describe("GitCliCommitPushService", () => {
         await writeRepoFile(workspace, "src/push.ts", "export const z = 3;\n");
         await service.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step 5",
+          message: "boboddy: task 5",
           excludePaths: WORK_BRANCH_EXCLUDE_PATHS,
         });
 
@@ -445,7 +445,7 @@ describe("GitCliCommitPushService", () => {
 
         const result = await probe.commitAll({
           workspacePath: workspace,
-          message: "boboddy: step 6",
+          message: "boboddy: task 6",
           excludePaths: WORK_BRANCH_EXCLUDE_PATHS,
         });
 

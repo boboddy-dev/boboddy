@@ -10,6 +10,8 @@ const LOCAL_SSH_REMOTE = "git@github.com:Acme/My-Repo.git";
 type ProjectRow = {
   id: string;
   name: string;
+  slug: string;
+  ownerUsername: string | null;
   gitUrl: string;
   createdAt: string;
 };
@@ -17,6 +19,8 @@ type ProjectRow = {
 function project(overrides: Partial<ProjectRow> & { id: string }): ProjectRow {
   return {
     name: overrides.id,
+    slug: overrides.id,
+    ownerUsername: "acme",
     gitUrl: "https://github.com/acme/other.git",
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides,

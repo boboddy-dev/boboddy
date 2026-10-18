@@ -177,7 +177,7 @@ describe("boboddy pipelines", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toContain("projectId");
+      expect(result.stdout).toContain("project");
       expect(result.stdout).toContain("--base-url");
     });
 
@@ -196,7 +196,7 @@ describe("boboddy pipelines", () => {
       );
       try {
         const result = run(
-          ["pipelines", "design", "01966a2c-9494-7db5-aa46-0f8f5cbbe001"],
+          ["pipelines", "design", "acme/web-app"],
           { env: { HOME: fakeHome } },
         );
 
@@ -213,12 +213,12 @@ describe("boboddy pipelines", () => {
   });
 
   describe("pipelines push", () => {
-    concurrentTest("push --help shows projectId positional argument", () => {
+    concurrentTest("push --help shows project positional argument", () => {
       const result = run(["pipelines", "push", "--help"]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toContain("projectId");
+      expect(result.stdout).toContain("project");
     });
 
     concurrentTest("exits with error and helpful message when not signed in", () => {
@@ -227,7 +227,7 @@ describe("boboddy pipelines", () => {
       );
       try {
         const result = run(
-          ["pipelines", "push", "01966a2c-9494-7db5-aa46-0f8f5cbbe001"],
+          ["pipelines", "push", "acme/web-app"],
           { env: { HOME: fakeHome } },
         );
 
@@ -243,7 +243,7 @@ describe("boboddy pipelines", () => {
       }
     });
 
-    concurrentTest("fails without a projectId argument or config file", () => {
+    concurrentTest("fails without a project argument or config file", () => {
       const fakeProjectDir = mkdtempSync(
         join(tmpdir(), "boboddy-pipelines-push-noproject-"),
       );

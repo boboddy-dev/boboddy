@@ -24,14 +24,17 @@ import { captureMilestone } from "./telemetry";
  *   the project's own one (a `workspace` step without a managed runtime).
  *   Host-only and managed-runtime pipelines run without it. When it is needed
  *   and missing, the run is impossible, so there is nothing to ask.
- * - The pushed pipeline's first step passing a full dry run (#146) — container,
- *   OpenCode, MCP servers, declared health checks. This is the single source of
- *   truth for "is what was just pushed obviously broken", so it runs once,
- *   blocking, right before the confirm: queueing a run the agent that built it
- *   can no longer see fail would leave the user alone with the failure. Unlike
- *   the other two gates, its failure is recoverable in this same repository on
- *   the NEXT `pipelines design` session — see
- *   {@link DesignRunOfferPorts.runFirstStepDryRun}.
+ * - Every step's declared health checks passing in a dry run: one launch per
+ *   distinct runtime, each step's checks run against the launch it shares,
+ *   reported per step. This is the single source of truth for "is what was
+ *   just pushed obviously broken", so it runs once, blocking, right before the
+ *   confirm: queueing a run the agent that built it can no longer see fail
+ *   would leave the user alone with the failure. It blocks on what would stop
+ *   a real run (a `required` check, or an environment that will not come up)
+ *   and shows `warn` failures without blocking. Unlike the other two gates,
+ *   its failure is recoverable in this same repository on the NEXT
+ *   `pipelines design` session — see
+ *   {@link DesignRunOfferPorts.runPipelineHealthDryRun}.
  *
  * When the run does happen, every failure routes back into the design command —
  * the edit loop is the repair loop, and the agent can read the failure with the
@@ -44,8 +47,26 @@ import { captureMilestone } from "./telemetry";
  * without a terminal, a network, or a Docker daemon.
  */
 
-/** The one shape every first-step dry-run check produces, real or faked in tests. */
-export type DryRunGateResult = { ok: boolean; summary: string };
+/** One step's check (or launch problem) as the gate shows it. */
+export type HealthGateFinding = {
+  stepName: string;
+  /** The check's name, or `environment` / `mcp <server>` for a launch-level problem. */
+  checkName: string;
+  severity: "required" | "warn";
+  passed: boolean;
+  message: string;
+  /** Whether this finding alone stops the run offer. */
+  blocking: boolean;
+};
+
+/** The one shape the health-check gate produces, real or faked in tests. */
+export type DryRunGateResult = {
+  /** False exactly when some finding is `blocking`. */
+  ok: boolean;
+  /** One line naming every blocking finding, for the next session's marker. */
+  summary: string;
+  findings: HealthGateFinding[];
+};
 
 export interface DesignRunOfferPorts {
   /**
@@ -64,21 +85,18 @@ export interface DesignRunOfferPorts {
   /** Does this repository have a `.devcontainer/devcontainer.json`? */
   hasDevcontainer(): Promise<boolean>;
   /**
-   * Run the full dry run (container + OpenCode + MCP + declared health checks,
-   * #146) against `pipelineDefinitionId`'s FIRST step, resolved unambiguously
-   * from the pipeline id rather than guessed from a step id. Only the first
-   * step: validating every step in one launch is out of scope (silent MCP-key
-   * merge collisions, health-check abort semantics that would cross-contaminate
-   * one step's failure into another's, and mixed workspace/no_workspace modes
-   * with no single launch to merge into) — first-step validation is enough to
-   * catch an obviously-broken run without pretending to be more.
+   * Run every step's declared health checks for `pipelineDefinitionId`, one
+   * launch per distinct runtime, and report each step's outcome. Steps with no
+   * checks (code steps always) are skipped, and every launch is torn down.
    *
    * There is no self-healing in this same session: the TUI (and the agent
    * inside it) has already exited by the time this runs, so a failure here is
    * recorded for the NEXT `pipelines design` session's orientation to pick up
    * instead — see `design-run-offer-gate-marker.ts`.
    */
-  runFirstStepDryRun(pipelineDefinitionId: string): Promise<DryRunGateResult>;
+  runPipelineHealthDryRun(
+    pipelineDefinitionId: string,
+  ): Promise<DryRunGateResult>;
   /**
    * Ask whether to run it now. `false` on decline OR cancel: by this point the
    * session's work is already saved server-side, so there is nothing to fail.
@@ -100,6 +118,8 @@ export interface DesignRunOfferPorts {
 /** The one work item this session was about, and where it lives. */
 export type DesignRunTarget = {
   projectId: string;
+  /** The `owner/slug` ref `projectId` was resolved from; what commands show. */
+  project: string;
   workItemId: string;
   workItemTitle: string;
 };
@@ -136,12 +156,12 @@ export const NO_PIPELINE_MESSAGE =
   "Re-run the design session and let the agent finish — it pushes the pipeline " +
   "and its assignment together.";
 
-/** Prefix for the first-step dry-run gate's failure warning; the cause follows. */
-export const FIRST_STEP_DRY_RUN_FAILED_MESSAGE =
-  "The pushed pipeline's first step failed a dry run, so this would be an " +
-  "obviously-broken run:";
+/** Heads the health-check gate's failure; the failing steps follow, one per line. */
+export const HEALTH_DRY_RUN_FAILED_MESSAGE =
+  "A required health check failed in a dry run of the pushed pipeline, so this " +
+  "would be an obviously-broken run:";
 
-export const FIRST_STEP_DRY_RUN_FAILED_NEXT_STEPS =
+export const HEALTH_DRY_RUN_FAILED_NEXT_STEPS =
   "Run `boboddy pipelines design` again — the next session's orientation will " +
   "surface this and help you fix it before you push again.";
 
@@ -169,7 +189,7 @@ export const RUN_REPAIR_GUIDANCE =
 
 /** The whole command, ready to paste, scoped to this one work item. */
 export function formatRunCommand(target: DesignRunTarget): string {
-  return `boboddy work ${target.projectId} --work-item-id ${target.workItemId}`;
+  return `boboddy work ${target.project} --work-item-id ${target.workItemId}`;
 }
 
 /**
@@ -213,14 +233,17 @@ export async function runDesignRunOffer(
     return { ran: false };
   }
 
-  const dryRun = await runFirstStepDryRunWithProgress(
+  const dryRun = await runHealthDryRunWithProgress(
     reporter,
     ports,
     pipelineDefinitionId,
   );
   if (!dryRun.ok) {
-    reporter.warn(`${FIRST_STEP_DRY_RUN_FAILED_MESSAGE} ${dryRun.summary}`);
-    reporter.info(FIRST_STEP_DRY_RUN_FAILED_NEXT_STEPS);
+    reporter.warn(HEALTH_DRY_RUN_FAILED_MESSAGE);
+  }
+  reportHealthFindings(reporter, dryRun.findings);
+  if (!dryRun.ok) {
+    reporter.info(HEALTH_DRY_RUN_FAILED_NEXT_STEPS);
     reportRunLater(reporter, command);
     reportSkipped("dry_run_failed");
     return { ran: false };
@@ -257,31 +280,55 @@ export async function runDesignRunOffer(
 }
 
 /**
- * Run the first-step dry-run gate with visible progress — spinning up a
+ * Run the health-check gate with visible progress — spinning up a
  * devcontainer and an in-container OpenCode process is not instant, and a
  * silent multi-second pause here would read as a hang.
  */
-async function runFirstStepDryRunWithProgress(
+async function runHealthDryRunWithProgress(
   reporter: BaseReporter,
   ports: DesignRunOfferPorts,
   pipelineDefinitionId: string,
 ): Promise<DryRunGateResult> {
-  const task = reporter.startTask(
-    "Dry-running the pipeline's first step before offering to run it…",
+  const task = reporter.startActivity(
+    "Running every step's health checks before offering to run it…",
   );
   let result: DryRunGateResult;
   try {
-    result = await ports.runFirstStepDryRun(pipelineDefinitionId);
+    result = await ports.runPipelineHealthDryRun(pipelineDefinitionId);
   } catch (error) {
-    task.fail("Could not run the first-step dry run");
+    task.fail("Could not run the health-check dry run");
     throw error;
   }
   if (result.ok) {
-    task.succeed("First step healthy");
+    task.succeed("Health checks passed");
   } else {
-    task.fail("First step dry run failed");
+    task.fail("Health-check dry run failed");
   }
   return result;
+}
+
+/** `<step> › <check> (<severity>): <message>` — the per-step line the gate shows. */
+export function formatHealthFinding(finding: HealthGateFinding): string {
+  return `${finding.stepName} › ${finding.checkName} (${finding.severity}): ${finding.message}`;
+}
+
+/**
+ * Every check that did not pass, by step: blocking ones as errors, the rest
+ * (`warn` checks, MCP handshakes) as warnings that leave the offer open.
+ */
+function reportHealthFindings(
+  reporter: BaseReporter,
+  findings: readonly HealthGateFinding[],
+): void {
+  for (const finding of findings) {
+    if (finding.passed) continue;
+    const line = formatHealthFinding(finding);
+    if (finding.blocking) {
+      reporter.error(line);
+    } else {
+      reporter.warn(line);
+    }
+  }
 }
 
 /**
@@ -293,7 +340,7 @@ async function queueRunWithProgress(
   ports: DesignRunOfferPorts,
   pipelineDefinitionId: string,
 ): Promise<void> {
-  const task = reporter.startTask("Queuing the run…");
+  const task = reporter.startActivity("Queuing the run…");
   try {
     await ports.queueRun(pipelineDefinitionId);
   } catch (error) {

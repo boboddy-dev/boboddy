@@ -15,6 +15,8 @@ export type DefinitionValidationIssue = {
     | "health-check-mcp-server"
     | "health-check-double-qualified"
     | "env-var"
+    | "env-var-mcp"
+    | "env-var-applies"
     | "runtime"
     | "repo"
     | "unbound-required-input"

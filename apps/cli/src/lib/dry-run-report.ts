@@ -1,4 +1,14 @@
-import type { HealthCheckReport, WorkDryRunReport } from "@boboddy/worker";
+import {
+  listStepHealthCheckFindings,
+  type HealthCheckReport,
+  type PipelineHealthDryRunReport,
+  type WorkDryRunReport,
+} from "@boboddy/worker";
+import {
+  formatHealthFinding,
+  type DryRunGateResult,
+  type HealthGateFinding,
+} from "./design-run-offer";
 import type { BaseReporter } from "./reporter-types";
 
 /**
@@ -38,8 +48,8 @@ function describeHealthCheckOutcome(report: HealthCheckReport): {
       };
     }
     case "skipped":
-      // Never attempted because an earlier `required` check aborted the run —
-      // still counts against the report's `ok`, since the user asked for it.
+      // Never attempted — still counts against the report's `ok`, since the
+      // user asked for it.
       return {
         line: `${label}: skipped — an earlier required health check failed first`,
         severity: "warn",
@@ -48,56 +58,32 @@ function describeHealthCheckOutcome(report: HealthCheckReport): {
 }
 
 /**
- * A one-line cause for an unhealthy {@link WorkDryRunReport}, for contexts that
- * cannot render the full report — the post-push run-offer gate (#146) warns
- * with this instead of the full per-check breakdown, and persists it in the
- * marker that tells the next `pipelines design` session's orientation what
- * broke. Checked in the same order {@link renderDryRunReport} reports them, so
- * the first problem named here is the first one a full report would show too.
+ * The run-offer gate's {@link PipelineHealthDryRunReport} as the offer shows
+ * it: one finding per check (or launch problem) per step, and a one-line
+ * summary of the blocking ones for the marker the next `pipelines design`
+ * session's orientation reads.
  */
-export function summarizeDryRunFailure(report: WorkDryRunReport): string {
-  if (report.launchError) {
-    return `environment failed to launch: ${report.launchError}`;
-  }
-
-  const problems: string[] = [];
-
-  if (report.containerHealth && !report.containerHealth.healthy) {
-    problems.push(`container ${report.containerHealth.status}`);
-  }
-  if (report.opencodeHealth && !report.opencodeHealth.healthy) {
-    problems.push(
-      `OpenCode unhealthy${
-        report.opencodeHealth.detail ? ` (${report.opencodeHealth.detail})` : ""
-      }`,
-    );
-  }
-
-  const unhealthyMcpServers = report.mcpServers.filter(
-    (server) => !server.healthy,
-  );
-  if (unhealthyMcpServers.length > 0) {
-    problems.push(
-      `MCP server(s) unhealthy: ${unhealthyMcpServers
-        .map((server) => server.name)
-        .join(", ")}`,
-    );
-  }
-
-  const notPassedHealthChecks = report.healthChecks.filter(
-    (check) => check.outcome.kind !== "passed",
-  );
-  if (notPassedHealthChecks.length > 0) {
-    problems.push(
-      `health check(s) did not pass: ${notPassedHealthChecks
-        .map((check) => check.name)
-        .join(", ")}`,
-    );
-  }
-
-  return problems.length > 0
-    ? problems.join("; ")
-    : "dry run reported unhealthy with no further detail";
+export function toDryRunGateResult(
+  report: PipelineHealthDryRunReport,
+): DryRunGateResult {
+  const findings: HealthGateFinding[] = listStepHealthCheckFindings(
+    report.steps,
+  ).map((finding) => ({
+    stepName: finding.stepName,
+    checkName: finding.checkName,
+    severity: finding.severity,
+    passed: finding.outcome === "passed",
+    message: finding.message,
+    blocking: finding.blocking,
+  }));
+  const blocking = findings.filter((finding) => finding.blocking);
+  const summary =
+    blocking.length > 0
+      ? blocking.map(formatHealthFinding).join("; ")
+      : report.steps.length === 0
+        ? "no step declares health checks"
+        : "healthy";
+  return { ok: report.ok, summary, findings };
 }
 
 /**

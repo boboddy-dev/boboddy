@@ -1,4 +1,4 @@
-import type { Artifact, StepExecution } from "./lib/api-types";
+import type { Artifact, Task } from "./lib/api-types";
 import type { ExecutionStepItem } from "./lib/execution-step-items";
 import { statusGlyph } from "./lib/status-glyphs";
 
@@ -29,10 +29,10 @@ function renderJson(value: unknown, cap = MAX_JSON_RENDER_CHARS): string {
 
 export type FormatStepDetailInput = {
   stepItem: ExecutionStepItem;
-  /** The step's `StepExecution` row (has real `startedAt`/`completedAt` and,
+  /** The step's `Task` row (has real `startedAt`/`completedAt` and,
    * once terminal, `result.signals`) — `null` when the step run has no
-   * `stepExecutionId` yet (not yet claimed by a worker). */
-  stepExecution: StepExecution | null;
+   * `taskId` yet (not yet claimed by a worker). */
+  task: Task | null;
 };
 
 /**
@@ -42,7 +42,7 @@ export type FormatStepDetailInput = {
  * separately by `format-logs.ts` and {@link formatStepArtifacts}).
  */
 export function formatStepDetail(input: FormatStepDetailInput): string {
-  const { stepItem, stepExecution } = input;
+  const { stepItem, task } = input;
   const lines: string[] = [];
   const name = stepItem.definition?.name ?? stepItem.stepKey;
 
@@ -60,10 +60,10 @@ export function formatStepDetail(input: FormatStepDetailInput): string {
   lines.push(`Node kind: ${run.nodeKind}`);
   lines.push(`Work branch: ${run.workBranch ?? "—"}`);
   lines.push(
-    `Started:   ${stepExecution?.startedAt ?? "—"}`,
+    `Started:   ${task?.startedAt ?? "—"}`,
   );
   lines.push(
-    `Completed: ${stepExecution?.completedAt ?? "—"}`,
+    `Completed: ${task?.completedAt ?? "—"}`,
   );
 
   if (run.acceptedByUserId !== null) {
@@ -76,11 +76,11 @@ export function formatStepDetail(input: FormatStepDetailInput): string {
 
   lines.push("");
   lines.push("Signals:");
-  const signals = stepExecution?.result?.signals ?? [];
+  const signals = task?.result?.signals ?? [];
   if (signals.length === 0) {
     lines.push(
-      stepExecution === null
-        ? "  (no step execution yet)"
+      task === null
+        ? "  (no task yet)"
         : "  (none)",
     );
   } else {

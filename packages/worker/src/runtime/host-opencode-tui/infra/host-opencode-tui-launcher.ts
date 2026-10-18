@@ -17,7 +17,7 @@ import {
  *
  * This is the CLI-facing counterpart to `HostOpencodeBootstrap`, which starts a
  * DETACHED `opencode serve` on a loopback port for unattended `no_workspace`
- * step executions. Here the requirements are the opposite:
+ * tasks. Here the requirements are the opposite:
  *
  *   - attached to the user's terminal (`stdio: "inherit"`), not detached
  *   - no port, no health polling, no log file
@@ -118,9 +118,10 @@ export type LaunchOpencodeTuiInput = {
   launcherPath: string;
   /** Directory the TUI opens as its project root. */
   cwd: string;
-  /** Agent name to boot into. Also set as `default_agent` in the config. */
-  agent: string;
-  /** Serialized config for `OPENCODE_CONFIG_CONTENT`. */
+  /**
+   * Serialized config for `OPENCODE_CONFIG_CONTENT`. Selects the agent to boot
+   * into via `default_agent`.
+   */
   configContent: string;
   /** Optional opening user message seeded into the session. */
   seedPrompt?: string | undefined;
@@ -140,15 +141,14 @@ export type LaunchOpencodeTuiResult = {
 /**
  * Build the argv for the interactive TUI.
  *
- * `--agent` is REQUIRED alongside `default_agent` in the config: `default_agent`
- * silently falls back to `build` when the name does not resolve, whereas the
- * flag fails loudly. Belt and braces.
+ * OpenCode v2 has no `--agent` flag; the agent comes from `default_agent` in
+ * the config overlay. `--standalone` runs the TUI against its own in-process
+ * server instead of attaching to a shared background one.
  */
 export function buildOpencodeTuiArgs(input: {
-  agent: string;
   seedPrompt?: string | undefined;
 }): string[] {
-  const args = ["--agent", input.agent];
+  const args = ["--standalone"];
   if (input.seedPrompt !== undefined && input.seedPrompt.length > 0) {
     args.push("--prompt", input.seedPrompt);
   }
@@ -181,7 +181,7 @@ export async function launchOpencodeTui(
   const spawnFn = input.spawnFn ?? spawn;
   const child = spawnFn(
     input.launcherPath,
-    buildOpencodeTuiArgs({ agent: input.agent, seedPrompt: input.seedPrompt }),
+    buildOpencodeTuiArgs({ seedPrompt: input.seedPrompt }),
     {
       cwd: input.cwd,
       env: buildOpencodeTuiEnv({
@@ -226,7 +226,7 @@ export async function launchOpencodeAuthLogin(
   input: LaunchOpencodeAuthLoginInput,
 ): Promise<LaunchOpencodeTuiResult> {
   const spawnFn = input.spawnFn ?? spawn;
-  const child = spawnFn(input.launcherPath, ["auth", "login"], {
+  const child = spawnFn(input.launcherPath, ["auth", "login", "--standalone"], {
     cwd: input.cwd ?? process.cwd(),
     env: { ...process.env, ...input.env },
     // Attached: `auth login` needs the real tty to prompt and read input.

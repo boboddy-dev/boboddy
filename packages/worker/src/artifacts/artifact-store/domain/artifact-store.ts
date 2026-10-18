@@ -1,7 +1,7 @@
 import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
 
 export type SaveArtifactInput = {
-  stepExecutionId: string;
+  taskId: string;
   sourcePath: string;
   relativeStorePath: string;
   /**
@@ -11,7 +11,7 @@ export type SaveArtifactInput = {
    */
   kind: ArtifactKind;
   /**
-   * Short-lived credential authorizing writes for this step execution. Local
+   * Short-lived credential authorizing writes for this task. Local
    * stores ignore it; the remote store requires it to obtain a presigned
    * upload URL and to record the artifact against the API.
    */

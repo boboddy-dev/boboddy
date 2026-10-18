@@ -48,7 +48,7 @@ export async function reportProviderStatus(input: {
 }): Promise<{ connected: boolean }> {
   const { reporter, ports } = input;
 
-  const task = reporter.startTask(PROVIDER_TASK_LABEL);
+  const task = reporter.startActivity(PROVIDER_TASK_LABEL);
   let check: OpencodeProviderCredentialCheck;
   try {
     check = await ports.checkCredentials();

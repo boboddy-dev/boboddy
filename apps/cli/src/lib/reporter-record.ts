@@ -1,13 +1,13 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import type { CliReporter, WorkEvent, WorkTask } from "./reporter-types";
+import type { CliReporter, WorkEvent, WorkActivity } from "./reporter-types";
 
 /**
  * One recorded reporter call. `t` is absolute epoch milliseconds so replays
  * can reconstruct both relative pacing and original wall-clock durations.
- * `startTask` calls are assigned a monotonically increasing `taskId`; the
- * returned task handle's calls are recorded as `task:update`/`task:succeed`/
- * `task:fail` referencing that id.
+ * `startActivity` calls are assigned a monotonically increasing `activityId`; the
+ * returned activity handle's calls are recorded as `activity:update`/`activity:succeed`/
+ * `activity:fail` referencing that id.
  */
 export type RecordedReporterCall = {
   t: number;
@@ -19,12 +19,12 @@ export type RecordedReporterCall = {
     | "warn"
     | "error"
     | "event"
-    | "startTask"
-    | "task:update"
-    | "task:succeed"
-    | "task:fail";
+    | "startActivity"
+    | "activity:update"
+    | "activity:succeed"
+    | "activity:fail";
   args: unknown[];
-  taskId?: number;
+  activityId?: number;
 };
 
 /**
@@ -38,7 +38,7 @@ export function createRecordingReporter(
   filePath: string,
 ): CliReporter {
   mkdirSync(path.dirname(filePath), { recursive: true });
-  let nextTaskId = 0;
+  let nextActivityId = 0;
 
   const record = (call: RecordedReporterCall): void => {
     appendFileSync(filePath, `${JSON.stringify(call)}\n`, "utf8");
@@ -47,12 +47,12 @@ export function createRecordingReporter(
   const recordSimple = (
     method: RecordedReporterCall["method"],
     args: unknown[],
-    taskId?: number,
+    activityId?: number,
   ): void => {
     record(
-      taskId === undefined
+      activityId === undefined
         ? { t: Date.now(), method, args }
-        : { t: Date.now(), method, args, taskId },
+        : { t: Date.now(), method, args, activityId },
     );
   };
 
@@ -85,22 +85,22 @@ export function createRecordingReporter(
       recordSimple("event", [event]);
       inner.event(event);
     },
-    startTask(message: string): WorkTask {
-      const taskId = nextTaskId++;
-      recordSimple("startTask", [message], taskId);
-      const task = inner.startTask(message);
+    startActivity(message: string): WorkActivity {
+      const activityId = nextActivityId++;
+      recordSimple("startActivity", [message], activityId);
+      const activity = inner.startActivity(message);
       return {
         update(next: string): void {
-          recordSimple("task:update", [next], taskId);
-          task.update(next);
+          recordSimple("activity:update", [next], activityId);
+          activity.update(next);
         },
         succeed(next?: string): void {
-          recordSimple("task:succeed", next === undefined ? [] : [next], taskId);
-          task.succeed(next);
+          recordSimple("activity:succeed", next === undefined ? [] : [next], activityId);
+          activity.succeed(next);
         },
         fail(next?: string): void {
-          recordSimple("task:fail", next === undefined ? [] : [next], taskId);
-          task.fail(next);
+          recordSimple("activity:fail", next === undefined ? [] : [next], activityId);
+          activity.fail(next);
         },
       };
     },

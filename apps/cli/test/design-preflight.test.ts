@@ -1,17 +1,23 @@
 import { describe, expect, test } from "bun:test";
-import type { OpencodeProviderCredentialCheck } from "@boboddy/worker";
 import {
   NO_PROJECT_ID_MESSAGE,
   NO_WORK_ITEM_MESSAGE,
-  runDesignPreflight,
-  type DesignPreflightPorts,
 } from "../src/lib/design-preflight";
 import {
   FREE_TEXT_WORK_ITEM,
-  type DesignWorkItem,
   type WorkItemDraft,
 } from "../src/lib/design-work-item";
-import { noopBaseReporter } from "../src/lib/reporter-types";
+import { FAKE_AGENT_TOOLS_MANIFEST_PATH } from "./design-agent-tools-fakes";
+import {
+  BASE_URL,
+  CREATED_ITEM,
+  INGESTED_ITEM,
+  LAUNCHER,
+  createPorts,
+  expectRejection,
+  idOf,
+  run,
+} from "./design-preflight-fakes";
 
 /**
  * The preflight's contract is "heal everything", so these tests are all about
@@ -20,161 +26,6 @@ import { noopBaseReporter } from "../src/lib/reporter-types";
  * Every port is a spy — no network, no filesystem, no 100 MB download.
  */
 
-const BASE_URL = "https://app.example.com";
-const LAUNCHER = "/home/u/.boboddy/runtimes/opencode/1.18.11/launch.sh";
-const OK_CREDENTIALS: OpencodeProviderCredentialCheck = {
-  ok: true,
-  providers: ["anthropic"],
-};
-
-const INGESTED_ITEM: DesignWorkItem = {
-  id: "0197f000-0000-7000-8000-000000000001",
-  title: "Checkout 500s on submit",
-  description: "Only on Safari 17.",
-  platform: "github",
-};
-
-const CREATED_ITEM: DesignWorkItem = {
-  id: "0197f000-0000-7000-8000-000000000002",
-  title: "Flaky login test",
-  description: "Fails one run in five.",
-  platform: "boboddy",
-};
-
-type Calls = {
-  login: number;
-  resolveProjectFromRepo: number;
-  promptProjectId: number;
-  listWorkItems: number;
-  getWorkItemById: number;
-  findWorkItemByUrl: number;
-  promptWorkItemChoice: number;
-  promptWorkItemSearch: number;
-  promptWorkItemText: number;
-  createWorkItem: number;
-  scaffoldBuilderDir: number;
-  installDependencies: number;
-  ensureRuntime: number;
-};
-
-type PortOverrides = Partial<DesignPreflightPorts>;
-
-function createPorts(overrides: PortOverrides = {}): {
-  ports: DesignPreflightPorts;
-  calls: Calls;
-} {
-  const calls: Calls = {
-    login: 0,
-    resolveProjectFromRepo: 0,
-    promptProjectId: 0,
-    listWorkItems: 0,
-    getWorkItemById: 0,
-    findWorkItemByUrl: 0,
-    promptWorkItemChoice: 0,
-    promptWorkItemSearch: 0,
-    promptWorkItemText: 0,
-    createWorkItem: 0,
-    scaffoldBuilderDir: 0,
-    installDependencies: 0,
-    ensureRuntime: 0,
-  };
-
-  // The "everything already set up" baseline; each test negates one thing.
-  const base: DesignPreflightPorts = {
-    loadSession: () => Promise.resolve({ email: "user@example.com" }),
-    login: () => {
-      calls.login += 1;
-      return Promise.resolve({ email: "fresh@example.com" });
-    },
-    readConfiguredProjectId: () => Promise.resolve("project-from-config"),
-    resolveProjectFromRepo: () => {
-      calls.resolveProjectFromRepo += 1;
-      return Promise.resolve("project-from-repo");
-    },
-    promptProjectId: () => {
-      calls.promptProjectId += 1;
-      return Promise.resolve("project-from-prompt");
-    },
-    listWorkItems: () => {
-      calls.listWorkItems += 1;
-      return Promise.resolve([INGESTED_ITEM]);
-    },
-    getWorkItemById: () => {
-      calls.getWorkItemById += 1;
-      return Promise.resolve(undefined);
-    },
-    findWorkItemByUrl: () => {
-      calls.findWorkItemByUrl += 1;
-      return Promise.resolve(undefined);
-    },
-    promptWorkItemChoice: () => {
-      calls.promptWorkItemChoice += 1;
-      return Promise.resolve(INGESTED_ITEM);
-    },
-    promptWorkItemSearch: () => {
-      calls.promptWorkItemSearch += 1;
-      return Promise.resolve(undefined);
-    },
-    promptWorkItemText: () => {
-      calls.promptWorkItemText += 1;
-      return Promise.resolve("Flaky login test\nFails one run in five.");
-    },
-    createWorkItem: () => {
-      calls.createWorkItem += 1;
-      return Promise.resolve(CREATED_ITEM);
-    },
-    builderDirExists: () => true,
-    scaffoldBuilderDir: () => {
-      calls.scaffoldBuilderDir += 1;
-    },
-    dependenciesInstalled: () => true,
-    installDependencies: () => {
-      calls.installDependencies += 1;
-      return Promise.resolve();
-    },
-    ensureRuntime: () => {
-      calls.ensureRuntime += 1;
-      return Promise.resolve(LAUNCHER);
-    },
-    checkCredentials: () => Promise.resolve(OK_CREDENTIALS),
-    detectInstalledTools: () => Promise.resolve([]),
-    runAuthLogin: () => Promise.reject(new Error("not expected")),
-  };
-
-  return { ports: { ...base, ...overrides }, calls };
-}
-
-/**
- * Await a rejection and hand back the error. Preferred over
- * `expect(...).rejects` here because it is genuinely awaited: these tests go on
- * to assert on side effects that must NOT have happened after the throw.
- */
-async function expectRejection(promise: Promise<unknown>): Promise<Error> {
-  try {
-    await promise;
-  } catch (error) {
-    if (error instanceof Error) {
-      return error;
-    }
-    throw new Error(`Expected an Error, received ${String(error)}`);
-  }
-  throw new Error("Expected the preflight to reject, but it resolved.");
-}
-
-function run(
-  ports: DesignPreflightPorts,
-  projectIdArgument?: string,
-  workItemIdArgument?: string,
-) {
-  return runDesignPreflight({
-    baseUrl: BASE_URL,
-    projectIdArgument,
-    workItemIdArgument,
-    reporter: noopBaseReporter,
-    ports,
-  });
-}
-
 describe("runDesignPreflight — happy path", () => {
   test("does nothing when every precondition is already satisfied", async () => {
     const { ports, calls } = createPorts();
@@ -182,14 +33,16 @@ describe("runDesignPreflight — happy path", () => {
     const result = await run(ports);
 
     expect(result).toEqual({
-      projectId: "project-from-config",
+      projectId: idOf("project-from-config"),
+      project: "project-from-config",
       workItem: INGESTED_ITEM,
       launcherPath: LAUNCHER,
       providers: ["anthropic"],
+      agentToolsManifestPath: FAKE_AGENT_TOOLS_MANIFEST_PATH,
     });
     expect(calls.login).toBe(0);
     expect(calls.resolveProjectFromRepo).toBe(0);
-    expect(calls.promptProjectId).toBe(0);
+    expect(calls.promptProject).toBe(0);
     expect(calls.createWorkItem).toBe(0);
     expect(calls.scaffoldBuilderDir).toBe(0);
     expect(calls.installDependencies).toBe(0);
@@ -197,76 +50,114 @@ describe("runDesignPreflight — happy path", () => {
   });
 });
 
-describe("runDesignPreflight — project id", () => {
+describe("runDesignPreflight — project", () => {
   test("the positional argument wins over the config", async () => {
     const { ports, calls } = createPorts();
 
     const result = await run(ports, "project-from-arg");
 
-    expect(result.projectId).toBe("project-from-arg");
+    expect(result.project).toBe("project-from-arg");
+    expect(result.projectId).toBe(idOf("project-from-arg"));
     expect(calls.resolveProjectFromRepo).toBe(0);
-    expect(calls.promptProjectId).toBe(0);
+    expect(calls.promptProject).toBe(0);
   });
 
   test("falls back to the config file", async () => {
     const { ports } = createPorts();
 
-    expect((await run(ports)).projectId).toBe("project-from-config");
+    expect((await run(ports)).project).toBe("project-from-config");
   });
 
   test("resolves the project from the repository when the config is empty", async () => {
     // The regression this pins: an unconfigured repo used to dead-end on a
     // prompt for a UUID the user had never seen.
     const { ports, calls } = createPorts({
-      readConfiguredProjectId: () => Promise.resolve(undefined),
+      readConfiguredProject: () => Promise.resolve(undefined),
     });
 
     const result = await run(ports);
 
-    expect(result.projectId).toBe("project-from-repo");
+    expect(result.project).toBe("project-from-repo");
     expect(calls.resolveProjectFromRepo).toBe(1);
-    expect(calls.promptProjectId).toBe(0);
+    expect(calls.promptProject).toBe(0);
   });
 
   test("treats a whitespace-only argument as absent", async () => {
     const { ports } = createPorts();
 
-    expect((await run(ports, "   ")).projectId).toBe("project-from-config");
+    expect((await run(ports, "   ")).project).toBe("project-from-config");
   });
 
   test("prompts only when the repository cannot be identified", async () => {
     const { ports, calls } = createPorts({
-      readConfiguredProjectId: () => Promise.resolve(undefined),
+      readConfiguredProject: () => Promise.resolve(undefined),
       resolveProjectFromRepo: () =>
         Promise.reject(new Error("no origin remote")),
     });
 
     const result = await run(ports);
 
-    expect(result.projectId).toBe("project-from-prompt");
-    expect(calls.promptProjectId).toBe(1);
+    expect(result.project).toBe("project-from-prompt");
+    expect(calls.promptProject).toBe(1);
   });
 
   test("prompts when the repository resolves to nothing", async () => {
     const { ports, calls } = createPorts({
-      readConfiguredProjectId: () => Promise.resolve(undefined),
+      readConfiguredProject: () => Promise.resolve(undefined),
       resolveProjectFromRepo: () => Promise.resolve(undefined),
     });
 
-    expect((await run(ports)).projectId).toBe("project-from-prompt");
-    expect(calls.promptProjectId).toBe(1);
+    expect((await run(ports)).project).toBe("project-from-prompt");
+    expect(calls.promptProject).toBe(1);
   });
 
   test("fails when the prompt is cancelled", async () => {
     const { ports } = createPorts({
-      readConfiguredProjectId: () => Promise.resolve(undefined),
+      readConfiguredProject: () => Promise.resolve(undefined),
       resolveProjectFromRepo: () => Promise.resolve(undefined),
-      promptProjectId: () => Promise.resolve(undefined),
+      promptProject: () => Promise.resolve(undefined),
     });
 
     const error = await expectRejection(run(ports));
 
     expect(error.message).toBe(NO_PROJECT_ID_MESSAGE);
+  });
+
+  test("resolves the chosen ref exactly once", async () => {
+    const seen: Array<{ baseUrl: string; ref: string }> = [];
+    const { ports } = createPorts({
+      resolveProjectRef: (input) => {
+        seen.push(input);
+        return Promise.resolve({ id: "uuid", owner: "acme", slug: "web-app" });
+      },
+    });
+
+    const result = await run(ports, "acme/web-app");
+
+    expect(seen).toEqual([{ baseUrl: BASE_URL, ref: "acme/web-app" }]);
+    expect(result).toMatchObject({
+      projectId: "uuid",
+      project: "acme/web-app",
+    });
+  });
+
+  test("fails before any work-item prompt when the ref does not resolve", async () => {
+    const { ports, calls } = createPorts({
+      resolveProjectRef: () =>
+        Promise.reject(
+          new Error(
+            "You don't have permission to design pipelines for acme/web-app.",
+          ),
+        ),
+    });
+
+    const error = await expectRejection(run(ports, "acme/web-app"));
+
+    expect(error.message).toBe(
+      "You don't have permission to design pipelines for acme/web-app.",
+    );
+    expect(calls.listWorkItems).toBe(0);
+    expect(calls.promptWorkItemChoice).toBe(0);
   });
 });
 
@@ -293,7 +184,10 @@ describe("runDesignPreflight — work item", () => {
 
     await run(ports, "project-from-arg");
 
-    expect(seen).toEqual({ baseUrl: BASE_URL, projectId: "project-from-arg" });
+    expect(seen).toEqual({
+      baseUrl: BASE_URL,
+      projectId: idOf("project-from-arg"),
+    });
   });
 
   test("skips the picker entirely when the project has no items", async () => {
@@ -325,7 +219,7 @@ describe("runDesignPreflight — work item", () => {
 
     expect(seen).toEqual({
       baseUrl: BASE_URL,
-      projectId: "project-from-arg",
+      projectId: idOf("project-from-arg"),
       draft: {
         title: "Flaky login test",
         description: "Fails one run in five.",

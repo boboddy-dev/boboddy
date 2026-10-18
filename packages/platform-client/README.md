@@ -25,7 +25,7 @@ audience and a different reason to exist:
 | Package | Audience | Abstraction level | Release blast radius |
 | --- | --- | --- | --- |
 | `@boboddy/sdk` | External pipeline-definition authors, published to npm | Raw generated HTTP client (`createBoboddyClient`) plus pipeline-definition authoring helpers | Public: a breaking change ships to every consumer outside this repo |
-| `packages/worker` | The CLI's write-side executor — devcontainer/Docker orchestration, running a step, pushing/pulling pipeline definitions | Built on `@boboddy/sdk`, adds auth, project config, and the whole step-execution runtime | Internal, but large — depended on by `apps/cli` directly |
+| `packages/worker` | The CLI's write-side executor — devcontainer/Docker orchestration, running a step, pushing/pulling pipeline definitions | Built on `@boboddy/sdk`, adds auth, project config, and the whole Task runtime | Internal, but large — depended on by `apps/cli` directly |
 | `packages/platform-client` (this package) | A human or agent debugging why an execution did what it did — read-only | Built on `@boboddy/sdk`, adds fetch-resolve-format logic for one read-heavy flow | Internal, narrow — no devcontainer/Docker/runtime dependencies |
 
 `@boboddy/sdk` is a *published* package for pipeline-definition authors —

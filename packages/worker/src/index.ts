@@ -69,6 +69,7 @@ export {
   loadProjectConfig,
   saveProjectConfig,
 } from "./project/project-config/infra/fs-project-config-repo";
+export { projectConfigRef } from "./project/project-config/domain/project-config";
 export type { ProjectConfig } from "./project/project-config/domain/project-config";
 export {
   resolveSourceBranch,
@@ -97,6 +98,37 @@ export {
 } from "./project/project-setup/application/resolve-git-repository";
 export type { ResolvedGitRepository } from "./project/project-setup/application/resolve-git-repository";
 export { verifyRequirements } from "./project/project-setup/application/verify-requirements";
+export { discoverRepoAgentTools } from "./project/agent-tools/infra/discover-repo-agent-tools";
+export type {
+  DiscoveredAgentTools,
+  DiscoveredMcpServer,
+  DiscoveredSkill,
+  SkippedAgentTool,
+} from "./project/agent-tools/domain/discovered-agent-tools";
+export {
+  AGENT_TOOLS_MANIFEST_CAVEATS,
+  AGENT_TOOLS_MANIFEST_FILENAME,
+  agentToolsManifestPath,
+  buildAgentToolsManifest,
+  missingRequiredEnv,
+} from "./project/agent-tools/domain/agent-tools-manifest";
+export type {
+  AgentToolsManifest,
+  ListedMcpTool,
+  ManifestMcpServer,
+  McpServerAvailability,
+} from "./project/agent-tools/domain/agent-tools-manifest";
+export {
+  DEFAULT_MCP_TOOL_LISTING_TIMEOUT_MS,
+  listMcpServerTools,
+} from "./project/agent-tools/application/list-mcp-server-tools";
+export type {
+  McpServerToolListing,
+  McpToolLister,
+} from "./project/agent-tools/application/list-mcp-server-tools";
+export { SdkMcpToolLister } from "./project/agent-tools/infra/sdk-mcp-tool-lister";
+export { writeAgentToolsManifest } from "./project/agent-tools/infra/fs-agent-tools-manifest";
+export { resolveHostHome } from "./runtime/runtime-service/domain/opencode-runtime-payload";
 export { RuntimeNetworkGarbageCollector } from "./runtime/runtime-gc/application/runtime-network-garbage-collector";
 export {
   DevcontainerCliLauncher,
@@ -117,8 +149,8 @@ export type {
 } from "./runtime/runtime-service/domain/opencode-runtime-payload";
 export {
   PIPELINE_DESIGNER_AGENT_NAME,
-  PIPELINE_DESIGNER_BASH_PERMISSIONS,
   PIPELINE_DESIGNER_EDIT_PERMISSIONS,
+  PIPELINE_DESIGNER_SHELL_PERMISSIONS,
   buildDesignerPermissions,
   buildOpencodeTuiConfig,
   resolvePermission,
@@ -126,11 +158,10 @@ export {
 } from "./runtime/host-opencode-tui/domain/opencode-tui-config";
 export type {
   BuildOpencodeTuiConfigInput,
-  OpencodeAgentPermissionConfig,
   OpencodeInjectedAgentConfig,
   OpencodeInjectedConfig,
-  OpencodePermissionAction,
-  OpencodePermissionRules,
+  OpencodePermissionEffect,
+  OpencodePermissionRule,
 } from "./runtime/host-opencode-tui/domain/opencode-tui-config";
 export {
   assertInteractiveTerminal,
@@ -197,27 +228,27 @@ export type {
   SaveArtifactInput,
   SaveArtifactResult,
 } from "./artifacts/artifact-store/domain/artifact-store";
-export { DefaultOpencodeStepRunner } from "./work/step-execution/infra/opencode-step-runner";
+export { DefaultOpencodeStepRunner } from "./work/task/infra/opencode-step-runner";
 export {
   processProjectWork,
   runProjectWork,
-} from "./work/step-execution/application/run-project-work";
+} from "./work/task/application/run-project-work";
 export type {
   ProcessProjectWorkDeps,
   ProcessProjectWorkOptions,
   ProcessProjectWorkResult,
   LocalRuntimeSessionStore,
-} from "./work/step-execution/application/run-project-work";
-export { noopReporter } from "./work/step-execution/contracts/work-reporter";
+} from "./work/task/application/run-project-work";
+export { noopReporter } from "./work/task/contracts/work-reporter";
 export type {
   WorkEvent,
   WorkReporter,
-  WorkTask,
-} from "./work/step-execution/contracts/work-reporter";
+  WorkActivity,
+} from "./work/task/contracts/work-reporter";
 export {
   runWorkDryRun,
   listProjectStepDefinitionsForDryRun,
-} from "./work/step-execution/application/run-work-dry-run";
+} from "./work/task/application/run-work-dry-run";
 export type {
   HealthCheckOutcome,
   HealthCheckReport,
@@ -225,12 +256,22 @@ export type {
   WorkDryRunOptions,
   WorkDryRunReport,
   WorkDryRunScope,
-} from "./work/step-execution/application/run-work-dry-run";
+} from "./work/task/application/run-work-dry-run";
 export {
   resolveFirstStepDefinitionId,
   runPipelineFirstStepDryRun,
-} from "./work/step-execution/application/run-pipeline-first-step-dry-run";
-export type { PipelineFirstStepDryRunOptions } from "./work/step-execution/application/run-pipeline-first-step-dry-run";
+} from "./work/task/application/run-pipeline-first-step-dry-run";
+export type { PipelineFirstStepDryRunOptions } from "./work/task/application/run-pipeline-first-step-dry-run";
+export { runPipelineHealthChecksDryRun } from "./work/task/application/run-pipeline-health-checks-dry-run";
+export type {
+  PipelineHealthChecksDryRunOptions,
+  PipelineHealthDryRunReport,
+} from "./work/task/application/run-pipeline-health-checks-dry-run";
+export { listStepHealthCheckFindings } from "./work/task/application/pipeline-health-check-report";
+export type {
+  StepHealthCheckFinding,
+  StepHealthCheckReport,
+} from "./work/task/application/pipeline-health-check-report";
 export { computeStudioSnapshot } from "./pipelines/pipeline-studio/application/compute-studio-snapshot";
 export { runPipelineStudioServer } from "./pipelines/pipeline-studio/application/run-pipeline-studio-server";
 export type {

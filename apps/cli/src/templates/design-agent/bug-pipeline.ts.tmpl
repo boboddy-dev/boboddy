@@ -1,0 +1,373 @@
+import { z } from "zod";
+import {
+  codeStep,
+  defineMcp,
+  defineStep,
+  Features,
+  Notify,
+  Repo,
+  Runtime,
+} from "@boboddy/sdk/definitions/steps";
+import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
+
+// The default bug pipeline.
+// evaluate (host) → checkQuality → too thin: requestDetails → insufficientDetail
+//                               → otherwise: investigateAndReproduce
+//                                 → failingTest → fix → done
+//
+// Every step receives the whole output of every step before it (bound with
+// `ctx.output(...)` in each state's `input`). The only signal is `quality`,
+// because `checkQuality` is the only rule. Nothing blocks: each step reports
+// what it could and could not do, and the next one works from that.
+//
+// Replace APP_URL, the sign-in instructions, the `defineMcp` servers and the
+// test conventions with this repository's own.
+
+const APP_URL = "https://staging.example.com";
+
+// Each MCP server is defined once, with its health checks, and mounted on the
+// steps that use it under `mcps`. `type: "ref"` with `name` names the server
+// in the repository's own MCP config. The check calls the tool the user
+// chose; it is `required`, and a step that only benefits from a server mounts
+// it as `playwright.overrideCheck("navigate", { severity: "warn" })` instead.
+const playwright = defineMcp({
+  type: "ref",
+  name: "playwright",
+  healthChecks: {
+    navigate: { tool: "browser_navigate", args: { url: "about:blank" } },
+  },
+});
+
+const evaluation = z.object({
+  quality: z.number().min(0).max(1),
+  missingDetails: z.array(z.string()),
+  summary: z.string(),
+});
+
+const investigation = z.object({
+  report: z.string(),
+  reproduced: z.boolean(),
+  reproductionSteps: z.array(z.string()),
+  tracePath: z.string().nullable(),
+  suspectedRootCause: z.string(),
+  evidence: z.array(z.string()),
+});
+
+const failingTestResult = z.object({
+  testWritten: z.boolean(),
+  reason: z.string().nullable(),
+  testPaths: z.array(z.string()),
+  testCommand: z.string().nullable(),
+  failureOutput: z.string().nullable(),
+  summary: z.string(),
+});
+
+export const evaluate = defineStep({
+  key: "evaluate",
+  name: "Evaluate",
+  description: "Score whether the report holds enough detail to act on.",
+  status: "active",
+  environment: { runtime: Runtime.host() },
+
+  agentPrompt: `
+Judge how actionable this bug report is. You have only its title, description
+and comments; you cannot read code or open the app. Judge the text in front of
+you and nothing else.
+
+Look for: steps to reproduce, the expected behaviour versus what actually
+happened, the environment (URL, browser, account, version), and the scope (who
+or what is affected).
+
+- \`quality\`: 0 to 1. Below 0.1 means there is nothing an engineer could start
+  from, not even a guess at where to look. Anything with a recognisable symptom
+  scores higher, however rough.
+- \`missingDetails\`: each detail that would make this easier to work, written
+  as a question the reporter could answer directly. Empty when nothing is
+  missing.
+- \`summary\`: one or two sentences restating the problem as you understand it.
+`,
+
+  result: evaluation,
+
+  signals: [{ sourcePath: "quality" }],
+});
+
+// A code step, not an agent: it only turns `missingDetails` into a comment.
+// Suggesting `work_item_platform_comment` creates a draft a human approves
+// before it is posted to the work item.
+export const requestDetails = codeStep({
+  key: "request-details",
+  name: "Request Details",
+  description: "Ask the reporter for the details the report is missing.",
+  inputSchema: z.object({ evaluate: evaluation }),
+  resultSchema: z.object({ requestedDetails: z.array(z.string()) }),
+  features: [Features.notifications()],
+  fn: ({ evaluate }) => {
+    const questions =
+      evaluate.missingDetails.length > 0
+        ? evaluate.missingDetails
+        : ["What did you do, what did you expect, and what happened instead?"];
+    return {
+      requestedDetails: questions,
+      ...Notify.create({
+        kind: "feedback_request",
+        title: "More detail needed to work this report",
+        body: [
+          "Thanks for the report. Before an agent can investigate it, could you add:",
+          "",
+          ...questions.map((question) => `- ${question}`),
+        ].join("\n"),
+        priority: "normal",
+        suggestedChannels: ["work_item_platform_comment"],
+        payload: { category: "missing_details", urgency: "blocking" },
+      }),
+    };
+  },
+});
+
+export const investigateAndReproduce = defineStep({
+  key: "investigate-and-reproduce",
+  name: "Investigate And Reproduce",
+  description: "Reproduce the bug in the running app and explain its cause.",
+  status: "active",
+  environment: { repo: Repo.readOnly() },
+
+  // `required`: this step cannot reproduce anything without the browser.
+  mcps: { playwright },
+
+  // The Playwright CLI is a `warn`: the trace goes through the MCP server, so
+  // a missing CLI is worth seeing but not worth blocking the run.
+  healthChecks: [
+    {
+      kind: "cli",
+      name: "playwright-cli",
+      command: ["npx", "--no-install", "playwright", "--version"],
+      severity: "warn",
+    },
+  ],
+
+  // The browser steps' order is not stylistic. Starting the trace before the
+  // viewport is set, or stopping it before the post-action wait, loses the
+  // evidence.
+  agentPrompt: ({ input, env, boboddy }) => `
+Investigate the reported bug and reproduce it against the running application
+at ${input.appUrl}. Your input's \`evaluate\` field is an earlier read of the
+report: its \`summary\` and \`missingDetails\` tell you what is clear and what is
+not.
+
+Sign in as ${env.APP_TEST_USER} with APP_TEST_PASSWORD. If either is missing or
+sign-in fails, say so in \`report\`, emit a \`feedback_request\` notification
+naming exactly what you could not obtain, and carry on with the code. Never
+invent a credential, URL, or workflow.
+
+Reproduce in this order exactly:
+
+1. Navigate to the application.
+2. Set the viewport immediately: mobile if the report is about mobile,
+   otherwise desktop. Bugs disappear at the wrong width.
+3. Snapshot the initial state.
+4. Start a Playwright trace now: after the browser is open and resized, before
+   any meaningful interaction. Use raw code execution ONLY to start and stop the
+   trace; drive everything else with the ordinary browser tools.
+5. Work through the reported steps, snapshotting before every major transition
+   (a modal, a redirect, any click whose target you are unsure of).
+6. Perform the final triggering action.
+7. WAIT. Delayed redirects, toasts, validation errors and forced logouts are the
+   actual bug more often than not, and stopping here is the single most common
+   way to lose the evidence.
+8. Collect console messages and network requests.
+9. Only now, stop the trace into ${boboddy.artifactsDir}.
+
+Then read the code the reproduction points at. You cannot change it here.
+
+Report:
+
+- \`report\`: what you did, what you saw, and what you could not do. A reviewer
+  reads this first.
+- \`reproduced\`: true only if you personally observed the reported failure.
+- \`reproductionSteps\`: the minimal ordered steps, concrete enough to replay
+  with no context.
+- \`tracePath\`: the trace you wrote, or null.
+- \`suspectedRootCause\`: your best explanation, naming files and functions.
+  Say how sure you are and why.
+- \`evidence\`: concrete artifacts: selectors, URLs, request payloads, verbatim
+  console errors, file paths with line numbers.
+
+The next step turns this into a failing test, so be specific.
+`,
+
+  additionalInput: z.object({
+    appUrl: z.string().nullable().optional(),
+    evaluate: evaluation,
+  }),
+
+  result: investigation,
+
+  features: [Features.notifications()],
+});
+
+export const failingTest = defineStep({
+  key: "failing-test",
+  name: "Failing Test",
+  description: "Encode the bug as a test that fails for the reported reason.",
+  status: "active",
+
+  // Replace the command with one that starts this repository's test runner
+  // without running the suite. `required`: this step's whole job is the test.
+  healthChecks: [
+    {
+      kind: "cli",
+      name: "test-runner",
+      command: ["npx", "--no-install", "vitest", "--version"],
+      severity: "required",
+    },
+  ],
+
+  agentPrompt: `
+Write an automated test that FAILS because of the reported bug. Your input holds
+the earlier steps' whole output: \`evaluate\` (the read of the report) and
+\`investigateAndReproduce\` (the reproduction, its evidence and the suspected
+root cause). Lean on its \`reproductionSteps\` and \`evidence\`.
+
+1. Find the existing test suite and follow its conventions: same framework,
+   directory, naming, fixtures and helpers. Do not introduce a new runner.
+2. Write the smallest test asserting the behaviour the report says should
+   happen. Extend an existing file when one obviously belongs.
+3. Run it. Confirm it fails, and that it fails from this bug rather than a
+   mistake in your setup.
+
+If the bug cannot be captured in a test (it was not reproduced and the code
+gives no handle on it, or the suite cannot exercise that layer), do not force
+one: set \`testWritten\` false and give the \`reason\`. That is a useful result.
+
+Report \`testPaths\` (every file you touched), \`testCommand\` (the exact command
+running just these tests), \`failureOutput\` (verbatim, not a paraphrase) and a
+\`summary\` saying what the test captures and what it does not.
+`,
+
+  additionalInput: z.object({
+    evaluate: evaluation,
+    investigateAndReproduce: investigation,
+  }),
+
+  result: failingTestResult,
+
+  features: [Features.notifications()],
+});
+
+export const fix = defineStep({
+  key: "fix",
+  name: "Fix",
+  description: "Propose a minimal fix for the reported bug.",
+  status: "active",
+
+  healthChecks: [
+    {
+      kind: "cli",
+      name: "test-runner",
+      command: ["npx", "--no-install", "vitest", "--version"],
+      severity: "required",
+    },
+  ],
+
+  agentPrompt: `
+Fix the reported bug. Your input holds every earlier step's whole output:
+\`evaluate\`, \`investigateAndReproduce\` and \`failingTest\`.
+
+If \`failingTest.testWritten\` is true, make that test pass. You may not weaken,
+skip or delete it; if you believe the test itself is wrong, leave it alone and
+say so in \`summary\`. If no test was written, work from the investigation's
+\`suspectedRootCause\` and \`evidence\`.
+
+Keep the change minimal: fix the cause, touch only what the fix needs, and do
+not refactor along the way. Run the failing test and the wider suite.
+
+State your confidence plainly. When the earlier evidence is weak (the bug was
+not reproduced, no test was written, or the root cause is a guess), say which
+part is weak and what a reviewer should check before trusting the change.
+
+Report \`changedFiles\`, \`testsPass\` (the failing test passes AND the wider
+suite is green), \`confidence\` with its reason, a \`summary\` a reviewer reads
+before the diff, and \`remainingRisks\`: anything you could not verify.
+`,
+
+  additionalInput: z.object({
+    evaluate: evaluation,
+    investigateAndReproduce: investigation,
+    failingTest: failingTestResult,
+  }),
+
+  result: z.object({
+    changedFiles: z.array(z.string()),
+    testsPass: z.boolean(),
+    confidence: z.enum(["high", "medium", "low"]),
+    confidenceReason: z.string(),
+    summary: z.string(),
+    remainingRisks: z.string(),
+  }),
+
+  features: [Features.notifications()],
+});
+
+export default definePipeline({
+  key: "bug-pipeline",
+  name: "Bug Pipeline",
+  description:
+    "Investigate, reproduce, write a failing test and propose a fix.",
+  status: "active",
+  startAt: "evaluate",
+  states: {
+    evaluate: {
+      kind: "step",
+      step: evaluate,
+      input: () => ({}),
+      next: "checkQuality",
+    },
+    checkQuality: {
+      kind: "choice",
+      choices: [
+        {
+          when: Rule.when("quality", "lessThan", 0.1),
+          next: "requestDetails",
+        },
+      ],
+      default: "investigateAndReproduce",
+    },
+    requestDetails: {
+      kind: "step",
+      step: requestDetails,
+      input: (ctx) => ({ evaluate: ctx.output("evaluate") }),
+      next: "insufficientDetail",
+    },
+    insufficientDetail: { kind: "fail" },
+    investigateAndReproduce: {
+      kind: "step",
+      step: investigateAndReproduce,
+      input: (ctx) => ({
+        appUrl: ctx.literal(APP_URL),
+        evaluate: ctx.output("evaluate"),
+      }),
+      next: "failingTest",
+    },
+    failingTest: {
+      kind: "step",
+      step: failingTest,
+      input: (ctx) => ({
+        evaluate: ctx.output("evaluate"),
+        investigateAndReproduce: ctx.output("investigateAndReproduce"),
+      }),
+      next: "fix",
+    },
+    fix: {
+      kind: "step",
+      step: fix,
+      input: (ctx) => ({
+        evaluate: ctx.output("evaluate"),
+        investigateAndReproduce: ctx.output("investigateAndReproduce"),
+        failingTest: ctx.output("failingTest"),
+      }),
+      next: "done",
+    },
+    done: { kind: "succeed" },
+  },
+});

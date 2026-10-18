@@ -94,7 +94,6 @@ export function stepSpec(
       availableWhenResultStatusIn: null,
     })),
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
   };
 }

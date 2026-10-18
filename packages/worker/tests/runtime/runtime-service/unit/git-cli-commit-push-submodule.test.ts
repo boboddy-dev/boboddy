@@ -17,7 +17,7 @@ import path from "node:path";
 import { describe, expect, test } from "bun:test";
 import { GitCliCommitPushService } from "../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
 import { GitCliSubmoduleService } from "../../../../src/runtime/runtime-service/infra/git-cli-submodule-service";
-import { buildCommitAndPushWorkBranch } from "../../../../src/work/step-execution/infra/work-branch-manager";
+import { buildCommitAndPushWorkBranch } from "../../../../src/work/task/infra/work-branch-manager";
 import { git, writeRepoFile } from "./git-test-fixtures";
 import {
   addSiblingSubmodule,
@@ -104,7 +104,7 @@ describe("GitCliCommitPushService submodule methods", () => {
           workspacePath: workspace,
           submodulePath: "vendor/dep",
           branchName: "boboddy/step-x",
-          message: "boboddy: step x",
+          message: "boboddy: task x",
         });
         expect(result).toEqual({ committed: true, branchCreated: true });
         expect(await git(sub, ["branch", "--show-current"])).toBe(
@@ -131,7 +131,7 @@ describe("GitCliCommitPushService submodule methods", () => {
           workspacePath: workspace,
           submodulePath: "vendor/dep",
           branchName: "boboddy/step-push",
-          message: "boboddy: step push",
+          message: "boboddy: task push",
         });
 
         await service.pushSubmodule({
@@ -164,7 +164,7 @@ describe("GitCliCommitPushService submodule methods", () => {
           workspacePath: workspace,
           submodulePath: "vendor/dep",
           branchName: "boboddy/step-fail",
-          message: "boboddy: step fail",
+          message: "boboddy: task fail",
         });
         // Point the submodule origin at a nonexistent bare repo.
         await git(sub, [
@@ -305,7 +305,7 @@ describe("GitCliCommitPushService submodule methods", () => {
             submoduleService,
             workspacePath: bare,
             workBranch: "boboddy/uninit",
-            stepExecutionId: "step-exec-uninit",
+            taskId: "step-exec-uninit",
           });
           await closure({ result: {} });
 
@@ -381,7 +381,7 @@ describe("GitCliCommitPushService submodule methods", () => {
             submoduleService,
             workspacePath: ws,
             workBranch: "boboddy/mixed",
-            stepExecutionId: "step-exec-mixed",
+            taskId: "step-exec-mixed",
             onPushFailure: "warn",
           });
           // Under "warn" a failed submodule push must not throw.
@@ -435,7 +435,7 @@ describe("GitCliCommitPushService submodule methods", () => {
             submoduleService,
             workspacePath: plain,
             workBranch: "boboddy/plain",
-            stepExecutionId: "step-exec-plain",
+            taskId: "step-exec-plain",
           });
           await closure({ result: {} });
 

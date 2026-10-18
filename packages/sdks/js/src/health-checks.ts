@@ -27,7 +27,7 @@ export type HealthCheckSeverity = (typeof healthCheckSeverityValues)[number];
 const healthCheckBaseSchema = z.object({
   name: z.string().trim().min(1).optional(),
   severity: z.enum(healthCheckSeverityValues).default("required"),
-  timeoutMs: z.int().gt(0).max(Number.MAX_SAFE_INTEGER).default(15000),
+  timeoutSeconds: z.number().gt(0).max(3600).default(15),
   serialGroup: z.string().trim().min(1).optional(),
 });
 
@@ -112,8 +112,35 @@ export type HealthChecks = z.infer<typeof healthChecksSchema>;
  * default exists for it).
  */
 export type HealthCheckInput =
-  | z.input<typeof toolHealthCheckSchema>
-  | z.input<typeof cliHealthCheckSchema>;
+  z.input<typeof toolHealthCheckSchema> | z.input<typeof cliHealthCheckSchema>;
 
 /** The pre-parse authoring shape of a step's `healthChecks` field. */
 export type HealthChecksInput = HealthCheckInput[];
+
+/**
+ * A `tool` check as written in `defineStep({ healthChecks })`: a plugin or
+ * built-in tool, never an MCP tool. MCP health checks are declared on the
+ * server with `defineMcp`, which compiles them to wire checks carrying `mcp`.
+ */
+export const stepToolHealthCheckSchema = toolHealthCheckSchema
+  .omit({ mcp: true })
+  .strict();
+
+/** The value of `defineStep({ healthChecks })`: `cli` and non-MCP `tool` checks. */
+export const stepHealthChecksInputSchema = z.array(
+  z.preprocess(
+    injectDefaultKind,
+    z.discriminatedUnion("kind", [
+      stepToolHealthCheckSchema,
+      cliHealthCheckSchema,
+    ]),
+  ),
+);
+
+/** The pre-parse authoring shape of one `defineStep({ healthChecks })` entry. */
+export type StepHealthCheckInput =
+  | z.input<typeof stepToolHealthCheckSchema>
+  | z.input<typeof cliHealthCheckSchema>;
+
+/** The pre-parse authoring shape of `defineStep({ healthChecks })`. */
+export type StepHealthChecksInput = StepHealthCheckInput[];

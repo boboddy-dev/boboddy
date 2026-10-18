@@ -61,7 +61,7 @@ describe("pipelines design paths", () => {
   });
 
   test("the preflight ports read the root config and scaffold at the root", async () => {
-    await writeProjectConfig("root-project", repoRoot);
+    await writeProjectConfig("acme/root-project", repoRoot);
     const paths = await resolveDesignPaths({
       repoRoot: undefined,
       cwd: nested,
@@ -73,7 +73,7 @@ describe("pipelines design paths", () => {
       logFilePath: "",
     });
 
-    expect(await ports.readConfiguredProjectId()).toBe("root-project");
+    expect(await ports.readConfiguredProject()).toBe("acme/root-project");
     expect(ports.builderDirExists()).toBe(false);
 
     ports.scaffoldBuilderDir();

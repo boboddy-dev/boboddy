@@ -71,7 +71,6 @@ const buildStepDefinitionsClient = (stepDefinitions: StepDefinitions) => {
         inputSchemaJson: spec.inputSchemaJson,
         resultSchemaJson: spec.resultSchemaJson,
         opencodeMcpJson: spec.opencodeMcpJson,
-        opencodePluginJson: spec.opencodePluginJson,
         healthChecksJson: spec.healthChecksJson,
         envJson: spec.envJson,
         status: spec.status,

@@ -1,0 +1,445 @@
+{
+  "ses_ec8f0ff9affertc3ICs5UeZa1u": [
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f0095001h5jsLcdQ03WZV5",
+        "role": "user",
+        "createdMs": 1791925092502
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f0095001h5jsLcdQ03WZV5",
+        "partId": "msg_1370f0095001h5jsLcdQ03WZV5:0",
+        "role": "user",
+        "text": "Call the shell tool to verify it works. <<boboddy-forced-tool-call>>{\"toolName\":\"shell\",\"toolArgs\":{\"command\":\"echo hi; exit 3\",\"description\":\"probe\"}}<</boboddy-forced-tool-call>>"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f009f001z7eVnpMICwGjWm",
+        "role": "assistant",
+        "modelID": "boboddy-healthchecker-model",
+        "createdMs": 1791925092514
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f009f001z7eVnpMICwGjWm",
+        "partId": "msg_1370f009f001z7eVnpMICwGjWm:0",
+        "role": "assistant",
+        "text": "Forcing tool call: shell({\"command\":\"echo hi; exit 3\",\"description\":\"probe\"})"
+      },
+      "streaming": true
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f009f001z7eVnpMICwGjWm",
+        "partId": "msg_1370f009f001z7eVnpMICwGjWm:0",
+        "role": "assistant",
+        "text": "Forcing tool call: shell({\"command\":\"echo hi; exit 3\",\"description\":\"probe\"})"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f009f001z7eVnpMICwGjWm",
+        "partId": "toolu_gd37zo3y",
+        "callId": "toolu_gd37zo3y",
+        "tool": "shell",
+        "status": "pending"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f009f001z7eVnpMICwGjWm",
+        "partId": "toolu_gd37zo3y",
+        "callId": "toolu_gd37zo3y",
+        "tool": "shell",
+        "status": "running",
+        "input": {
+          "command": "echo hi; exit 3",
+          "description": "probe"
+        }
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f009f001z7eVnpMICwGjWm",
+        "partId": "toolu_gd37zo3y",
+        "callId": "toolu_gd37zo3y",
+        "tool": "shell",
+        "status": "completed",
+        "input": {
+          "command": "echo hi; exit 3",
+          "description": "probe"
+        },
+        "output": "hi\n\nExited with code 3"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "step-finish",
+        "messageId": "msg_1370f009f001z7eVnpMICwGjWm",
+        "cost": 0,
+        "tokens": {
+          "input": 100,
+          "output": 50,
+          "reasoning": 0
+        }
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f04d6001bYMxOhetzbtoss",
+        "role": "assistant",
+        "modelID": "boboddy-healthchecker-model",
+        "createdMs": 1791925093593
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f04d6001bYMxOhetzbtoss",
+        "partId": "msg_1370f04d6001bYMxOhetzbtoss:0",
+        "role": "assistant",
+        "text": "Fake ai response."
+      },
+      "streaming": true
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f04d6001bYMxOhetzbtoss",
+        "partId": "msg_1370f04d6001bYMxOhetzbtoss:0",
+        "role": "assistant",
+        "text": "Fake ai response."
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "step-finish",
+        "messageId": "msg_1370f04d6001bYMxOhetzbtoss",
+        "cost": 0,
+        "tokens": {
+          "input": 150,
+          "output": 5,
+          "reasoning": 0
+        }
+      },
+      "streaming": false
+    }
+  ],
+  "ses_ec8f0f974ffeN5Evy2a5loEedS": [
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f06bf0016xfmNsT6FSsPZi",
+        "role": "user",
+        "createdMs": 1791925094079
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f06bf0016xfmNsT6FSsPZi",
+        "partId": "msg_1370f06bf0016xfmNsT6FSsPZi:0",
+        "role": "user",
+        "text": "Call the boboddy-submit-step-findings tool to verify it works. <<boboddy-forced-tool-call>>{\"toolName\":\"boboddy-submit-step-findings\",\"toolArgs\":{\"findingsJson\":{\"ok\":true}}}<</boboddy-forced-tool-call>>"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f06c50017006jpRgDd7WCf",
+        "role": "assistant",
+        "modelID": "boboddy-healthchecker-model",
+        "createdMs": 1791925094088
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f06c50017006jpRgDd7WCf",
+        "partId": "msg_1370f06c50017006jpRgDd7WCf:0",
+        "role": "assistant",
+        "text": "Forcing tool call: boboddy-submit-step-findings({\"findingsJson\":{\"ok\":true}})"
+      },
+      "streaming": true
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f06c50017006jpRgDd7WCf",
+        "partId": "msg_1370f06c50017006jpRgDd7WCf:0",
+        "role": "assistant",
+        "text": "Forcing tool call: boboddy-submit-step-findings({\"findingsJson\":{\"ok\":true}})"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f06c50017006jpRgDd7WCf",
+        "partId": "toolu_664dc6oy",
+        "callId": "toolu_664dc6oy",
+        "tool": "boboddy-submit-step-findings",
+        "status": "pending"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f06c50017006jpRgDd7WCf",
+        "partId": "toolu_664dc6oy",
+        "callId": "toolu_664dc6oy",
+        "tool": "boboddy-submit-step-findings",
+        "status": "running",
+        "input": {
+          "findingsJson": {
+            "ok": true
+          }
+        }
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f06c50017006jpRgDd7WCf",
+        "partId": "toolu_664dc6oy",
+        "callId": "toolu_664dc6oy",
+        "tool": "boboddy-submit-step-findings",
+        "status": "completed",
+        "input": {
+          "findingsJson": {
+            "ok": true
+          }
+        },
+        "output": "{\n  \"ok\": true,\n  \"outputPath\": \".boboddy/step-findings-submission.json\"\n}"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "step-finish",
+        "messageId": "msg_1370f06c50017006jpRgDd7WCf",
+        "cost": 0,
+        "tokens": {
+          "input": 100,
+          "output": 50,
+          "reasoning": 0
+        }
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f0b2b001xHsbnkAPg6MHhx",
+        "role": "assistant",
+        "modelID": "boboddy-healthchecker-model",
+        "createdMs": 1791925095213
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f0b2b001xHsbnkAPg6MHhx",
+        "partId": "msg_1370f0b2b001xHsbnkAPg6MHhx:0",
+        "role": "assistant",
+        "text": "Fake ai response."
+      },
+      "streaming": true
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f0b2b001xHsbnkAPg6MHhx",
+        "partId": "msg_1370f0b2b001xHsbnkAPg6MHhx:0",
+        "role": "assistant",
+        "text": "Fake ai response."
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "step-finish",
+        "messageId": "msg_1370f0b2b001xHsbnkAPg6MHhx",
+        "cost": 0,
+        "tokens": {
+          "input": 150,
+          "output": 5,
+          "reasoning": 0
+        }
+      },
+      "streaming": false
+    }
+  ],
+  "ses_ec8f0f34dffeHOC2B2xnGQ13e0": [
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f0ce00017cacC7n8bQB35a",
+        "role": "user",
+        "createdMs": 1791925095648
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f0ce00017cacC7n8bQB35a",
+        "partId": "msg_1370f0ce00017cacC7n8bQB35a:0",
+        "role": "user",
+        "text": "Call the no-such-tool tool to verify it works. <<boboddy-forced-tool-call>>{\"toolName\":\"no-such-tool\",\"toolArgs\":{}}<</boboddy-forced-tool-call>>"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "role": "assistant",
+        "modelID": "boboddy-healthchecker-model",
+        "createdMs": 1791925095656
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "partId": "msg_1370f0ce6001BqYqkdFVjhzU0E:0",
+        "role": "assistant",
+        "text": "Forcing tool call: no-such-tool({})"
+      },
+      "streaming": true
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "partId": "msg_1370f0ce6001BqYqkdFVjhzU0E:0",
+        "role": "assistant",
+        "text": "Forcing tool call: no-such-tool({})"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "partId": "toolu_rsl814vn",
+        "callId": "toolu_rsl814vn",
+        "tool": "no-such-tool",
+        "status": "pending"
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "partId": "toolu_rsl814vn",
+        "callId": "toolu_rsl814vn",
+        "tool": "no-such-tool",
+        "status": "running",
+        "input": {}
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "tool",
+        "messageId": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "partId": "toolu_rsl814vn",
+        "callId": "toolu_rsl814vn",
+        "tool": "no-such-tool",
+        "status": "error",
+        "input": {},
+        "error": "tool.execution: No tool named \"no-such-tool\" is currently available. Please use a tool from the available tool list."
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "step-finish",
+        "messageId": "msg_1370f0ce6001BqYqkdFVjhzU0E",
+        "cost": 0,
+        "tokens": {
+          "input": 100,
+          "output": 50,
+          "reasoning": 0
+        }
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "message",
+        "id": "msg_1370f10f6001KN5QiZPzKj0LoF",
+        "role": "assistant",
+        "modelID": "boboddy-healthchecker-model",
+        "createdMs": 1791925096696
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f10f6001KN5QiZPzKj0LoF",
+        "partId": "msg_1370f10f6001KN5QiZPzKj0LoF:0",
+        "role": "assistant",
+        "text": "Fake ai response."
+      },
+      "streaming": true
+    },
+    {
+      "event": {
+        "kind": "text",
+        "messageId": "msg_1370f10f6001KN5QiZPzKj0LoF",
+        "partId": "msg_1370f10f6001KN5QiZPzKj0LoF:0",
+        "role": "assistant",
+        "text": "Fake ai response."
+      },
+      "streaming": false
+    },
+    {
+      "event": {
+        "kind": "step-finish",
+        "messageId": "msg_1370f10f6001KN5QiZPzKj0LoF",
+        "cost": 0,
+        "tokens": {
+          "input": 150,
+          "output": 5,
+          "reasoning": 0
+        }
+      },
+      "streaming": false
+    }
+  ]
+}

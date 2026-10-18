@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import type { OpencodeProviderCredentialCheck } from "@boboddy/worker";
+import {
+  OPENCODE_RUNTIME_VERSION,
+  type OpencodeProviderCredentialCheck,
+} from "@boboddy/worker";
 import {
   runDesignPreflight,
   type DesignPreflightPorts,
 } from "../src/lib/design-preflight";
 import type { DesignWorkItem } from "../src/lib/design-work-item";
 import { noopBaseReporter } from "../src/lib/reporter-types";
+import { fakeAgentToolsPorts } from "./design-agent-tools-fakes";
 
 /**
  * The preflight's two auth steps — signing in to Boboddy and connecting an AI
@@ -14,7 +18,7 @@ import { noopBaseReporter } from "../src/lib/reporter-types";
  */
 
 const BASE_URL = "https://app.example.com";
-const LAUNCHER = "/home/u/.boboddy/runtimes/opencode/1.18.11/launch.sh";
+const LAUNCHER = `/home/u/.boboddy/runtimes/opencode/${OPENCODE_RUNTIME_VERSION}/launch.sh`;
 const OK_CREDENTIALS: OpencodeProviderCredentialCheck = {
   ok: true,
   providers: ["anthropic"],
@@ -35,9 +39,11 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
       calls.login += 1;
       return Promise.resolve({ email: "fresh@example.com" });
     },
-    readConfiguredProjectId: () => Promise.resolve("project-from-config"),
+    readConfiguredProject: () => Promise.resolve("project-from-config"),
     resolveProjectFromRepo: () => Promise.resolve("project-from-repo"),
-    promptProjectId: () => Promise.resolve("project-from-prompt"),
+    promptProject: () => Promise.resolve("project-from-prompt"),
+    resolveProjectRef: ({ ref }) =>
+      Promise.resolve({ id: ref, owner: "acme", slug: ref }),
     listWorkItems: () => Promise.resolve([INGESTED_ITEM]),
     getWorkItemById: () => Promise.resolve(undefined),
     findWorkItemByUrl: () => Promise.resolve(undefined),
@@ -53,6 +59,7 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
     checkCredentials: () => Promise.resolve(OK_CREDENTIALS),
     detectInstalledTools: () => Promise.resolve([]),
     runAuthLogin: () => Promise.reject(new Error("not expected")),
+    ...fakeAgentToolsPorts(),
   };
   return { ports: { ...base, ...overrides }, calls };
 }
@@ -60,7 +67,7 @@ function createPorts(overrides: Partial<DesignPreflightPorts> = {}) {
 function run(ports: DesignPreflightPorts) {
   return runDesignPreflight({
     baseUrl: BASE_URL,
-    projectIdArgument: undefined,
+    projectArgument: undefined,
     workItemIdArgument: undefined,
     reporter: noopBaseReporter,
     ports,

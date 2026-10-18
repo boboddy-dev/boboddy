@@ -4,10 +4,10 @@ import type {
   ArtifactDownloadUrl,
   PipelineDefinition,
   PipelineExecution,
-  ReadStepExecutionLogsResult,
-  StepExecution,
-  StepExecutionLogArchive,
-  StepExecutionLogStream,
+  ReadTaskLogsResult,
+  Task,
+  TaskLogArchive,
+  TaskLogStream,
   WorkItem,
 } from "./api-types";
 
@@ -15,22 +15,20 @@ import type {
  * generated `RequestResult`'s non-`throwOnError` branch: `data`/`error` are
  * mutually exclusive, discriminated on which is `undefined`). */
 type ApiResult<TData> =
-  | { data: TData; error: undefined }
-  | { data: undefined; error: ApiErrorBody };
+  { data: TData; error: undefined } | { data: undefined; error: ApiErrorBody };
 
 export type AuthHeaders = { Authorization: string };
 
 /**
- * Writes an oversized rendered log's full text to some caller-owned
- * location (decision 7 of
- * `docs/plans/execution-log-tail-truncation-and-file-cache.md` — the
- * `platform-client` package stays side-effect-free; only `apps/cli` supplies
- * a real, disk-touching implementation). Resolves to the absolute path
- * written, for inclusion in the truncation notice.
+ * Saves a step's full, uncapped rendered log to some caller-owned location
+ * (the `platform-client` package stays side-effect-free; only `apps/cli`
+ * supplies a real, disk-touching implementation). Resolves to the path
+ * written, which goes on the log header line; a rejection's message is shown
+ * there instead.
  */
-export type LogArtifactWriter = (input: {
-  stepExecutionId: string;
-  requestedStream: StepExecutionLogStream | "all";
+export type FullLogSaver = (input: {
+  taskId: string;
+  requestedStream: TaskLogStream | "all";
   fullText: string;
 }) => Promise<string>;
 
@@ -71,26 +69,26 @@ export type InvestigateExecutionClient = {
       headers: AuthHeaders;
     }) => Promise<ApiResult<WorkItem>>;
   };
-  stepExecutions: {
-    getStepExecution: (options: {
-      path: { stepExecutionId: string };
+  tasks: {
+    getTask: (options: {
+      path: { taskId: string };
       headers: AuthHeaders;
-    }) => Promise<ApiResult<StepExecution>>;
-    readStepExecutionLogs: (options: {
-      path: { stepExecutionId: string };
+    }) => Promise<ApiResult<Task>>;
+    readTaskLogs: (options: {
+      path: { taskId: string };
       query: { from: number; limit: number };
       headers: AuthHeaders;
-    }) => Promise<ApiResult<ReadStepExecutionLogsResult>>;
-    getStepExecutionLogArchive: (options: {
-      path: { stepExecutionId: string };
+    }) => Promise<ApiResult<ReadTaskLogsResult>>;
+    getTaskLogArchive: (options: {
+      path: { taskId: string };
       headers: AuthHeaders;
-    }) => Promise<ApiResult<StepExecutionLogArchive>>;
-    listStepExecutionArtifacts: (options: {
-      path: { stepExecutionId: string };
+    }) => Promise<ApiResult<TaskLogArchive>>;
+    listTaskArtifacts: (options: {
+      path: { taskId: string };
       headers: AuthHeaders;
     }) => Promise<ApiResult<Artifact[]>>;
     getArtifactDownloadUrl: (options: {
-      path: { stepExecutionId: string; artifactId: string };
+      path: { taskId: string; artifactId: string };
       headers: AuthHeaders;
     }) => Promise<ApiResult<ArtifactDownloadUrl>>;
   };

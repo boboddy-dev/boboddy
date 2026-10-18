@@ -117,7 +117,7 @@ describe("runProjectHandoff", () => {
       HANDOFF_POLL_INTERVAL_MS,
     ]);
     expect(tasks).toEqual([
-      { method: "startTask", message: HANDOFF_WAITING_MESSAGE },
+      { method: "startActivity", message: HANDOFF_WAITING_MESSAGE },
       { method: "succeed", message: "Project created and linked" },
     ]);
     expect(fake.closed()).toBe(1);

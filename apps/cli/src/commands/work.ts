@@ -1,7 +1,6 @@
 import type { ArgumentsCamelCase, Argv, CommandModule } from "yargs";
 import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
-  readProjectConfig,
   resolveBoboddyBaseUrl,
   resolveSourceBranch,
   runProjectWork,
@@ -17,13 +16,20 @@ import { createRecordingReporter } from "../lib/reporter-record";
 import { runWorkDryRunCommand } from "../lib/dry-run-command";
 import { readLocalEnvVars } from "../lib/local-env-vars";
 import {
+  NO_PROJECT_MESSAGE,
+  pickProjectRef,
+  PROJECT_ACTIONS,
+  resolveCliProjectRef,
+} from "../lib/resolve-project-ref";
+import {
   captureMilestone,
   shutdownTelemetry,
   syncIdentityFromDisk,
 } from "../lib/telemetry";
 
 export interface WorkArguments {
-  projectId: string | undefined;
+  /** The project as `owner/slug`; defaults to `"project"` in `.boboddy/boboddy.jsonc`. */
+  project: string | undefined;
   baseUrl: string | undefined;
   batchSize: number | undefined;
   concurrency: number | undefined;
@@ -44,10 +50,10 @@ export interface WorkArguments {
    */
   sourceBranch: string | undefined;
   /**
-   * Rehearse the environment a real step execution would launch — devcontainer
+   * Rehearse the environment a real task would launch — devcontainer
    * + in-container OpenCode, with the targeted step's real MCP servers
    * injected — then report container/OpenCode/MCP health instead of claiming
-   * and running a real step. See `stepId` / `globalOnly`.
+   * and running a real task. See `stepId` / `globalOnly`.
    */
   dryRun: boolean;
   /** Dry run only: fetch this step definition's real MCP servers to test. */
@@ -82,7 +88,7 @@ export type WorkOptions = Partial<WorkArguments>;
  * `boboddy pipelines design` can run the worker in-process when the user accepts
  * its closing offer (see `lib/design-run-offer.ts`) instead of re-spawning the
  * CLI. It owns the terminal for as long as it polls, and throws only on failures
- * that stop the worker outright — a failing step is absorbed by the polling loop.
+ * that stop the worker outright — a failing task is absorbed by the polling loop.
  */
 export async function runWork(arguments_: WorkOptions): Promise<void> {
   await ensureLogDir();
@@ -96,8 +102,7 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     ? createRecordingReporter(createReporter({ logFilePath }), recordReportPath)
     : createReporter({ logFilePath });
   const baseUrl = resolveBoboddyBaseUrl(arguments_.baseUrl);
-  const projectId =
-    arguments_.projectId ?? (await readProjectConfig())?.projectId;
+  const projectRef = await pickProjectRef(arguments_.project);
   // The two flag defaults yargs would have supplied, applied here so a
   // programmatic caller only has to name what it actually chose.
   const once = arguments_.once ?? false;
@@ -108,13 +113,9 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
 
   syncIdentityFromDisk(baseUrl);
 
-  if (!projectId) {
-    reporter.error(
-      "No project ID provided. Pass one as an argument or run `boboddy init` first.",
-    );
-    logger.error(
-      "No project ID provided. Pass one as an argument or run `boboddy init` first.",
-    );
+  if (!projectRef) {
+    reporter.error(NO_PROJECT_MESSAGE);
+    logger.error(NO_PROJECT_MESSAGE);
     await shutdownTelemetry();
     process.exit(1);
   }
@@ -147,8 +148,27 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
     reporter.info(`Using source branch: ${sourceBranch}`);
   }
 
+  let projectId: string;
+  try {
+    ({ id: projectId } = await resolveCliProjectRef({
+      baseUrl,
+      ref: projectRef,
+      action: PROJECT_ACTIONS.work,
+    }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    reporter.error(message);
+    logger.error(
+      { err: error, project: projectRef },
+      "Failed to resolve the project",
+    );
+    await shutdownTelemetry();
+    process.exit(1);
+  }
+
   logger.info(
     {
+      project: projectRef,
       projectId,
       baseUrl,
       batchSize: arguments_.batchSize,
@@ -249,13 +269,13 @@ export async function runWork(arguments_: WorkOptions): Promise<void> {
 }
 
 export const workCommand: CommandModule<object, WorkArguments> = {
-  command: "work [projectId]",
+  command: "work [project]",
   describe: "Run the Boboddy host worker for a project",
   builder: (argv: Argv<object>) =>
     argv
-      .positional("projectId", {
+      .positional("project", {
         describe:
-          "The project id to process work for (defaults to the id in .boboddy/boboddy.jsonc)",
+          'The project to process work for, as owner/slug (defaults to "project" in .boboddy/boboddy.jsonc)',
         type: "string",
       })
       .option("baseUrl", {
@@ -265,7 +285,7 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       })
       .option("batchSize", {
         alias: "b",
-        describe: "Maximum number of step executions to claim per poll",
+        describe: "Maximum number of tasks to claim per poll",
         type: "number",
       })
       .option("concurrency", {
@@ -280,7 +300,7 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       })
       .option("pollIntervalMs", {
         alias: "p",
-        describe: "How often to poll for new step executions",
+        describe: "How often to poll for new tasks",
         type: "number",
       })
       .option("maxPollIntervalMs", {
@@ -301,19 +321,19 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       .option("preserveRuntimeOnComplete", {
         alias: "k",
         describe:
-          "Keep runtime containers and workspace after step completion " +
+          "Keep runtime containers and workspace after task completion " +
           "(or, with --dry-run, after the health report)",
         type: "boolean",
         default: false,
       })
       .option("workerId", {
         alias: "w",
-        describe: "Optional worker identifier to use while claiming steps",
+        describe: "Optional worker identifier to use while claiming tasks",
         type: "string",
       })
       .option("workItemId", {
         alias: "work-item-id",
-        describe: "Only process step executions for this work item ID",
+        describe: "Only process tasks for this work item ID",
         type: "string",
       })
       .option("sourceBranch", {
@@ -327,7 +347,7 @@ export const workCommand: CommandModule<object, WorkArguments> = {
       .option("dryRun", {
         alias: "dry-run",
         describe:
-          "Rehearse the environment a real step would launch (devcontainer + " +
+          "Rehearse the environment a real task would launch (devcontainer + " +
           "OpenCode + MCP servers) and report its health instead of running work",
         type: "boolean",
         default: false,

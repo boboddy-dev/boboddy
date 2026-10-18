@@ -35,6 +35,7 @@ function fakeClient(
     gitUrl: string;
     name?: string;
     createdAt?: string;
+    ownerUsername?: string | null;
   }>,
 ) {
   return {
@@ -43,6 +44,8 @@ function fakeClient(
         Promise.resolve({
           data: projects.map((project) => ({
             name: project.id,
+            slug: project.id,
+            ownerUsername: "acme",
             createdAt: "2026-01-01T00:00:00.000Z",
             ...project,
           })),
@@ -67,7 +70,7 @@ describe("localConfigSetup", () => {
   });
 
   test("skips entirely when already configured", async () => {
-    await writeProjectConfig("already-configured-id", repo);
+    await writeProjectConfig("acme/already-configured", repo);
 
     const client = fakeClient([]);
     const result = await localConfigSetup({ client, headers, rootDir: repo });
@@ -83,11 +86,12 @@ describe("localConfigSetup", () => {
     expect(result).toEqual({
       status: "matched",
       projectId: "existing-id",
+      project: "acme/existing-id",
       projectName: "existing-id",
       matchCount: 1,
     });
     expect(await readProjectConfig(repo)).toEqual({
-      projectId: "existing-id",
+      project: "acme/existing-id",
     });
   });
 
@@ -105,11 +109,12 @@ describe("localConfigSetup", () => {
     expect(result).toEqual({
       status: "matched",
       projectId: "github-project",
+      project: "acme/github-project",
       projectName: "My Repo",
       matchCount: 1,
     });
     expect(await readProjectConfig(repo)).toEqual({
-      projectId: "github-project",
+      project: "acme/github-project",
     });
   });
 
@@ -132,9 +137,26 @@ describe("localConfigSetup", () => {
     expect(result).toEqual({
       status: "matched",
       projectId: "older",
+      project: "acme/older",
       projectName: "older",
       matchCount: 2,
     });
+  });
+
+  test("throws, and writes nothing, when the matched project's owner has no username", async () => {
+    const client = fakeClient([
+      { id: "existing-id", gitUrl: REMOTE_URL, ownerUsername: null },
+    ]);
+
+    let caught: unknown;
+    try {
+      await localConfigSetup({ client, headers, rootDir: repo });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect((caught as Error).message).toContain("no owner username yet");
+    expect(await readProjectConfig(repo)).toBeNull();
   });
 
   test("throws, and writes nothing, when the project list cannot be loaded", async () => {

@@ -24,7 +24,6 @@ function makeStep(overrides: Partial<StepDefContract> = {}): StepDefContract {
     inputSchemaJson: null,
     resultSchemaJson: null,
     opencodeMcpJson: null,
-    opencodePluginJson: null,
     healthChecksJson: null,
     envJson: null,
     signalExtractorDefinitions: [],

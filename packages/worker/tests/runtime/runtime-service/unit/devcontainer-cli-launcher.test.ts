@@ -149,6 +149,98 @@ describe("parseDevcontainerProgress", () => {
     ).toEqual([{ kind: "detail", phase: "deprecation warning", level: "warn" }]);
   });
 
+  test.concurrent("raises red ANSI-coloured info output to error", () => {
+    // Exactly what the CLI emits when a lifecycle hook fails: toErrorText()
+    // wraps the line in bold red, but the event itself is LogLevel.Info.
+    const text =
+      "\u001b[1m\u001b[31mpostCreateCommand from devcontainer.json failed with exit code 254. Skipping any further user-provided commands.\u001b[39m\u001b[22m\r\n";
+    expect(
+      parseDevcontainerProgress(JSON.stringify({ type: "text", level: 3, text })),
+    ).toEqual([
+      {
+        kind: "detail",
+        phase:
+          "postCreateCommand from devcontainer.json failed with exit code 254. Skipping any further user-provided commands.",
+        level: "error",
+      },
+    ]);
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({
+          type: "raw",
+          level: 3,
+          text: "\u001b[1;91mERROR\u001b[0m: something broke",
+        }),
+      ),
+    ).toEqual([
+      { kind: "detail", phase: "ERROR: something broke", level: "error" },
+    ]);
+  });
+
+  test.concurrent("raises yellow ANSI-coloured info output to warn", () => {
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({
+          type: "text",
+          level: 3,
+          text: "\u001b[1m\u001b[33mUser vscode not found\u001b[39m\u001b[22m\r\n",
+        }),
+      ),
+    ).toEqual([{ kind: "detail", phase: "User vscode not found", level: "warn" }]);
+  });
+
+  test.concurrent("never lowers the CLI's own severity and ignores other colours", () => {
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({ type: "text", level: 5, text: "\u001b[33mboom\u001b[39m" }),
+      ),
+    ).toEqual([{ kind: "detail", phase: "boom", level: "error" }]);
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({
+          type: "raw",
+          level: 3,
+          text: "\u001b[1mRunning the postCreateCommand from devcontainer.json...\u001b[0m\r\n",
+        }),
+      ),
+    ).toEqual([
+      {
+        kind: "detail",
+        phase: "Running the postCreateCommand from devcontainer.json...",
+        level: "info",
+      },
+    ]);
+    // Green (32) and a 256-colour index containing "31" must not match red.
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({ type: "raw", level: 3, text: "\u001b[32mok\u001b[0m" }),
+      ),
+    ).toEqual([{ kind: "detail", phase: "ok", level: "info" }]);
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({ type: "raw", level: 3, text: "\u001b[38;5;131mok\u001b[0m" }),
+      ),
+    ).toEqual([{ kind: "detail", phase: "ok", level: "info" }]);
+  });
+
+  test.concurrent("maps a failed lifecycle `progress` to an error milestone", () => {
+    expect(
+      parseDevcontainerProgress(
+        JSON.stringify({
+          type: "progress",
+          name: "Running postCreateCommand...",
+          status: "failed",
+        }),
+      ),
+    ).toEqual([
+      {
+        kind: "milestone",
+        phase: "Running postCreateCommand failed",
+        level: "error",
+      },
+    ]);
+  });
+
   test.concurrent("maps a `stop` line to a detail", () => {
     expect(
       parseDevcontainerProgress(

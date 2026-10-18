@@ -10,8 +10,10 @@ import dotenv from "dotenv";
  * that skipped these could report a health check as unhealthy when the real
  * run, with these vars present, would have passed it.
  */
-export async function readLocalEnvVars(): Promise<Record<string, string>> {
-  const envFilePath = path.join(process.cwd(), ".boboddy", ".env");
+export async function readLocalEnvVars(
+  projectRoot: string = process.cwd(),
+): Promise<Record<string, string>> {
+  const envFilePath = path.join(projectRoot, ".boboddy", ".env");
   try {
     const content = await readFile(envFilePath, "utf8");
     return dotenv.parse(content);

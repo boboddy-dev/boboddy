@@ -22,7 +22,7 @@ Update the documentation whenever you make changes in these areas:
 | New `definePipeline()` concepts (state kinds, bindings, pipeline input) | `src/content/docs/guides/pipelines.md` |
 | New `Rule`/`Computed` DSL or fan-out cohort-advancement concepts | `src/content/docs/guides/pipeline-advancement.md` |
 | New default-pipeline-assignment concepts | `src/content/docs/guides/pipeline-assignment.md` |
-| New worker flags | `src/content/docs/reference/cli.md#boboddy-work-projectid` |
+| New worker flags | `src/content/docs/reference/cli.md#boboddy-work-project` |
 | New worker execution behavior | `src/content/docs/guides/workers.md` |
 | New dev container guidance | `src/content/docs/how-to/devcontainer.md` |
 | New GitHub/Jira integration or sync behavior | `src/content/docs/how-to/integrations.md` |
@@ -41,8 +41,8 @@ Each fact below has one canonical page. Mention it elsewhere in one sentence and
 | Devcontainer: the designer writes `.devcontainer/devcontainer.json` when missing (it doesn't build it); `Runtime.devcontainer()` for steps that need the code, `Runtime.host()` for steps that don't, so a first run can need Docker | `getting-started/concepts.md#runtime` |
 | `.env` / `.env.example` secrets | `guides/steps.md#secrets` |
 | `.opencode/` tools auto-load | `guides/steps.md#tools-already-available-to-every-step` |
-| Worker flags | `reference/cli.md#boboddy-work-projectid` |
-| `pull → install → typecheck → push` loop | `reference/cli.md#boboddy-pipelines-pull-projectid` / `#boboddy-pipelines-push-projectid` |
+| Worker flags | `reference/cli.md#boboddy-work-project` |
+| `pull → install → typecheck → push` loop | `reference/cli.md#boboddy-pipelines-pull-project` / `#boboddy-pipelines-push-project` |
 | `choice` and `routeToPipeline` | `guides/pipeline-advancement.md` |
 | "Use `design` unless you want to write it yourself" | `reference/cli.md#boboddy-pipelines-init` |
 | `CliError` failure codes and their meanings | `reference/cli.md#failure-codes` (`reference/observability.md` links to it) |

@@ -43,7 +43,7 @@ import path from "node:path";
  *
  * This constant is the single pin for the in-devcontainer OpenCode runtime.
  */
-export const OPENCODE_RUNTIME_VERSION = "1.18.11";
+export const OPENCODE_RUNTIME_VERSION = "2.0.28";
 
 /**
  * Override the pinned version via the worker env (e.g. for local dev).
@@ -78,7 +78,8 @@ export const PAYLOAD_BIN_SUBDIR = "bin";
 
 /**
  * Linux standalone-binary platform keys we ALWAYS provision. Each maps to an
- * npm optional-dependency package of `opencode-ai` (e.g. `opencode-linux-arm64`).
+ * npm optional-dependency package of `@opencode/cli` (e.g.
+ * `@opencode/cli-linux-arm64`).
  * These are the targets that run inside the (Linux) devcontainer. Both glibc and
  * musl (Alpine) variants are included so the mounted payload is portable across
  * base images.
@@ -94,7 +95,7 @@ export const LINUX_PAYLOAD_PLATFORMS = [
  * Host-native platform keys. These are provisioned IN ADDITION to the Linux set
  * when the worker host is not Linux, so `no_workspace` steps — which run
  * OpenCode DIRECTLY ON THE HOST (no devcontainer) — have a runnable binary for
- * the host OS/arch. Each also maps to an `opencode-<platform>` npm package.
+ * the host OS/arch. Each also maps to an `@opencode/cli-<platform>` npm package.
  */
 export const HOST_NATIVE_PAYLOAD_PLATFORMS = [
   "darwin-arm64",
@@ -185,9 +186,30 @@ export function containerLaunchWrapperPath(version: string): string {
   );
 }
 
+/** npm scope publishing the OpenCode v2 CLI and its per-platform packages. */
+export const OPENCODE_PLATFORM_PACKAGE_SCOPE = "@opencode";
+
+function opencodePlatformPackageBasename(platform: PayloadPlatform): string {
+  return `cli-${platform}`;
+}
+
 /** npm package name supplying the standalone binary for a payload platform. */
 export function opencodePlatformPackage(platform: PayloadPlatform): string {
-  return `opencode-${platform}`;
+  return `${OPENCODE_PLATFORM_PACKAGE_SCOPE}/${opencodePlatformPackageBasename(platform)}`;
+}
+
+/**
+ * Registry tarball URL for a platform package. Scoped npm tarballs keep the
+ * scoped name in the path but use the unscoped basename for the file:
+ * `<registry>/@opencode/cli-<platform>/-/cli-<platform>-<version>.tgz`.
+ */
+export function opencodePlatformTarballUrl(
+  registryBaseUrl: string,
+  platform: PayloadPlatform,
+  version: string,
+): string {
+  const basename = opencodePlatformPackageBasename(platform);
+  return `${registryBaseUrl}/${opencodePlatformPackage(platform)}/-/${basename}-${version}.tgz`;
 }
 
 /** Shape persisted to `manifest.json` inside the payload. */
@@ -207,7 +229,7 @@ export type OpencodeRuntimePayloadManifest = {
  * changes in a way that makes previously-cached payloads incompatible; the
  * provisioner treats a manifest with a different revision as stale.
  */
-export const PAYLOAD_FORMAT_REVISION = 2;
+export const PAYLOAD_FORMAT_REVISION = 3;
 
 /**
  * Progress events emitted while provisioning a runtime payload.

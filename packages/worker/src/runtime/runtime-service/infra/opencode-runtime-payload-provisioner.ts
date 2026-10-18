@@ -4,7 +4,7 @@ import {
   logWork,
   logWorkDebug,
   logWorkError,
-} from "../../../work/step-execution/application/work-logger";
+} from "../../../work/task/application/work-logger";
 import {
   LAUNCH_WRAPPER_FILENAME,
   LINUX_PAYLOAD_PLATFORMS,

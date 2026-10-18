@@ -6,8 +6,9 @@
 //   deno run -A push.ts                   # deno
 //
 // Reads credentials from your boboddy auth file (run `boboddy auth login` first),
-// or from the BOBODDY_ACCESS_TOKEN env var. Reads projectId from .boboddy/boboddy.jsonc
-// or BOBODDY_PROJECT_ID, and baseUrl from BOBODDY_BASE_URL.
+// or from the BOBODDY_ACCESS_TOKEN env var. Resolves the "project" (owner/slug) in
+// .boboddy/boboddy.jsonc, or takes a project id from BOBODDY_PROJECT_ID, and reads
+// baseUrl from BOBODDY_BASE_URL.
 
 import { loadPushDefaults } from "@boboddy/sdk/defaults";
 import { pushFromDirectory } from "@boboddy/sdk/push";
@@ -22,8 +23,8 @@ if (!defaults.accessToken) {
 }
 if (!defaults.projectId) {
   throw new Error(
-    "No project ID found. Run `boboddy init` to write .boboddy/boboddy.jsonc, " +
-      "or set BOBODDY_PROJECT_ID.",
+    'No project found. Run `boboddy init` to write "project" to ' +
+      ".boboddy/boboddy.jsonc, or set BOBODDY_PROJECT_ID.",
   );
 }
 

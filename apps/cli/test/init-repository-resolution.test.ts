@@ -43,7 +43,7 @@ describe("reportResolvedRepository", () => {
       remoteUrl: "git@github.com:acme/my-repo.git",
     });
     expect(tasks[0]?.message).toBe(REPOSITORY_TASK_LABEL);
-    expect(methods(tasks)).toEqual(["startTask", "succeed"]);
+    expect(methods(tasks)).toEqual(["startActivity", "succeed"]);
     expect(tasks[1]?.message).toContain("/Users/dev/my-repo");
     expect(messages(calls)).toContain(
       "Remote: git@github.com:acme/my-repo.git",
@@ -65,7 +65,7 @@ describe("reportResolvedRepository", () => {
     }
 
     expect(caught).toBe(boom);
-    expect(methods(tasks)).toEqual(["startTask", "fail"]);
+    expect(methods(tasks)).toEqual(["startActivity", "fail"]);
   });
 
   test("never reports a remote when resolution failed", async () => {

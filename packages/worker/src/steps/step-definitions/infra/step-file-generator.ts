@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { parseSchema } from "json-schema-to-zod";
-import type { EnvVarSpec } from "@boboddy/sdk/env-vars";
+import { appliesToSetup, type EnvVarSpec } from "@boboddy/sdk/env-vars";
 import { resolveRepoConfig, type RepoConfig } from "@boboddy/sdk/repo-config";
 import { isSecretLookingEnvName } from "@boboddy/sdk/definitions/steps";
 import { DEFAULT_CODE_STEP_RUNTIME_ID } from "@boboddy/sdk/managed-runtimes";
@@ -20,7 +20,6 @@ export type StepDefContract = {
   inputSchemaJson: Record<string, unknown> | null;
   resultSchemaJson: Record<string, unknown> | null;
   opencodeMcpJson: Record<string, unknown> | null;
-  opencodePluginJson: unknown[] | null;
   healthChecksJson: unknown[] | null;
   envJson: EnvVarSpec[] | null;
   signalExtractorDefinitions: Array<{
@@ -146,6 +145,9 @@ type EnvEntrySource = {
  * options spelled out.
  */
 function envEntryToSource(entry: EnvVarSpec): EnvEntrySource {
+  const appliesOpts = appliesToSetup(entry.applies)
+    ? [`applies: ${JSON.stringify(entry.applies)}`]
+    : [];
   if (entry.source === "inherit") {
     const opts: string[] = [];
     if (entry.from !== entry.name) {
@@ -156,6 +158,7 @@ function envEntryToSource(entry: EnvVarSpec): EnvEntrySource {
     if (entry.default !== undefined) {
       opts.push(`default: ${JSON.stringify(entry.default)}`);
     }
+    opts.push(...appliesOpts);
     return {
       expr: `Env.inherit(${opts.length > 0 ? `{ ${opts.join(", ")} }` : ""})`,
       usesInput: false,
@@ -165,19 +168,24 @@ function envEntryToSource(entry: EnvVarSpec): EnvEntrySource {
 
   const { expr, usedScopes } = templateToExpr(entry.value, ["input"]);
   const usesInput = usedScopes.length > 0;
+  const valueOpts = (extra: string[]) =>
+    `Env.value({ ${[`value: ${expr}`, ...extra, ...appliesOpts].join(", ")} })`;
   if (entry.secret) {
     return {
-      expr: `Env.value({ value: ${expr}, secret: true })`,
+      expr: valueOpts(["secret: true"]),
       usesInput,
       usesEnvHelper: true,
     };
   }
   if (!usesInput && isSecretLookingEnvName(entry.name)) {
     return {
-      expr: `Env.value({ value: ${expr}, unsafeAllowStatic: true })`,
+      expr: valueOpts(["unsafeAllowStatic: true"]),
       usesInput,
       usesEnvHelper: true,
     };
+  }
+  if (appliesOpts.length > 0) {
+    return { expr: valueOpts([]), usesInput, usesEnvHelper: true };
   }
   return { expr, usesInput, usesEnvHelper: false };
 }
@@ -352,14 +360,6 @@ export function generateStepsFileContent(steps: StepDefContract[]): string {
         "\n  ",
       );
       fields.push(`  mcpServers: ${mcpJson}`);
-    }
-    if (step.opencodePluginJson && step.opencodePluginJson.length > 0) {
-      const pluginJson = JSON.stringify(
-        step.opencodePluginJson,
-        null,
-        2,
-      ).replace(/\n/g, "\n  ");
-      fields.push(`  plugins: ${pluginJson}`);
     }
     if (step.healthChecksJson && step.healthChecksJson.length > 0) {
       const healthChecksJson = JSON.stringify(

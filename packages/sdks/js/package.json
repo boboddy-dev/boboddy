@@ -15,7 +15,6 @@
     "./push": "./src/push/index.ts",
     "./code-step-lookup": "./src/push/code-step-lookup.ts",
     "./opencode-mcp": "./src/opencode-mcp.ts",
-    "./opencode-plugin": "./src/opencode-plugin.ts",
     "./health-checks": "./src/health-checks.ts",
     "./env-vars": "./src/env-vars.ts",
     "./devcontainer-config-path": "./src/devcontainer-config-path.ts",
@@ -49,6 +48,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.90.10",
+    "@opencode/client": "2.0.28",
     "bun-types": "^1.4.0",
     "zod": "^4.3.6"
   }

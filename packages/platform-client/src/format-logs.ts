@@ -1,7 +1,7 @@
 import type {
   ConversationEvent,
   LogLine,
-  StepExecutionLogStream,
+  TaskLogStream,
 } from "./lib/api-types";
 
 /** Cap on the total rendered log output, per the plan's Risks table ("Cap
@@ -16,15 +16,15 @@ export type FormatLogsInput = {
   /** Log lines already filtered to the requested stream(s) by the caller,
    * in `seq` order. */
   lines: readonly LogLine[];
-  requestedStream: StepExecutionLogStream | "all";
-  /** Where `lines` came from: the durable archive (step execution is
+  requestedStream: TaskLogStream | "all";
+  /** Where `lines` came from: the durable archive (task is
    * terminal) or the live feed (still running). Purely informational —
    * shown in the header so the reader knows whether this is a final or
    * in-progress record. */
   source: "archive" | "live";
 };
 
-const STREAM_ORDER: readonly StepExecutionLogStream[] = [
+const STREAM_ORDER: readonly TaskLogStream[] = [
   "worker",
   "ai-server",
   "conversation",
@@ -52,7 +52,7 @@ function renderToolEvent(
  * Reconstructs a chat-transcript-ish view of the `conversation` stream.
  * OpenCode resends the full part on every streaming update (see
  * `conversationEventSchema`'s doc comment in
- * `step-execution-log-contracts.ts`), so this upserts by `partId`/a synthetic
+ * `task-log-contracts.ts`), so this upserts by `partId`/a synthetic
  * key exactly like the UI does — keeping only the LATEST content per part,
  * but rendered in the ORDER the part first appeared, rather than replaying
  * every intermediate streaming delta (which would be unreadable as flat
@@ -134,7 +134,7 @@ function renderConversationLines(lines: readonly LogLine[]): string[] {
 }
 
 function renderStreamBlock(
-  stream: StepExecutionLogStream,
+  stream: TaskLogStream,
   lines: readonly LogLine[],
 ): string[] {
   if (lines.length === 0) return [];
@@ -156,7 +156,7 @@ export function renderLogText(input: FormatLogsInput): string {
     requestedStream === "all" ? STREAM_ORDER : [requestedStream];
 
   const header = [
-    `Logs for step ${stepKey} (${source === "archive" ? "complete" : "live, step still running"})`,
+    `Logs for step ${stepKey} (${source === "archive" ? "complete" : "live snapshot, step still running"})`,
     "",
   ];
 
@@ -171,6 +171,17 @@ export function renderLogText(input: FormatLogsInput): string {
   }
 
   return [...header, ...body].join("\n").trimEnd();
+}
+
+/**
+ * The uncapped `conversation` stream of a step's log, for writing to a file
+ * an agent searches rather than reads whole. Other streams in `lines` are
+ * ignored.
+ */
+export function renderConversationTranscript(
+  input: Omit<FormatLogsInput, "requestedStream">,
+): string {
+  return renderLogText({ ...input, requestedStream: "conversation" });
 }
 
 /**
@@ -194,34 +205,40 @@ function splitHeaderAndBody(rendered: string): {
 }
 
 /**
- * Caps a rendered log to `cap` characters, per decisions 1-2 of
- * `docs/plans/execution-log-tail-truncation-and-file-cache.md`: the header
- * survives in full, the **tail** of the body is kept (errors cluster near
- * the end), and the cut point snaps forward to the next line boundary so no
- * line is shown partially.
+ * Appends where the full log went (a file path, or why it was not saved) to
+ * the `Logs for step ...` header line of a {@link renderLogText} result.
  */
-export function capLogBody(
+export function withFullLogLocation(
   rendered: string,
-  cap: number,
-  options?: { filePath?: string },
+  location: string,
 ): string {
+  const headerEnd = rendered.indexOf("\n");
+  const note = ` · full log: ${location}`;
+  if (headerEnd === -1) return rendered + note;
+  return rendered.slice(0, headerEnd) + note + rendered.slice(headerEnd);
+}
+
+const characterCount = new Intl.NumberFormat("en-US");
+
+/**
+ * Caps a rendered log to `cap` characters: the header survives in full, the
+ * **tail** of the body is kept (errors cluster near the end), and the cut
+ * point snaps forward to the next line boundary so no line is shown
+ * partially. A cut body starts with a one-line note saying how much was
+ * dropped.
+ */
+export function capLogBody(rendered: string, cap: number): string {
   if (rendered.length <= cap) return rendered;
 
   const { header, body } = splitHeaderAndBody(rendered);
-  const noticeBudget = 200;
+  const noticeBudget = 100;
   const tailBudget = Math.max(cap - header.length - noticeBudget, 0);
   const naiveCut = Math.max(body.length - tailBudget, 0);
   const cutAtLineStart = body.indexOf("\n", naiveCut) + 1 || naiveCut;
-  const fileNote =
-    options?.filePath !== undefined
-      ? ` Full log saved to ${options.filePath}.`
-      : "";
 
   return (
     header +
-    `… [omitted ${String(cutAtLineStart)} earlier characters — showing the ` +
-    `final ${String(body.length - cutAtLineStart)} characters, since ` +
-    `failures are usually near the end.${fileNote}]\n\n` +
+    `… ${characterCount.format(cutAtLineStart)} earlier characters omitted (see full log above)\n` +
     body.slice(cutAtLineStart)
   );
 }

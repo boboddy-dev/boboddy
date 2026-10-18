@@ -1,4 +1,4 @@
-import type { WorkEvent, WorkReporter, WorkTask } from "./reporter-types";
+import type { WorkEvent, WorkReporter, WorkActivity } from "./reporter-types";
 
 /**
  * A plain, non-interactive reporter for non-TTY contexts (pipes, CI). Emits
@@ -23,7 +23,7 @@ export class PlainReporter implements WorkReporter {
     this.line(`✓ ${message}`);
   }
 
-  startTask(message: string): WorkTask {
+  startActivity(message: string): WorkActivity {
     this.line(`… ${message}`);
     return {
       update: (next) => { this.line(`… ${next}`); },
@@ -57,7 +57,7 @@ export class PlainReporter implements WorkReporter {
         this.info("worker ready");
         return;
       case "worker:claimed":
-        this.info(`claimed ${String(event.count)} step(s)`);
+        this.info(`claimed ${String(event.count)} task(s)`);
         return;
       case "worker:complete":
         this.success(
@@ -66,14 +66,14 @@ export class PlainReporter implements WorkReporter {
           )} skipped`,
         );
         return;
-      case "step:starting":
-        this.info(`step ${event.stepExecutionId} started`);
+      case "task:starting":
+        this.info(`task ${event.taskId} started`);
         return;
-      case "step:succeeded":
-        this.success(`step ${event.stepExecutionId} succeeded`);
+      case "task:succeeded":
+        this.success(`task ${event.taskId} succeeded`);
         return;
-      case "step:failed":
-        this.error(`step ${event.stepExecutionId} failed: ${event.reason}`);
+      case "task:failed":
+        this.error(`task ${event.taskId} failed: ${event.reason}`);
         if (this.logFilePath) {
           this.line(`· full logs: ${this.logFilePath}`);
         }
@@ -81,7 +81,7 @@ export class PlainReporter implements WorkReporter {
       // Off-TTY: surface milestones (they explain the otherwise-silent
       // multi-minute pause) and any warn/error detail lines (the actual failure
       // output), but drop info-level detail noise to keep CI logs readable.
-      case "step:runtime-container-progress":
+      case "task:runtime-container-progress":
         if (event.kind === "milestone") {
           this.info(`devcontainer: ${event.phase}`);
         } else if (event.level === "error") {
@@ -93,13 +93,13 @@ export class PlainReporter implements WorkReporter {
       // Intermediate / chatty states are intentionally dropped off-TTY.
       case "worker:polling":
       case "worker:idle":
-      case "step:runtime-launching":
-      case "step:runtime-cloning":
-      case "step:runtime-container-starting":
-      case "step:runtime-ai-starting":
-      case "step:runtime-ready":
-      case "step:health-checks-running":
-      case "step:agent-running":
+      case "task:runtime-launching":
+      case "task:runtime-cloning":
+      case "task:runtime-container-starting":
+      case "task:runtime-ai-starting":
+      case "task:runtime-ready":
+      case "task:health-checks-running":
+      case "task:agent-running":
         return;
     }
   }

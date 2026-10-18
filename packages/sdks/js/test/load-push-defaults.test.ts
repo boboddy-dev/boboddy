@@ -59,13 +59,61 @@ describe("loadPushDefaults", () => {
     mkdirSync(join(rootDir, ".boboddy"), { recursive: true });
     writeFileSync(
       join(rootDir, ".boboddy", "boboddy.jsonc"),
-      JSON.stringify({ projectId: "walked-proj" }),
+      JSON.stringify({ project: "acme/web-app" }),
     );
+    process.env["BOBODDY_BASE_URL"] = "https://boboddy.example.com";
+    process.env["BOBODDY_ACCESS_TOKEN"] = "env-token";
+
+    const requested: string[] = [];
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = ((input: string | URL | Request) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requested.push(request.url);
+      return Promise.resolve(Response.json({ id: "walked-proj" }));
+    }) as unknown as typeof globalThis.fetch;
 
     try {
       const result = await loadPushDefaults({ dir: childDir });
       expect(result.projectId).toBe("walked-proj");
+      expect(requested).toEqual([
+        "https://boboddy.example.com/api/projects/resolve?username=acme&slug=web-app",
+      ]);
     } finally {
+      globalThis.fetch = previousFetch;
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test("names the ref and the action when the server forbids the configured project", async () => {
+    const rootDir = mkdtempSync(join(tmpdir(), "boboddy-defaults-forbidden-"));
+    mkdirSync(join(rootDir, ".boboddy"), { recursive: true });
+    writeFileSync(
+      join(rootDir, ".boboddy", "boboddy.jsonc"),
+      JSON.stringify({ project: "acme/web-app" }),
+    );
+    process.env["BOBODDY_ACCESS_TOKEN"] = "env-token";
+
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        Response.json(
+          { type: "x", title: "Forbidden", status: 403 },
+          { status: 403 },
+        ),
+      )) as unknown as typeof globalThis.fetch;
+
+    try {
+      let message = "";
+      try {
+        await loadPushDefaults({ dir: rootDir });
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      expect(message).toContain(
+        "You don't have permission to push pipelines to acme/web-app.",
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
       rmSync(rootDir, { recursive: true, force: true });
     }
   });

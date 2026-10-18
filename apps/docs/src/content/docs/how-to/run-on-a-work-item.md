@@ -47,7 +47,7 @@ where no offer appears.
 `boboddy work` keeps polling until you press Ctrl+C, because later steps
 queue as earlier ones advance; `--once` polls once, finishes whatever it claimed, and exits.
 `--work-item-id` scopes it to one item. Every flag:
-[`boboddy work`](/boboddy/reference/cli/#boboddy-work-projectid). To run
+[`boboddy work`](/boboddy/reference/cli/#boboddy-work-project). To run
 several workers, see [Running Workers](/boboddy/guides/workers/).
 
 ## Why a new item doesn't start by itself

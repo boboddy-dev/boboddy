@@ -1,17 +1,20 @@
 import { describe, expect } from "bun:test";
 import {
   DEVCONTAINER_MISSING_MESSAGE,
-  FIRST_STEP_DRY_RUN_FAILED_MESSAGE,
-  formatRunCommand,
   NO_PIPELINE_MESSAGE,
   NOTHING_QUEUED_MESSAGE,
   RUN_LATER_PREFIX,
   RUN_LAUNCH_MESSAGE,
   RUN_REPAIR_GUIDANCE,
   runDesignRunOffer,
-  type DesignRunOfferPorts,
-  type DesignRunTarget,
 } from "../src/lib/design-run-offer";
+import {
+  createPorts,
+  expectRejection,
+  PIPELINE_ID,
+  RUN_COMMAND,
+  TARGET,
+} from "./design-run-offer-fixtures";
 import {
   concurrentTest as test,
   createReporterRecorder as createRecorder,
@@ -30,103 +33,12 @@ import {
  * takes over the terminal.
  */
 
-const TARGET: DesignRunTarget = {
-  projectId: "019ed1b9-c02d-7170-a08a-1ff912085f7b",
-  workItemId: "019ed1c0-1111-7170-a08a-1ff912085f7b",
-  workItemTitle: "Checkout button does nothing on mobile Safari",
-};
-
-const PIPELINE_ID = "019ed1c9-2222-7170-a08a-1ff912085f7b";
-
-const RUN_COMMAND = formatRunCommand(TARGET);
-
-type Calls = {
-  resolveAssignedPipeline: number;
-  pipelineNeedsProjectDevcontainer: number;
-  hasDevcontainer: number;
-  runFirstStepDryRun: number;
-  confirmRun: number;
-  queueRun: number;
-  runWorker: number;
-};
-
-/**
- * The "everything is ready and the user says yes" baseline; each test negates
- * exactly one port.
- */
-function createPorts(overrides: Partial<DesignRunOfferPorts> = {}): {
-  ports: DesignRunOfferPorts;
-  calls: Calls;
-  order: string[];
-} {
-  const calls: Calls = {
-    resolveAssignedPipeline: 0,
-    pipelineNeedsProjectDevcontainer: 0,
-    hasDevcontainer: 0,
-    runFirstStepDryRun: 0,
-    confirmRun: 0,
-    queueRun: 0,
-    runWorker: 0,
-  };
-  const order: string[] = [];
-
-  const base: DesignRunOfferPorts = {
-    resolveAssignedPipeline: () => {
-      calls.resolveAssignedPipeline += 1;
-      return Promise.resolve(PIPELINE_ID);
-    },
-    pipelineNeedsProjectDevcontainer: () => {
-      calls.pipelineNeedsProjectDevcontainer += 1;
-      return Promise.resolve(true);
-    },
-    hasDevcontainer: () => {
-      calls.hasDevcontainer += 1;
-      return Promise.resolve(true);
-    },
-    runFirstStepDryRun: () => {
-      calls.runFirstStepDryRun += 1;
-      order.push("runFirstStepDryRun");
-      return Promise.resolve({ ok: true, summary: "healthy" });
-    },
-    confirmRun: () => {
-      calls.confirmRun += 1;
-      return Promise.resolve(true);
-    },
-    queueRun: () => {
-      calls.queueRun += 1;
-      order.push("queueRun");
-      return Promise.resolve();
-    },
-    runWorker: () => {
-      calls.runWorker += 1;
-      order.push("runWorker");
-      return Promise.resolve();
-    },
-  };
-
-  return { ports: { ...base, ...overrides }, calls, order };
-}
-
-/**
- * Await a rejection and hand back the error. Preferred over `expect().rejects`
- * because these tests go on to assert on side effects that must NOT have
- * happened after the throw.
- */
-async function expectRejection(promise: Promise<unknown>): Promise<Error> {
-  try {
-    await promise;
-  } catch (error) {
-    return error instanceof Error ? error : new Error(String(error));
-  }
-  throw new Error("Expected the offer to reject, but it resolved.");
-}
-
 describe("formatRunCommand", () => {
   test("targets the one work item the session was about", () => {
     // The user never has to learn the flag exists — but if they copy the line,
     // it has to be the whole command, ready to paste.
     expect(RUN_COMMAND).toBe(
-      `boboddy work ${TARGET.projectId} --work-item-id ${TARGET.workItemId}`,
+      `boboddy work acme/web-app --work-item-id ${TARGET.workItemId}`,
     );
   });
 });
@@ -147,7 +59,7 @@ describe("runDesignRunOffer", () => {
     // The dry-run gate runs before the confirm, and the queue only after it —
     // a worker started before anything is queued has nothing to claim and
     // polls into the void.
-    expect(order).toEqual(["runFirstStepDryRun", "queueRun", "runWorker"]);
+    expect(order).toEqual(["runPipelineHealthDryRun", "queueRun", "runWorker"]);
     expect(calls.confirmRun).toBe(1);
   });
 
@@ -281,7 +193,7 @@ describe("runDesignRunOffer", () => {
     expect(calls.confirmRun).toBe(0);
     expect(calls.queueRun).toBe(0);
     expect(calls.runWorker).toBe(0);
-    expect(calls.runFirstStepDryRun).toBe(0);
+    expect(calls.runPipelineHealthDryRun).toBe(0);
     expect(messages(reported)).toContain(DEVCONTAINER_MISSING_MESSAGE);
     expect(messages(reported)).toContain(`${RUN_LATER_PREFIX} ${RUN_COMMAND}`);
   });
@@ -343,68 +255,6 @@ describe("runDesignRunOffer", () => {
     expect(calls.queueRun).toBe(0);
     expect(calls.runWorker).toBe(0);
     expect(messages(reported)).toContain(NO_PIPELINE_MESSAGE);
-  });
-
-  test("passes the assigned pipeline id to the first-step dry run", async () => {
-    const { reporter } = createRecorder();
-    let checked: string | undefined;
-    const { ports } = createPorts({
-      runFirstStepDryRun: (pipelineDefinitionId) => {
-        checked = pipelineDefinitionId;
-        return Promise.resolve({ ok: true, summary: "healthy" });
-      },
-    });
-
-    await runDesignRunOffer({
-      tuiExitedCleanly: true,
-      target: TARGET,
-      reporter,
-      ports,
-    });
-
-    expect(checked).toBe(PIPELINE_ID);
-  });
-
-  test("blocks the run and explains itself when the first-step dry run fails", async () => {
-    const { reporter, calls: reported } = createRecorder();
-    const { ports, calls } = createPorts({
-      runFirstStepDryRun: () =>
-        Promise.resolve({ ok: false, summary: "container exited" }),
-    });
-
-    const result = await runDesignRunOffer({
-      tuiExitedCleanly: true,
-      target: TARGET,
-      reporter,
-      ports,
-    });
-
-    expect(result.ran).toBe(false);
-    // Blocking: nothing is queued and the user is never even asked.
-    expect(calls.confirmRun).toBe(0);
-    expect(calls.queueRun).toBe(0);
-    expect(calls.runWorker).toBe(0);
-    expect(messages(reported)).toContain(
-      `${FIRST_STEP_DRY_RUN_FAILED_MESSAGE} container exited`,
-    );
-    expect(messages(reported)).toContain(`${RUN_LATER_PREFIX} ${RUN_COMMAND}`);
-  });
-
-  test("checks the first step only after a pipeline is known to be assigned", async () => {
-    const { reporter } = createRecorder();
-    const { ports, calls } = createPorts({
-      resolveAssignedPipeline: () => Promise.resolve(undefined),
-    });
-
-    await runDesignRunOffer({
-      tuiExitedCleanly: true,
-      target: TARGET,
-      reporter,
-      ports,
-    });
-
-    // No pipeline id to check against, so there is nothing to dry-run yet.
-    expect(calls.runFirstStepDryRun).toBe(0);
   });
 
   test("says nothing at all when the designer did not exit cleanly", async () => {

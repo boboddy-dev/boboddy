@@ -19,7 +19,9 @@ import {
  *   4. On Linux, detects libc: if `/etc/alpine-release` exists OR `ldd --version`
  *      mentions musl, selects the `-musl` binary; otherwise the glibc binary.
  *      On macOS, selects the `darwin-<arch>` binary (no libc concept).
- *   5. Execs the selected standalone (embedded-Bun) `opencode` binary with all
+ *   5. For a musl binary, warns if `libstdc++` / `libgcc` are missing (bare
+ *      Alpine images need `apk add libstdc++ libgcc`).
+ *   6. Execs the selected standalone (embedded-Bun) `opencode` binary with all
  *      forwarded args (e.g. `serve --hostname 127.0.0.1 --port <p>`).
  *
  * It deliberately uses only POSIX `sh` builtins and `uname` (always present),
@@ -90,6 +92,20 @@ if [ ! -x "$candidate" ]; then
   echo "boboddy: no OpenCode binary for linux-\${arch}\${libc} in $BIN_ROOT" >&2
   exit 98
 fi
+
+# 4. The musl binary dynamically links libstdc++ and libgcc, which bare Alpine
+# images omit. Warn before exec (exec replaces this shell, so a post-failure
+# check is impossible); still exec so an unusual lib layout is not blocked.
+case "$candidate" in
+  *-musl/opencode)
+    for lib in libstdc++.so.6 libgcc_s.so.1; do
+      if [ ! -e "/usr/lib/$lib" ] && [ ! -e "/lib/$lib" ] && [ ! -e "/usr/local/lib/$lib" ]; then
+        echo "boboddy: Alpine images need 'apk add libstdc++ libgcc' for OpenCode" >&2
+        break
+      fi
+    done
+    ;;
+esac
 
 exec "$candidate" "$@"
 `;

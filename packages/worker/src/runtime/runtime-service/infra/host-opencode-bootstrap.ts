@@ -1,16 +1,29 @@
 import { spawn } from "node:child_process";
-import { mkdir, open } from "node:fs/promises";
+import { mkdir, open, readFile } from "node:fs/promises";
 import path from "node:path";
+import { SecretMasker } from "../../../work/task/application/secret-masker";
 import {
   logWork,
   logWorkDebug,
   logWorkError,
-} from "../../../work/step-execution/application/work-logger";
+} from "../../../work/task/application/work-logger";
 import { findFreePort } from "./devcontainer-opencode-bootstrap";
+import {
+  opencodeCredentialSecrets,
+  type OpencodeCredential,
+} from "./opencode-credential-source";
+import { completeOpencodeBoot } from "./opencode-post-readiness";
+import {
+  generateServerPassword,
+  SERVE_LOG_ARGS,
+  SERVER_PASSWORD_ENV,
+  waitForReadiness,
+} from "./opencode-server-contract";
+import { formatServeLogExcerpt } from "./opencode-serve-log-excerpt";
 
 /**
  * Bootstraps the Boboddy-managed OpenCode runtime DIRECTLY ON THE HOST for
- * `no_workspace` step executions — no docker, no devcontainer.
+ * `no_workspace` tasks — no docker, no devcontainer.
  *
  * This mirrors {@link DevcontainerOpencodeBootstrap.start}/`stop`/`waitForHealth`
  * but launches the host launch wrapper (the same `launch.sh` that runs inside a
@@ -18,32 +31,53 @@ import { findFreePort } from "./devcontainer-opencode-bootstrap";
  * plain background child process:
  *
  *   <hostLaunchWrapperPath> serve --hostname 127.0.0.1 --port <freePort>
+ *     --print-logs --log-level info
  *
- * The process's `HOME`/`XDG_CONFIG_HOME`/`XDG_DATA_HOME` point at a
- * session-scoped agent HOME (prepared by `opencode-agent-home.ts`), so the
- * user's global config + provider auth are read exactly as on the container
- * path. Boboddy's override config is passed inline via `OPENCODE_CONFIG_CONTENT`
- * (precedence #6), and the resolved provider env is injected as-is.
+ * The process's `HOME` and every `XDG_*` dir point at a session-scoped agent
+ * HOME (prepared by `opencode-agent-home.ts`), so the user's global config is
+ * read exactly as on the container path and the server's database, state and
+ * cache stay isolated per session. The server is protected by a per-session
+ * password (`OPENCODE_SERVER_PASSWORD`) returned to the caller. Boboddy's
+ * override config is passed inline via `OPENCODE_CONFIG_CONTENT` (precedence
+ * #6), and the resolved provider env is injected as-is. Once ready, config
+ * diagnostics are checked and the user's credentials are injected over the API
+ * (`opencode-post-readiness.ts`).
  *
  * stdout+stderr are redirected to a host log file so the monitor's log tail can
  * follow it (the host-file tail path in `OpencodeLogTail`).
  */
 
-const HEALTH_TIMEOUT_MS = 60_000;
-const HEALTH_INTERVAL_MS = 500;
-const HEALTH_PATH = "/global/health";
 const HOST_AGENT_LOG_DIRNAME = ".boboddy-log";
 /** Filename of the host opencode serve log within the log directory. */
 export const HOST_AGENT_SERVE_LOG_FILENAME = "opencode-serve.log";
 const HOST_OPENCODE_BIND_HOST = "127.0.0.1";
 
+type HostProcessExit = {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+};
+
+export type HostAgentLogReady = {
+  /** Directory the serve log lives in. */
+  agentLogDirectory: string;
+  /** Absolute host path of the serve log file. */
+  agentLogPath: string;
+};
+
 export type HostStartInput = {
   /** Absolute HOST path of the launch wrapper (`launch.sh`). */
   hostLaunchWrapperPath: string;
+  /** OpenCode version the payload provides; readiness requires an exact match. */
+  expectedVersion: string;
   /** Absolute path the agent operates against on the host (the temp workdir). */
   workspaceFolder: string;
-  /** Session-scoped agent HOME dir (already prepared with config/auth). */
+  /** Session-scoped agent HOME dir (already prepared with the global config). */
   sessionAgentHomeDir: string;
+  /**
+   * The user's provider credentials, injected over the API once the server is
+   * ready. Every secret in them is masked in error output.
+   */
+  credentials: readonly OpencodeCredential[];
   /**
    * Provider env to launch OpenCode with (token under its `tokenEnv`, base URL,
    * etc.) — produced by the RuntimeConfigMaterializer.
@@ -60,10 +94,19 @@ export type HostStartInput = {
    * `OPENCODE_CONFIG_CONTENT` (precedence level #6 — inline).
    */
   opencodeConfigContent: string;
+  /**
+   * Called right after the process is spawned, while it is still starting up.
+   * The serve log already exists and is being written at this point, so a
+   * caller can start tailing it immediately instead of waiting for `start()` to
+   * resolve — which never happens when startup fails. Must not throw.
+   */
+  onLogReady?: ((log: HostAgentLogReady) => void) | undefined;
 };
 
 export type HostStartResult = {
   agentBaseUrl: string;
+  /** Basic-auth password the server was started with. */
+  serverPassword: string;
   /** Directory the host serve log lives in (parallel to the container shape). */
   agentLogDirectory: string;
   /** Absolute host path of the serve log file, for direct host tailing. */
@@ -92,13 +135,18 @@ export class HostOpencodeBootstrap {
       HOST_AGENT_SERVE_LOG_FILENAME,
     );
 
-    // Point OpenCode's config/data dirs at the session-scoped agent HOME so it
-    // reads the user's global config (#2) + provider auth, isolated per session.
+    const serverPassword = generateServerPassword();
+
+    // Point every OpenCode XDG dir at the session-scoped agent HOME so it
+    // reads the user's global config (#2) and keeps its database, state and
+    // cache isolated per session.
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       HOME: input.sessionAgentHomeDir,
       XDG_CONFIG_HOME: path.join(input.sessionAgentHomeDir, ".config"),
       XDG_DATA_HOME: path.join(input.sessionAgentHomeDir, ".local", "share"),
+      XDG_STATE_HOME: path.join(input.sessionAgentHomeDir, ".local", "state"),
+      XDG_CACHE_HOME: path.join(input.sessionAgentHomeDir, ".cache"),
       // Boboddy override layer (permission baseline, step MCPs, plugins,
       // AGENT_DEFAULT_MODEL). Wins over global (#2) and project (#4) configs.
       OPENCODE_CONFIG_CONTENT: input.opencodeConfigContent,
@@ -108,6 +156,7 @@ export class HostOpencodeBootstrap {
       BOBODDY_WORKSPACE_FOLDER: input.workspaceFolder,
       ...input.providerEnv,
       ...input.stepEnv,
+      [SERVER_PASSWORD_ENV]: serverPassword,
     };
 
     logWork("runtime", "Starting host OpenCode", {
@@ -130,6 +179,7 @@ export class HostOpencodeBootstrap {
           HOST_OPENCODE_BIND_HOST,
           "--port",
           String(port),
+          ...SERVE_LOG_ARGS,
         ],
         {
           cwd: input.workspaceFolder,
@@ -138,6 +188,16 @@ export class HostOpencodeBootstrap {
           detached: true,
         },
       );
+      // Record an early exit (or spawn error) so the health poll can stop
+      // immediately instead of waiting out the full timeout on a dead process.
+      let exited: HostProcessExit | null = null;
+      let spawnError: Error | null = null;
+      child.once("exit", (code, signal) => {
+        exited = { code, signal };
+      });
+      child.once("error", (error) => {
+        spawnError = error;
+      });
       const pid = child.pid;
       if (pid === undefined) {
         throw new Error("Host OpenCode process failed to spawn (no pid)");
@@ -145,8 +205,35 @@ export class HostOpencodeBootstrap {
       // Let the parent exit independently of the child; we track it by pid.
       child.unref();
 
+      input.onLogReady?.({ agentLogDirectory, agentLogPath });
+
+      const masker = new SecretMasker([
+        ...Object.values(input.providerEnv),
+        ...Object.values(input.stepEnv ?? {}),
+        ...opencodeCredentialSecrets(input.credentials),
+        serverPassword,
+      ]);
+
       try {
-        await this.waitForHealth(agentBaseUrl, pid);
+        await this.waitForHealth({
+          baseUrl: agentBaseUrl,
+          password: serverPassword,
+          expectedVersion: input.expectedVersion,
+          pid,
+          agentLogPath,
+          masker,
+          getExit: () => exited,
+          getSpawnError: () => spawnError,
+        });
+        await completeOpencodeBoot({
+          baseUrl: agentBaseUrl,
+          password: serverPassword,
+          workspaceFolder: input.workspaceFolder,
+          readLog: () => readFile(agentLogPath, "utf8").catch(() => null),
+          masker,
+          credentials: input.credentials,
+          logContext: { baseUrl: agentBaseUrl, pid },
+        });
       } catch (error) {
         // `start()` is throwing before returning, so the orchestrator has no
         // `cleanup` to kill this process. Reap it here to avoid leaking a
@@ -156,7 +243,13 @@ export class HostOpencodeBootstrap {
         throw error;
       }
 
-      return { agentBaseUrl, agentLogDirectory, agentLogPath, pid };
+      return {
+        agentBaseUrl,
+        serverPassword,
+        agentLogDirectory,
+        agentLogPath,
+        pid,
+      };
     } finally {
       // The child inherited its own fd for the log; close our handle.
       await logHandle.close();
@@ -175,50 +268,110 @@ export class HostOpencodeBootstrap {
     }
   }
 
-  private async waitForHealth(baseUrl: string, pid: number): Promise<void> {
-    const deadline = Date.now() + HEALTH_TIMEOUT_MS;
+  private async waitForHealth(input: {
+    baseUrl: string;
+    password: string;
+    expectedVersion: string;
+    pid: number;
+    agentLogPath: string;
+    masker: SecretMasker;
+    getExit: () => HostProcessExit | null;
+    getSpawnError: () => Error | null;
+  }): Promise<void> {
+    const { baseUrl, pid, agentLogPath, masker } = input;
     let attempts = 0;
-    let lastError: string | null = null;
 
-    while (Date.now() < deadline) {
-      attempts += 1;
-      try {
-        const response = await fetch(`${baseUrl}${HEALTH_PATH}`, {
-          signal: AbortSignal.timeout(HEALTH_INTERVAL_MS),
-        });
-        if (response.ok) {
-          logWork("runtime", "Host OpenCode healthy", {
-            baseUrl,
-            pid,
-            attempts,
-          });
-          return;
-        }
-        lastError = `HTTP ${String(response.status)}`;
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+    // Fails fast when the process is already dead: polling a port nothing is
+    // listening on can only ever end in the generic "Unable to connect".
+    const throwIfProcessDied = async (): Promise<void> => {
+      const spawnError = input.getSpawnError();
+      const exit = input.getExit();
+      if (spawnError === null && exit === null) {
+        return;
       }
-
-      logWorkDebug("runtime", "Polling host OpenCode health", {
+      const reason =
+        spawnError !== null
+          ? `failed to spawn: ${spawnError.message}`
+          : describeExit(exit);
+      logWorkError("runtime", "Host OpenCode exited before becoming healthy", {
         baseUrl,
         pid,
-        attempt: attempts,
-        lastError,
+        attempts,
+        reason,
       });
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, HEALTH_INTERVAL_MS);
+      throw new Error(
+        `Host OpenCode ${reason} before becoming healthy at ${baseUrl}` +
+          (await readLogExcerpt(agentLogPath, masker)),
+      );
+    };
+
+    const result = await waitForReadiness({
+      baseUrl,
+      password: input.password,
+      expectedVersion: input.expectedVersion,
+      assertAlive: throwIfProcessDied,
+      onNotReady: (attempt, reason) => {
+        attempts = attempt;
+        logWorkDebug("runtime", "Polling host OpenCode readiness", {
+          baseUrl,
+          pid,
+          attempt,
+          lastError: reason,
+        });
+      },
+    });
+
+    if (result.kind === "ready") {
+      logWork("runtime", "Host OpenCode healthy", {
+        baseUrl,
+        pid,
+        attempts: result.attempts,
       });
+      return;
+    }
+
+    if (result.kind === "wrong-version") {
+      logWorkError("runtime", "Host OpenCode reported an unexpected version", {
+        baseUrl,
+        pid,
+        expectedVersion: input.expectedVersion,
+        version: result.version,
+      });
+      throw new Error(
+        `Host OpenCode at ${baseUrl} reports version ${result.version}, ` +
+          `expected ${input.expectedVersion}` +
+          (await readLogExcerpt(agentLogPath, masker)),
+      );
     }
 
     logWorkError("runtime", "Host OpenCode failed to become healthy", {
       baseUrl,
       pid,
-      attempts,
-      lastError,
+      attempts: result.attempts,
+      lastError: result.lastReason,
     });
     throw new Error(
       `Timed out waiting for host OpenCode health at ${baseUrl}` +
-        (lastError ? `: ${lastError}` : ""),
+        (result.lastReason ? `: ${result.lastReason}` : "") +
+        (await readLogExcerpt(agentLogPath, masker)),
     );
   }
+}
+
+function describeExit(exit: HostProcessExit | null): string {
+  if (exit === null) {
+    return "exited";
+  }
+  if (exit.code !== null) {
+    return `exited with code ${String(exit.code)}`;
+  }
+  return `was killed by signal ${exit.signal ?? "unknown"}`;
+}
+
+async function readLogExcerpt(
+  agentLogPath: string,
+  masker: SecretMasker,
+): Promise<string> {
+  const raw = await readFile(agentLogPath, "utf8").catch(() => null);
+  return formatServeLogExcerpt(raw, masker);
 }

@@ -1,19 +1,19 @@
 import * as clack from "@clack/prompts";
 import pc from "picocolors";
-import type { WorkEvent, WorkReporter, WorkTask } from "./reporter-types";
+import type { WorkEvent, WorkReporter, WorkActivity } from "./reporter-types";
 import { formatElapsed, shortId } from "./reporter-types";
 
-/** State tracked for an in-flight step. */
-type ActiveStep = {
+/** State tracked for an in-flight task. */
+type ActiveTask = {
   spinner: ReturnType<typeof clack.spinner>;
   startedAt: number;
-  /** Last phase label shown (without the step-id prefix). */
+  /** Last phase label shown (without the task-id prefix). */
   phase: string;
   /**
-   * When the step enters the devcontainer-launch phase we swap the spinner for
+   * When the task enters the devcontainer-launch phase we swap the spinner for
    * a `taskLog`: a fixed title line plus a rolling window of streamed sub-log
    * lines. While present, the spinner is stopped and `taskLog` owns the live
-   * region. Resolved (success/error) when the launch phase ends or the step
+   * region. Resolved (success/error) when the launch phase ends or the task
    * finishes.
    */
   taskLog?: ReturnType<typeof clack.taskLog>;
@@ -35,31 +35,31 @@ const DEVCONTAINER_LOG_WINDOW = 12;
 const DEVCONTAINER_LINE_MAX_WIDTH = 100;
 
 /**
- * Max length for the step failure reason shown inline beneath the spinner.
+ * Max length for the task failure reason shown inline beneath the spinner.
  * With the raw devcontainer CLI output stripped upstream this is now a clean
  * single-sentence message, so 500 chars is a generous safety net.
  */
-const STEP_REASON_MAX_LENGTH = 500;
+const TASK_REASON_MAX_LENGTH = 500;
 
 /**
  * A `WorkReporter` backed by `@clack/prompts`. Renders friendly, hierarchical
- * status to a TTY: an intro banner, a live timer-spinner for the current step,
- * and static log lines for completed steps.
+ * status to a TTY: an intro banner, a live timer-spinner for the current task,
+ * and static log lines for completed tasks.
  *
  * Only one spinner is active at a time — clack's cursor-manipulation renders
- * incorrectly with multiple concurrent spinners. When a second step starts
+ * incorrectly with multiple concurrent spinners. When a second task starts
  * while one is already spinning (concurrency > 1) the existing spinner is
- * parked as a static log line and the new step takes over the live spinner.
+ * parked as a static log line and the new task takes over the live spinner.
  *
  * This is a *presentation* surface only — all diagnostic detail still flows
  * through pino. The two are deliberately separate sinks.
  */
 export class ClackReporter implements WorkReporter {
-  /** Live spinner state, keyed by stepExecutionId. At most one is active. */
-  private readonly activeSteps = new Map<string, ActiveStep>();
+  /** Live spinner state, keyed by taskId. At most one is active. */
+  private readonly activeTasks = new Map<string, ActiveTask>();
 
   /**
-   * Clock used for step `startedAt` capture and elapsed-duration labels.
+   * Clock used for task `startedAt` capture and elapsed-duration labels.
    * Injectable so replay tooling can render original wall-clock durations
    * while dispatching on a compressed schedule.
    */
@@ -81,20 +81,20 @@ export class ClackReporter implements WorkReporter {
 
   finish(message: string): void {
     // Park any dangling spinners / close any open taskLogs before closing.
-    for (const [id, step] of this.activeSteps) {
-      if (step.taskLog) {
-        step.taskLog.success(this.stepLabel(id, step.phase, step.startedAt), {
+    for (const [id, task] of this.activeTasks) {
+      if (task.taskLog) {
+        task.taskLog.success(this.taskLabel(id, task.phase, task.startedAt), {
           showLog: false,
         });
       } else {
-        step.spinner.stop(this.stepLabel(id, step.phase, step.startedAt));
+        task.spinner.stop(this.taskLabel(id, task.phase, task.startedAt));
       }
     }
-    this.activeSteps.clear();
+    this.activeTasks.clear();
     clack.outro(message);
   }
 
-  startTask(message: string): WorkTask {
+  startActivity(message: string): WorkActivity {
     const task = clack.spinner({ indicator: "timer" });
     task.start(message);
     return {
@@ -134,7 +134,7 @@ export class ClackReporter implements WorkReporter {
         return;
       case "worker:claimed":
         this.info(
-          `Claimed ${pc.bold(String(event.count))} step${
+          `Claimed ${pc.bold(String(event.count))} task${
             event.count === 1 ? "" : "s"
           }`,
         );
@@ -148,13 +148,13 @@ export class ClackReporter implements WorkReporter {
         );
         return;
 
-      case "step:starting": {
-        // If another step is already spinning, park it as a static line so
-        // the new step can take over the live spinner slot.
+      case "task:starting": {
+        // If another task is already spinning, park it as a static line so
+        // the new task can take over the live spinner slot.
         this.parkAllSpinners();
         const spin = clack.spinner({ indicator: "timer" });
-        spin.start(this.stepLabel(event.stepExecutionId, "starting"));
-        this.activeSteps.set(event.stepExecutionId, {
+        spin.start(this.taskLabel(event.taskId, "starting"));
+        this.activeTasks.set(event.taskId, {
           spinner: spin,
           startedAt: this.now(),
           phase: "starting",
@@ -162,82 +162,82 @@ export class ClackReporter implements WorkReporter {
         return;
       }
 
-      case "step:runtime-launching":
-        this.updateSpinner(event.stepExecutionId, "launching runtime…");
+      case "task:runtime-launching":
+        this.updateSpinner(event.taskId, "launching runtime…");
         return;
-      case "step:runtime-cloning":
-        this.updateSpinner(event.stepExecutionId, "cloning repository…");
+      case "task:runtime-cloning":
+        this.updateSpinner(event.taskId, "cloning repository…");
         return;
-      case "step:runtime-container-starting":
+      case "task:runtime-container-starting":
         // Enter taskLog mode: a fixed title line with rolling sub-logs beneath.
-        this.beginDevcontainerLog(event.stepExecutionId);
+        this.beginDevcontainerLog(event.taskId);
         return;
-      case "step:runtime-container-progress":
+      case "task:runtime-container-progress":
         this.appendDevcontainerLog(
-          event.stepExecutionId,
+          event.taskId,
           event.kind,
           event.phase,
           event.level ?? "info",
         );
         return;
-      case "step:runtime-ai-starting":
+      case "task:runtime-ai-starting":
         // Devcontainer is up; close its log region and resume the spinner.
-        this.endDevcontainerLog(event.stepExecutionId, true);
-        this.updateSpinner(event.stepExecutionId, "starting AI container…");
+        this.endDevcontainerLog(event.taskId, true);
+        this.updateSpinner(event.taskId, "starting AI container…");
         return;
-      case "step:runtime-ready":
-        this.endDevcontainerLog(event.stepExecutionId, true);
-        this.updateSpinner(event.stepExecutionId, "runtime ready");
+      case "task:runtime-ready":
+        this.endDevcontainerLog(event.taskId, true);
+        this.updateSpinner(event.taskId, "runtime ready");
         return;
-      case "step:health-checks-running":
-        this.updateSpinner(event.stepExecutionId, "running health checks…");
+      case "task:health-checks-running":
+        this.updateSpinner(event.taskId, "running health checks…");
         return;
-      case "step:agent-running":
-        this.updateSpinner(event.stepExecutionId, "agent running");
+      case "task:agent-running":
+        this.updateSpinner(event.taskId, "agent running");
         return;
 
-      case "step:succeeded": {
+      case "task:succeeded": {
         // If the devcontainer log region is still open, close it cleanly first.
-        this.endDevcontainerLog(event.stepExecutionId, true);
-        const step = this.activeSteps.get(event.stepExecutionId);
-        if (step) {
-          const duration = formatElapsed(this.now() - step.startedAt);
-          step.spinner.stop(
-            pc.green(`Step ${pc.dim(shortId(event.stepExecutionId))} succeeded`) +
+        this.endDevcontainerLog(event.taskId, true);
+        const task = this.activeTasks.get(event.taskId);
+        if (task) {
+          const duration = formatElapsed(this.now() - task.startedAt);
+          task.spinner.stop(
+            pc.green(`Task ${pc.dim(shortId(event.taskId))} succeeded`) +
               pc.dim(` (${duration})`),
           );
-          this.activeSteps.delete(event.stepExecutionId);
+          this.activeTasks.delete(event.taskId);
         } else {
-          this.success(`Step ${pc.dim(shortId(event.stepExecutionId))} succeeded`);
+          this.success(`Task ${pc.dim(shortId(event.taskId))} succeeded`);
         }
         return;
       }
 
-      case "step:failed": {
+      case "task:failed": {
         // With raw devcontainer output stripped upstream, the reason is now a
         // clean single-line message. Truncate only as a safety net.
         const reason =
-          event.reason.length > STEP_REASON_MAX_LENGTH
-            ? `${event.reason.slice(0, STEP_REASON_MAX_LENGTH)}…`
+          event.reason.length > TASK_REASON_MAX_LENGTH
+            ? `${event.reason.slice(0, TASK_REASON_MAX_LENGTH)}…`
             : event.reason;
         const logHint = this.logFilePath
           ? `\n  ${pc.dim(`Full logs: ${this.logFilePath}`)}`
           : "";
         // Retain the devcontainer sub-logs on failure (showLog: true) so the
         // user can see the last lifecycle phase where it broke.
-        this.endDevcontainerLog(event.stepExecutionId, false);
-        const step = this.activeSteps.get(event.stepExecutionId);
-        if (step) {
-          const duration = formatElapsed(this.now() - step.startedAt);
-          step.spinner.error(
-            pc.red(`Step ${pc.dim(shortId(event.stepExecutionId))} failed`) +
+        this.endDevcontainerLog(event.taskId, false);
+        const task = this.activeTasks.get(event.taskId);
+        if (task) {
+          const duration = formatElapsed(this.now() - task.startedAt);
+          task.spinner.error(
+            pc.red(`Task ${pc.dim(shortId(event.taskId))} failed`) +
               pc.dim(` (${duration})`) +
               `\n  ${pc.yellow(reason)}${logHint}`,
           );
-          this.activeSteps.delete(event.stepExecutionId);
+          this.activeTasks.delete(event.taskId);
         } else {
           this.error(
-            `Step ${pc.dim(shortId(event.stepExecutionId))} failed` +
+            `Task ${pc.dim(shortId(event.taskId))} failed` +
               `\n  ${pc.yellow(reason)}${logHint}`,
           );
         }
@@ -253,59 +253,59 @@ export class ClackReporter implements WorkReporter {
   }
 
   /**
-   * Build the spinner message label for a step.
+   * Build the spinner message label for a task.
    * When `startedAt` is provided the elapsed is appended so the parked line
    * captures the final duration at park time.
    */
-  private stepLabel(stepExecutionId: string, phase: string, startedAt?: number): string {
+  private taskLabel(taskId: string, phase: string, startedAt?: number): string {
     const elapsed = startedAt !== undefined
       ? pc.dim(` · ${formatElapsed(this.now() - startedAt)}`)
       : "";
-    return `step ${pc.cyan(shortId(stepExecutionId))} ${pc.dim(phase)}${elapsed}`;
+    return `task ${pc.cyan(shortId(taskId))} ${pc.dim(phase)}${elapsed}`;
   }
 
-  /** Update the live spinner message for a step. No-op if the step has no spinner. */
-  private updateSpinner(stepExecutionId: string, phase: string): void {
-    const step = this.activeSteps.get(stepExecutionId);
-    if (!step) return;
-    step.phase = phase;
-    step.spinner.message(this.stepLabel(stepExecutionId, phase));
+  /** Update the live spinner message for a task. No-op if the task has no spinner. */
+  private updateSpinner(taskId: string, phase: string): void {
+    const task = this.activeTasks.get(taskId);
+    if (!task) return;
+    task.phase = phase;
+    task.spinner.message(this.taskLabel(taskId, phase));
   }
 
   /**
-   * Enter "devcontainer log" mode for a step: stop the live spinner and start a
-   * `taskLog` whose title is the step line and whose body is a rolling window
-   * of streamed devcontainer log lines. No-op if the step is unknown or already
+   * Enter "devcontainer log" mode for a task: stop the live spinner and start a
+   * `taskLog` whose title is the task line and whose body is a rolling window
+   * of streamed devcontainer log lines. No-op if the task is unknown or already
    * in this mode.
    */
-  private beginDevcontainerLog(stepExecutionId: string): void {
-    const step = this.activeSteps.get(stepExecutionId);
-    if (!step || step.taskLog) return;
-    step.phase = "starting devcontainer…";
+  private beginDevcontainerLog(taskId: string): void {
+    const task = this.activeTasks.get(taskId);
+    if (!task || task.taskLog) return;
+    task.phase = "starting devcontainer…";
     // Hand the live region from the spinner to the taskLog.
-    step.spinner.stop(this.stepLabel(stepExecutionId, step.phase));
-    step.taskLog = clack.taskLog({
-      title: this.stepLabel(stepExecutionId, step.phase),
+    task.spinner.stop(this.taskLabel(taskId, task.phase));
+    task.taskLog = clack.taskLog({
+      title: this.taskLabel(taskId, task.phase),
       limit: DEVCONTAINER_LOG_WINDOW,
       retainLog: false,
     });
   }
 
   /**
-   * Feed a devcontainer progress line into the step's open taskLog. Milestones
+   * Feed a devcontainer progress line into the task's open taskLog. Milestones
    * also update the (sticky) title; details only scroll in the body window.
-   * No-op if the step has no open taskLog.
+   * No-op if the task has no open taskLog.
    */
   private appendDevcontainerLog(
-    stepExecutionId: string,
+    taskId: string,
     kind: "milestone" | "detail",
     phase: string,
     level: "info" | "warn" | "error",
   ): void {
-    const step = this.activeSteps.get(stepExecutionId);
-    if (!step?.taskLog) return;
+    const task = this.activeTasks.get(taskId);
+    if (!task?.taskLog) return;
     if (kind === "milestone") {
-      step.phase = phase;
+      task.phase = phase;
     }
     // Truncate wide lines so they can't wrap and blow up the live region height.
     const displayPhase =
@@ -323,45 +323,45 @@ export class ClackReporter implements WorkReporter {
     } else {
       line = kind === "milestone" ? pc.cyan(displayPhase) : pc.dim(displayPhase);
     }
-    step.taskLog.message(line);
+    task.taskLog.message(line);
   }
 
   /**
-   * Close a step's devcontainer taskLog if open, resuming a fresh spinner so
+   * Close a task's devcontainer taskLog if open, resuming a fresh spinner so
    * subsequent phases keep their live timer line. On success the streamed body
    * is cleared; on failure (`success=false`) it is retained for debugging.
-   * No-op if the step has no open taskLog.
+   * No-op if the task has no open taskLog.
    */
-  private endDevcontainerLog(stepExecutionId: string, success: boolean): void {
-    const step = this.activeSteps.get(stepExecutionId);
-    if (!step?.taskLog) return;
-    const title = this.stepLabel(stepExecutionId, step.phase, step.startedAt);
+  private endDevcontainerLog(taskId: string, success: boolean): void {
+    const task = this.activeTasks.get(taskId);
+    if (!task?.taskLog) return;
+    const title = this.taskLabel(taskId, task.phase, task.startedAt);
     if (success) {
-      step.taskLog.success(title, { showLog: false });
+      task.taskLog.success(title, { showLog: false });
     } else {
-      step.taskLog.error(title, { showLog: true });
+      task.taskLog.error(title, { showLog: true });
     }
-    step.taskLog = undefined;
+    task.taskLog = undefined;
     // Resume a live spinner for the post-devcontainer phases.
     const spin = clack.spinner({ indicator: "timer" });
-    spin.start(this.stepLabel(stepExecutionId, step.phase));
-    step.spinner = spin;
+    spin.start(this.taskLabel(taskId, task.phase));
+    task.spinner = spin;
   }
 
   /**
    * Stop all active spinners as static log lines (preserving their elapsed),
-   * clearing the map. Used when a new step needs the live-spinner slot.
+   * clearing the map. Used when a new task needs the live-spinner slot.
    */
   private parkAllSpinners(): void {
-    for (const [id, step] of this.activeSteps) {
-      if (step.taskLog) {
-        step.taskLog.success(this.stepLabel(id, step.phase, step.startedAt), {
+    for (const [id, task] of this.activeTasks) {
+      if (task.taskLog) {
+        task.taskLog.success(this.taskLabel(id, task.phase, task.startedAt), {
           showLog: false,
         });
       } else {
-        step.spinner.stop(this.stepLabel(id, step.phase, step.startedAt));
+        task.spinner.stop(this.taskLabel(id, task.phase, task.startedAt));
       }
     }
-    this.activeSteps.clear();
+    this.activeTasks.clear();
   }
 }

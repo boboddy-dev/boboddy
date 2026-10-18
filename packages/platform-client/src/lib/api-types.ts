@@ -84,7 +84,7 @@ export type PipelineStepRun = {
   branchIndex: number | null;
   status: PipelineStepRunStatus;
   satisfactionStatus: PipelineStepRunSatisfactionStatus;
-  stepExecutionId: string | null;
+  taskId: string | null;
   workBranch: string | null;
   outputJson: unknown;
   evaluation: PipelineStepEvaluation | null;
@@ -135,7 +135,7 @@ export type WorkItem = {
   url: string | null;
 };
 
-export type StepExecutionStatus =
+export type TaskStatus =
   | "pending"
   | "queued"
   | "running"
@@ -144,7 +144,8 @@ export type StepExecutionStatus =
   | "timeout"
   | "abandoned"
   | "cancelled"
-  | "skipped";
+  | "skipped"
+  | "yielded";
 
 export type StepSignalType = "string" | "number" | "boolean" | "object" | "array";
 export type StepSignalSource = "extracted" | "computed";
@@ -158,7 +159,7 @@ export type StepSignal = {
   sourcePath: string | null;
 };
 
-export type StepExecutionResult = {
+export type TaskResult = {
   id: string;
   status: "succeeded" | "failed";
   resultJson: unknown;
@@ -166,39 +167,39 @@ export type StepExecutionResult = {
   signals: StepSignal[];
 };
 
-export type StepExecution = {
+export type Task = {
   id: string;
-  status: StepExecutionStatus;
+  status: TaskStatus;
   startedAt: string | null;
   completedAt: string | null;
-  result: StepExecutionResult | null;
+  result: TaskResult | null;
 };
 
-export const stepExecutionLogStreamValues = [
+export const taskLogStreamValues = [
   "worker",
   "ai-server",
   "conversation",
 ] as const;
-export type StepExecutionLogStream =
-  (typeof stepExecutionLogStreamValues)[number];
+export type TaskLogStream =
+  (typeof taskLogStreamValues)[number];
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export type LogLine = {
   seq: number;
-  stream: StepExecutionLogStream;
+  stream: TaskLogStream;
   ts: string;
   content: string;
   level: LogLevel;
 };
 
-export type ReadStepExecutionLogsResult = {
+export type ReadTaskLogsResult = {
   lines: LogLine[];
   nextOffset: number;
   complete: boolean;
 };
 
-export type StepExecutionLogArchive = {
+export type TaskLogArchive = {
   url: string | null;
   sizeBytes: number;
 };

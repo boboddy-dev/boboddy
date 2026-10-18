@@ -93,7 +93,7 @@ export async function runProjectHandoff(input: {
   }
 
   const deadline = ports.now() + timeoutMs;
-  const task = reporter.startTask(HANDOFF_WAITING_MESSAGE);
+  const task = reporter.startActivity(HANDOFF_WAITING_MESSAGE);
   const trigger = ports.startCheckTrigger();
   try {
     for (;;) {

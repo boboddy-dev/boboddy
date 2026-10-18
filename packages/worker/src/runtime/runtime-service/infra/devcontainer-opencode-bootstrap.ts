@@ -1,11 +1,12 @@
 import { execFile, spawn } from "node:child_process";
 import net from "node:net";
 import { promisify } from "node:util";
+import { SecretMasker } from "../../../work/task/application/secret-masker";
 import {
   logWork,
   logWorkDebug,
   logWorkError,
-} from "../../../work/step-execution/application/work-logger";
+} from "../../../work/task/application/work-logger";
 import type { DevcontainerBindMount } from "./devcontainer-mount-injection";
 import { buildDockerEnvFlags } from "./docker-env-flags";
 import {
@@ -19,6 +20,20 @@ import {
   resolveHostAgentHomeSources,
   resolveSessionAgentHomeDir,
 } from "./opencode-agent-home";
+import { isContainerProcessAlive } from "./container-process-liveness";
+import { CONFIG_DIAGNOSTIC_MESSAGE } from "./opencode-config-diagnostics";
+import {
+  opencodeCredentialSecrets,
+  type OpencodeCredential,
+} from "./opencode-credential-source";
+import { completeOpencodeBoot } from "./opencode-post-readiness";
+import { formatServeLogExcerpt } from "./opencode-serve-log-excerpt";
+import {
+  generateServerPassword,
+  SERVE_LOG_ARGS,
+  SERVER_PASSWORD_ENV,
+  waitForReadiness,
+} from "./opencode-server-contract";
 
 // Re-export so existing importers of these helpers from this module keep
 // working; the implementations now live in the shared agent-home module.
@@ -47,13 +62,13 @@ const execFileAsync = promisify(execFile);
  *    The agent HOME is deliberately NOT mounted — it lives on overlay.
  *
  *  - {@link prepareAgentHome} (post-up, before {@link start}): once the
- *    container is running, creates the agent HOME's `.config/opencode` and
- *    `.local/share/opencode` dirs on overlay via `docker exec ... mkdir -p`, then
- *    seeds the user's host global opencode config
- *    (`~/.config/opencode/opencode.json[c]`, precedence #2) and provider auth
- *    (`~/.local/share/opencode/auth.json`) by piping their contents over stdin
- *    into `docker exec -i ... tee`. Nothing is written to a host dir; the
- *    project's `.opencode/opencode.json[c]` is left untouched.
+ *    container is running, creates the agent HOME's `.config/opencode` dir on
+ *    overlay via `docker exec ... mkdir -p`, then seeds the user's host global
+ *    opencode config (`~/.config/opencode/opencode.json[c]`, precedence #2) by
+ *    piping its contents over stdin into `docker exec -i ... tee`. Nothing is
+ *    written to a host dir; the project's `.opencode/opencode.json[c]` is left
+ *    untouched. Provider credentials are NOT copied — {@link start} injects them
+ *    over the API once the server is ready.
  *
  *  - {@link start} (post-up, after {@link prepareAgentHome}): launches
  *    `opencode serve` by ABSOLUTE PATH (the mounted payload's `launch.sh`), with
@@ -62,8 +77,11 @@ const execFileAsync = promisify(execFile);
  *    published loopback port. Boboddy's override config is passed as
  *    `OPENCODE_CONFIG_CONTENT` (precedence #6 — inline), ensuring the permission
  *    baseline, step MCPs, and `AGENT_DEFAULT_MODEL` win over the user's
- *    home/project configs. Waits for health and returns the host-facing
- *    `agentBaseUrl`.
+ *    home/project configs. The server is protected by a per-session
+ *    `OPENCODE_SERVER_PASSWORD`. Waits for readiness, checks config
+ *    diagnostics, injects the user's credentials from the host over the
+ *    published port (`opencode-post-readiness.ts`), and returns the
+ *    host-facing `agentBaseUrl` plus that password.
  *
  * Because the agent HOME is on overlay, it dies with the container: sessions
  * never share agent state/credentials and no host cleanup of it is required for
@@ -95,9 +113,6 @@ const HOST_GATEWAY_RUN_ARGS = [
   "host.docker.internal:host-gateway",
 ];
 
-const HEALTH_TIMEOUT_MS = 60_000;
-const HEALTH_INTERVAL_MS = 500;
-const HEALTH_PATH = "/global/health";
 /** Where the in-container opencode process writes its boot log. */
 const AGENT_LOG_DIR = `${CONTAINER_AGENT_HOME}/.boboddy-log`;
 /** Filename of the in-container opencode serve log within the log directory. */
@@ -114,8 +129,6 @@ const AGENT_PID_PATH = `${AGENT_LOG_DIR}/opencode-serve.pid`;
  */
 const AGENT_CONFIG_DIR = `${CONTAINER_AGENT_HOME}/.config/opencode`;
 const AGENT_CONFIG_PATH = `${AGENT_CONFIG_DIR}/opencode.json`;
-const AGENT_AUTH_DIR = `${CONTAINER_AGENT_HOME}/.local/share/opencode`;
-const AGENT_AUTH_PATH = `${AGENT_AUTH_DIR}/auth.json`;
 
 export type PlanMountsInput = {
   payload: OpencodeRuntimePayloadLocation;
@@ -141,11 +154,19 @@ export type StartInput = {
   hostPort: number;
   /** Absolute container path of the launch wrapper. */
   launchWrapperPath: string;
+  /** OpenCode version the payload provides; readiness requires an exact match. */
+  expectedVersion: string;
   /**
    * Provider env to launch OpenCode with (token under its `tokenEnv`, base URL,
    * etc.) — produced by the RuntimeConfigMaterializer.
    */
   providerEnv: Record<string, string>;
+  /**
+   * The user's provider credentials, injected from the host over the published
+   * port once the server is ready. Every secret in them is masked in error
+   * output.
+   */
+  credentials: readonly OpencodeCredential[];
   /**
    * The step's resolved environment variables (`resolveStepEnv`), appended as
    * `-e` flags after {@link providerEnv}. May carry secrets: log key names
@@ -165,6 +186,8 @@ export type StartInput = {
 
 export type StartResult = {
   agentBaseUrl: string;
+  /** Basic-auth password the server was started with. */
+  serverPassword: string;
   agentLogDirectory: string;
 };
 
@@ -199,10 +222,10 @@ function shQuote(value: string): string {
  * Run `docker` with the given args, piping `stdin` to the child's stdin and
  * closing it. Unlike {@link execFileAsync}, this can stream content over stdin,
  * which is how {@link DevcontainerOpencodeBootstrap.prepareAgentHome} seeds
- * config/auth into the container via `docker exec -i ... tee`.
+ * the global config into the container via `docker exec -i ... tee`.
  *
- * CRITICAL: `stdin` may contain secrets (e.g. `auth.json`). It is NEVER logged
- * here and MUST NOT be logged by callers.
+ * `stdin` may contain secrets (a user config can embed provider keys). It is
+ * NEVER logged here and MUST NOT be logged by callers.
  */
 function execDockerWithStdin(args: string[], stdin: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -292,39 +315,26 @@ export class DevcontainerOpencodeBootstrap {
 
   /**
    * Create the agent HOME on the container's OVERLAY filesystem and seed the
-   * user's host global opencode config + provider auth into it, so OpenCode
-   * picks them up inside the container without touching the user's project repo
-   * and without a host bind mount.
+   * user's host global opencode config (`~/.config/opencode/opencode.json[c]`)
+   * into `${AGENT_CONFIG_PATH}`, where OpenCode reads it at precedence #2. This
+   * avoids touching the user's project repo and needs no host bind mount.
    *
    * Because the agent HOME is NOT bind-mounted (a macOS host bind mount's
    * unstable file metadata breaks tools like npm's `_npx` lock), it cannot be
    * pre-populated on the host. Instead this runs `docker exec` against the
-   * ALREADY-RUNNING container: it `mkdir -p`s the XDG dirs on overlay, then
-   * pipes each present source file over stdin into `tee` and `chmod 600`s it.
+   * ALREADY-RUNNING container: it `mkdir -p`s the config dir on overlay, then
+   * pipes the config over stdin into `tee` and `chmod 600`s it.
    *
-   * **Config** (`~/.config/opencode/opencode.json[c]`):
-   *   Written to `${AGENT_CONFIG_PATH}` — OpenCode reads this at precedence
-   *   level #2 (global config). Carries the user's `model`, provider options,
-   *   plugins, etc.
-   *
-   * **Auth** (`~/.local/share/opencode/auth.json`):
-   *   Written to `${AGENT_AUTH_PATH}` — OpenCode reads provider credentials
-   *   (`/connect`-stored keys for openai, anthropic, github-copilot, etc.) from
-   *   `$XDG_DATA_HOME/opencode/auth.json`. Without this, OpenCode cannot
-   *   authenticate with any provider other than the one whose token Boboddy
-   *   injects via `BOBODDY_PROVIDER_TOKEN`.
-   *
-   * Must be called AFTER the container is launched and BEFORE {@link start}.
-   * When neither source file exists on the host, only the `mkdir` runs.
-   *
-   * SECURITY: auth content is piped over stdin and NEVER logged.
+   * Provider credentials are not copied; {@link start} injects them over the
+   * API. Must be called AFTER the container is launched and BEFORE
+   * {@link start}. When no global config exists, only the `mkdir` runs.
    */
   async prepareAgentHome(input: {
     containerId: string;
     /** Override host home dir (for tests). Defaults to resolved host home. */
     hostHomeDir?: string | undefined;
-  }): Promise<{ hostConfigPath: string | null; hostAuthPath: string | null }> {
-    const { hostConfigPath, hostConfigContent, hostAuthPath, hostAuthContent } =
+  }): Promise<{ hostConfigPath: string | null }> {
+    const { hostConfigPath, hostConfigContent } =
       await resolveHostAgentHomeSources({ hostHomeDir: input.hostHomeDir });
 
     await execFileAsync("docker", [
@@ -332,7 +342,7 @@ export class DevcontainerOpencodeBootstrap {
       input.containerId,
       "sh",
       "-lc",
-      `mkdir -p ${shQuote(AGENT_CONFIG_DIR)} ${shQuote(AGENT_AUTH_DIR)}`,
+      `mkdir -p ${shQuote(AGENT_CONFIG_DIR)}`,
     ]);
 
     if (hostConfigContent !== null) {
@@ -350,23 +360,7 @@ export class DevcontainerOpencodeBootstrap {
       );
     }
 
-    if (hostAuthContent !== null) {
-      await execDockerWithStdin(
-        [
-          "exec",
-          "-i",
-          input.containerId,
-          "sh",
-          "-lc",
-          `tee ${shQuote(AGENT_AUTH_PATH)} >/dev/null && ` +
-            `chmod 600 ${shQuote(AGENT_AUTH_PATH)}`,
-        ],
-        hostAuthContent,
-      );
-    }
-
-    // `hostAuthPath` is already `null` when no auth content was resolved.
-    return { hostConfigPath, hostAuthPath };
+    return { hostConfigPath };
   }
 
   /**
@@ -375,6 +369,7 @@ export class DevcontainerOpencodeBootstrap {
    */
   async start(input: StartInput): Promise<StartResult> {
     const agentBaseUrl = `http://127.0.0.1:${String(input.hostPort)}`;
+    const serverPassword = generateServerPassword();
 
     const envFlags: string[] = [
       "-e",
@@ -383,6 +378,10 @@ export class DevcontainerOpencodeBootstrap {
       `XDG_CONFIG_HOME=${CONTAINER_AGENT_HOME}/.config`,
       "-e",
       `XDG_DATA_HOME=${CONTAINER_AGENT_HOME}/.local/share`,
+      "-e",
+      `XDG_STATE_HOME=${CONTAINER_AGENT_HOME}/.local/state`,
+      "-e",
+      `XDG_CACHE_HOME=${CONTAINER_AGENT_HOME}/.cache`,
       // Point npm's cache at the container's native overlay fs. The PRIMARY fix
       // for the npm `_npx` lock issue is now that the agent HOME itself lives on
       // overlay (no host bind mount), so npm's `_npx` install lock (libnpmexec
@@ -409,6 +408,8 @@ export class DevcontainerOpencodeBootstrap {
     envFlags.push(
       ...buildDockerEnvFlags(input.providerEnv),
       ...buildDockerEnvFlags(input.stepEnv ?? {}),
+      "-e",
+      `${SERVER_PASSWORD_ENV}=${serverPassword}`,
     );
 
     const serveCommand =
@@ -418,6 +419,7 @@ export class DevcontainerOpencodeBootstrap {
       `cd ${shQuote(input.workspaceFolder)}; ` +
       `nohup ${shQuote(input.launchWrapperPath)} serve ` +
       `--hostname 0.0.0.0 --port ${String(CONTAINER_OPENCODE_PORT)} ` +
+      `${SERVE_LOG_ARGS.map(shQuote).join(" ")} ` +
       `>${shQuote(AGENT_LOG_PATH)} 2>&1 < /dev/null & ` +
       `echo $! >${shQuote(AGENT_PID_PATH)}`;
 
@@ -439,9 +441,30 @@ export class DevcontainerOpencodeBootstrap {
       serveCommand,
     ]);
 
-    await this.waitForHealth(input.containerId, agentBaseUrl);
+    const masker = new SecretMasker([
+      ...Object.values(input.providerEnv),
+      ...Object.values(input.stepEnv ?? {}),
+      ...opencodeCredentialSecrets(input.credentials),
+      serverPassword,
+    ]);
+    await this.waitForHealth({
+      containerId: input.containerId,
+      baseUrl: agentBaseUrl,
+      password: serverPassword,
+      expectedVersion: input.expectedVersion,
+      masker,
+    });
+    await completeOpencodeBoot({
+      baseUrl: agentBaseUrl,
+      password: serverPassword,
+      workspaceFolder: input.workspaceFolder,
+      readLog: () => this.readAgentDiagnosticLines(input.containerId),
+      masker,
+      credentials: input.credentials,
+      logContext: { containerId: input.containerId, baseUrl: agentBaseUrl },
+    });
 
-    return { agentBaseUrl, agentLogDirectory: AGENT_LOG_DIR };
+    return { agentBaseUrl, serverPassword, agentLogDirectory: AGENT_LOG_DIR };
   }
 
   /**
@@ -477,68 +500,125 @@ export class DevcontainerOpencodeBootstrap {
     await cleanupSessionHome(sessionAgentHomeDir);
   }
 
-  private async waitForHealth(
-    containerId: string,
-    baseUrl: string,
-  ): Promise<void> {
-    const deadline = Date.now() + HEALTH_TIMEOUT_MS;
+  private async waitForHealth(input: {
+    containerId: string;
+    baseUrl: string;
+    password: string;
+    expectedVersion: string;
+    masker: SecretMasker;
+  }): Promise<void> {
+    const { containerId, baseUrl, masker } = input;
     let attempts = 0;
-    let lastError: string | null = null;
+    const logExcerpt = async (): Promise<string> =>
+      formatServeLogExcerpt(await this.readAgentLog(containerId), masker);
 
-    while (Date.now() < deadline) {
-      attempts += 1;
-      try {
-        const response = await fetch(`${baseUrl}${HEALTH_PATH}`, {
-          signal: AbortSignal.timeout(HEALTH_INTERVAL_MS),
-        });
-        if (response.ok) {
-          logWork("runtime", "In-devcontainer OpenCode healthy", {
-            containerId,
-            baseUrl,
-            attempts,
-          });
-          return;
-        }
-        lastError = `HTTP ${String(response.status)}`;
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+    // Fails fast when the in-container process is gone, instead of polling a
+    // dead port until the timeout.
+    const throwIfProcessDied = async (): Promise<void> => {
+      if (
+        (await isContainerProcessAlive(containerId, AGENT_PID_PATH)) !== false
+      ) {
+        return;
       }
+      logWorkError(
+        "runtime",
+        "In-devcontainer OpenCode exited before becoming healthy",
+        { containerId, baseUrl, attempts },
+      );
+      throw new Error(
+        `In-devcontainer OpenCode exited before becoming healthy at ${baseUrl}` +
+          (await logExcerpt()),
+      );
+    };
 
-      logWorkDebug("runtime", "Polling in-devcontainer OpenCode health", {
+    const result = await waitForReadiness({
+      baseUrl,
+      password: input.password,
+      expectedVersion: input.expectedVersion,
+      assertAlive: throwIfProcessDied,
+      onNotReady: (attempt, reason) => {
+        attempts = attempt;
+        logWorkDebug("runtime", "Polling in-devcontainer OpenCode readiness", {
+          containerId,
+          baseUrl,
+          attempt,
+          lastError: reason,
+        });
+      },
+    });
+
+    if (result.kind === "ready") {
+      logWork("runtime", "In-devcontainer OpenCode healthy", {
         containerId,
         baseUrl,
-        attempt: attempts,
-        lastError,
+        attempts: result.attempts,
       });
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, HEALTH_INTERVAL_MS);
-      });
+      return;
     }
 
-    const log = await this.readAgentLog(containerId);
-    logWorkError("runtime", "In-devcontainer OpenCode failed to become healthy", {
-      containerId,
-      baseUrl,
-      attempts,
-      lastError,
-      log,
-    });
+    if (result.kind === "wrong-version") {
+      logWorkError(
+        "runtime",
+        "In-devcontainer OpenCode reported an unexpected version",
+        {
+          containerId,
+          baseUrl,
+          expectedVersion: input.expectedVersion,
+          version: result.version,
+        },
+      );
+      throw new Error(
+        `In-devcontainer OpenCode at ${baseUrl} reports version ` +
+          `${result.version}, expected ${input.expectedVersion}` +
+          (await logExcerpt()),
+      );
+    }
+
+    logWorkError(
+      "runtime",
+      "In-devcontainer OpenCode failed to become healthy",
+      {
+        containerId,
+        baseUrl,
+        attempts: result.attempts,
+        lastError: result.lastReason,
+      },
+    );
     throw new Error(
       `Timed out waiting for in-devcontainer OpenCode health at ${baseUrl}` +
-        (log ? `: ${log}` : ""),
+        (result.lastReason ? `: ${result.lastReason}` : "") +
+        (await logExcerpt()),
     );
   }
 
   private async readAgentLog(containerId: string): Promise<string | null> {
+    const stdout = await this.execInContainer(
+      containerId,
+      `if [ -f ${shQuote(AGENT_LOG_PATH)} ]; then tail -c 4000 ${shQuote(AGENT_LOG_PATH)}; fi`,
+    );
+    return stdout?.trim() || null;
+  }
+
+  private readAgentDiagnosticLines(
+    containerId: string,
+  ): Promise<string | null> {
+    return this.execInContainer(
+      containerId,
+      `grep -F ${shQuote(CONFIG_DIAGNOSTIC_MESSAGE)} ${shQuote(AGENT_LOG_PATH)} || true`,
+    );
+  }
+
+  private async execInContainer(
+    containerId: string,
+    command: string,
+  ): Promise<string | null> {
     try {
-      const { stdout } = await execFileAsync("docker", [
-        "exec",
-        containerId,
-        "sh",
-        "-lc",
-        `if [ -f ${shQuote(AGENT_LOG_PATH)} ]; then tail -c 4000 ${shQuote(AGENT_LOG_PATH)}; fi`,
-      ]);
-      return stdout.trim() || null;
+      const { stdout } = await execFileAsync(
+        "docker",
+        ["exec", containerId, "sh", "-lc", command],
+        { maxBuffer: 16 * 1024 * 1024 },
+      );
+      return stdout;
     } catch {
       return null;
     }

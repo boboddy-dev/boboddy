@@ -5,7 +5,7 @@ description: TypeScript SDK types, helpers, and API client
 
 You don't install the SDK yourself to write pipelines. `@boboddy/sdk` is a
 dependency of `.boboddy/pipeline-builder/package.json`, which
-[`boboddy pipelines design`](/boboddy/reference/cli/#boboddy-pipelines-design-projectid)
+[`boboddy pipelines design`](/boboddy/reference/cli/#boboddy-pipelines-design-project)
 scaffolds and installs for you ([`boboddy pipelines init`](/boboddy/reference/cli/#boboddy-pipelines-init)
 scaffolds it; you run the install). Add it to another package directly only
 to script against the [API client](#api-client).
@@ -59,9 +59,8 @@ Return a summary and quality score.
 | `additionalInput` | `ZodType`                         | No       | Additional input payload schema; fields are bound via the pipeline mapper |
 | `result`          | `ZodType`                         | No       | Output payload schema                                                     |
 | `signals`         | `Signal[]`                        | No       | Values to extract from the result                                         |
-| `mcpServers`      | `OpenCodeMcpServers`              | No       | MCP server configs for tool-using agents                                  |
-| `healthChecks`    | `HealthCheck[]`                   | No       | Real tool calls forced against the environment before the agent is prompted. See [Health checks](/boboddy/guides/steps/#health-checks) |
-| `plugins`         | `OpenCodePluginEntry[]`           | No       | Opencode plugins merged into the step's execution config                  |
+| `mcps`            | `Record<string, McpHandle>`       | No       | MCP servers defined with [`defineMcp`](#definemcp), keyed by the name the step runs them under. The only way to give a step an MCP server |
+| `healthChecks`    | `StepHealthCheck[]`               | No       | `cli` checks and non-MCP `tool` checks forced against the environment before the agent is prompted. See [`healthChecks`](#healthchecks) |
 | `features`        | `StepFeature[]`                   | No       | Built-in feature plugins (e.g. `Features.notifications()`)                |
 | `status`          | `"draft" \| "active"`             | No       | Draft steps are skipped by workers                                        |
 | `environment`     | `{ runtime?: RuntimeSpec; vars?: ({ input }) => Record<string, string \| EnvEntry>; repo?: RepoSpec \| (({ input, result }) => RepoSpec) }` | No | Where the step runs, which environment variables it gets, and what it does to your repository; declare before `agentPrompt`. See [`Runtime`](#runtime), [`Env`](#env) and [`Repo`](#repo) |
@@ -90,7 +89,7 @@ Save traces to ${boboddy.artifactsDir}trace.zip.
 
 | Scope     | Example                   | Source                                                   |
 | --------- | ------------------------- | -------------------------------------------------------- |
-| `input`   | `${input.title}`          | Step execution input bound through the pipeline          |
+| `input`   | `${input.title}`          | Task input bound through the pipeline                    |
 | `env`     | `${env.BASE_URL}`         | The worker's environment (`.boboddy/.env` over `process.env`); with declared [`environment.vars`](#env), only its non-secret keys |
 | `boboddy` | `${boboddy.artifactsDir}` | Boboddy-provided runtime values                          |
 
@@ -214,6 +213,7 @@ Env.value(opts: {
   value: string;               // literal or {{input.…}} template; stored in plaintext
   secret?: boolean;            // mask in logs; requires an {{input.…}} token in `value`
   unsafeAllowStatic?: boolean; // allow a static value on a credential-looking name; never serialized
+  applies?: "agent" | "setup" | "both"; // default "agent"
 }): EnvValue;
 
 Env.inherit(opts?: {
@@ -221,8 +221,11 @@ Env.inherit(opts?: {
   secret?: boolean;            // mask in logs; cannot be combined with `default`
   optional?: boolean;          // omit instead of failing when the worker has no value
   default?: string;            // used when the worker has no value; stored in plaintext
+  applies?: "agent" | "setup" | "both"; // default "agent"
 }): EnvInherit;
 ```
+
+`applies` picks the process a variable reaches: `agent` (the agent or code step), `setup` (only `devcontainer up`, where `initializeCommand` runs), or `both`. Setup variables are not added to `containerEnv`; forward one with `${localEnv:NAME:default}` in `devcontainer.json`. `setup` and `both` are rejected on `Runtime.host()` and on MCP variables. See [Setup variables](/boboddy/guides/steps/#setup-variables).
 
 `Env.inherit` reads from the worker (`.boboddy/.env`, then `process.env`), not from the devcontainer's `containerEnv`. A bare string and `Env.value` are stored in the definition in plaintext; `inherit` stores only the name (and `default`). See the [forms table](/boboddy/guides/steps/#the-three-forms) for what is stored and masked.
 
@@ -296,7 +299,7 @@ A pair the runtime rejects is a type error where TypeScript can express it, and 
 `message` rules:
 
 - Only `input` and `result` tokens are allowed. `{{env.…}}` is rejected so environment values cannot reach git history.
-- The rendered subject has whitespace collapsed and control characters stripped, is truncated to 200 characters, and falls back to `boboddy: step <stepExecutionId>` when empty.
+- The rendered subject has whitespace collapsed and control characters stripped, is truncated to 200 characters, and falls back to `boboddy: task <taskId>` when empty.
 
 `onPushFailure` defaults to `"fail"`: a failed push of the work branch or of a submodule fails the step. `"warn"` logs the failure and lets the step finish, but the step reports no work branch, so later steps do not build on it. See [Work branches](/boboddy/guides/workers/#commit-message-and-push-failures) for the behavior change and its consequences.
 
@@ -315,67 +318,129 @@ type Signal = {
 };
 ```
 
-### `mcpServers`
+### `defineMcp`
 
-`mcpServers` is a `Record<string, McpServerConfig>` where each value is one of three shapes:
+`defineMcp`, from `@boboddy/sdk/definitions/steps` or `@boboddy/sdk`, defines an MCP server once with its environment variables and health checks. It is the only way to give a step an MCP server or an MCP health check. A step mounts the returned `McpHandle` under `mcps`; the key is the name the step runs it under.
 
 ```typescript
-// Local subprocess server. `command` is [executable, ...args] — no separate `args` field.
-type LocalMcpServer = {
+function defineMcp(config: DefineMcpConfig): McpHandle;
+
+type DefineMcpConfig = (RefServer | LocalServer | RemoteServer) & {
+  env?: string[]; // worker variables the server needs
+  optionalEnv?: string[]; // worker variables passed through when set
+  healthChecks?: Record<string, McpCheckInput>;
+};
+
+type SharedFields = {
+  timeout?: { startup?: number; catalog?: number; execution?: number }; // milliseconds
+  codemode?: boolean; // Boboddy defaults step servers to false
+  protocol?: "legacy" | "auto" | "2026-07-28";
+};
+
+// A server defined in the repository's MCP config files, resolved by the
+// worker before launch. Needs a checkout, so not usable on Runtime.host().
+type RefServer = SharedFields & {
+  type: "ref";
+  name: string; // the server's name in the repository's MCP config
+};
+
+// A subprocess server. `command` is [executable, ...args]; `name` labels errors.
+type LocalServer = SharedFields & {
   type: "local";
+  name: string;
   command: string[];
-  environment?: Record<string, string>; // {env:VAR} interpolates a worker env var
-  enabled?: boolean;
-  timeout?: number;
+  cwd?: string;
+  environment?: Record<string, string>; // every value written as {env:VAR}
 };
 
-// Remote HTTP server.
-type RemoteMcpServer = {
+// An HTTP server; `name` labels errors.
+type RemoteServer = SharedFields & {
   type: "remote";
+  name: string;
   url: string;
-  headers?: Record<string, string>;
+  headers?: Record<string, string>; // every value {env:VAR}, optionally "Bearer {env:VAR}"
   oauth?:
-    | { clientId?: string; clientSecret?: string; scope?: string; redirectUri?: string }
+    | {
+        client_id?: string;
+        client_secret?: string;
+        scope?: string;
+        callback_port?: number;
+        redirect_uri?: string;
+        auth_server_metadata_url?: string;
+      }
     | false;
-  enabled?: boolean;
-  timeout?: number;
 };
 
-// Enabled override — toggle an inherited server without redefining it.
-type McpEnabledOverride = { enabled: boolean };
+// A tool check without `kind`, `mcp` or `name`, plus `enabled` (default: true).
+type McpCheckInput = {
+  tool: string; // bare tool name; the mcps key supplies the qualifier
+  args?: Record<string, unknown>;
+  severity?: "required" | "warn";
+  timeoutSeconds?: number;
+  serialGroup?: string;
+  enabled?: boolean;
+};
+
+// The fields `overrideCheck` may change.
+type McpCheckPatch = Partial<
+  Pick<McpCheckInput, "tool" | "args" | "timeoutSeconds" | "severity" | "serialGroup">
+>;
 ```
 
-See [MCP servers](/boboddy/guides/steps/#mcp-servers) for examples, and
-[Secrets](/boboddy/guides/steps/#secrets) for how `{env:VAR}` resolves and
-where the real values live.
+`defineMcp` throws on an empty `name`, an unknown `type` or field, a literal (non-`{env:VAR}`) `environment` or `headers` value, a check name that is empty or contains `.`, and a variable name that is invalid, declared twice, or reserved (`BOBODDY_*`), including one read by a `{env:VAR}` placeholder.
+
+Every `{env:VAR}` in a `local` server's `command`, `cwd` or `environment`, or a `remote` server's `url` or `headers`, compiles to a required worker variable tagged with the server's `mcps` key, unless it is listed in `optionalEnv`. See [Variables in inline servers](/boboddy/guides/steps/#variables-in-inline-servers).
+
+Every `McpHandle` method returns a new handle and leaves its receiver unchanged:
+
+| Method                        | Returns     | Effect                                                                 |
+| ----------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `overrideCheck(name, patch)`  | `McpHandle` | Patches a check with an `McpCheckPatch`; `args` is replaced whole      |
+| `disableCheck(name)`          | `McpHandle` | Turns a check off; wins over `overrideCheck` in either order           |
+| `enableCheck(name)`           | `McpHandle` | Turns a check on; the last of `enableCheck`/`disableCheck` wins        |
+| `addCheck(name, check)`       | `McpHandle` | Adds an `McpCheckInput` under a new name                               |
+| `disableAllChecks()`          | `McpHandle` | Turns off every check defined so far                                   |
+
+`name` is typed from the handle's check names. A server has no severity of its own: each check has its own `severity` (default `"required"`), changed for one step with `overrideCheck(name, { severity })`. A handle also exposes its state as readonly fields: `type`, `name`, `server` (the OpenCode fields), `env`, `optionalEnv`, `checks` and `overrides` (the builder calls, in order). `isMcpHandle(value)` tells a handle from any other value, and `compileMcps(mcps, stepKey)` compiles a record of handles to the wire fields (`opencodeMcpJson`, health checks and env entries) the way `defineStep` does.
+
+See [MCP servers](/boboddy/guides/steps/#mcp-servers) for examples of each type, where refs are looked up, how checks are named and serialized, check severity, and what happens when a variable is missing, and [Secrets](/boboddy/guides/steps/#secrets) for where the real values live.
 
 ### `healthChecks`
 
+A step's own checks: `cli` checks and `tool` checks on plugin, standalone and built-in tools. MCP checks are declared on the server, in [`defineMcp`](#definemcp)'s `healthChecks`; a step check has no `mcp` field.
+
 ```typescript
-type HealthCheck = {
-  tool: string;
-  mcp?: string; // one of the step's declared mcpServers keys
+type StepHealthCheck = StepToolHealthCheck | CliHealthCheck;
+
+type Shared = {
   name?: string; // defaults to the resolved tool id
-  args?: Record<string, unknown>;
   severity?: "required" | "warn"; // default: "required"
-  timeoutMs?: number; // default: 15000
+  timeoutSeconds?: number; // default: 15, max: 3600
   serialGroup?: string; // checks sharing a value run serially, in declaration order
 };
+
+type StepToolHealthCheck = Shared & {
+  kind?: "tool"; // the default
+  tool: string; // a flat plugin, standalone or built-in tool id
+  args?: Record<string, unknown>;
+};
+
+type CliHealthCheck = Shared & {
+  kind: "cli";
+  command: string[]; // [executable, ...args], run through OpenCode's bash tool
+  expectExitCode?: number; // default: 0
+};
 ```
+
+The schema is `stepHealthChecksInputSchema` from `@boboddy/sdk/health-checks`. The stored wire shape (`healthChecksSchema`) also allows `mcp` on a tool check: that is what `defineMcp` checks compile to.
 
 Every check runs in parallel by default, each in its own lane. Give two or more checks the same `serialGroup` to force them to run one at a time, in declaration order, against each other — while still running concurrently with every other check/group. `required` checks all run before any `warn` check; the first `required` failure stops every check that hasn't started yet, but one already in flight still finishes and reports its real outcome.
 
 See [Health checks](/boboddy/guides/steps/#health-checks) for a full example and the no-secrets-in-`args` guidance.
 
-### `plugins`
+### Plugins
 
-`plugins` is an array of Opencode plugin entries merged into the step's execution config:
-
-```typescript
-type OpenCodePluginEntry = string | [packageName: string, options: Record<string, unknown>];
-```
-
-Entries are deduplicated by package name when combined with the baseline Opencode config.
+`defineStep` has no `plugins` option. Add OpenCode plugins to `.opencode/opencode.json` in your repo; the in-container OpenCode loads it for every step. See [Plugins](/boboddy/guides/steps/#plugins).
 
 ### `Features`
 
@@ -410,13 +475,13 @@ type NotificationItem = {
   body: string;
   priority: "low" | "normal" | "high" | "urgent";
   suggestedChannels?: ("in_app" | "work_item_platform_comment" | "email" | "slack")[];
-  payload?: Record<string, unknown>; // feedback_request: { category, urgency, suggestedKey? }
+  payload?: Record<string, unknown>; // feedback_request: { category, urgency }
 };
 ```
 
 ### `NotificationSignal`
 
-`NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key. `NotificationSignal.find(signals)` parses a step execution's signals array back into `NotificationItem[] | undefined`.
+`NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key. `NotificationSignal.find(signals)` parses a task's signals array back into `NotificationItem[] | undefined`.
 
 ### `Notify`
 
@@ -425,7 +490,7 @@ A flat namespace of builder functions for constructing a notification result val
 ```typescript
 Notify.create(item: NotificationItem);
 Notify.inApp(title, body, priority, options?);
-Notify.feedbackRequest(question, category, urgency, suggestedKey?);
+Notify.feedbackRequest(question, category, urgency);
 Notify.merge(...fragments);
 ```
 
@@ -689,5 +754,5 @@ Read the Boboddy project config from disk. `readProjectConfig` is exported from 
 ```typescript
 import { readProjectConfig } from "@boboddy/worker";
 
-const { projectId } = await readProjectConfig();
+const { project } = await readProjectConfig(); // "owner/slug"
 ```

@@ -6,10 +6,10 @@ import {
 import { resolveBoboddyBaseUrl } from "@boboddy/worker";
 import { connectApi } from "../lib/cli-api-client";
 import { withReporter } from "../lib/command-output";
-import { createExecutionLogArtifactWriter } from "../lib/execution-log-cache";
+import { createFullLogSaver } from "../lib/execution-log-cache";
 
 /**
- * Mirrors `@boboddy/platform-client`'s `StepExecutionLogStream` (imported as a
+ * Mirrors `@boboddy/platform-client`'s `TaskLogStream` (imported as a
  * type only there — see `packages/platform-client/src/lib/api-types.ts`).
  * Duplicated here as a runtime array so `--log-stream` can validate/describe
  * its choices without `@boboddy/platform-client` needing to export a value
@@ -68,7 +68,7 @@ const runView = (args: ArgumentsCamelCase<ViewArguments>): Promise<void> =>
       log: args.log || args.logStream !== undefined,
       logStream: args.logStream,
       artifacts: args.artifacts,
-      writeLogArtifact: createExecutionLogArtifactWriter(),
+      saveFullLog: createFullLogSaver(),
     });
 
     process.stdout.write(`${output}\n`);
