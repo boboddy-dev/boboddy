@@ -13,13 +13,19 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { git } from "./git-test-fixtures";
 import {
   createLogger,
   setupFixture,
   type LogLine,
+  disposeMirrorFixtureTemplate,
 } from "./git-mirror-cache-fixtures";
+
+// Each test runs several real git processes concurrently with the rest of
+// the file; under a loaded machine (test-all-workspaces) that overruns bun's
+// 5s default.
+setDefaultTimeout(15_000);
 
 const RECREATING = /^git-cache: mirror corrupt \(.+\), recreating$/;
 
@@ -66,6 +72,8 @@ async function onlyMirrorLeft(fx: Fixture): Promise<void> {
 function messages(lines: LogLine[]): string[] {
   return lines.map((line) => line.message);
 }
+
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("GitCliMirrorCache self-heal", () => {
   test.concurrent(

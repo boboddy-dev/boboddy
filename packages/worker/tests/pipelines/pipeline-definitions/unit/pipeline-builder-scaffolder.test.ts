@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   PIPELINE_BUILDER_TYPECHECK_SCRIPT,
   scaffoldPipelineBuilderDirectory,
+  STARTER_PIPELINE_FILE,
   STARTER_PIPELINE_FILENAME,
 } from "../../../../src/pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";
 
@@ -303,7 +304,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       }
     });
 
-    test("starter pipeline defines two steps wired into one pipeline", () => {
+    test("starter pipeline is the default bug pipeline, written verbatim", () => {
       const dir = makeTempDir();
       try {
         scaffoldPipelineBuilderDirectory(dir, "0.0.0");
@@ -311,63 +312,36 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           join(dir, STARTER_PIPELINE_FILENAME),
           "utf-8",
         );
-        const defineStepCount = (content.match(/defineStep\(\{/g) ?? [])
-          .length;
-        // real `kind: "step"` states reference a step variable; comments say "step"
-        const stepStateCount = (content.match(/kind: "step",/g) ?? []).length;
-        expect(defineStepCount).toBe(2);
-        expect(stepStateCount).toBe(2);
-        expect(content).toContain("definePipeline(");
-        expect(content).toContain("startAt:");
-        expect(content).toContain("states:");
-        expect(content).toContain("export default");
-        expect(content).toContain("additionalInput:");
-        expect(content).toContain("result:");
-        expect(content).toContain("agentPrompt:");
-        expect(content).toContain("z.object");
+        expect(STARTER_PIPELINE_FILENAME).toBe("bug-pipeline.ts");
+        expect(content).toBe(STARTER_PIPELINE_FILE);
+        expect(content).toContain('key: "bug-pipeline"');
+        expect(content).toContain("export default definePipeline(");
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
     });
 
-    test("starter pipeline demonstrates a signal-gated blockWhen and a succeed exit", () => {
-      const dir = makeTempDir();
-      try {
-        scaffoldPipelineBuilderDirectory(dir, "0.0.0");
-        const content = readFileSync(
-          join(dir, STARTER_PIPELINE_FILENAME),
-          "utf-8",
-        );
-        expect(content).toContain("blockWhen:");
-        expect(content).toContain('Rule.when("confidence", "lessThan", 7)');
-        expect(content).toContain('kind: "succeed"');
-        // every `step` state must declare where it goes next
-        const nextCount = (content.match(/next: "/g) ?? []).length;
-        expect(nextCount).toBe(2);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
+    test("starter pipeline: evaluate, investigate, failing test, propose fix, fix", () => {
+      const content = STARTER_PIPELINE_FILE;
+      for (const state of [
+        "evaluate: {",
+        "checkQuality: {",
+        "investigateAndReproduce: {",
+        "checkReproduction: {",
+        "failingTest: {",
+        "proposeFix: {",
+        "fix: {",
+      ]) {
+        expect(content).toContain(state);
       }
-    });
-
-    test("starter pipeline steps use the host runtime so the quickstart needs no devcontainer", () => {
-      const dir = makeTempDir();
-      try {
-        scaffoldPipelineBuilderDirectory(dir, "0.0.0");
-        const content = readFileSync(
-          join(dir, STARTER_PIPELINE_FILENAME),
-          "utf-8",
-        );
-        const hostRuntimeCount = (
-          content.match(/environment: \{ runtime: Runtime\.host\(\) \}/g) ?? []
-        ).length;
-        expect(hostRuntimeCount).toBe(2);
-        expect(content).toContain(
-          'import { defineStep, Runtime } from "@boboddy/sdk/definitions/steps";',
-        );
-        expect(content).not.toContain("executionMode");
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+      // A low bar to start, a high bar to write a test, a human before the fix.
+      expect(content).toContain('Rule.when("quality", "lessThan", 0.1)');
+      expect(content).toContain(
+        'Rule.when("reproductionConfidence", "greaterThanInclusive", 0.8)',
+      );
+      expect(content).toContain(
+        'blockWhen: Rule.when("requiresHumanApproval", "equal", true)',
+      );
     });
 
     test("default assignment file assigns the starter pipeline by default", () => {
@@ -379,7 +353,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
           "utf-8",
         );
         expect(content).toContain("defaultPipelineAssignment(");
-        expect(content).toContain('from "./triage-and-plan"');
+        expect(content).toContain('from "./bug-pipeline"');
         expect(content).toContain("default: assign(");
       } finally {
         rmSync(dir, { recursive: true, force: true });

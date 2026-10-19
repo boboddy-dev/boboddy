@@ -1,7 +1,14 @@
 import type { createBoboddyClient } from "@boboddy/sdk";
-import { describe, expect } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ConfigurationError } from "../../../../src/lib/errors";
+import { readProjectConfig } from "../../../../src/project/project-config/application/read-project-config";
+import { writeProjectConfig } from "../../../../src/project/project-config/application/write-project-config";
 import { findMatchingProject } from "../../../../src/project/project-setup/application/find-matching-project";
+import { localConfigSetup } from "../../../../src/project/project-setup/application/local-config-setup";
+import { git } from "../../../runtime/runtime-service/unit/git-test-fixtures";
 import { concurrentTest } from "../../../utils";
 
 const headers = { Authorization: "Bearer test-token" };
@@ -189,4 +196,79 @@ describe("findMatchingProject", () => {
       expect((caught as Error).message).toContain("HTTP 401");
     },
   );
+});
+
+describe("localConfigSetup", () => {
+  const REMOTE_URL = "git@github.com:acme/my-repo.git";
+  let repo: string;
+
+  beforeEach(async () => {
+    repo = await mkdtemp(path.join(os.tmpdir(), "local-config-setup-"));
+    await git(repo, ["init", "-b", "main"]);
+    await git(repo, ["remote", "add", "origin", REMOTE_URL]);
+  });
+
+  afterEach(async () => {
+    await rm(repo, { recursive: true, force: true });
+  });
+
+  test("skips entirely when already configured", async () => {
+    await writeProjectConfig("acme/already-configured", repo);
+
+    const result = await localConfigSetup({
+      client: fakeClient([]),
+      headers,
+      rootDir: repo,
+    });
+
+    expect(result).toEqual({ status: "already-configured" });
+  });
+
+  test("picks the oldest of several matching projects and reports the count", async () => {
+    const client = fakeClient([
+      project({
+        id: "newer",
+        gitUrl: "https://github.com/acme/my-repo.git",
+        createdAt: "2026-02-01T00:00:00.000Z",
+      }),
+      project({
+        id: "older",
+        gitUrl: REMOTE_URL,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ]);
+
+    const result = await localConfigSetup({ client, headers, rootDir: repo });
+
+    expect(result).toEqual({
+      status: "matched",
+      projectId: "older",
+      project: "acme/older",
+      projectName: "older",
+      matchCount: 2,
+    });
+  });
+
+  test("does NOT call createProject and returns handoff-required when no project matches", async () => {
+    let createProjectCalls = 0;
+    const client = {
+      projects: {
+        listProjects: () => Promise.resolve({ data: [] }),
+        createProject: () => {
+          createProjectCalls += 1;
+          return Promise.resolve({ data: { id: "should-not-be-created" } });
+        },
+      },
+    } as unknown as ReturnType<typeof createBoboddyClient>;
+
+    const result = await localConfigSetup({ client, headers, rootDir: repo });
+
+    expect(result).toEqual({
+      status: "handoff-required",
+      gitUrl: REMOTE_URL,
+      suggestedName: "my-repo",
+    });
+    expect(createProjectCalls).toBe(0);
+    expect(await readProjectConfig(repo)).toBeNull();
+  });
 });

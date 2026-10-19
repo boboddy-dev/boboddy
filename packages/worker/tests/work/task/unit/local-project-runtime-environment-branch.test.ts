@@ -196,4 +196,21 @@ describe("branch-per-step launch", () => {
     expect(env.createdFromBranch).toBeNull();
     expect(env.commitAndPushWorkBranch).toBeUndefined();
   });
+
+  test("readOnly: reports no work branch and no created-from branch, and creates none", async () => {
+    const log: CallLog = [];
+    const commitPush = new FakeGitCommitPushService(log);
+    const orchestrator = orchestratorFor(buildDeps(log, commitPush));
+
+    const env = await orchestrator.launch({
+      ...buildLaunchInput(),
+      repo: { mode: "readOnly" },
+      stepKey: "triage",
+    });
+
+    expect(env.workBranch).toBeNull();
+    expect(env.createdFromBranch).toBeNull();
+    expect(env.resolvedBranch).toBe("main");
+    expect(commitPush.createBranchCalls).toEqual([]);
+  });
 });

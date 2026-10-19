@@ -3,15 +3,21 @@
  * transcript next to the current-execution metadata, and an unreadable
  * transcript does not fail the launch. Every external boundary is faked (see
  * `orchestrator-launch-fakes.ts` and `local-noworkspace-runtime-environment.test.ts`).
+ * `writePreviousRunFiles` itself renders only the conversation stream and
+ * still writes findings when the transcript is unavailable.
  */
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { LogLine, TaskLogLinesResult } from "@boboddy/platform-client";
 import { createUuidV7 } from "../../../../src/common/contracts/uuid-v7";
 import { DefaultLocalProjectRuntimeEnvironmentOrchestrator } from "../../../../src/work/task/infra/local-project-runtime-environment";
 import { DefaultLocalNoWorkspaceRuntimeEnvironmentOrchestrator } from "../../../../src/work/task/infra/local-noworkspace-runtime-environment";
-import type { PreviousRunFilesInput } from "../../../../src/work/task/application/write-previous-run-files";
+import {
+  writePreviousRunFiles,
+  type PreviousRunFilesInput,
+} from "../../../../src/work/task/application/write-previous-run-files";
 import {
   HostOpencodeBootstrap,
   type HostStartInput,
@@ -172,5 +178,91 @@ describe("launch with a previousRun", () => {
     } finally {
       await env.cleanup();
     }
+  });
+});
+
+function conversationLine(seq: number, role: string, text: string): LogLine {
+  return {
+    seq,
+    stream: "conversation",
+    ts: "2026-10-16T10:00:00.000Z",
+    content: JSON.stringify({
+      kind: "text",
+      messageId: `m${String(seq)}`,
+      partId: `p${String(seq)}`,
+      role,
+      text,
+    }),
+    level: "info",
+  };
+}
+
+describe("writePreviousRunFiles", () => {
+  let workspace: string;
+
+  beforeEach(async () => {
+    workspace = await mkdtemp(path.join(os.tmpdir(), "previous-run-files-"));
+  });
+
+  afterEach(async () => {
+    await rm(workspace, { recursive: true, force: true });
+  });
+
+  test("writes the findings and the rendered conversation transcript", async () => {
+    const loaded: TaskLogLinesResult = {
+      source: "archive",
+      lines: [
+        conversationLine(1, "user", "Find the bug."),
+        conversationLine(2, "assistant", "The bug is in parse()."),
+        {
+          seq: 3,
+          stream: "worker",
+          ts: "2026-10-16T10:00:01.000Z",
+          content: "worker chatter",
+          level: "info",
+        },
+      ],
+    };
+
+    const result = await writePreviousRunFiles(
+      workspace,
+      previousRunInput(() => Promise.resolve(loaded)),
+    );
+
+    expect(result).toEqual({
+      findingsPath: path.join(workspace, FINDINGS),
+      transcriptPath: path.join(workspace, TRANSCRIPT),
+    });
+    expect(
+      JSON.parse(await readFile(path.join(workspace, FINDINGS), "utf8")),
+    ).toEqual({ summary: "half done" });
+    const transcript = await readFile(path.join(workspace, TRANSCRIPT), "utf8");
+    expect(transcript).toContain("Logs for step build (complete)");
+    expect(transcript).toContain("Find the bug.");
+    expect(transcript).toContain("The bug is in parse().");
+    expect(transcript).not.toContain("worker chatter");
+  });
+
+  test("skips the transcript but still writes findings when the read quota is exceeded", async () => {
+    const logged: string[] = [];
+    const result = await writePreviousRunFiles(
+      workspace,
+      previousRunInput(() =>
+        Promise.resolve<TaskLogLinesResult>({
+          unavailable: "log archive read quota exceeded (402)",
+        }),
+      ),
+      {
+        debug: () => undefined,
+        log: (_scope, message) => logged.push(message),
+        error: () => undefined,
+      },
+    );
+
+    expect(result.transcriptPath).toBeNull();
+    expect(await exists(path.join(workspace, TRANSCRIPT))).toBe(false);
+    expect(await exists(path.join(workspace, FINDINGS))).toBe(true);
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toContain("previous run transcript skipped");
   });
 });

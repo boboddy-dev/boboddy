@@ -46,7 +46,7 @@ describe("FakeAiServer — concurrent forced tool calls", () => {
   }
 
   test("a request whose prompt was built by buildForcedToolCallPrompt forces that tool/args, even when configure() was called for something else", async () => {
-    server = new FakeAiServer();
+    server = new FakeAiServer({ initialToolUseDelayMs: 0 });
     const port = await server.start();
 
     // Simulates the exact race the fix closes: `configure()` was last called
@@ -69,7 +69,7 @@ describe("FakeAiServer — concurrent forced tool calls", () => {
   });
 
   test("two concurrent requests built with buildForcedToolCallPrompt each get their own tool, never the other's", async () => {
-    server = new FakeAiServer();
+    server = new FakeAiServer({ initialToolUseDelayMs: 0 });
     const port = await server.start();
 
     const [responseA, responseB] = await Promise.all([
@@ -98,7 +98,7 @@ describe("FakeAiServer — concurrent forced tool calls", () => {
   });
 
   test("falls back to configure() when the prompt has no marker (the non-health-check, non-concurrent caller)", async () => {
-    server = new FakeAiServer();
+    server = new FakeAiServer({ initialToolUseDelayMs: 0 });
     const port = await server.start();
     server.configure("boboddy-submit-step-findings", { ok: true });
 

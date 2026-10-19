@@ -98,7 +98,10 @@ export async function monitorStartedClaimedTask(
     hasWaitedForSessionStop: false,
     hasRetriedFindingsSubmission: false,
     hasWaitedForRetriedFindingsSubmission: false,
+    graceWaitedMs: 0,
   };
+  const missingFindingsGraceMs =
+    input.missingFindingsGraceMs ?? input.pollIntervalMs;
   let lastLoggedProviderErrorAttempt = -1;
   // Elapsed time (ms) and poll count spent waiting for the agent session to
   // first report running. Used to fail fast when the agent never starts (e.g.
@@ -351,9 +354,11 @@ export async function monitorStartedClaimedTask(
           missingFindingsState,
           task.status,
           input.workerId,
+          missingFindingsGraceMs,
         );
         if (action === "continue") {
           await deps.sleep(input.pollIntervalMs);
+          missingFindingsState.graceWaitedMs += input.pollIntervalMs;
           continue;
         }
         throw buildMissingFindingsError({

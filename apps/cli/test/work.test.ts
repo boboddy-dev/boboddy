@@ -5,43 +5,34 @@
  * network/auth call, so these tests never need a real signed-in session —
  * they assert on the fail-fast branch-guard message itself, or that the
  * command proceeds past it to the (expected, pre-existing) "not signed in"
- * failure. Mirrors `init.test.ts`'s spawnSync + fake-HOME style.
+ * failure. Mirrors `init.test.ts`'s runCli + fake-HOME style.
  */
-import { describe, expect } from "bun:test";
-import { execFileSync, spawnSync } from "node:child_process";
+import { describe, expect, setDefaultTimeout } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { concurrentTest, hasReporterLine } from "./utils";
+import {
+  concurrentTest,
+  hasReporterLine,
+  runCli,
+  type SpawnResult,
+} from "./utils";
 
-const projectRoot = resolve(import.meta.dir, "..");
-const cliEntrypoint = resolve(projectRoot, "src/index.ts");
+// Each test builds real git repos and spawns the CLI from source; under a
+// loaded machine (test-all-workspaces) that overruns bun's 5s default.
+setDefaultTimeout(15_000);
+
 const FAKE_PROJECT = "acme/web-app";
-
-interface SpawnResult {
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly exitCode: number;
-}
 
 function runWork(
   args: readonly string[],
   options: { cwd: string; home: string },
-): SpawnResult {
-  const result = spawnSync(
-    process.execPath,
-    ["run", cliEntrypoint, "work", FAKE_PROJECT, ...args],
-    {
-      cwd: options.cwd,
-      env: { ...process.env, HOME: options.home },
-      encoding: "utf8",
-    },
-  );
-  return {
-    stdout: typeof result.stdout === "string" ? result.stdout : "",
-    stderr: typeof result.stderr === "string" ? result.stderr : "",
-    exitCode: result.status ?? 1,
-  };
+): Promise<SpawnResult> {
+  return runCli(["work", FAKE_PROJECT, ...args], {
+    cwd: options.cwd,
+    env: { HOME: options.home },
+  });
 }
 
 function git(cwd: string, args: string[]): void {
@@ -71,94 +62,102 @@ function buildRepoWithOrigin(): { root: string; workspace: string; remote: strin
 }
 
 describe("boboddy work — source branch", () => {
-  concurrentTest("--help documents --source-branch", () => {
-    const result = spawnSync(
-      process.execPath,
-      ["run", cliEntrypoint, "work", "--help"],
-      { cwd: projectRoot, encoding: "utf8" },
-    );
+  concurrentTest("--help documents --source-branch", async () => {
+    const result = await runCli(["work", "--help"]);
     expect(result.stdout).toContain("--source-branch");
   });
 
-  concurrentTest("fails fast when the current branch has never been pushed to origin", () => {
-    const { root, workspace } = buildRepoWithOrigin();
-    try {
-      git(workspace, ["checkout", "-b", "feature-never-pushed"]);
-      const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
+  concurrentTest(
+    "fails fast when the current branch has never been pushed to origin",
+    async () => {
+      const { root, workspace } = buildRepoWithOrigin();
       try {
-        const result = runWork([], { cwd: workspace, home });
-        expect(result.exitCode).toBe(1);
-        expect(
-          hasReporterLine(
-            result.stderr,
-            'Current branch "feature-never-pushed" does not exist on origin',
-          ),
-        ).toBe(true);
-        // Never got far enough to hit the (pre-existing) auth check.
-        expect(hasReporterLine(result.stderr, "Not signed in")).toBe(false);
+        git(workspace, ["checkout", "-b", "feature-never-pushed"]);
+        const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
+        try {
+          const result = await runWork([], { cwd: workspace, home });
+          expect(result.exitCode).toBe(1);
+          expect(
+            hasReporterLine(
+              result.stderr,
+              'Current branch "feature-never-pushed" does not exist on origin',
+            ),
+          ).toBe(true);
+          // Never got far enough to hit the (pre-existing) auth check.
+          expect(hasReporterLine(result.stderr, "Not signed in")).toBe(false);
+        } finally {
+          rmSync(home, { recursive: true, force: true });
+        }
       } finally {
-        rmSync(home, { recursive: true, force: true });
+        rmSync(root, { recursive: true, force: true });
       }
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+    },
+  );
 
-  concurrentTest("proceeds past the branch guard (to the pre-existing auth failure) when the current branch is in sync with origin", () => {
-    const { root, workspace } = buildRepoWithOrigin();
-    try {
+  concurrentTest(
+    "proceeds past the branch guard (to the pre-existing auth failure) when the current branch is in sync with origin",
+    async () => {
+      const { root, workspace } = buildRepoWithOrigin();
+      try {
+        const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
+        try {
+          const result = await runWork([], { cwd: workspace, home });
+          expect(
+            hasReporterLine(result.stderr, "Using source branch: main"),
+          ).toBe(true);
+          expect(result.exitCode).toBe(1);
+          expect(hasReporterLine(result.stderr, "Not signed in")).toBe(true);
+        } finally {
+          rmSync(home, { recursive: true, force: true });
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  concurrentTest(
+    "skips the branch guard entirely when cwd is not a git repository",
+    async () => {
+      const notARepo = mkdtempSync(resolve(tmpdir(), "boboddy-work-norepo-"));
       const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
       try {
-        const result = runWork([], { cwd: workspace, home });
-        expect(hasReporterLine(result.stderr, "Using source branch: main")).toBe(
-          true,
+        const result = await runWork([], { cwd: notARepo, home });
+        expect(hasReporterLine(result.stderr, "does not exist on origin")).toBe(
+          false,
         );
-        expect(result.exitCode).toBe(1);
         expect(hasReporterLine(result.stderr, "Not signed in")).toBe(true);
       } finally {
+        rmSync(notARepo, { recursive: true, force: true });
         rmSync(home, { recursive: true, force: true });
       }
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+    },
+  );
 
-  concurrentTest("skips the branch guard entirely when cwd is not a git repository", () => {
-    const notARepo = mkdtempSync(resolve(tmpdir(), "boboddy-work-norepo-"));
-    const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
-    try {
-      const result = runWork([], { cwd: notARepo, home });
-      expect(hasReporterLine(result.stderr, "does not exist on origin")).toBe(
-        false,
-      );
-      expect(hasReporterLine(result.stderr, "Not signed in")).toBe(true);
-    } finally {
-      rmSync(notARepo, { recursive: true, force: true });
-      rmSync(home, { recursive: true, force: true });
-    }
-  });
-
-  concurrentTest("--source-branch overrides the current branch and only requires existence on origin", () => {
-    const { root, workspace } = buildRepoWithOrigin();
-    try {
-      const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
+  concurrentTest(
+    "--source-branch overrides the current branch and only requires existence on origin",
+    async () => {
+      const { root, workspace } = buildRepoWithOrigin();
       try {
-        const result = runWork(
-          ["--source-branch", "ghost-branch"],
-          { cwd: workspace, home },
-        );
-        expect(result.exitCode).toBe(1);
-        expect(
-          hasReporterLine(
-            result.stderr,
-            'Branch "ghost-branch" (--source-branch) does not exist on origin',
-          ),
-        ).toBe(true);
+        const home = mkdtempSync(resolve(tmpdir(), "boboddy-work-home-"));
+        try {
+          const result = await runWork(["--source-branch", "ghost-branch"], {
+            cwd: workspace,
+            home,
+          });
+          expect(result.exitCode).toBe(1);
+          expect(
+            hasReporterLine(
+              result.stderr,
+              'Branch "ghost-branch" (--source-branch) does not exist on origin',
+            ),
+          ).toBe(true);
+        } finally {
+          rmSync(home, { recursive: true, force: true });
+        }
       } finally {
-        rmSync(home, { recursive: true, force: true });
+        rmSync(root, { recursive: true, force: true });
       }
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+    },
+  );
 });

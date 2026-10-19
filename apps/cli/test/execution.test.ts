@@ -1,55 +1,35 @@
-import { describe, expect } from "bun:test";
+import { describe, expect, setDefaultTimeout } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
-import { concurrentTest, reporterLines } from "./utils";
+import { join } from "node:path";
+import { concurrentTest, runCli, reporterLines } from "./utils";
 
-const projectRoot = resolve(import.meta.dir, "..");
-const cliEntrypoint = resolve(projectRoot, "src/index.ts");
-
-interface SpawnResult {
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly exitCode: number;
-}
-
-function run(
-  args: readonly string[],
-  options?: { cwd?: string; env?: NodeJS.ProcessEnv },
-): SpawnResult {
-  const result = spawnSync(process.execPath, ["run", cliEntrypoint, ...args], {
-    cwd: options?.cwd ?? projectRoot,
-    env: { ...process.env, ...options?.env },
-    encoding: "utf8",
-  });
-
-  return {
-    stdout: typeof result.stdout === "string" ? result.stdout : "",
-    stderr: typeof result.stderr === "string" ? result.stderr : "",
-    exitCode: result.status ?? 1,
-  };
-}
+// Spawns the CLI from source; under a loaded machine (test-all-workspaces)
+// that overruns bun's 5s default.
+setDefaultTimeout(15_000);
 
 describe("boboddy execution", () => {
   describe("help output", () => {
-    concurrentTest("execution --help lists the view subcommand", () => {
-      const result = run(["execution", "--help"]);
+    concurrentTest("execution --help lists the view subcommand", async () => {
+      const result = await runCli(["execution", "--help"]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain("view <executionId>");
     });
 
-    concurrentTest("top-level --help includes the execution command", () => {
-      const result = run(["--help"]);
+    concurrentTest(
+      "top-level --help includes the execution command",
+      async () => {
+        const result = await runCli(["--help"]);
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("execution <command>");
-    });
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("execution <command>");
+      },
+    );
 
-    concurrentTest("execution view --help lists every flag", () => {
-      const result = run(["execution", "view", "--help"]);
+    concurrentTest("execution view --help lists every flag", async () => {
+      const result = await runCli(["execution", "view", "--help"]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
@@ -62,8 +42,8 @@ describe("boboddy execution", () => {
       expect(result.stdout).toContain("--base-url");
     });
 
-    concurrentTest("rejects unknown options (strict mode)", () => {
-      const result = run([
+    concurrentTest("rejects unknown options (strict mode)", async () => {
+      const result = await runCli([
         "execution",
         "view",
         "01966a2c-9494-7db5-aa46-0f8f5cbbe001",
@@ -77,12 +57,12 @@ describe("boboddy execution", () => {
   describe("execution view", () => {
     concurrentTest(
       "exits with error and helpful message when not signed in",
-      () => {
+      async () => {
         const fakeHome = mkdtempSync(
           join(tmpdir(), "boboddy-execution-view-test-"),
         );
         try {
-          const result = run(
+          const result = await runCli(
             ["execution", "view", "01966a2c-9494-7db5-aa46-0f8f5cbbe001"],
             { env: { HOME: fakeHome } },
           );
@@ -104,12 +84,12 @@ describe("boboddy execution", () => {
 
     concurrentTest(
       "rejects an invalid --log-stream value before connecting",
-      () => {
+      async () => {
         const fakeHome = mkdtempSync(
           join(tmpdir(), "boboddy-execution-view-logstream-test-"),
         );
         try {
-          const result = run(
+          const result = await runCli(
             [
               "execution",
               "view",

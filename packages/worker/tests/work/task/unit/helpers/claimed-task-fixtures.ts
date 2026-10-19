@@ -3,6 +3,7 @@
  * neither test file has to duplicate this scaffolding, and so both stay
  * under the repo's per-file line limit.
  */
+import path from "node:path";
 import { vi } from "bun:test";
 import { parseUuidV7 } from "../../../../../src/common/contracts/uuid-v7";
 import { startProcessClaimedTask } from "../../../../../src/work/task/application/process-claimed-task";
@@ -126,7 +127,13 @@ export function createWorkerClient(
   };
 }
 
-export function runClaim(deps: ProcessProjectWorkDeps) {
+export function runClaim(
+  deps: ProcessProjectWorkDeps,
+  options: {
+    tracker?: TaskRunTracker;
+    workerEnv?: Record<string, string | undefined>;
+  } = {},
+) {
   return startProcessClaimedTask(
     {
       projectId,
@@ -136,9 +143,86 @@ export function runClaim(deps: ProcessProjectWorkDeps) {
         claimToken: "claim-token",
       },
       leaseDurationSeconds: 30,
+      workerEnv: options.workerEnv,
     },
     deps,
     deps.workerClient,
-    createRunTracker(),
+    options.tracker ?? createRunTracker(),
   );
+}
+
+/**
+ * A recording runtime-environment orchestrator: its `launch` resolves the same
+ * fake environment the existing test uses, but records that it was invoked so
+ * routing between the `workspace` and `no_workspace` orchestrators can be
+ * asserted through the exported {@link startProcessClaimedTask} seam
+ * (`resolveRuntimeEnvironmentOrchestrator` itself is module-private).
+ */
+export function createRecordingOrchestrator(
+  workspacePath: string,
+  overrides: {
+    resolvedBranch?: string;
+    devcontainerConfigPath?: string;
+    runtimeContainerId?: string | null;
+    aiImage?: string;
+    networkName?: string;
+  } = {},
+) {
+  const launch = vi.fn(() =>
+    Promise.resolve({
+      workspacePath,
+      workspaceFolder: "/workspaces/repo",
+      resolvedBranch: "",
+      workBranch: null,
+      createdFromBranch: null,
+      devcontainerConfigPath: "",
+      runtimeContainerId: null,
+      agent: {
+        baseUrl: "http://localhost:4096",
+        password: "test-password",
+        version: "0.0.0-test",
+        logDirectory: path.join(workspacePath, ".logs"),
+      },
+      aiImage: "opencode-runtime@test",
+      networkName: "",
+      secretValues: [],
+      cleanup: () => Promise.resolve(),
+      ...overrides,
+    }),
+  );
+  return { launch };
+}
+
+export function createRoutingDeps(input: {
+  workerClient: TaskWorkerClient;
+  workspaceOrchestrator: { launch: ReturnType<typeof vi.fn> };
+  noWorkspaceOrchestrator?: { launch: ReturnType<typeof vi.fn> } | undefined;
+}): ProcessProjectWorkDeps {
+  return {
+    workerClient: input.workerClient,
+    createRunTracker,
+    runtimeEnvironmentOrchestrator: input.workspaceOrchestrator,
+    ...(input.noWorkspaceOrchestrator
+      ? {
+          noWorkspaceRuntimeEnvironmentOrchestrator:
+            input.noWorkspaceOrchestrator,
+        }
+      : {}),
+    agentRunner: {
+      promptAsync: vi.fn(() =>
+        Promise.resolve({ sessionId: "agent-session-id" }),
+      ),
+      getSessionStatus: vi.fn(),
+      sendRetryPrompt: vi.fn(),
+    },
+    artifactStore: {
+      saveArtifact: vi.fn(),
+    },
+    sleep: vi.fn(() => Promise.resolve(undefined)),
+    logger: {
+      debug: vi.fn(),
+      log: vi.fn(),
+      error: vi.fn(),
+    },
+  } satisfies ProcessProjectWorkDeps;
 }

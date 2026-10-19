@@ -4,6 +4,7 @@ import {
   runHealthChecks,
 } from "../../../../src/work/task/application/run-health-checks";
 import {
+  FAST_HEALTH_CHECK_INTERVALS,
   cliHealthCheck,
   healthCheck,
   installFakeAgent,
@@ -81,6 +82,7 @@ describe("runHealthChecks — schema that fails to compile", () => {
           healthCheck({ tool: "uses-uncompilable-schema", args: { x: 1 } }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result).toEqual([

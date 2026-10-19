@@ -34,13 +34,16 @@ the run with `succeed` or `fail`. Pipelines are TypeScript files in
 
 ## Default pipeline
 
-The default pipeline is the one the designer starts every new pipeline from:
-`bug-pipeline.ts`. It scores whether a bug report holds enough to act on, and
-asks the reporter for what's missing if it doesn't. Otherwise it investigates
-and reproduces the bug, writes a failing test, and proposes a fix. The
-designer adapts the investigate step to what your environment can reach. Each
-step passes its whole output to the next, and nothing blocks: a step that
-can't do something says so, and the next one works from that.
+The default pipeline is the one every new pipeline-builder directory starts
+with, and the one the designer adapts: `bug-pipeline.ts`. It scores whether a
+bug report holds enough to act on, with a deliberately low bar, and asks the
+reporter for what's missing only when there is nothing to start from.
+Otherwise it investigates and reproduces the bug with every tool you give it,
+and reports a reproduction confidence. Only a confident reproduction goes on to
+a failing test. It then proposes a fix and blocks until you approve it in the
+dashboard, and only then applies the fix. The designer adapts the investigate
+step to what your environment can reach. Each step passes its whole output to
+the next. It is an opinionated starting point: change any of it.
 
 ## Step
 
@@ -73,7 +76,9 @@ See [Signals](/boboddy/guides/steps/#signals).
 Advancement is what happens after a step finishes. Usually that's its state's
 `next`. A `choice` state, a loop, or a `blockWhen` rule reads signals to
 branch, loop, or block for a human; a blocked run stops in the dashboard
-instead of moving on. The default pipeline has one rule, its quality check.
+instead of moving on. The default pipeline has three rules: its quality
+check, its reproduction-confidence check, and the approval block before the
+fix.
 See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/).
 
 ## Default pipeline assignment

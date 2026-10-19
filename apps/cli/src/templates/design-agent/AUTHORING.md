@@ -685,40 +685,56 @@ export default defaultPipelineAssignment(
 
 ## 7. The default pipeline
 
-Every new pipeline starts from one compile-verified file, `bug-pipeline.ts`, in
-*The default pipeline file* at the end of this section. Do not author the state
-objects from scratch and do not pick a different shape: copy it, then adapt it
-to this repository. What the agent can reach changes how
-`investigateAndReproduce` is configured, not which pipeline you build.
+Every new pipeline starts from one compile-verified file, `bug-pipeline.ts`.
+The scaffold has already written it into this directory, and it is reproduced
+in *The default pipeline file* at the end of this section. Do not author the
+state objects from scratch and do not pick a different shape: edit that file
+in place and adapt it to this repository. It is an opinionated starting point,
+not a fixed one: when the user asks to change the shape, change it. What the
+agent can reach changes how `investigateAndReproduce` is configured, not which
+pipeline you build.
 
 | State | Kind | What it produces |
 | --- | --- | --- |
 | `evaluate` | step, `Runtime.host()` | `quality` (0–1), `missingDetails[]`, a restated summary |
 | `checkQuality` | `choice` on `quality < 0.1` | routes to `requestDetails`, otherwise onward |
 | `requestDetails` | `codeStep`, then `insufficientDetail` (`fail`) | a comment draft asking for the missing details |
-| `investigateAndReproduce` | step, devcontainer, `Repo.readOnly()` | report, `reproduced`, trace path, suspected root cause, evidence |
+| `investigateAndReproduce` | step, devcontainer, `Repo.readOnly()` | report, `reproduced`, `reproductionConfidence` (0–1), traces, suspected root cause, evidence |
+| `checkReproduction` | `choice` on `reproductionConfidence >= 0.8` | routes to `failingTest`, otherwise `notReproduced` (`fail`) |
 | `failingTest` | step, devcontainer | a failing test, or `testWritten: false` with a reason |
-| `fix` | step, devcontainer | a minimal candidate fix with a stated confidence |
+| `proposeFix` | step, devcontainer, `Repo.readOnly()`, `blockWhen` | a fix proposal; the run blocks until a human releases it |
+| `fix` | step, devcontainer | the approved fix applied, with a stated confidence |
 
 How it is wired, and why:
 
-- **Whole outputs, one signal.** Each state's `input` binds `ctx.output(...)`
-  of every earlier state on its path, and each step declares those fields in
-  `additionalInput`. `quality` is the only signal because `checkQuality` is
-  the only rule. Keep it that way when you adapt it: add a signal only for a
-  new rule.
-- **No gates.** Nothing uses `blockWhen`. Each step reports what it could not
-  do (`reproduced: false`, `testWritten: false`, a low confidence) and the next
-  one works from that, so the run always ends with the best artifact the
-  evidence allowed. Do not add a gate unless the user asks for one.
-- **`requestDetails` is code, not an agent.** It turns `missingDetails` into a
+- **A low bar to start.** `checkQuality` only stops reports with nothing to
+  start from, so a user's first run almost always reaches the investigation.
+  `requestDetails` is code, not an agent: it turns `missingDetails` into a
   `feedback_request` notification suggesting `work_item_platform_comment`,
   which becomes a draft a human approves before it is posted on the work item.
-  The run then ends at `insufficientDetail`. Leave the `0.1` threshold alone:
-  it only catches reports with nothing to start from.
-- **Branches.** `investigateAndReproduce` is read-only, so it pushes nothing.
-  `failingTest` commits its test on a work branch, and `fix` starts from that
-  branch, so the fix lands on top of the test.
+  The run then ends at `insufficientDetail`. Leave the `0.1` threshold alone.
+- **Investigation is the step that matters.** Everything after it works from
+  its evidence. Give it every tool the user picked in phase 3 — the browser,
+  logs, a read-only database, error tracking, internal APIs — and name in its
+  prompt what each one is for.
+- **A high bar to write a test.** `reproductionConfidence` is the step's own
+  judgement of whether it reproduced the bug and understands its cause.
+  `checkReproduction` sends only a confident reproduction (`>= 0.8`) on to
+  `failingTest`; anything less ends the run at `notReproduced`, with the
+  investigation report as its result.
+- **A human approves the fix.** `proposeFix` reads the code but changes
+  nothing, and its `requiresHumanApproval` is always true, so its `blockWhen`
+  always blocks. Releasing the block in the dashboard lets `fix` apply the
+  approved proposal. Keep the gate unless the user asks to remove it.
+- **Whole outputs, signals only for rules.** Each state's `input` binds
+  `ctx.output(...)` of every earlier state on its path, and each step declares
+  those fields in `additionalInput`. `quality`, `reproductionConfidence` and
+  `requiresHumanApproval` are the only signals, one per rule. Add a signal only
+  for a new rule.
+- **Branches.** `investigateAndReproduce` and `proposeFix` are read-only, so
+  they push nothing. `failingTest` commits its test on a work branch, and
+  `proposeFix` and `fix` start from that branch, so the fix lands on top of the
+  test.
 
 Adapting `investigateAndReproduce` to what the agent can reach:
 
@@ -734,8 +750,10 @@ Adapting `investigateAndReproduce` to what the agent can reach:
   rather than guess.
 - **No reachable app.** There is no trace. Remove the Playwright `defineMcp`
   and its `mcps` entry, the URL and the browser procedure; have it reproduce
-  from the code and the tests, and say in its prompt that `tracePath` is
-  always null. The report and the failing test carry the evidence.
+  from the code, the tests and the other tools, and say in its prompt that
+  `tracePaths` is always empty. Rewrite what earns a `reproductionConfidence`
+  above 0.8 for this case (a code path the evidence pins down, a test it could
+  run), or nothing will ever reach `failingTest`.
 - **Other tools the user picked** (a read-only database, logs, an internal
   API). Define each once with `defineMcp` next to `playwright`, mount it in
   the `mcps` of every step that uses it, and name in the prompt what it is
@@ -753,8 +771,10 @@ CLI check along with the server when there is no reachable app.
 - **Off-limits systems.** Write what must never be touched into every step's
   prompt, not just this one.
 
-Rename keys only if the user asks; rewrite every prompt for this repository's
-test framework, vocabulary and conventions.
+Rename keys only if the user asks, and keep `checkReproduction`'s signal key
+matching the result field if you rename either; rewrite every prompt for this repository's
+test framework, vocabulary and conventions — never for the seeded work item's
+feature, symptom or data. The pipeline runs on every item of its kind.
 
 ## 8. Writing a good `agentPrompt`
 
@@ -779,6 +799,9 @@ Most of a pipeline's quality lives here.
   need from it, in enough detail to act on.
 - **Keep it operational.** Numbered procedures where order matters; prose where
   judgement matters.
+- **Keep it generic.** A prompt runs on every item routed to its pipeline. It
+  says how to work the item in front of it, which the agent already sees; it
+  never names the ticket the pipeline was designed around.
 
 ## 9. Validate, then push
 

@@ -12,9 +12,18 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { git } from "./git-test-fixtures";
-import { createLogger, setupFixture } from "./git-mirror-cache-fixtures";
+import {
+  createLogger,
+  setupFixture,
+  disposeMirrorFixtureTemplate,
+} from "./git-mirror-cache-fixtures";
+
+// Each test runs several real git processes concurrently with the rest of
+// the file; under a loaded machine (test-all-workspaces) that overruns bun's
+// 5s default.
+setDefaultTimeout(15_000);
 
 const DEAD_PID = 2_000_000_000;
 const FIVE_MINUTES_MS = 5 * 60_000;
@@ -50,6 +59,8 @@ async function lockExists(lockPath: string): Promise<boolean> {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("GitCliMirrorCache locking", () => {
   test.concurrent(

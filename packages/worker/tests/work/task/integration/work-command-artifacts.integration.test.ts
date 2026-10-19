@@ -16,12 +16,13 @@
  * guarantees the files exist on the host before collectStepArtifacts runs,
  * without requiring the fake AI to execute arbitrary commands.
  *
- * What is faked (same as the happy-path test):
+ * What is faked (same as the agent-step test in
+ * `work-command-runtime.integration.test.ts`):
  *   - Platform server: FakeTaskWorkerClient
  *   - AI provider: FakeAiServer
  *   - git clone: SeedingGitCloneService (FakeGitCloneService + artifact seeds)
  *
- * What this test adds over the happy-path test:
+ * What this test adds over that agent-step test:
  *   - Injects a LocalArtifactStore pointed at a dedicated temp dir.
  *   - Seeds two artifact files (a flat file and a nested file) into the
  *     workspace step-artifacts dir before the agent starts.
@@ -158,7 +159,8 @@ describe.skipIf(!integrationEnabled)(
             baseUrl: "http://127.0.0.1:1",
             concurrency: 1,
             batchSize: 1,
-            pollIntervalMs: 5_000,
+            pollIntervalMs: 250,
+            missingFindingsGraceMs: 5_000,
             leaseDurationSeconds: 60,
             once: true,
             preserveRuntimeOnComplete: keepContainers,

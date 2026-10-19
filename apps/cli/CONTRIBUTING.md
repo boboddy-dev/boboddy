@@ -69,7 +69,16 @@ bun run --filter @boboddy/cli test
 ```
 
 The tests spawn the CLI as a subprocess, so they do not require a global
-install. The `compiled-binary-tests/` suite runs against the built binaries.
+install. `test` runs `test/` only. The `compiled-binary-tests/` suite compiles
+real standalone binaries and runs separately:
+
+```sh
+bun run --filter @boboddy/cli test:compiled
+```
+
+It is not part of `bun run validate` or CI's `Test` job. CI runs it in the
+`cli-compiled` job when the CLI or a package bundled into it changes, and
+before a public release.
 
 ## Build binaries
 

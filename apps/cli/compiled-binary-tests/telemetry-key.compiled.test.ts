@@ -25,8 +25,8 @@ import { resolveTelemetryDefines } from "../script/telemetry-defines";
  * `HOME`, so no developer key or persisted opt-out can leak in. The test key
  * is a fake.
  *
- * Plain `test()`: the cases compile real binaries and share one sink whose
- * recorded requests are reset per run.
+ * Plain `test()`: the cases share two binaries, compiled concurrently once in
+ * `beforeAll`, and one sink whose recorded requests are reset per run.
  */
 
 const projectRoot = resolve(import.meta.dir, "..");
@@ -167,25 +167,10 @@ async function runUnknownCommand(
   return { exitCode: await proc.exited, stderr };
 }
 
-async function withScratch(
-  fn: (dirs: { outDir: string; home: string; cwd: string }) => Promise<void>,
-): Promise<void> {
-  const root = mkdtempSync(join(tmpdir(), "boboddy-telemetry-key-"));
-  const dirs = {
-    outDir: root,
-    home: mkdtempSync(join(root, "home-")),
-    cwd: mkdtempSync(join(root, "cwd-")),
-  };
-  try {
-    await fn(dirs);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
 describe("compiled CLI binary — baked telemetry key", () => {
   let bakedRoot: string;
   let bakedBinary: string;
+  let keylessBinary: string;
   let sink: Sink;
 
   function scratchRun(): { home: string; cwd: string } {
@@ -199,11 +184,19 @@ describe("compiled CLI binary — baked telemetry key", () => {
     sink = startSink();
     bakedRoot = mkdtempSync(join(tmpdir(), "boboddy-telemetry-key-"));
     bakedBinary = join(bakedRoot, "boboddy-baked");
-    await compileCli(
-      bakedBinary,
-      { POSTHOG_CLI_KEY: TEST_KEY },
-      mkdtempSync(join(bakedRoot, "build-home-")),
-    );
+    keylessBinary = join(bakedRoot, "boboddy-keyless");
+    await Promise.all([
+      compileCli(
+        bakedBinary,
+        { POSTHOG_CLI_KEY: TEST_KEY },
+        mkdtempSync(join(bakedRoot, "build-home-")),
+      ),
+      compileCli(
+        keylessBinary,
+        {},
+        mkdtempSync(join(bakedRoot, "build-home-")),
+      ),
+    ]);
   }, 120_000);
 
   afterAll(async () => {
@@ -264,12 +257,8 @@ describe("compiled CLI binary — baked telemetry key", () => {
   });
 
   test("a binary built without POSTHOG_CLI_KEY reports keySource: none", async () => {
-    await withScratch(async ({ outDir, home, cwd }) => {
-      const binary = join(outDir, "boboddy-keyless");
-      await compileCli(binary, {}, home);
-
-      const { parsed } = await telemetryStatusJson(binary, home, cwd);
-      expect(parsed).toMatchObject({ enabled: true, keySource: "none" });
-    });
-  }, 120_000);
+    const { home, cwd } = scratchRun();
+    const { parsed } = await telemetryStatusJson(keylessBinary, home, cwd);
+    expect(parsed).toMatchObject({ enabled: true, keySource: "none" });
+  });
 });

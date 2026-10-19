@@ -32,6 +32,7 @@ import {
 import type { FakeTaskWorkerClient } from "./fake-worker-client";
 import { ContainerRegistry } from "./containers/container-registry";
 import { TestcontainersDevcontainerLauncher } from "./containers/testcontainers-devcontainer-launcher";
+import { resolveIntegrationPayloadHome } from "./integration-home";
 
 const execFileAsync = promisify(execFile);
 
@@ -230,7 +231,9 @@ export function buildIntegrationDeps(input: {
       gitCommitPushService,
       submoduleService: new GitCliSubmoduleService(logger),
       devcontainerLauncher,
-      payloadProvisioner: new OpencodeRuntimePayloadProvisioner(),
+      payloadProvisioner: new OpencodeRuntimePayloadProvisioner({
+        homeDir: resolveIntegrationPayloadHome(),
+      }),
       opencodeBootstrap: new DevcontainerOpencodeBootstrap(),
       providerAccessResolver: new DirectProviderAccessResolver({
         listProviders: (listInput) =>

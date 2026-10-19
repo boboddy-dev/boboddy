@@ -1,12 +1,19 @@
-import { describe, expect, test } from "bun:test";
-import { resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import type { PipelineStudioServerHandle } from "@boboddy/worker";
 import {
   runStudioSession,
   type StudioSessionPorts,
 } from "../src/commands/pipelines-studio";
-import { createReporterRecorder, reportedMessages } from "./utils";
+import {
+  concurrentTest,
+  createReporterRecorder,
+  reportedMessages,
+  runCli,
+} from "./utils";
+
+// Spawns the CLI from source; under a loaded machine (test-all-workspaces)
+// that overruns bun's 5s default.
+setDefaultTimeout(15_000);
 
 /**
  * `runStudioSession` is the whole command minus its I/O — every port here is
@@ -220,44 +227,24 @@ describe("runStudioSession — orchestration", () => {
 
 // ─── Command wiring — spawns the real CLI, mirroring pipelines.test.ts ──────
 
-const projectRoot = resolve(import.meta.dir, "..");
-const cliEntrypoint = resolve(projectRoot, "src/index.ts");
-
-function run(args: readonly string[]): {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-} {
-  const result = spawnSync(process.execPath, ["run", cliEntrypoint, ...args], {
-    cwd: projectRoot,
-    env: process.env,
-    encoding: "utf8",
-  });
-  return {
-    stdout: typeof result.stdout === "string" ? result.stdout : "",
-    stderr: typeof result.stderr === "string" ? result.stderr : "",
-    exitCode: result.status ?? 1,
-  };
-}
-
 describe("boboddy pipelines studio — command wiring", () => {
-  test("is listed under `pipelines --help`", () => {
-    const result = run(["pipelines", "--help"]);
+  concurrentTest("is listed under `pipelines --help`", async () => {
+    const result = await runCli(["pipelines", "--help"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("studio");
   });
 
-  test("studio --help shows its --port option", () => {
-    const result = run(["pipelines", "studio", "--help"]);
+  concurrentTest("studio --help shows its --port option", async () => {
+    const result = await runCli(["pipelines", "studio", "--help"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("--port");
   });
 
-  test("rejects unknown options (strict mode)", () => {
-    const result = run(["pipelines", "studio", "--nope"]);
+  concurrentTest("rejects unknown options (strict mode)", async () => {
+    const result = await runCli(["pipelines", "studio", "--nope"]);
 
     expect(result.exitCode).toBe(1);
   });

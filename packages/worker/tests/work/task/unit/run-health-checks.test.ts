@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { runHealthChecks } from "../../../../src/work/task/application/run-health-checks";
 import {
+  FAST_HEALTH_CHECK_INTERVALS,
   GREET_SCHEMA,
   healthCheck,
   installFakeAgent,
@@ -28,6 +29,7 @@ describe("runHealthChecks", () => {
         },
         healthChecks: [],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result).toEqual([]);
@@ -54,6 +56,7 @@ describe("runHealthChecks", () => {
         },
         healthChecks: [healthCheck({ tool: "greet", args: { name: "Ada" } })],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result).toEqual([
@@ -86,6 +89,7 @@ describe("runHealthChecks", () => {
         },
         healthChecks: [healthCheck({ tool: "totally-fake-tool" })],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
       const elapsedMs = Date.now() - startedAt;
 
@@ -123,6 +127,7 @@ describe("runHealthChecks", () => {
         // Missing the required `name` property.
         healthChecks: [healthCheck({ tool: "greet", args: {} })],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.outcome.kind).toBe("failed");
@@ -155,6 +160,7 @@ describe("runHealthChecks", () => {
           healthCheck({ mcp: "fixture", tool: "echo", args: { text: "hi" } }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.outcome).toEqual({ kind: "passed" });
@@ -186,6 +192,7 @@ describe("runHealthChecks", () => {
         },
         healthChecks: [healthCheck({ mcp: "fixture", tool: "boom" })],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.outcome).toEqual({
@@ -197,10 +204,6 @@ describe("runHealthChecks", () => {
       await fakeAiServer.stop();
     }
   });
-
-  // Parallel-lane and `serialGroup` behavior lives in
-  // `run-health-checks-concurrency.test.ts` (split out to keep this file
-  // under the repo's `max-lines` limit).
 
   test("runs warn checks after all required checks pass, and a warn failure doesn't skip later warn checks", async () => {
     const fakeAiServer = await startedFakeAiServer();
@@ -240,6 +243,7 @@ describe("runHealthChecks", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result.map((report) => report.outcome)).toEqual([
@@ -289,6 +293,7 @@ describe("runHealthChecks", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       // The required check runs (and fails) before the warn check is
@@ -329,6 +334,7 @@ describe("runHealthChecks", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.name).toBe("Browser reachable");
@@ -362,6 +368,7 @@ describe("runHealthChecks", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.outcome).toEqual({
@@ -425,6 +432,7 @@ describe("runHealthChecks — MCP warm-up", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.outcome).toEqual({ kind: "passed" });

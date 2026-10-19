@@ -1,16 +1,16 @@
 /**
  * Shared fixture for the {@link GitCliMirrorCache} unit suites: a real local
- * bare "remote", a seed clone to commit from, and a cache dir.
+ * bare "remote", a seed clone to commit from, and a cache dir, copied per test
+ * from a template built once per test file.
  */
-import { mkdtemp, mkdir } from "node:fs/promises";
-import os from "node:os";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { mirrorKey } from "../../../../src/runtime/runtime-service/domain/git-mirror-key";
 import {
   GitCliMirrorCache,
   type GitCliMirrorCacheOptions,
 } from "../../../../src/runtime/runtime-service/infra/git-cli-mirror-cache";
-import { git, writeRepoFile } from "./git-test-fixtures";
+import { git, GitFixtureTemplate, writeRepoFile } from "./git-test-fixtures";
 
 export type LogLine = {
   scope: string;
@@ -34,24 +34,39 @@ export function createLogger() {
   };
 }
 
-export async function setupFixture(
-  cacheOptions: Partial<GitCliMirrorCacheOptions> = {},
-) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "git-mirror-cache-"));
-  const remote = path.join(root, "remote.git");
-  const cacheDir = path.join(root, "cache");
-
+/**
+ * A bare `remote.git` seeded with one commit on `main`, plus the `seed` clone
+ * it was pushed from. The seed's `origin` is an absolute path into the
+ * template, so {@link setupFixture} repoints it at the copy.
+ */
+const template = new GitFixtureTemplate("git-mirror-cache", async (dir) => {
+  const remote = path.join(dir, "remote.git");
   await mkdir(remote, { recursive: true });
   await git(remote, ["init", "--bare", "-b", "main"]);
 
-  const seed = path.join(root, "seed");
-  await git(root, ["clone", remote, seed]);
+  const seed = path.join(dir, "seed");
+  await git(dir, ["clone", remote, seed]);
   await git(seed, ["config", "user.email", "seed@boboddy.dev"]);
   await git(seed, ["config", "user.name", "Seed"]);
   await writeRepoFile(seed, "README.md", "hello\n");
   await git(seed, ["add", "-A"]);
   await git(seed, ["commit", "--no-gpg-sign", "-m", "init"]);
   await git(seed, ["push", "origin", "main"]);
+});
+
+/** Removes the shared template; call from each importing file's `afterAll`. */
+export function disposeMirrorFixtureTemplate(): Promise<void> {
+  return template.dispose();
+}
+
+export async function setupFixture(
+  cacheOptions: Partial<GitCliMirrorCacheOptions> = {},
+) {
+  const root = await template.copy();
+  const remote = path.join(root, "remote.git");
+  const cacheDir = path.join(root, "cache");
+  const seed = path.join(root, "seed");
+  await git(seed, ["remote", "set-url", "origin", remote]);
 
   async function commit(message: string): Promise<string> {
     await writeRepoFile(seed, `${message}.txt`, `${message}\n`);

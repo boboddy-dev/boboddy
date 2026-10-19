@@ -15,7 +15,10 @@ import type { GitRunner } from "../../../../src/runtime/runtime-service/infra/ru
 import { GitCliCloneService } from "../../../../src/runtime/runtime-service/infra/git-cli-clone-service";
 import { setupFixture } from "./git-mirror-cache-fixtures";
 
-export { createLogger } from "./git-mirror-cache-fixtures";
+export {
+  createLogger,
+  disposeMirrorFixtureTemplate,
+} from "./git-mirror-cache-fixtures";
 
 export async function pathExists(target: string): Promise<boolean> {
   try {

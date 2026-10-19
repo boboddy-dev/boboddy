@@ -62,9 +62,19 @@ const platformPackageNames = {
 };
 
 const MAX_DOWNLOAD_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 1000;
+const DEFAULT_RETRY_DELAY_MS = 1000;
+const RETRY_DELAY_MS = retryDelayMs();
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 5;
+
+/** Base retry delay; BOBODDY_POSTINSTALL_RETRY_DELAY_MS overrides it (tests set 0). */
+function retryDelayMs() {
+  const raw = process.env["BOBODDY_POSTINSTALL_RETRY_DELAY_MS"];
+  if (raw === undefined || !/^\d+$/.test(raw.trim()))
+    return DEFAULT_RETRY_DELAY_MS;
+  const parsed = Number(raw.trim());
+  return Number.isSafeInteger(parsed) ? parsed : DEFAULT_RETRY_DELAY_MS;
+}
 
 function registryBaseUrl() {
   const configured = process.env["npm_config_registry"];

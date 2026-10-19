@@ -4,7 +4,7 @@
  * repos. A bare remote is created per submodule so pushes work without network.
  * Local-path submodule add/clone requires `protocol.file.allow=always` on modern
  * git, so setup passes it per-invocation. Mirrors the real-temp-repo style of
- * git-cli-commit-push-service.test.ts and git-cli-submodule-service.test.ts.
+ * git-cli-commit-push-service.test.ts.
  *
  * Each test builds and tears down its own fixture inline (via the shared
  * `setupFixture` from ./git-submodule-commit-fixtures) so tests share no
@@ -14,21 +14,25 @@
  */
 import { access, rm } from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { GitCliCommitPushService } from "../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
 import { GitCliSubmoduleService } from "../../../../src/runtime/runtime-service/infra/git-cli-submodule-service";
 import { buildCommitAndPushWorkBranch } from "../../../../src/work/task/infra/work-branch-manager";
+import { captureRejection } from "../../../support/capture-rejection";
 import { git, writeRepoFile } from "./git-test-fixtures";
 import {
   addSiblingSubmodule,
   cloneWorking,
   cloneWorkingNoRecurse,
   createBareRemoteWithSeed,
+  disposeSubmoduleFixtureTemplate,
   runClosure,
   setupFixture,
 } from "./git-submodule-commit-fixtures";
 
-const TEST_TIMEOUT_MS = 20_000;
+const TEST_TIMEOUT_MS = 15_000;
+
+afterAll(disposeSubmoduleFixtureTemplate);
 
 describe("GitCliCommitPushService submodule methods", () => {
   const service = new GitCliCommitPushService();
@@ -174,17 +178,14 @@ describe("GitCliCommitPushService submodule methods", () => {
           path.join(root, "does-not-exist.git"),
         ]);
 
-        let threw = false;
-        try {
-          await service.pushSubmodule({
+        const failure = await captureRejection(
+          service.pushSubmodule({
             workspacePath: workspace,
             submodulePath: "vendor/dep",
             branchName: "boboddy/step-fail",
-          });
-        } catch {
-          threw = true;
-        }
-        expect(threw).toBe(true);
+          }),
+        );
+        expect(failure).toBeInstanceOf(Error);
       } finally {
         await rm(root, { recursive: true, force: true });
       }

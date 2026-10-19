@@ -3,15 +3,15 @@
  * their own module purely to keep the test file under this repo's 400-line
  * limit. Each test in that file calls `setupFixture()` (and, for a couple of
  * cases, `cloneWorkingNoRecurse` directly) to get its own fully-local set of
- * temp git repos — nothing here is shared mutable state.
+ * temp git repos, copied from a template built once per test file — nothing
+ * here is shared mutable state.
  */
-import { mkdtemp, mkdir } from "node:fs/promises";
-import os from "node:os";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import type { GitCommitPushService } from "../../../../src/runtime/runtime-service/application/git-commit-push-service";
 import type { SubmoduleService } from "../../../../src/runtime/runtime-service/application/submodule-service";
 import { buildCommitAndPushWorkBranch } from "../../../../src/work/task/infra/work-branch-manager";
-import { git, writeRepoFile } from "./git-test-fixtures";
+import { git, GitFixtureTemplate, writeRepoFile } from "./git-test-fixtures";
 
 /** A bare remote seeded with one commit on `main` via a throwaway clone. */
 export async function createBareRemoteWithSeed(
@@ -73,26 +73,17 @@ export async function cloneWorkingNoRecurse(
 }
 
 /**
- * Builds one full fixture: a bare `sub` remote, a bare `super` remote whose
- * superproject already has `sub` added at `vendor/dep`, and a recursive clone
- * of `super` at `workspace`. Every test in git-cli-commit-push-submodule.test.ts
- * (including the ones in the nested "orchestration" describe) calls this
- * itself and cleans up its own `root`, so concurrently-running tests never
- * share mutable state.
+ * Bare `sub` and `super` remotes, where `super` already has `sub` added at
+ * `vendor/dep`. The submodule URL is relative (`../sub.git`), and the throwaway
+ * seed clones (whose `origin` is an absolute path) are removed, so the tree
+ * holds only bare repos and can be copied anywhere.
  */
-export async function setupFixture(): Promise<{
-  root: string;
-  superRemote: string;
-  subRemote: string;
-  workspace: string;
-}> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "git-submodule-commit-"));
-  const subRemote = await createBareRemoteWithSeed(root, "sub");
-  const superRemote = await createBareRemoteWithSeed(root, "super");
+const template = new GitFixtureTemplate("git-submodule-commit", async (dir) => {
+  await createBareRemoteWithSeed(dir, "sub");
+  const superRemote = await createBareRemoteWithSeed(dir, "super");
 
-  // Add the submodule to the superproject via a throwaway clone, then push.
-  const superSeed = path.join(root, "super-add");
-  await git(root, ["clone", superRemote, superSeed]);
+  const superSeed = path.join(dir, "super-add");
+  await git(dir, ["clone", superRemote, superSeed]);
   await git(superSeed, ["config", "user.email", "add@boboddy.dev"]);
   await git(superSeed, ["config", "user.name", "Add"]);
   await git(superSeed, [
@@ -100,12 +91,39 @@ export async function setupFixture(): Promise<{
     "protocol.file.allow=always",
     "submodule",
     "add",
-    subRemote,
+    "../sub.git",
     "vendor/dep",
   ]);
   await git(superSeed, ["commit", "--no-gpg-sign", "-m", "add submodule"]);
   await git(superSeed, ["push", "origin", "main"]);
 
+  await Promise.all(
+    ["sub-seed", "super-seed", "super-add"].map((seed) =>
+      rm(path.join(dir, seed), { recursive: true, force: true }),
+    ),
+  );
+});
+
+/** Removes the shared template; call from each importing file's `afterAll`. */
+export function disposeSubmoduleFixtureTemplate(): Promise<void> {
+  return template.dispose();
+}
+
+/**
+ * Builds one full fixture: a copy of the shared template's bare `sub` and
+ * `super` remotes in a fresh `root`, plus a recursive clone of `super` at
+ * `workspace`. Every test calls this itself and cleans up its own `root`, so
+ * concurrently-running tests never share mutable state.
+ */
+export async function setupFixture(): Promise<{
+  root: string;
+  superRemote: string;
+  subRemote: string;
+  workspace: string;
+}> {
+  const root = await template.copy();
+  const superRemote = path.join(root, "super.git");
+  const subRemote = path.join(root, "sub.git");
   const workspace = await cloneWorking(root, superRemote, "workspace");
 
   return { root, superRemote, subRemote, workspace };

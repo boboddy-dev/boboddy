@@ -10,26 +10,34 @@ import {
 } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
-// The default bug pipeline.
-// evaluate (host) → checkQuality → too thin: requestDetails → insufficientDetail
-//                               → otherwise: investigateAndReproduce
-//                                 → failingTest → fix → done
+// The default bug pipeline. An opinionated starting point: change any of it.
+//
+//   evaluate (host) → checkQuality ─ quality < 0.1 → requestDetails → insufficientDetail
+//                                  └ otherwise ──→ investigateAndReproduce
+//   investigateAndReproduce → checkReproduction ─ confidence ≥ 0.8 → failingTest
+//                                               └ otherwise ──────→ notReproduced
+//   failingTest → proposeFix (blocks for human approval) → fix → done
+//
+// The bar to start investigating is deliberately low: anything with a
+// recognisable symptom goes on. The bar to write a test is high: only a
+// confident reproduction is worth encoding. The fix proposal always waits for
+// a human; releasing the block in the dashboard lets `fix` apply it.
 //
 // Every step receives the whole output of every step before it (bound with
-// `ctx.output(...)` in each state's `input`). The only signal is `quality`,
-// because `checkQuality` is the only rule. Nothing blocks: each step reports
-// what it could and could not do, and the next one works from that.
+// `ctx.output(...)` in each state's `input`). Signals exist only for the rules:
+// `quality`, `reproductionConfidence` and `requiresHumanApproval`.
 //
 // Replace APP_URL, the sign-in instructions, the `defineMcp` servers and the
-// test conventions with this repository's own.
+// test runner with this repository's own. `investigateAndReproduce` is the step
+// that matters most: give it every tool that helps it see what happened.
 
 const APP_URL = "https://staging.example.com";
 
 // Each MCP server is defined once, with its health checks, and mounted on the
 // steps that use it under `mcps`. `type: "ref"` with `name` names the server
-// in the repository's own MCP config. The check calls the tool the user
-// chose; it is `required`, and a step that only benefits from a server mounts
-// it as `playwright.overrideCheck("navigate", { severity: "warn" })` instead.
+// in the repository's own MCP config. Add logs, database, error tracking and
+// internal-API servers next to this one and mount them on
+// `investigateAndReproduce`.
 const playwright = defineMcp({
   type: "ref",
   name: "playwright",
@@ -47,8 +55,9 @@ const evaluation = z.object({
 const investigation = z.object({
   report: z.string(),
   reproduced: z.boolean(),
+  reproductionConfidence: z.number().min(0).max(1),
   reproductionSteps: z.array(z.string()),
-  tracePath: z.string().nullable(),
+  tracePaths: z.array(z.string()),
   suspectedRootCause: z.string(),
   evidence: z.array(z.string()),
 });
@@ -60,6 +69,15 @@ const failingTestResult = z.object({
   testCommand: z.string().nullable(),
   failureOutput: z.string().nullable(),
   summary: z.string(),
+});
+
+const fixProposal = z.object({
+  summary: z.string(),
+  proposedChanges: z.array(z.string()),
+  affectedFiles: z.array(z.string()),
+  validationPlan: z.array(z.string()),
+  risks: z.array(z.string()),
+  requiresHumanApproval: z.literal(true),
 });
 
 export const evaluate = defineStep({
@@ -80,7 +98,7 @@ or what is affected).
 
 - \`quality\`: 0 to 1. Below 0.1 means there is nothing an engineer could start
   from, not even a guess at where to look. Anything with a recognisable symptom
-  scores higher, however rough.
+  scores higher, however rough: the next step can investigate a vague report.
 - \`missingDetails\`: each detail that would make this easier to work, written
   as a question the reporter could answer directly. Empty when nothing is
   missing.
@@ -128,11 +146,13 @@ export const requestDetails = codeStep({
 export const investigateAndReproduce = defineStep({
   key: "investigate-and-reproduce",
   name: "Investigate And Reproduce",
-  description: "Reproduce the bug in the running app and explain its cause.",
+  description:
+    "Reproduce the bug, gather evidence from every available tool, and explain its cause.",
   status: "active",
   environment: { repo: Repo.readOnly() },
 
-  // `required`: this step cannot reproduce anything without the browser.
+  // Mount every server that helps the agent see what happened: the browser,
+  // logs, the database (read-only), error tracking, internal APIs.
   mcps: { playwright },
 
   // The Playwright CLI is a `warn`: the trace goes through the MCP server, so
@@ -150,15 +170,22 @@ export const investigateAndReproduce = defineStep({
   // viewport is set, or stopping it before the post-action wait, loses the
   // evidence.
   agentPrompt: ({ input, env, boboddy }) => `
-Investigate the reported bug and reproduce it against the running application
-at ${input.appUrl}. Your input's \`evaluate\` field is an earlier read of the
-report: its \`summary\` and \`missingDetails\` tell you what is clear and what is
-not.
+Investigate the reported bug, reproduce it against the running application at
+${input.appUrl}, and explain its cause. This is the most important step in the
+pipeline: everything after it works from your evidence. Your input's
+\`evaluate\` field is an earlier read of the report: its \`summary\` and
+\`missingDetails\` tell you what is clear and what is not.
+
+Use every tool you have. Drive the app with the browser tools. Read the code
+the reproduction points at. Where you have logs, error tracking or a database,
+correlate the failure with them: the time window, request ids, the rows
+involved. Read-only everywhere: you cannot change the code here, and you must
+never write data, send email or charge money.
 
 Sign in as ${env.APP_TEST_USER} with APP_TEST_PASSWORD. If either is missing or
 sign-in fails, say so in \`report\`, emit a \`feedback_request\` notification
-naming exactly what you could not obtain, and carry on with the code. Never
-invent a credential, URL, or workflow.
+naming exactly what you could not obtain, and carry on with the code and the
+other tools. Never invent a credential, URL, or workflow.
 
 Reproduce in this order exactly:
 
@@ -178,20 +205,23 @@ Reproduce in this order exactly:
 8. Collect console messages and network requests.
 9. Only now, stop the trace into ${boboddy.artifactsDir}.
 
-Then read the code the reproduction points at. You cannot change it here.
-
 Report:
 
 - \`report\`: what you did, what you saw, and what you could not do. A reviewer
   reads this first.
 - \`reproduced\`: true only if you personally observed the reported failure.
+- \`reproductionConfidence\`: 0 to 1, how sure you are that you reproduced the
+  reported bug and understand its cause. Above 0.8 only for a failure you
+  observed with a credible causal path in the code; a failing test is written
+  only above that bar, so do not inflate it.
 - \`reproductionSteps\`: the minimal ordered steps, concrete enough to replay
   with no context.
-- \`tracePath\`: the trace you wrote, or null.
+- \`tracePaths\`: every trace you wrote, or an empty array.
 - \`suspectedRootCause\`: your best explanation, naming files and functions.
   Say how sure you are and why.
-- \`evidence\`: concrete artifacts: selectors, URLs, request payloads, verbatim
-  console errors, file paths with line numbers.
+- \`evidence\`: concrete artifacts from every tool you used: selectors, URLs,
+  request payloads, verbatim console errors and log lines, query results, file
+  paths with line numbers.
 
 The next step turns this into a failing test, so be specific.
 `,
@@ -202,6 +232,8 @@ The next step turns this into a failing test, so be specific.
   }),
 
   result: investigation,
+
+  signals: [{ sourcePath: "reproductionConfidence" }],
 
   features: [Features.notifications()],
 });
@@ -227,7 +259,8 @@ export const failingTest = defineStep({
 Write an automated test that FAILS because of the reported bug. Your input holds
 the earlier steps' whole output: \`evaluate\` (the read of the report) and
 \`investigateAndReproduce\` (the reproduction, its evidence and the suspected
-root cause). Lean on its \`reproductionSteps\` and \`evidence\`.
+root cause). You only run when the reproduction was confident, so lean on its
+\`reproductionSteps\` and \`evidence\`.
 
 1. Find the existing test suite and follow its conventions: same framework,
    directory, naming, fixtures and helpers. Do not introduce a new runner.
@@ -236,9 +269,9 @@ root cause). Lean on its \`reproductionSteps\` and \`evidence\`.
 3. Run it. Confirm it fails, and that it fails from this bug rather than a
    mistake in your setup.
 
-If the bug cannot be captured in a test (it was not reproduced and the code
-gives no handle on it, or the suite cannot exercise that layer), do not force
-one: set \`testWritten\` false and give the \`reason\`. That is a useful result.
+If the bug still cannot be captured in a test (the suite cannot exercise that
+layer), do not force one: set \`testWritten\` false and give the \`reason\`.
+That is a useful result.
 
 Report \`testPaths\` (every file you touched), \`testCommand\` (the exact command
 running just these tests), \`failureOutput\` (verbatim, not a paraphrase) and a
@@ -255,10 +288,50 @@ running just these tests), \`failureOutput\` (verbatim, not a paraphrase) and a
   features: [Features.notifications()],
 });
 
+export const proposeFix = defineStep({
+  key: "propose-fix",
+  name: "Propose Fix",
+  description: "Propose a minimal fix for a human to approve before it is applied.",
+  status: "active",
+  environment: { repo: Repo.readOnly() },
+
+  agentPrompt: `
+Propose the smallest credible fix for the reported bug. You can read the code,
+including the failing test on this branch, but you must not change anything:
+a human reviews this proposal before the next step applies it.
+
+Your input holds every earlier step's whole output: \`evaluate\`,
+\`investigateAndReproduce\` and \`failingTest\`. If \`failingTest.testWritten\` is
+true, the fix must make that test pass without weakening it. Otherwise work
+from the investigation's \`suspectedRootCause\` and \`evidence\`, and say so.
+
+Report:
+
+- \`summary\`: the cause and the fix in a few sentences, for the reviewer.
+- \`proposedChanges\`: each change, concrete enough to apply as written.
+- \`affectedFiles\`: every file the fix would touch.
+- \`validationPlan\`: the tests and checks that would prove it works.
+- \`risks\`: what could break, and anything you could not verify.
+- \`requiresHumanApproval\`: always true.
+`,
+
+  additionalInput: z.object({
+    evaluate: evaluation,
+    investigateAndReproduce: investigation,
+    failingTest: failingTestResult,
+  }),
+
+  result: fixProposal,
+
+  signals: [{ sourcePath: "requiresHumanApproval", type: "boolean" }],
+
+  features: [Features.notifications()],
+});
+
 export const fix = defineStep({
   key: "fix",
   name: "Fix",
-  description: "Propose a minimal fix for the reported bug.",
+  description: "Apply the approved fix and prove it with the tests.",
   status: "active",
 
   healthChecks: [
@@ -271,20 +344,17 @@ export const fix = defineStep({
   ],
 
   agentPrompt: `
-Fix the reported bug. Your input holds every earlier step's whole output:
-\`evaluate\`, \`investigateAndReproduce\` and \`failingTest\`.
+Apply the fix a human approved. Your input holds every earlier step's whole
+output: \`evaluate\`, \`investigateAndReproduce\`, \`failingTest\` and
+\`proposeFix\`, the reviewed plan. Implement that plan; if you have to depart
+from it, say where and why in \`summary\`.
 
 If \`failingTest.testWritten\` is true, make that test pass. You may not weaken,
 skip or delete it; if you believe the test itself is wrong, leave it alone and
-say so in \`summary\`. If no test was written, work from the investigation's
-\`suspectedRootCause\` and \`evidence\`.
+say so in \`summary\`.
 
 Keep the change minimal: fix the cause, touch only what the fix needs, and do
 not refactor along the way. Run the failing test and the wider suite.
-
-State your confidence plainly. When the earlier evidence is weak (the bug was
-not reproduced, no test was written, or the root cause is a guess), say which
-part is weak and what a reviewer should check before trusting the change.
 
 Report \`changedFiles\`, \`testsPass\` (the failing test passes AND the wider
 suite is green), \`confidence\` with its reason, a \`summary\` a reviewer reads
@@ -295,6 +365,7 @@ before the diff, and \`remainingRisks\`: anything you could not verify.
     evaluate: evaluation,
     investigateAndReproduce: investigation,
     failingTest: failingTestResult,
+    proposeFix: fixProposal,
   }),
 
   result: z.object({
@@ -313,7 +384,7 @@ export default definePipeline({
   key: "bug-pipeline",
   name: "Bug Pipeline",
   description:
-    "Investigate, reproduce, write a failing test and propose a fix.",
+    "Investigate and reproduce, write a failing test, propose a fix for approval, then apply it.",
   status: "active",
   startAt: "evaluate",
   states: {
@@ -347,8 +418,21 @@ export default definePipeline({
         appUrl: ctx.literal(APP_URL),
         evaluate: ctx.output("evaluate"),
       }),
-      next: "failingTest",
+      next: "checkReproduction",
     },
+    // Only a confident reproduction goes on. Anything less stops here, with
+    // the investigation report as the run's result.
+    checkReproduction: {
+      kind: "choice",
+      choices: [
+        {
+          when: Rule.when("reproductionConfidence", "greaterThanInclusive", 0.8),
+          next: "failingTest",
+        },
+      ],
+      default: "notReproduced",
+    },
+    notReproduced: { kind: "fail" },
     failingTest: {
       kind: "step",
       step: failingTest,
@@ -356,6 +440,18 @@ export default definePipeline({
         evaluate: ctx.output("evaluate"),
         investigateAndReproduce: ctx.output("investigateAndReproduce"),
       }),
+      next: "proposeFix",
+    },
+    proposeFix: {
+      kind: "step",
+      step: proposeFix,
+      input: (ctx) => ({
+        evaluate: ctx.output("evaluate"),
+        investigateAndReproduce: ctx.output("investigateAndReproduce"),
+        failingTest: ctx.output("failingTest"),
+      }),
+      // Always true, so every proposal waits for a human to release it.
+      blockWhen: Rule.when("requiresHumanApproval", "equal", true),
       next: "fix",
     },
     fix: {
@@ -365,6 +461,7 @@ export default definePipeline({
         evaluate: ctx.output("evaluate"),
         investigateAndReproduce: ctx.output("investigateAndReproduce"),
         failingTest: ctx.output("failingTest"),
+        proposeFix: ctx.output("proposeFix"),
       }),
       next: "done",
     },

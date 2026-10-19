@@ -1,7 +1,7 @@
 /**
  * Integration tests for a steered rerun (`workerContext.previousRun`), through
  * the real `work` loop and a real Docker devcontainer (see
- * `work-command.integration.test.ts` for the setup and the env flags).
+ * `work-command-runtime.integration.test.ts` for the setup and the env flags).
  *
  *   - A code step sees `.boboddy/previous-run/findings.json` and
  *     `transcript.txt` inside its container, and neither reaches the pushed
@@ -121,7 +121,8 @@ describe.skipIf(!integrationEnabled)("steered rerun (integration)", () => {
         baseUrl: "http://127.0.0.1:1",
         concurrency: 1,
         batchSize: 1,
-        pollIntervalMs: 5_000,
+        pollIntervalMs: 250,
+        missingFindingsGraceMs: 5_000,
         leaseDurationSeconds: 60,
         once: true,
         sessionStartTimeoutMs: 60_000,

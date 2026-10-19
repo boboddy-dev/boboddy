@@ -139,7 +139,7 @@ describe("waitForReadiness", () => {
       password: PASSWORD,
       expectedVersion: EXPECTED_VERSION,
       timeoutMs: 5_000,
-      intervalMs: 10,
+      intervalMs: 250,
     });
 
     expect(result).toEqual({ kind: "ready", attempts: 3 });
@@ -153,7 +153,7 @@ describe("waitForReadiness", () => {
       password: PASSWORD,
       expectedVersion: EXPECTED_VERSION,
       timeoutMs: 5_000,
-      intervalMs: 10,
+      intervalMs: 2_000,
     });
 
     expect(result).toEqual({
@@ -173,7 +173,7 @@ describe("waitForReadiness", () => {
       password: PASSWORD,
       expectedVersion: EXPECTED_VERSION,
       timeoutMs: 100,
-      intervalMs: 10,
+      intervalMs: 500,
     });
 
     expect(result.kind).toBe("timeout");
@@ -202,6 +202,42 @@ describe("waitForReadiness", () => {
     }
 
     expect(outcome).toBe("process died");
+  });
+
+  test("wakes from the pause between probes as soon as the signal aborts", async () => {
+    const server = startFakeServer(
+      () => new Response("unauthorized", { status: 401 }),
+    );
+    const controller = new AbortController();
+    let dead = false;
+
+    const startedAt = Date.now();
+    const pending = waitForReadiness({
+      baseUrl: server.baseUrl,
+      password: PASSWORD,
+      expectedVersion: EXPECTED_VERSION,
+      timeoutMs: 60_000,
+      intervalMs: 30_000,
+      assertAlive: () =>
+        dead ? Promise.reject(new Error("process died")) : Promise.resolve(),
+      onNotReady: () => {
+        setTimeout(() => {
+          dead = true;
+          controller.abort(new Error("exited"));
+        }, 20);
+      },
+      signal: controller.signal,
+    });
+
+    let outcome = "resolved";
+    try {
+      await pending;
+    } catch (error) {
+      outcome = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(outcome).toBe("process died");
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
   });
 });
 

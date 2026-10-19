@@ -18,6 +18,8 @@ import { GitCliCommitPushService } from "../../../../src/runtime/runtime-service
 import { WORK_BRANCH_EXCLUDE_PATHS } from "../../../../src/work/task/infra/work-branch-manager";
 import { git, writeRepoFile } from "./git-test-fixtures";
 
+const TEST_TIMEOUT_MS = 15_000;
+
 async function setupFixture(): Promise<{
   root: string;
   remote: string;
@@ -71,6 +73,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -108,6 +111,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -146,6 +150,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -203,6 +208,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -247,6 +253,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -284,6 +291,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -331,6 +339,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -357,6 +366,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -397,6 +407,7 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 
   test.concurrent(
@@ -457,5 +468,6 @@ describe("GitCliCommitPushService", () => {
         await rm(root, { recursive: true, force: true });
       }
     },
+    TEST_TIMEOUT_MS,
   );
 });

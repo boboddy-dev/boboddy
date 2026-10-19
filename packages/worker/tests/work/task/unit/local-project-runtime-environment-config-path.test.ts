@@ -3,8 +3,8 @@
  * orchestrator: the requested path reaches `resolveConfigPath`, the resolved
  * path reaches the patchers, the launch and the returned environment, a missing
  * explicit config fails before launch naming path and branch, and the patched
- * config is kept out of the work-branch commit. Shares the launch fakes with
- * `local-project-runtime-environment.test.ts`.
+ * config is kept out of the work-branch commit. Shares the launch fakes in
+ * `helpers/orchestrator-launch-fakes.ts`.
  */
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";

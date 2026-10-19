@@ -1,4 +1,5 @@
 import { test } from "bun:test";
+import { resolve } from "node:path";
 import type { BaseReporter } from "../src/lib/reporter-types";
 
 export const concurrentTest =
@@ -7,6 +8,54 @@ export const concurrentTest =
     "function"
     ? (test as typeof test & { concurrent: typeof test }).concurrent
     : test);
+
+export const cliProjectRoot = resolve(import.meta.dir, "..");
+export const cliEntrypoint = resolve(cliProjectRoot, "src/index.ts");
+
+export interface SpawnResult {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+}
+
+export interface RunOptions {
+  readonly cwd?: string;
+  readonly env?: NodeJS.ProcessEnv;
+}
+
+/**
+ * Spawn `command` asynchronously and collect its output. Async (not
+ * `spawnSync`) so `test.concurrent` tests actually overlap their child
+ * processes instead of blocking the event loop one at a time. stdout and
+ * stderr are drained alongside `exited` so large output can't deadlock on a
+ * full pipe buffer.
+ */
+export async function runCommand(
+  command: readonly string[],
+  options?: RunOptions,
+): Promise<SpawnResult> {
+  const proc = Bun.spawn([...command], {
+    cwd: options?.cwd ?? cliProjectRoot,
+    env: { ...process.env, ...options?.env },
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { stdout, stderr, exitCode: proc.exitCode ?? 1 };
+}
+
+/** Run the CLI from source (`bun run src/index.ts ...args`). */
+export function runCli(
+  args: readonly string[],
+  options?: RunOptions,
+): Promise<SpawnResult> {
+  return runCommand([process.execPath, "run", cliEntrypoint, ...args], options);
+}
 
 // eslint-disable-next-line no-control-regex
 const ANSI_PATTERN = /\u001B\[[0-9;]*m/g;

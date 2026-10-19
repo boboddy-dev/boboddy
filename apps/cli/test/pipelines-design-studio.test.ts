@@ -1,6 +1,4 @@
-import { describe, expect } from "bun:test";
-import { resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { describe, expect, setDefaultTimeout } from "bun:test";
 import type { LaunchOpencodeTuiInput } from "@boboddy/worker";
 import {
   runDesignSession,
@@ -9,7 +7,15 @@ import {
 } from "../src/lib/design-session";
 import { STUDIO_HANDOFF_MESSAGE } from "../src/lib/design-studio";
 import { createCliLogger } from "../src/lib/logger";
-import { concurrentTest as test, createReporterRecorder } from "./utils";
+import {
+  concurrentTest as test,
+  createReporterRecorder,
+  runCli,
+} from "./utils";
+
+// Spawns the CLI from source; under a loaded machine (test-all-workspaces)
+// that overruns bun's 5s default.
+setDefaultTimeout(15_000);
 
 /**
  * The studio is a companion to the design session: it starts after the
@@ -218,24 +224,17 @@ describe("runDesignSession — discovered-tools manifest", () => {
 
 // ─── Command wiring — spawns the real CLI, mirroring pipelines-studio.test.ts ─
 
-const projectRoot = resolve(import.meta.dir, "..");
-const cliEntrypoint = resolve(projectRoot, "src/index.ts");
-
-function help(args: readonly string[]): string {
-  const result = spawnSync(
-    process.execPath,
-    ["run", cliEntrypoint, ...args, "--help"],
-    { cwd: projectRoot, env: process.env, encoding: "utf8" },
-  );
+async function help(args: readonly string[]): Promise<string> {
+  const result = await runCli([...args, "--help"]);
   return `${result.stdout}${result.stderr}`;
 }
 
 describe("--studio flag wiring", () => {
-  test("pipelines design --help lists --studio", () => {
-    expect(help(["pipelines", "design"])).toContain("--studio");
+  test("pipelines design --help lists --studio", async () => {
+    expect(await help(["pipelines", "design"])).toContain("--studio");
   });
 
-  test("init --help lists --studio", () => {
-    expect(help(["init"])).toContain("--studio");
+  test("init --help lists --studio", async () => {
+    expect(await help(["init"])).toContain("--studio");
   });
 });

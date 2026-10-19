@@ -141,10 +141,33 @@ export type WaitForReadinessResult =
   | { kind: "timeout"; attempts: number; lastReason: string | null }
   | { kind: "wrong-version"; attempts: number; version: string };
 
+function sleepUnlessAborted(
+  ms: number,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 /**
  * Poll {@link probeReadiness} until the server is ready, reports the wrong
  * version, or `timeoutMs` elapses. `assertAlive` runs before every attempt and
  * after every failed one; it throws to abort the wait (e.g. the process died).
+ * Aborting `signal` cuts short the in-flight probe or the pause between
+ * probes, then runs `assertAlive` and throws the signal's reason if it didn't.
  */
 export async function waitForReadiness(input: {
   baseUrl: string;
@@ -154,21 +177,25 @@ export async function waitForReadiness(input: {
   intervalMs?: number | undefined;
   assertAlive?: (() => Promise<void>) | undefined;
   onNotReady?: ((attempt: number, reason: string) => void) | undefined;
+  signal?: AbortSignal | undefined;
 }): Promise<WaitForReadinessResult> {
   const timeoutMs = input.timeoutMs ?? DEFAULT_READINESS_TIMEOUT_MS;
   const intervalMs = input.intervalMs ?? DEFAULT_READINESS_INTERVAL_MS;
   const deadline = Date.now() + timeoutMs;
+  const { signal } = input;
   let attempts = 0;
   let lastReason: string | null = null;
 
   while (Date.now() < deadline) {
     await input.assertAlive?.();
+    signal?.throwIfAborted();
     attempts += 1;
+    const probeTimeout = AbortSignal.timeout(intervalMs);
     const result = await probeReadiness({
       baseUrl: input.baseUrl,
       password: input.password,
       expectedVersion: input.expectedVersion,
-      signal: AbortSignal.timeout(intervalMs),
+      signal: signal ? AbortSignal.any([signal, probeTimeout]) : probeTimeout,
     });
     if (result.kind === "ready") {
       return { kind: "ready", attempts };
@@ -179,10 +206,9 @@ export async function waitForReadiness(input: {
     lastReason = result.reason;
 
     await input.assertAlive?.();
+    signal?.throwIfAborted();
     input.onNotReady?.(attempts, result.reason);
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, intervalMs);
-    });
+    await sleepUnlessAborted(intervalMs, signal);
   }
 
   return { kind: "timeout", attempts, lastReason };

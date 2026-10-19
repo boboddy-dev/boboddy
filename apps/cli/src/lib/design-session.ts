@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AnalyticsEvents } from "@boboddy/observability/analytics/events";
 import {
@@ -98,6 +98,14 @@ function listBuilderFiles(builderDir: string): readonly string[] {
   }
 }
 
+function readBuilderFile(builderDir: string, name: string): string | undefined {
+  try {
+    return readFileSync(join(builderDir, name), "utf-8");
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * The session's side effects that tests replace: the preflight (network and
  * prompts), the studio, the TUI, the run offer, and the process exit.
@@ -186,6 +194,7 @@ export async function runDesignSession(input: {
       workItem: preflight.workItem,
       hasExistingDefinitions: hasAuthoredDefinitions(
         listBuilderFiles(builderDir),
+        (name) => readBuilderFile(builderDir, name),
       ),
       priorRunOfferFailure,
       agentToolsManifestPath: preflight.agentToolsManifestPath,

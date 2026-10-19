@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { runHealthChecks } from "../../../../src/work/task/application/run-health-checks";
 import {
+  FAST_HEALTH_CHECK_INTERVALS,
   cliHealthCheck,
   healthCheck,
   installFakeAgent,
@@ -13,11 +14,9 @@ import {
  * (Phase 2, `packages/sdks/js/src/health-checks.ts`) is genuinely orthogonal
  * to `runPhase`/`runLane`'s scheduling model (declared checks run in
  * parallel lanes by default; `serialGroup` opts checks into strict,
- * declaration-order serialization against each other — see
- * `run-health-checks-concurrency.test.ts` for the same-kind version of this
- * coverage), not just type-compatible by accident. Split into its own file
- * per the same `max-lines` convention `run-health-checks-concurrency.test.ts`
- * documents.
+ * declaration-order serialization against each other), not just
+ * type-compatible by accident. Also holds the cli-kind nonzero-exit detail
+ * check.
  */
 afterEach(() => {
   restoreFetch();
@@ -52,6 +51,7 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result).toEqual([
@@ -107,6 +107,7 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result).toEqual([
@@ -132,8 +133,7 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
   });
 
   test("a cli check and a tool check sharing one serialGroup run strictly one at a time, in declaration order", async () => {
-    // `concurrentSessions.max === 1` is the same non-flaky, timing-independent
-    // proof `run-health-checks-concurrency.test.ts` uses for same-kind lanes:
+    // `concurrentSessions.max === 1` is a non-flaky, timing-independent proof:
     // if the lane logic treated `"cli"` and `"tool"` checks any differently,
     // this would see overlapping sessions (max > 1) instead.
     const fakeAiServer = await startedFakeAiServer();
@@ -170,6 +170,7 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result.map((report) => report.outcome)).toEqual([
@@ -186,10 +187,7 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
   test("a required cli check failing aborts a later tool check sharing its serialGroup, reporting it skipped", async () => {
     // Reuses the abort-flag assertion pattern from
     // `run-health-checks.test.ts` ("runs required checks declared after a
-    // warn check before that warn check") and
-    // `run-health-checks-concurrency.test.ts` ("checks sharing a serialGroup
-    // ... abort the rest of their group on a required failure"), but with
-    // the FAILING check on the cli side this time — proving the abort flag
+    // warn check before that warn check"), but with the FAILING check on the cli side this time — proving the abort flag
     // doesn't only work when the first failure happens to be a tool check.
     const fakeAiServer = await startedFakeAiServer();
     try {
@@ -221,6 +219,7 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
           }),
         ],
         fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
       });
 
       expect(result[0]?.outcome.kind).toBe("failed");
@@ -229,6 +228,45 @@ describe("runHealthChecks — mixed tool/cli kinds", () => {
       }
       // Same lane, declared after the cli failure: never started.
       expect(result[1]?.outcome).toEqual({ kind: "skipped" });
+    } finally {
+      await fakeAiServer.stop();
+    }
+  });
+  test("fails as nonzero-exit when the command's real exit code doesn't match a declared expectExitCode, with an informative detail", async () => {
+    const fakeAiServer = await startedFakeAiServer();
+    try {
+      installFakeAgent({
+        toolStates: {
+          shell: {
+            status: "completed",
+            exit: 1,
+            output: "some diagnostic output from the failing command",
+          },
+        },
+      });
+
+      const result = await runHealthChecks({
+        server: {
+          baseUrl: "http://127.0.0.1:4096",
+          password: "test-password",
+          workspaceFolder: "/workspaces/repo",
+        },
+        healthChecks: [
+          cliHealthCheck({ command: ["false"], expectExitCode: 0 }),
+        ],
+        fakeAiServer,
+        ...FAST_HEALTH_CHECK_INTERVALS,
+      });
+
+      expect(result[0]?.outcome.kind).toBe("failed");
+      if (result[0]?.outcome.kind === "failed") {
+        expect(result[0].outcome.reason).toBe("nonzero-exit");
+        expect(result[0].outcome.detail).toContain("1");
+        expect(result[0].outcome.detail).toContain("0");
+        expect(result[0].outcome.detail).toContain(
+          "some diagnostic output from the failing command",
+        );
+      }
     } finally {
       await fakeAiServer.stop();
     }

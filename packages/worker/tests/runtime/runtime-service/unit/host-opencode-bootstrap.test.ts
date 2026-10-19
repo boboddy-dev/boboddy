@@ -15,6 +15,8 @@ import {
   type HostStartInput,
 } from "../../../../src/runtime/runtime-service/infra/host-opencode-bootstrap";
 
+const FAST_READINESS_INTERVAL_MS = 10;
+
 describe("HostOpencodeBootstrap.start startup failures", () => {
   let tempDir: string;
 
@@ -61,7 +63,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
     const startedAt = Date.now();
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(startInput(launcher));
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(startInput(launcher));
     } catch (error) {
       caught = error;
     }
@@ -78,6 +82,27 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
     expect(elapsedMs).toBeLessThan(10_000);
   });
 
+  test("fails as soon as the process exits, without waiting for the next readiness probe", async () => {
+    const launcher = await writeLauncher(`sleep 0.3\necho dying\nexit 5`);
+
+    const startedAt = Date.now();
+    let caught: unknown;
+    try {
+      await new HostOpencodeBootstrap({ readinessIntervalMs: 30_000 }).start(
+        startInput(launcher),
+      );
+    } catch (error) {
+      caught = error;
+    }
+    const elapsedMs = Date.now() - startedAt;
+
+    expect((caught as Error).message).toContain(
+      "exited with code 5 before becoming healthy",
+    );
+    expect((caught as Error).message).toContain("dying");
+    expect(elapsedMs).toBeLessThan(5_000);
+  });
+
   test("masks known secret values in the serve log excerpt", async () => {
     const launcher = await writeLauncher(
       [`echo "auth failed for token super-secret-token-value"`, `exit 2`].join(
@@ -87,7 +112,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
 
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(
         startInput(launcher, {
           providerEnv: { BOBODDY_PROVIDER_TOKEN: "super-secret-token-value" },
         }),
@@ -111,7 +138,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
 
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(
         startInput(launcher, {
           credentials: [
             {
@@ -147,7 +176,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
 
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(startInput(launcher));
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(startInput(launcher));
     } catch (error) {
       caught = error;
     }
@@ -181,7 +212,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
 
   test("becomes ready once the server answers the expected version with the generated password", async () => {
     const launcher = await writeServingLauncher("2.0.28");
-    const bootstrap = new HostOpencodeBootstrap();
+    const bootstrap = new HostOpencodeBootstrap({
+      readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+    });
 
     const started = await bootstrap.start(startInput(launcher));
     try {
@@ -198,7 +231,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
     const startedAt = Date.now();
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(startInput(launcher));
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(startInput(launcher));
     } catch (error) {
       caught = error;
     }
@@ -217,7 +252,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
     let readyBeforeSettled = false;
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(
         startInput(launcher, {
           onLogReady: (log) => {
             readyBeforeSettled = !settled;
@@ -254,7 +291,9 @@ describe("HostOpencodeBootstrap.start startup failures", () => {
 
     let caught: unknown;
     try {
-      await new HostOpencodeBootstrap().start(startInput(missing));
+      await new HostOpencodeBootstrap({
+        readinessIntervalMs: FAST_READINESS_INTERVAL_MS,
+      }).start(startInput(missing));
     } catch (error) {
       caught = error;
     }

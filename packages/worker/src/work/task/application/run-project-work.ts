@@ -43,6 +43,8 @@ export type ProcessProjectWorkOptions = {
   once?: boolean | undefined;
   /** Fail-fast cap on waiting for the agent session to start (ms). */
   sessionStartTimeoutMs?: number | undefined;
+  /** Missing-findings grace window (ms); defaults to the poll interval. */
+  missingFindingsGraceMs?: number | undefined;
   dest?: DestinationStream | undefined;
   /** Env vars read from .boboddy/.env in the user's local project directory. */
   localEnvVars?: Record<string, string> | undefined;
@@ -219,6 +221,7 @@ export async function runProjectWork(
       preserveRuntimeOnComplete: options.preserveRuntimeOnComplete,
       once: options.once,
       sessionStartTimeoutMs: options.sessionStartTimeoutMs,
+      missingFindingsGraceMs: options.missingFindingsGraceMs,
       // Seed each claimed step's log masker with the .boboddy/.env values
       // (Path A) so injected secrets are redacted from the shipped feed.
       secretValues: Object.values(options.localEnvVars ?? {}),

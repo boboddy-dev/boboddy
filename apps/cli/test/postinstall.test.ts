@@ -188,6 +188,7 @@ describe("bin/postinstall.js", () => {
       BOBODDY_ARCH: "x64",
       // Nothing listening here — every attempt fails immediately.
       npm_config_registry: "http://127.0.0.1:1/",
+      BOBODDY_POSTINSTALL_RETRY_DELAY_MS: "0",
     });
 
     expect(result.exitCode).toBe(1);

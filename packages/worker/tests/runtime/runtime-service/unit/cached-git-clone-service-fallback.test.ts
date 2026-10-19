@@ -6,20 +6,32 @@
  */
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { GitCommandError } from "../../../../src/runtime/runtime-service/infra/git-failure";
 import {
   runGit,
   type GitRunner,
 } from "../../../../src/runtime/runtime-service/infra/run-git";
+import { createRecordingWorkLogger } from "../../../support/recording-work-logger";
 import {
   createLogger,
   pathExists,
   setupCachedCloneFixture,
+  disposeMirrorFixtureTemplate,
 } from "./cached-git-clone-fixtures";
 import { git } from "./git-test-fixtures";
 
 const FALLBACK_LINE = "git-cache: falling back to plain clone (";
+const SECONDS = String.raw`\d+\.\d+s`;
+const MIRROR_REFRESHED = new RegExp(
+  `^git-cache: mirror refreshed in ${SECONDS} \\(hit\\)$`,
+  "u",
+);
+const LOCAL_CLONE = new RegExp(`^git-cache: local clone in ${SECONDS}$`, "u");
+const PLAIN_CLONE = new RegExp(
+  `^git-cache: plain clone in ${SECONDS} \\(fallback\\)$`,
+  "u",
+);
 
 const skipSetUrl: GitRunner = (args, options) =>
   args.includes("set-url") ? Promise.resolve("") : runGit(args, options);
@@ -35,6 +47,8 @@ const failAfterLocalClone: GitRunner = async (args, options) => {
   }
   return stdout;
 };
+
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("CachedGitCloneService (fallback)", () => {
   test.concurrent(
@@ -211,6 +225,59 @@ describe("CachedGitCloneService (fallback)", () => {
         expect(fx.fallback.calls).toHaveLength(1);
         expect(fx.fallback.workspaceEntriesAtCall).toEqual([["keep.txt"]]);
         expect(await pathExists(fx.cacheDir)).toBe(false);
+      } finally {
+        await rm(fx.root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test.concurrent(
+    "a non-empty workspace logs why the cache was skipped and times the plain clone",
+    async () => {
+      const fx = await setupCachedCloneFixture();
+      const { entries, logger } = createRecordingWorkLogger();
+      try {
+        await mkdir(fx.workspacePath, { recursive: true });
+        await writeFile(path.join(fx.workspacePath, "keep.txt"), "keep");
+
+        await fx.service.cloneRepository({
+          gitUrl: fx.remote,
+          workspacePath: fx.workspacePath,
+          logger,
+        });
+
+        const lines = entries.map((entry) => entry.message);
+        expect(lines).toHaveLength(2);
+        expect(lines[0]).toStartWith(FALLBACK_LINE);
+        expect(lines[0]).toContain("not empty");
+        expect(lines[1]).toMatch(PLAIN_CLONE);
+      } finally {
+        await rm(fx.root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test.concurrent(
+    "second clone logs the mirror refresh as a hit, then the local clone",
+    async () => {
+      const fx = await setupCachedCloneFixture();
+      const { entries, logger } = createRecordingWorkLogger();
+      try {
+        await fx.service.cloneRepository({
+          gitUrl: fx.remote,
+          workspacePath: path.join(fx.root, "first"),
+        });
+
+        await fx.service.cloneRepository({
+          gitUrl: fx.remote,
+          workspacePath: fx.workspacePath,
+          logger,
+        });
+
+        const lines = entries.map((entry) => entry.message);
+        expect(lines).toHaveLength(2);
+        expect(lines[0]).toMatch(MIRROR_REFRESHED);
+        expect(lines[1]).toMatch(LOCAL_CLONE);
       } finally {
         await rm(fx.root, { recursive: true, force: true });
       }

@@ -2,10 +2,12 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
 import { PIPELINE_BUILDER_DIR } from "@boboddy/sdk/push";
+// Inlined at build time, so the compiled CLI carries the starter as a string.
+import starterPipeline from "./bug-pipeline.ts.tmpl" with { type: "text" };
 
 export { PIPELINE_BUILDER_DIR };
 
-export const STARTER_PIPELINE_KEY = "triage-and-plan";
+export const STARTER_PIPELINE_KEY = "bug-pipeline";
 export const STARTER_PIPELINE_FILENAME = `${STARTER_PIPELINE_KEY}.ts`;
 
 type ScaffoldResult = {
@@ -186,149 +188,31 @@ node_modules/
 /.run-offer-gate-failure.json
 `;
 
-// The starter template doubles as the tutorial: a complete two-step pipeline
-// showing every core concept (steps, schemas, signals, bindings, states) in
-// the file users will edit anyway. Both steps run on the host runtime so
-// the pipeline executes end to end without Docker or a devcontainer.
-export const STARTER_PIPELINE_FILE = `import { z } from "zod";
-import { defineStep, Runtime } from "@boboddy/sdk/definitions/steps";
-import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
-
-// Your first Boboddy pipeline: two AI steps connected by a signal.
-//
-//   work item ──▶ Triage ──(confidence >= 7)──▶ Write Fix Plan ──▶ done
-//                    │
-//                    └──(confidence < 7)──▶ blocked for human review
-//
-// Both steps run on the host runtime, so this pipeline executes without a
-// devcontainer, Docker, or a cloned repository.
-//
-// Try it end to end:
-//   1. boboddy pipelines push   — upload these definitions
-//   2. create a work item in the dashboard (any bug-shaped title works)
-//   3. boboddy work             — start a worker, then watch the dashboard
-
-// ─── Step 1: Triage ─────────────────────────────────────────────────────────
-// A step is a typed unit of AI work: a prompt, an input schema, and a result
-// schema the agent's answer must satisfy.
-export const triageStep = defineStep({
-  key: "triage",
-  name: "Triage",
-  description: "Diagnose a work item and rate confidence in the diagnosis.",
-
-  // Runtime.host() runs the step without cloning your repository — ideal for
-  // analysis and planning. Drop the runtime (the default is
-  // Runtime.devcontainer()) when the agent needs your code; that requires a
-  // .devcontainer in your repo.
-  environment: { runtime: Runtime.host() },
-
-  // The step's full input JSON is shown to the agent automatically.
-  // Interpolating a field (like \${input.title} below) is optional and only
-  // inlines that value into your instructions.
-  agentPrompt: ({ input }) => \`
-You are a senior engineer triaging incoming work.
-Diagnose the most likely root cause of: \${input.title}
-Summarize the problem, rate its severity, and rate your confidence (0-10) in
-the diagnosis.
-\`,
-
-  // Fields the pipeline must bind when it uses this step (see the pipeline
-  // at the bottom of this file).
-  additionalInput: z.object({
-    title: z.string(),
-  }),
-
-  // The agent's reply must match this schema.
-  result: z.object({
-    summary: z.string(),
-    severity: z.enum(["low", "medium", "high"]),
-    confidence: z.number().min(0).max(10),
-  }),
-
-  // Signals lift scalar values out of the result so advancement rules and
-  // later steps can use them. They also appear as metrics in the dashboard.
-  signals: [
-    {
-      sourcePath: "confidence",
-      key: "confidence",
-      type: "number",
-      required: true,
-    },
-    { sourcePath: "summary", key: "summary", type: "string" },
-    { sourcePath: "severity", key: "severity", type: "string" },
-  ],
-  status: "active",
-});
-
-// ─── Step 2: Write Fix Plan ─────────────────────────────────────────────────
-export const writeFixPlanStep = defineStep({
-  key: "write-fix-plan",
-  name: "Write Fix Plan",
-  description: "Turn a triage summary into a concrete, actionable fix plan.",
-  environment: { runtime: Runtime.host() },
-  agentPrompt:
-    "Using the triage summary in your input, write a short, concrete " +
-    "step-by-step plan to fix the issue.",
-  additionalInput: z.object({
-    triageSummary: z.string(),
-  }),
-  result: z.object({
-    plan: z.string(),
-  }),
-  status: "active",
-});
-
-// ─── The pipeline ───────────────────────────────────────────────────────────
-// A pipeline is a flat map of named states, each declaring what runs after it
-// (\`next\`).
-export default definePipeline({
-  key: "triage-and-plan",
-  name: "Triage & Plan",
-  description: "Starter pipeline: triage a work item, then plan the fix.",
-  status: "active",
-  startAt: "triage",
-  states: {
-    triage: {
-      kind: "step",
-      step: triageStep,
-      // \`ctx.workItem\` exposes the current work item's title/description.
-      input: (ctx) => ({ title: ctx.workItem.title }),
-      // \`blockWhen\` pauses the run for human review instead of advancing.
-      // Here, anything below a confident triage blocks in the dashboard;
-      // a confident triage advances straight to \`next\`.
-      blockWhen: Rule.when("confidence", "lessThan", 7),
-      next: "writeFixPlan",
-    },
-    writeFixPlan: {
-      kind: "step",
-      step: writeFixPlanStep,
-      // Later states can bind signals (or the whole output) of earlier ones,
-      // addressed by state key.
-      input: (ctx) => ({
-        triageSummary: ctx.signal("triage", "summary"),
-      }),
-      next: "done",
-    },
-    done: { kind: "succeed" },
-  },
-});
-`;
+/**
+ * The starter pipeline every new pipeline-builder directory gets: the
+ * opinionated default bug pipeline (evaluate → investigate and reproduce →
+ * failing test → propose fix → fix). It is also what the designer agent adapts
+ * in place, so `pipelines init`, `pipelines studio` and `pipelines design` all
+ * start from the same file. `apps/cli/test/design-agent-default-pipeline.test.ts`
+ * compiles it and runs it through the push validator.
+ */
+export const STARTER_PIPELINE_FILE = starterPipeline;
 
 // Scaffolded alongside the pipeline so new projects start with automatic
 // assignment wired up: every new work item runs the starter pipeline.
 export const STARTER_DEFAULT_PIPELINE_ASSIGNMENT_FILE = `import { defaultPipelineAssignment } from "@boboddy/sdk/definitions/pipelines";
-import triageAndPlan from "./${STARTER_PIPELINE_KEY}";
+import bugPipeline from "./${STARTER_PIPELINE_KEY}";
 
 // This reserved file controls which pipeline starts automatically when a new
 // work item arrives (created in the dashboard or ingested from GitHub/Jira).
 // Rules run top to bottom; the first match wins, otherwise \`default\` applies.
 export default defaultPipelineAssignment(({ workItem, assign, skip }) => ({
-  default: assign(triageAndPlan),
+  default: assign(bugPipeline),
   rules: [
     // Don't start a pipeline for items that arrive already resolved.
     workItem.field("status").eq("resolved").then(skip()),
     // As you add pipelines, route work items to them here, e.g.:
-    //   workItem.field("issueType").eq("bug").then(assign(bugTriage)),
+    //   workItem.field("issueType").eq("feature").then(assign(featurePipeline)),
   ],
 }));
 `;

@@ -1,5 +1,10 @@
 import { describe, expect } from "bun:test";
 import {
+  STARTER_DEFAULT_PIPELINE_ASSIGNMENT_FILE,
+  STARTER_PIPELINE_FILE,
+  STARTER_PIPELINE_FILENAME,
+} from "@boboddy/worker";
+import {
   buildDesignSeedPrompt,
   hasAuthoredDefinitions,
   MAX_SEED_DESCRIPTION_LENGTH,
@@ -170,42 +175,75 @@ describe("buildDesignSeedPrompt", () => {
 });
 
 describe("hasAuthoredDefinitions", () => {
+  const scaffold: Record<string, string> = {
+    [STARTER_PIPELINE_FILENAME]: STARTER_PIPELINE_FILE,
+    "default-pipeline-assignment.ts": STARTER_DEFAULT_PIPELINE_ASSIGNMENT_FILE,
+  };
+  const reader =
+    (files: Record<string, string>) =>
+    (name: string): string | undefined =>
+      files[name];
+
   test("an empty directory has none", () => {
-    expect(hasAuthoredDefinitions([])).toBe(false);
+    expect(hasAuthoredDefinitions([], reader({}))).toBe(false);
   });
 
   test("a freshly scaffolded directory has none", () => {
-    // The regression this pins: the preflight scaffolds `triage-and-plan.ts`
+    // The regression this pins: the preflight scaffolds the starter pipeline
     // and `default-pipeline-assignment.ts` immediately before the flag is read,
     // so counting every `.ts` file reported "definitions already exist" on a
     // first run and told the agent to review boilerplate as if it were the
     // user's own design.
     expect(
-      hasAuthoredDefinitions([
-        "package.json",
-        "tsconfig.json",
-        ".gitignore",
-        "triage-and-plan.ts",
-        "default-pipeline-assignment.ts",
-      ]),
+      hasAuthoredDefinitions(
+        [
+          "package.json",
+          "tsconfig.json",
+          ".gitignore",
+          STARTER_PIPELINE_FILENAME,
+          "default-pipeline-assignment.ts",
+        ],
+        reader(scaffold),
+      ),
     ).toBe(false);
   });
 
   test("an authored pipeline counts", () => {
     expect(
-      hasAuthoredDefinitions([
-        "triage-and-plan.ts",
-        "default-pipeline-assignment.ts",
-        "checkout-repro.ts",
-      ]),
+      hasAuthoredDefinitions(
+        [...Object.keys(scaffold), "checkout-repro.ts"],
+        reader(scaffold),
+      ),
+    ).toBe(true);
+  });
+
+  test("an adapted starter pipeline counts", () => {
+    // The designer edits the starter in place, so after a first session it is
+    // the user's design and the next session must treat it as an edit.
+    expect(
+      hasAuthoredDefinitions(
+        Object.keys(scaffold),
+        reader({
+          ...scaffold,
+          [STARTER_PIPELINE_FILENAME]: `${STARTER_PIPELINE_FILE}\n// adapted`,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("an unreadable scaffold file counts", () => {
+    expect(
+      hasAuthoredDefinitions([STARTER_PIPELINE_FILENAME], reader({})),
     ).toBe(true);
   });
 
   test("the generated push script does not count", () => {
-    expect(hasAuthoredDefinitions(["push.ts"])).toBe(false);
+    expect(hasAuthoredDefinitions(["push.ts"], reader({}))).toBe(false);
   });
 
   test("non-TypeScript files do not count", () => {
-    expect(hasAuthoredDefinitions(["README.md", "package.json"])).toBe(false);
+    expect(
+      hasAuthoredDefinitions(["README.md", "package.json"], reader({})),
+    ).toBe(false);
   });
 });

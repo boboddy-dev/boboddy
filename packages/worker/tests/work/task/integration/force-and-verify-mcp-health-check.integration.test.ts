@@ -19,7 +19,7 @@
  * Gated behind BOBODDY_INTEGRATION=true because it provisions the real
  * OpenCode runtime payload (downloaded from the npm registry) and spawns a
  * real host process, matching the convention used by
- * `work-command.integration.test.ts`.
+ * `work-command-runtime.integration.test.ts`.
  *
  * Run with:
  *   BOBODDY_INTEGRATION=true bun test tests/work/task/integration/force-and-verify-mcp-health-check.integration.test.ts
@@ -132,12 +132,19 @@ describe.skipIf(!integrationEnabled)(
 
         // Same warm-up `runHealthChecks()` does: OpenCode 2.x connects MCP
         // servers after readiness, so a call forced immediately can race the
-        // catalog.
-        await pollMcpStatus({
-          baseUrl: agent.baseUrl,
-          password: agent.password,
-          workspaceFolder: environment.workspaceFolder,
-        });
+        // catalog. Naming the expected server keeps an empty just-booted list
+        // from counting as settled.
+        const mcpReport = await pollMcpStatus(
+          {
+            baseUrl: agent.baseUrl,
+            password: agent.password,
+            workspaceFolder: environment.workspaceFolder,
+          },
+          { expectedServers: ["fixture"] },
+        );
+        expect(mcpReport.find(({ name }) => name === "fixture")?.status).toBe(
+          "connected",
+        );
 
         const working = await forceAndVerifyMcpHealthCheck({
           server: {

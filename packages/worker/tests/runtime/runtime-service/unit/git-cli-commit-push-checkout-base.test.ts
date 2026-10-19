@@ -6,9 +6,12 @@
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { GitCliCommitPushService } from "../../../../src/runtime/runtime-service/infra/git-cli-commit-push-service";
-import { setupCachedCloneFixture } from "./cached-git-clone-fixtures";
+import {
+  setupCachedCloneFixture,
+  disposeMirrorFixtureTemplate,
+} from "./cached-git-clone-fixtures";
 import { git, writeRepoFile } from "./git-test-fixtures";
 
 async function setupFixture(): Promise<{
@@ -61,6 +64,8 @@ async function breakOrigin(workspace: string, root: string): Promise<void> {
     path.join(root, "does-not-exist.git"),
   ]);
 }
+
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("GitCliCommitPushService.checkoutBase fetch behavior", () => {
   const service = new GitCliCommitPushService();

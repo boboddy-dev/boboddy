@@ -81,6 +81,12 @@ export type FakeAiServerOptions = {
    * a session never progressed. Defaults to false.
    */
   verbose?: boolean;
+  /**
+   * How long to wait before answering a first-turn request with the forced
+   * `tool_use`, giving the runtime time to write `.boboddy/current-execution`
+   * into the mounted workspace. Defaults to 1000ms.
+   */
+  initialToolUseDelayMs?: number;
 };
 
 /**
@@ -97,7 +103,7 @@ const DEFAULT_FORCED_TOOL_CALL: FakeAiForcedToolCall = {
   toolArgs: {},
 };
 
-const INITIAL_TOOL_USE_DELAY_MS = 1000;
+const DEFAULT_INITIAL_TOOL_USE_DELAY_MS = 1000;
 
 async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -313,12 +319,15 @@ export class FakeAiServer {
   private messageRequestCount = 0;
   private startedPort: number | undefined;
   private readonly verbose: boolean;
+  private readonly initialToolUseDelayMs: number;
   private readonly server = createServer((req, res) => {
     void this.handle(req, res);
   });
 
   constructor(options: FakeAiServerOptions = {}) {
     this.verbose = options.verbose ?? false;
+    this.initialToolUseDelayMs =
+      options.initialToolUseDelayMs ?? DEFAULT_INITIAL_TOOL_USE_DELAY_MS;
   }
 
   /**
@@ -444,7 +453,7 @@ export class FakeAiServer {
         } else {
           // Give the runtime a moment to write .boboddy/current-execution into
           // the mounted workspace before the forced tool call reads it.
-          await delay(INITIAL_TOOL_USE_DELAY_MS);
+          await delay(this.initialToolUseDelayMs);
           res.end(buildToolUseStream(toolName, toolArgs, announcementText));
         }
         return;
@@ -454,7 +463,7 @@ export class FakeAiServer {
       if (hasToolResult(parsed.messages)) {
         res.end(buildEndTurnResponse());
       } else {
-        await delay(INITIAL_TOOL_USE_DELAY_MS);
+        await delay(this.initialToolUseDelayMs);
         res.end(buildToolUseResponse(toolName, toolArgs, announcementText));
       }
       return;

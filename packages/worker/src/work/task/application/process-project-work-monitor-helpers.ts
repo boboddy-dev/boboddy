@@ -52,10 +52,16 @@ const FINDINGS_RETRY_PROMPT = [
   "Do not end the task without calling that tool.",
 ].join(" ");
 
+/**
+ * Progress through the missing-findings flow. `graceWaitedMs` is the poll
+ * sleep time spent in the current grace window; the monitor adds to it after
+ * every "continue" and this helper resets it when a new window opens.
+ */
 export type MissingFindingsState = {
   hasWaitedForSessionStop: boolean;
   hasRetriedFindingsSubmission: boolean;
   hasWaitedForRetriedFindingsSubmission: boolean;
+  graceWaitedMs: number;
 };
 
 export type MissingFindingsAction = "continue" | "throw";
@@ -67,6 +73,7 @@ export async function handleMissingFindings(
   state: MissingFindingsState,
   stepStatus: string,
   workerId: string,
+  graceMs: number,
 ): Promise<MissingFindingsAction> {
   const agentContext = resolveMonitorAgentContext(startedTask);
   if (agentContext.mode !== "agent") {
@@ -75,6 +82,11 @@ export async function handleMissingFindings(
     );
   }
   const { agent, agentSessionId } = agentContext;
+
+  if (state.hasWaitedForSessionStop && state.graceWaitedMs < graceMs) {
+    return "continue";
+  }
+  state.graceWaitedMs = 0;
 
   if (!state.hasWaitedForSessionStop) {
     const diagnostics = await captureMissingFindingsDiagnostics({
@@ -85,7 +97,7 @@ export async function handleMissingFindings(
     state.hasWaitedForSessionStop = true;
     logger.log(
       "worker",
-      "OpenCode session stopped without findings submission; waiting one poll for late file writes before retrying",
+      "OpenCode session stopped without findings submission; waiting for late file writes before retrying",
       {
         projectId: startedTask.projectId,
         workerId,
@@ -145,7 +157,7 @@ export async function handleMissingFindings(
     state.hasWaitedForRetriedFindingsSubmission = true;
     logger.log(
       "worker",
-      "OpenCode retry prompt was accepted but findings are still missing; waiting one extra poll before failing",
+      "OpenCode retry prompt was accepted but findings are still missing; waiting once more before failing",
       {
         projectId: startedTask.projectId,
         workerId,

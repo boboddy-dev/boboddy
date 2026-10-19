@@ -260,8 +260,8 @@ describe("forceAndVerifyMcpHealthCheck", () => {
         },
         healthCheck,
         fakeAiServer,
-        timeoutMs: 200,
-        pollIntervalMs: 20,
+        timeoutMs: 50,
+        pollIntervalMs: 5,
       });
 
       expect(result).toEqual({
@@ -304,8 +304,8 @@ describe("forceAndVerifyMcpHealthCheck", () => {
         },
         healthCheck,
         fakeAiServer,
-        timeoutMs: 200,
-        pollIntervalMs: 20,
+        timeoutMs: 50,
+        pollIntervalMs: 5,
       });
 
       expect(result).toEqual({
@@ -347,8 +347,8 @@ describe("forceAndVerifyMcpHealthCheck", () => {
         },
         healthCheck,
         fakeAiServer,
-        timeoutMs: 200,
-        pollIntervalMs: 20,
+        timeoutMs: 50,
+        pollIntervalMs: 5,
       });
 
       expect(result).toEqual({ passed: true });
@@ -382,8 +382,8 @@ describe("forceAndVerifyMcpHealthCheck", () => {
         },
         healthCheck,
         fakeAiServer,
-        timeoutMs: 200,
-        pollIntervalMs: 20,
+        timeoutMs: 50,
+        pollIntervalMs: 5,
       });
 
       expect(result).toEqual({

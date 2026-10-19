@@ -2,20 +2,24 @@
  * Unit tests for {@link createGitCloneService}: the shared factory that picks
  * the plain or the mirror-backed clone service from the env map.
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { noopLogger } from "@boboddy/observability/logging/host";
 import { ConfigurationError } from "../../../../src/lib/errors";
 import { CachedGitCloneService } from "../../../../src/runtime/runtime-service/infra/cached-git-clone-service";
 import { createGitCloneService } from "../../../../src/runtime/runtime-service/infra/create-git-clone-service";
 import { GitCliCloneService } from "../../../../src/runtime/runtime-service/infra/git-cli-clone-service";
 import {
+  createLogger,
   pathExists,
   setupCachedCloneFixture,
+  disposeMirrorFixtureTemplate,
 } from "./cached-git-clone-fixtures";
 import { git } from "./git-test-fixtures";
+
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("createGitCloneService", () => {
   test("BOBODDY_GIT_CACHE=off returns the plain service and no cache dir", () => {
@@ -85,6 +89,24 @@ describe("createGitCloneService", () => {
       }
     } finally {
       await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("an empty remote with no resolvable default branch returns null", async () => {
+    const fx = await setupCachedCloneFixture();
+    const { lines, logger } = createLogger();
+    try {
+      const empty = path.join(fx.root, "empty.git");
+      await mkdir(empty, { recursive: true });
+      await git(empty, ["init", "--bare", "-b", "main"]);
+
+      const prepared = await fx.cache.prepare(empty, { logger });
+
+      expect(prepared).toBeNull();
+      expect(lines[0]?.message).toContain("default branch");
+      expect(await readdir(fx.cacheDir)).toEqual([]);
+    } finally {
+      await rm(fx.root, { recursive: true, force: true });
     }
   });
 });

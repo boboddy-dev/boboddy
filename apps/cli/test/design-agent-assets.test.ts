@@ -169,13 +169,16 @@ describe("composed prompt size", () => {
   // in §1, §7 and §10, phase 6, and the template's `playwright`) to ~76,700.
   // Making `defineMcp` the only MCP API (its `ref`/`local`/`remote` types, the
   // `{env:VAR}` rule and inferred env in §1, and the inline fallback in §10's
-  // catalog) took it to ~81,100 —
+  // catalog) took it to ~81,100, and the goal question with tailored
+  // suggestions plus the generic-pipeline rule (role, phases 2 and 6, §7, §8)
+  // to ~84,000, and the default pipeline's propose-fix step, reproduction
+  // gate and approval block (template plus §7) to ~90,400 —
   // the lower bound is set just under the current value so any further growth
   // is a deliberate decision rather than a drift.
   test("stays within the expected envelope", () => {
     const length = buildPipelineDesignerPrompt().length;
-    expect(length).toBeGreaterThan(80_500);
-    expect(length).toBeLessThan(83_000);
+    expect(length).toBeGreaterThan(90_000);
+    expect(length).toBeLessThan(92_500);
   });
 
   test("survives a round trip through the injected TUI config", () => {

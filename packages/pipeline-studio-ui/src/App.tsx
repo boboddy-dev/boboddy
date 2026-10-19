@@ -88,13 +88,21 @@ function useStudioSnapshot(): StudioSnapshot | null {
 
 function IssuesPanel({
   issues,
+  hasCompileErrors,
   onSelectNode,
 }: {
   issues: readonly DefinitionValidationIssue[];
+  hasCompileErrors: boolean;
   onSelectNode: (nodeKey: string) => void;
 }) {
   if (issues.length === 0) {
-    return <p className="studio-issues-empty">No validation issues.</p>;
+    return (
+      <p className="studio-issues-empty">
+        {hasCompileErrors
+          ? "Files that fail to compile can't be validated — fix the compile errors above first."
+          : "No validation issues."}
+      </p>
+    );
   }
   return (
     <ul className="studio-issues-list">
@@ -110,46 +118,69 @@ function IssuesPanel({
 }
 
 /**
- * Shown when the user picks a broken pipeline from the header dropdown —
- * see `App`'s `handleSelect`. Dismissible via the close button, the Escape
- * key, or clicking the backdrop; the picker's own selection is left as-is,
- * so re-opening just means picking the same (still broken) entry again.
+ * Takes the graph's place when the selected entry failed to compile, so the
+ * error is on screen the moment it's selected (or the moment the studio opens
+ * on a directory with nothing working) rather than behind a dialog.
  */
-function BrokenPipelineDialog({
-  pipeline,
-  onClose,
-}: {
-  pipeline: BrokenPipeline;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose]);
-
+function BrokenPipelinePanel({ pipeline }: { pipeline: BrokenPipeline }) {
   return (
-    <div className="studio-dialog-backdrop" onClick={onClose}>
-      <div
-        className="studio-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="studio-dialog-title"
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
-        <h2 id="studio-dialog-title">{`"${pipeline.key}" failed to compile`}</h2>
-        <pre className="studio-dialog-message">{pipeline.message}</pre>
-        <button type="button" className="studio-dialog-close" onClick={onClose}>
-          Close
-        </button>
-      </div>
-    </div>
+    <section className="studio-broken" role="alert" aria-labelledby="studio-broken-title">
+      <h2 id="studio-broken-title" className="studio-broken-title">
+        {`${pipeline.key}.ts failed to compile`}
+      </h2>
+      <pre className="studio-broken-message">{pipeline.message}</pre>
+      <p className="studio-broken-hint">
+        Fix the file in .boboddy/pipeline-builder and save — the studio reloads automatically.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Every file that failed to compile, listed above the validation issues so the
+ * sidebar never reads "No validation issues" while something is broken.
+ * Clicking a row selects that entry, which shows its full error in place of
+ * the graph.
+ */
+function CompileErrorsPanel({
+  pipelines,
+  selectedKey,
+  onSelect,
+}: {
+  pipelines: readonly BrokenPipeline[];
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
+}) {
+  return (
+    <>
+      <h2>Compile errors</h2>
+      <ul className="studio-issues-list">
+        {pipelines.map((pipeline) => (
+          <li
+            key={pipeline.key}
+            className="studio-issue studio-issue-clickable"
+            role="button"
+            tabIndex={0}
+            aria-current={pipeline.key === selectedKey ? "true" : undefined}
+            onClick={() => {
+              onSelect(pipeline.key);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect(pipeline.key);
+              }
+            }}
+          >
+            <div className="studio-issue-header">
+              <SeverityChip severity="error" />
+              <span className="studio-issue-check">{`${pipeline.key}.ts`}</span>
+            </div>
+            <span className="studio-compile-error-message">{pipeline.message}</span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -157,18 +188,27 @@ export function App() {
   const snapshot = useStudioSnapshot();
   const { theme, toggleTheme } = useStudioTheme();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [dialogPipeline, setDialogPipeline] = useState<BrokenPipeline | null>(null);
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
   const pipelines = snapshot?.status === "ok" ? snapshot.pipelines : [];
   const brokenPipelines = snapshot?.status === "ok" ? snapshot.brokenPipelines : [];
 
-  // Falls back to the first WORKING pipeline, never a broken one — a broken
-  // selection has no graph to show, only the dialog below.
+  // A broken entry is shown only when it's explicitly selected, or when there
+  // is no working pipeline to fall back to — then the first error is shown
+  // straight away instead of an empty graph area.
+  const selectedBroken = useMemo(
+    () =>
+      brokenPipelines.find((p) => p.key === selectedKey) ??
+      (pipelines.length === 0 ? (brokenPipelines[0] ?? null) : null),
+    [brokenPipelines, pipelines, selectedKey],
+  );
+
   const selected = useMemo(
     () =>
-      pipelines.find((p) => p.key === selectedKey) ?? pipelines[0] ?? null,
-    [pipelines, selectedKey],
+      selectedBroken
+        ? null
+        : (pipelines.find((p) => p.key === selectedKey) ?? pipelines[0] ?? null),
+    [pipelines, selectedBroken, selectedKey],
   );
 
   // A selected node id from a previous pipeline is meaningless (and likely
@@ -188,9 +228,9 @@ export function App() {
   // `issuesForPipeline`'s filter in `translate-spec-to-graph.ts` (which
   // deliberately excludes step-only issues, since it's building per-pipeline
   // GRAPH data that has no node to attach them to) plus that broader
-  // "always show step-only" carve-out. When every pipeline is broken
+  // "always show step-only" carve-out. When a broken entry is showing
   // (`selected === null`), this only shows step-only issues — there's no
-  // "currently selected pipeline" for the pipeline-scoped half to match.
+  // working pipeline for the pipeline-scoped half to match.
   const validationIssues = snapshot?.status === "ok" ? snapshot.validationIssues : [];
   const filteredIssues = useMemo(
     () =>
@@ -199,11 +239,6 @@ export function App() {
       ),
     [validationIssues, selected],
   );
-
-  function handleSelect(key: string): void {
-    setSelectedKey(key);
-    setDialogPipeline(brokenPipelines.find((p) => p.key === key) ?? null);
-  }
 
   if (snapshot === null) {
     return <p className="studio-status">Connecting…</p>;
@@ -225,9 +260,9 @@ export function App() {
     <div className="studio-layout">
       <header className="studio-header">
         <select
-          value={selectedKey ?? selected?.key ?? ""}
+          value={selected?.key ?? selectedBroken?.key ?? ""}
           onChange={(event) => {
-            handleSelect(event.target.value);
+            setSelectedKey(event.target.value);
           }}
         >
           {pipelines.map((p) => (
@@ -262,11 +297,9 @@ export function App() {
               setSelectedNodeKey(null);
             }}
           />
-        ) : (
-          <p className="studio-status">
-            Every pipeline in .boboddy/pipeline-builder currently has an error — pick one above to see it.
-          </p>
-        )}
+        ) : selectedBroken ? (
+          <BrokenPipelinePanel pipeline={selectedBroken} />
+        ) : null}
       </div>
       <aside className="studio-issues">
         {selectedNode ? (
@@ -278,19 +311,22 @@ export function App() {
           />
         ) : (
           <>
+            {brokenPipelines.length > 0 ? (
+              <CompileErrorsPanel
+                pipelines={brokenPipelines}
+                selectedKey={selectedBroken?.key ?? null}
+                onSelect={setSelectedKey}
+              />
+            ) : null}
             <h2>Validation issues</h2>
-            <IssuesPanel issues={filteredIssues} onSelectNode={setSelectedNodeKey} />
+            <IssuesPanel
+              issues={filteredIssues}
+              hasCompileErrors={brokenPipelines.length > 0}
+              onSelectNode={setSelectedNodeKey}
+            />
           </>
         )}
       </aside>
-      {dialogPipeline ? (
-        <BrokenPipelineDialog
-          pipeline={dialogPipeline}
-          onClose={() => {
-            setDialogPipeline(null);
-          }}
-        />
-      ) : null}
     </div>
   );
 }

@@ -431,7 +431,7 @@ describe("monitorStartedClaimedTask", () => {
       // should be sent.
       expect(log).not.toHaveBeenCalledWith(
         "worker",
-        "OpenCode session stopped without findings submission; waiting one poll for late file writes before retrying",
+        "OpenCode session stopped without findings submission; waiting for late file writes before retrying",
         expect.anything(),
       );
       expect(sendRetryPrompt).not.toHaveBeenCalled();

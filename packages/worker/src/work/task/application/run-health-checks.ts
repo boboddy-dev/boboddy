@@ -103,6 +103,17 @@ export type RunHealthChecksInput = {
   healthChecks: HealthCheck[];
   /** Already started; shared across every check this call runs. */
   fakeAiServer: FakeAiServer;
+  /** Interval for the MCP status warm-up poll. Defaults to 500ms. */
+  mcpStatusIntervalMs?: number | undefined;
+  /** Interval for polling each forced call's result. Defaults to 500ms. */
+  healthCheckPollIntervalMs?: number | undefined;
+};
+
+type CheckContext = {
+  enumeration: ToolEnumeration;
+  server: OpencodeServerHandle;
+  fakeAiServer: FakeAiServer;
+  pollIntervalMs: number | undefined;
 };
 
 // eslint-disable-next-line local/no-unknown-parameter-type -- narrows a caught value, not a real input boundary
@@ -216,14 +227,11 @@ function isSchemaObject(value: unknown): value is object {
  * per-command argument schema to check `command`/`expectExitCode` against.
  * They go straight to `forceAndVerifyCliHealthCheck`.
  */
-async function runOneCheck(input: {
-  check: HealthCheck;
-  resolvedId: string;
-  enumeration: ToolEnumeration;
-  server: OpencodeServerHandle;
-  fakeAiServer: FakeAiServer;
-}): Promise<HealthCheckOutcome> {
+async function runOneCheck(
+  input: CheckContext & { check: HealthCheck; resolvedId: string },
+): Promise<HealthCheckOutcome> {
   const { check, resolvedId, enumeration, server, fakeAiServer } = input;
+  const { pollIntervalMs } = input;
 
   switch (check.kind) {
     case "cli": {
@@ -233,6 +241,7 @@ async function runOneCheck(input: {
         expectExitCode: check.expectExitCode,
         fakeAiServer,
         timeoutMs: check.timeoutSeconds * 1000,
+        pollIntervalMs,
       });
 
       return verification.passed
@@ -275,6 +284,7 @@ async function runOneCheck(input: {
         healthCheck: { tool: resolvedId, args },
         fakeAiServer,
         timeoutMs: check.timeoutSeconds * 1000,
+        pollIntervalMs,
       });
 
       return verification.passed
@@ -366,11 +376,7 @@ type AbortFlag = { aborted: boolean };
  */
 async function runLane(
   lane: IndexedCheck[],
-  context: {
-    enumeration: ToolEnumeration;
-    server: OpencodeServerHandle;
-    fakeAiServer: FakeAiServer;
-  },
+  context: CheckContext,
   abort: AbortFlag,
   reportByIndex: Map<number, HealthCheckReport>,
 ): Promise<void> {
@@ -406,11 +412,7 @@ async function runLane(
  */
 async function runPhase(
   entries: IndexedCheck[],
-  context: {
-    enumeration: ToolEnumeration;
-    server: OpencodeServerHandle;
-    fakeAiServer: FakeAiServer;
-  },
+  context: CheckContext,
   abort: AbortFlag,
   reportByIndex: Map<number, HealthCheckReport>,
 ): Promise<void> {
@@ -488,6 +490,7 @@ export async function runHealthChecks(
         ),
       ),
     ],
+    intervalMs: input.mcpStatusIntervalMs,
   });
   logWork("health-check", "MCP servers ready before health checks", {
     report,
@@ -504,7 +507,12 @@ export async function runHealthChecks(
 
   const reportByIndex = new Map<number, HealthCheckReport>();
   const abort: AbortFlag = { aborted: false };
-  const context = { enumeration, server, fakeAiServer };
+  const context: CheckContext = {
+    enumeration,
+    server,
+    fakeAiServer,
+    pollIntervalMs: input.healthCheckPollIntervalMs,
+  };
 
   await runPhase(required, context, abort, reportByIndex);
   await runPhase(warn, context, abort, reportByIndex);

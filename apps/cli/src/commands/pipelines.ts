@@ -63,7 +63,7 @@ const runInit = (): Promise<void> =>
     reporter.info(
       `Pipeline builder scaffolded at ${PIPELINE_BUILDER_DIR}. Next steps:
   1. cd ${PIPELINE_BUILDER_DIR} && npm install   (or bun install)
-  2. open ${STARTER_PIPELINE_FILENAME} — the starter pipeline is a guided tour
+  2. open ${STARTER_PIPELINE_FILENAME} — the default bug pipeline; adapt its URL, tools and test runner
   3. boboddy pipelines push
   4. create a work item, then run \`boboddy work\` and watch it advance`,
     );

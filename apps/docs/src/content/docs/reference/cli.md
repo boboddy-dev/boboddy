@@ -209,8 +209,9 @@ After checking for an [interactive terminal](#terminal-requirements), every step
 9. **Studio** — see [The studio](#the-studio).
 10. **TUI** — launches the OpenCode TUI in `.boboddy/pipeline-builder/` with an injected `pipeline-designer`
    agent, seeded with the work item. It reads the repository, interviews you goal-first, adapts the
-   [default pipeline](/boboddy/getting-started/concepts/#default-pipeline) (`bug-pipeline.ts`) plus
-   `default-pipeline-assignment.ts`, typechecks, and runs `boboddy pipelines push`.
+   [default pipeline](/boboddy/getting-started/concepts/#default-pipeline) (`bug-pipeline.ts`, already
+   scaffolded by the builder-folder check) plus `default-pipeline-assignment.ts` in place, typechecks, and runs
+   `boboddy pipelines push`.
 
 When you exit the TUI it runs the [post-push dry run](#dry-runs), then [the run offer](#the-run-offer).
 
@@ -301,7 +302,7 @@ redirect, or a CI runner, because the TUI owns the terminal for the session.
 
 ### `boboddy pipelines init`
 
-Scaffold `.boboddy/pipeline-builder/` with a starter `package.json`, `tsconfig.json`, and example step and pipeline files, then edit them by hand. Use `boboddy pipelines design` unless you specifically want to author everything yourself.
+Scaffold `.boboddy/pipeline-builder/` with a starter `package.json`, `tsconfig.json`, the [default pipeline](/boboddy/getting-started/concepts/#default-pipeline) (`bug-pipeline.ts`), and a `default-pipeline-assignment.ts` that routes every new work item to it, then edit them by hand. Use `boboddy pipelines design` unless you specifically want to author everything yourself.
 
 Project root: the current directory, which must contain `.git`. It does not walk up from a subdirectory.
 

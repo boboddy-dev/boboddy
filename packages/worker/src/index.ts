@@ -194,7 +194,10 @@ export {
   PIPELINE_BUILDER_TSCONFIG,
   PIPELINE_BUILDER_TYPECHECK_SCRIPT,
   PIPELINE_BUILDER_TYPECHECK_SCRIPT_NAME,
+  STARTER_DEFAULT_PIPELINE_ASSIGNMENT_FILE,
+  STARTER_PIPELINE_FILE,
   STARTER_PIPELINE_FILENAME,
+  STARTER_PIPELINE_KEY,
   buildPipelineBuilderPackageJson,
   scaffoldPipelineBuilderDirectory,
 } from "./pipelines/pipeline-definitions/infra/pipeline-builder-scaffolder";

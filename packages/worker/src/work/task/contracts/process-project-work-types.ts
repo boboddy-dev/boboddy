@@ -34,6 +34,14 @@ export type ProcessProjectWorkInput = {
   preserveRuntimeOnComplete?: boolean | undefined;
   once?: boolean | undefined;
   sessionStartTimeoutMs?: number | undefined;
+  /**
+   * Length of each missing-findings grace window (ms), measured as poll sleep
+   * time while the session is stopped without findings. The monitor waits one
+   * window for late writes before sending the retry prompt, one after the
+   * retry, and one more before failing. Every window spans at least one poll.
+   * Defaults to `pollIntervalMs`, i.e. one poll per window.
+   */
+  missingFindingsGraceMs?: number | undefined;
   secretValues?: readonly string[] | undefined;
   sourceBranch?: string | null | undefined;
   /**

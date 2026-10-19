@@ -12,17 +12,15 @@
 // with a prompt file. Inline keeps the user's directory clean and makes the
 // prompt atomic with the config that carries it.
 //
-// The default pipeline uses the `.ts.tmpl` extension rather than `.ts`
-// deliberately. `apps/cli/tsconfig.json` includes `src/**/*.ts`, so a `.ts` file
-// here would be typechecked — but TypeScript then resolves the import path as a
-// module and rejects a string default export, making `with { type: "text" }`
-// impossible. The source of truth therefore stays a text asset, and
-// `test/design-agent-default-pipeline.test.ts` compiles it against the real SDK
-// in one `tsc` pass, so SDK drift fails the build instead of silently rotting
-// the agent's reference material.
+// The default pipeline is the scaffolder's starter pipeline
+// (`STARTER_PIPELINE_FILE` in `@boboddy/worker`), so the file the agent is
+// told about is byte-for-byte the file already sitting in the user's
+// directory. `test/design-agent-default-pipeline.test.ts` compiles it against
+// the real SDK in one `tsc` pass, so SDK drift fails the build instead of
+// silently rotting the agent's reference material.
 import agentPrompt from "../templates/design-agent/AGENT_PROMPT.md" with { type: "text" };
 import authoringReference from "../templates/design-agent/AUTHORING.md" with { type: "text" };
-import bugPipeline from "../templates/design-agent/bug-pipeline.ts.tmpl" with { type: "text" };
+import { STARTER_PIPELINE_FILE, STARTER_PIPELINE_KEY } from "@boboddy/worker";
 import {
   HEALTH_CHECK_CATALOG,
   type HealthCheckCatalogEntry,
@@ -39,13 +37,13 @@ export const DESIGN_AGENT_PROMPT: string = agentPrompt;
  */
 export const PIPELINE_AUTHORING_REFERENCE: string = authoringReference;
 
-/** The one complete, compile-verified pipeline file the agent copies and adapts. */
+/** The one complete, compile-verified pipeline file the agent adapts in place. */
 export const DEFAULT_PIPELINE_TEMPLATE: {
-  /** Filename stem the agent writes it under, as named in section 7. */
+  /** Filename stem it is scaffolded under, as named in section 7. */
   readonly name: string;
   /** Verbatim file contents. */
   readonly source: string;
-} = { name: "bug-pipeline", source: bugPipeline };
+} = { name: STARTER_PIPELINE_KEY, source: STARTER_PIPELINE_FILE };
 
 /** Shown in the OpenCode agent picker. */
 export const PIPELINE_DESIGNER_AGENT_DESCRIPTION =
@@ -57,21 +55,22 @@ export const PIPELINE_DESIGNER_AGENT_DESCRIPTION =
  * the start of the section that follows section 7, which describes it.
  *
  * It is injected rather than written into `AUTHORING.md` so there is exactly
- * one copy of it in the repo — the `.ts.tmpl` file, which the default pipeline
- * test compiles. Splicing (rather than appending at the end) keeps the file
+ * one copy of it in the repo — the scaffolder's `.ts.tmpl` file, which the
+ * default pipeline test compiles. Splicing (rather than appending at the end) keeps the file
  * next to the prose that explains how to adapt it.
  */
 const DEFAULT_PIPELINE_SPLICE_MARKER = "\n## 8. Writing a good `agentPrompt`";
 
 const DEFAULT_PIPELINE_SECTION_PREAMBLE = `### The default pipeline file
 
-The block below is a complete file that compiles against the shipped SDK. Copy
-it into \`.boboddy/pipeline-builder/bug-pipeline.ts\`, then adapt it as
+The block below is a complete file that compiles against the shipped SDK. The
+scaffold already wrote it, verbatim, to
+\`.boboddy/pipeline-builder/bug-pipeline.ts\`. Edit that file in place as
 described above: configure \`investigateAndReproduce\` for what the agent can
 reach, and rewrite every prompt for this user's repository and vocabulary.
-Never author the state objects from scratch, and never paste it without
-rewriting its prompts — prompt text is where a pipeline's quality lives, and
-these are written for a generic project.`;
+Never author the state objects from scratch, and never leave its prompts
+unrewritten — prompt text is where a pipeline's quality lives, and these are
+written for a generic project.`;
 
 /**
  * Render the default pipeline as one markdown block.

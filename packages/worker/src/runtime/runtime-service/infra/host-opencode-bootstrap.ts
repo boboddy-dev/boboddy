@@ -115,7 +115,18 @@ export type HostStartResult = {
   pid: number;
 };
 
+export type HostOpencodeBootstrapOptions = {
+  /** Pause between readiness probes. Defaults to the shared readiness interval (500ms). */
+  readinessIntervalMs?: number | undefined;
+};
+
 export class HostOpencodeBootstrap {
+  private readonly readinessIntervalMs: number | undefined;
+
+  constructor(options: HostOpencodeBootstrapOptions = {}) {
+    this.readinessIntervalMs = options.readinessIntervalMs;
+  }
+
   /**
    * Spawn `opencode serve` on the host as a detached background process bound to
    * a free loopback port, then wait for health. Returns the base URL + log path
@@ -188,15 +199,18 @@ export class HostOpencodeBootstrap {
           detached: true,
         },
       );
-      // Record an early exit (or spawn error) so the health poll can stop
-      // immediately instead of waiting out the full timeout on a dead process.
+      // Record an early exit (or spawn error) and wake the health poll so it
+      // fails immediately instead of waiting for its next probe.
       let exited: HostProcessExit | null = null;
       let spawnError: Error | null = null;
+      const processGone = new AbortController();
       child.once("exit", (code, signal) => {
         exited = { code, signal };
+        processGone.abort(new Error("Host OpenCode process exited"));
       });
       child.once("error", (error) => {
         spawnError = error;
+        processGone.abort(error);
       });
       const pid = child.pid;
       if (pid === undefined) {
@@ -224,6 +238,7 @@ export class HostOpencodeBootstrap {
           masker,
           getExit: () => exited,
           getSpawnError: () => spawnError,
+          processGone: processGone.signal,
         });
         await completeOpencodeBoot({
           baseUrl: agentBaseUrl,
@@ -277,6 +292,7 @@ export class HostOpencodeBootstrap {
     masker: SecretMasker;
     getExit: () => HostProcessExit | null;
     getSpawnError: () => Error | null;
+    processGone: AbortSignal;
   }): Promise<void> {
     const { baseUrl, pid, agentLogPath, masker } = input;
     let attempts = 0;
@@ -309,6 +325,8 @@ export class HostOpencodeBootstrap {
       baseUrl,
       password: input.password,
       expectedVersion: input.expectedVersion,
+      intervalMs: this.readinessIntervalMs,
+      signal: input.processGone,
       assertAlive: throwIfProcessDied,
       onNotReady: (attempt, reason) => {
         attempts = attempt;

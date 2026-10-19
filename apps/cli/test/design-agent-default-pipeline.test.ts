@@ -1,16 +1,14 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import {
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { validateDefinitionSpecs } from "@boboddy/sdk/definitions/validation";
 import { collectDefinitionsFromDirectory } from "@boboddy/sdk/push";
-import { PIPELINE_BUILDER_TSCONFIG } from "@boboddy/worker";
+import {
+  PIPELINE_BUILDER_TSCONFIG,
+  STARTER_PIPELINE_FILE,
+  STARTER_PIPELINE_KEY,
+} from "@boboddy/worker";
 import {
   buildHealthCheckCatalogSection,
   buildPipelineAuthoringReference,
@@ -38,8 +36,6 @@ import {
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
 const CLI_NODE_MODULES = resolve(import.meta.dir, "../node_modules");
 const TSC = join(REPO_ROOT, "node_modules", ".bin", "tsc");
-const TEMPLATES_DIR = resolve(import.meta.dir, "../src/templates/design-agent");
-const TEMPLATE_EXTENSION = ".ts.tmpl";
 const { name, source } = DEFAULT_PIPELINE_TEMPLATE;
 
 /** The section 7 prose, between its heading and section 8's. */
@@ -63,15 +59,16 @@ describe("the default pipeline asset", () => {
     expect(source).not.toContain("```");
   });
 
-  test("has no approval gates (D6)", () => {
-    expect(source).not.toContain("blockWhen");
+  test("has exactly one approval gate, on proposeFix", () => {
+    expect(source.match(/blockWhen/g)?.length).toBe(1);
+    expect(source).toContain(
+      'blockWhen: Rule.when("requiresHumanApproval", "equal", true)',
+    );
   });
 
-  test("is the only template on disk, and the one the prompt inlines", () => {
-    const onDisk = readdirSync(TEMPLATES_DIR)
-      .filter((entry) => entry.endsWith(TEMPLATE_EXTENSION))
-      .map((entry) => entry.slice(0, -TEMPLATE_EXTENSION.length));
-    expect(onDisk).toEqual([name]);
+  test("is the file the scaffold writes", () => {
+    expect(name).toBe(STARTER_PIPELINE_KEY);
+    expect(source).toBe(STARTER_PIPELINE_FILE);
   });
 
   test("section 7 names the file and describes it without restating code", () => {
@@ -317,7 +314,7 @@ describe("the default pipeline survives the real push validator", () => {
     if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
-  test("collection finds the pipeline and its five steps", () => {
+  test("collection finds the pipeline and its six steps", () => {
     // Guards against a vacuous pass: an empty batch validates clean.
     expect(collected.pipelines.map((pipeline) => pipeline.key)).toEqual([
       "bug-pipeline",
@@ -327,16 +324,44 @@ describe("the default pipeline survives the real push validator", () => {
       "failing-test",
       "fix",
       "investigate-and-reproduce",
+      "propose-fix",
       "request-details",
     ]);
   });
 
-  test("`quality` is the only signal besides the notifications feature's (D7)", () => {
+  test("the only signals besides the notifications feature's are the three the rules read", () => {
     const signalKeys = collected.steps
       .flatMap((step) => step.signalExtractorDefinitions)
       .map((signal) => signal.key)
-      .filter((key) => key !== "$boboddy_notifications_v1");
-    expect(signalKeys).toEqual(["quality"]);
+      .filter((key) => key !== "$boboddy_notifications_v1")
+      .sort();
+    expect(signalKeys).toEqual([
+      "quality",
+      "reproductionConfidence",
+      "requiresHumanApproval",
+    ]);
+  });
+
+  test("the shape: low bar to investigate, confidence gates the test, approval gates the fix", () => {
+    const [pipeline] = collected.pipelines;
+    if (!pipeline) throw new Error("no pipeline collected");
+    const nodeKeys = pipeline.nodeDefinitions.map((node) => node.nodeKey);
+    for (const key of [
+      "evaluate",
+      "checkQuality",
+      "investigateAndReproduce",
+      "checkReproduction",
+      "notReproduced",
+      "failingTest",
+      "proposeFix",
+      "fix",
+    ]) {
+      expect(nodeKeys).toContain(key);
+    }
+    expect(source).toContain('Rule.when("quality", "lessThan", 0.1)');
+    expect(source).toContain(
+      'Rule.when("reproductionConfidence", "greaterThanInclusive", 0.8)',
+    );
   });
 
   test("demonstrates the health-check rules: a tool check per ref, cli checks for Playwright and the test runner", () => {
@@ -358,6 +383,7 @@ describe("the default pipeline survives the real push validator", () => {
         "cli:npx --no-install playwright --version:warn",
       ],
       "failing-test": ["cli:npx --no-install vitest --version:required"],
+      "propose-fix": [],
       fix: ["cli:npx --no-install vitest --version:required"],
     });
   });

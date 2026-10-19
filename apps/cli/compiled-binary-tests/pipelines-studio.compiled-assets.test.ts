@@ -42,9 +42,9 @@ type StudioSnapshotLike =
  *
  * Lives in `compiled-binary-tests/`, a sibling of `test/` — deliberately
  * NOT named with a `test` prefix (see below) — because `apps/cli`'s
- * `package.json` `test` script (`bun test test && bun test
- * compiled-binary-tests`) runs this directory as its own `bun test` process,
- * separately from the other ~360 tests under `test/`. That is not just
+ * `package.json` runs this directory as its own `bun test` process
+ * (`test:compiled`), separately from the other ~360 tests under `test/`
+ * (`test`, which ignores this directory). That is not just
  * organization: `Bun.build({ compile: true })`'s asset embedding is sensitive
  * to what has already loaded earlier in the *same* `bun test` process.
  * Sharing a process with the rest of the suite made this file fail

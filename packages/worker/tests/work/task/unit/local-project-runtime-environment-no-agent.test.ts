@@ -2,7 +2,8 @@
  * `startAgent: false` launch (code steps): the devcontainer is launched with
  * the clone, branches and `.boboddy/.env` patch, but none of the OpenCode work
  * runs — no payload, provider access, mount planning/patching, agent HOME
- * seeding, or `opencode serve` start/stop.
+ * seeding, or `opencode serve` start/stop. Also: a dry-run launch (no step key)
+ * still checks out the CLI's `sourceBranch`.
  */
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -14,25 +15,26 @@ import {
   buildOrchestratorFakeDeps,
   DEVCONTAINER_CONFIG_PATH,
   FAKE_DEVCONTAINER_ID,
+  FakeGitCommitPushService,
   type CallLog,
 } from "./helpers/orchestrator-launch-fakes";
 
+let workspacePath: string;
+let providerOutputDir: string;
+
+beforeEach(async () => {
+  workspacePath = await mkdtemp(path.join(os.tmpdir(), "orchestrator-ws-"));
+  providerOutputDir = await mkdtemp(
+    path.join(os.tmpdir(), "orchestrator-provider-"),
+  );
+});
+
+afterEach(async () => {
+  await rm(workspacePath, { recursive: true, force: true });
+  await rm(providerOutputDir, { recursive: true, force: true });
+});
+
 describe("DefaultLocalProjectRuntimeEnvironmentOrchestrator.launch (startAgent: false)", () => {
-  let workspacePath: string;
-  let providerOutputDir: string;
-
-  beforeEach(async () => {
-    workspacePath = await mkdtemp(path.join(os.tmpdir(), "orchestrator-ws-"));
-    providerOutputDir = await mkdtemp(
-      path.join(os.tmpdir(), "orchestrator-provider-"),
-    );
-  });
-
-  afterEach(async () => {
-    await rm(workspacePath, { recursive: true, force: true });
-    await rm(providerOutputDir, { recursive: true, force: true });
-  });
-
   function buildDeps(log: CallLog) {
     return buildOrchestratorFakeDeps({ workspacePath, providerOutputDir, log });
   }
@@ -133,5 +135,35 @@ describe("DefaultLocalProjectRuntimeEnvironmentOrchestrator.launch (startAgent: 
 
     expect(deps.opencodeBootstrap.stopCalls).toEqual([]);
     expect(deps.workspaceManager.removeCalls).toEqual([workspacePath]);
+  });
+});
+
+describe("sourceBranch launch behavior", () => {
+  test("no step key (dry run): still checks out sourceBranch even though no work branch is created", async () => {
+    const log: CallLog = [];
+    const commitPush = new FakeGitCommitPushService(log);
+    const orchestrator = new DefaultLocalProjectRuntimeEnvironmentOrchestrator(
+      undefined,
+      {},
+      buildOrchestratorFakeDeps({
+        workspacePath,
+        providerOutputDir,
+        log,
+        gitCommitPushService: commitPush,
+      }),
+    );
+
+    const env = await orchestrator.launch({
+      ...buildLaunchInput(),
+      sourceBranch: "feature-x",
+    });
+
+    expect(commitPush.checkoutBaseCalls).toEqual(["feature-x"]);
+    expect(commitPush.createBranchCalls).toEqual([]);
+    expect(env.workBranch).toBeNull();
+    expect(env.createdFromBranch).toBeNull();
+    expect(log.indexOf("checkoutBase")).toBeLessThan(
+      log.indexOf("resolveConfigPath"),
+    );
   });
 });

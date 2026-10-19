@@ -260,8 +260,14 @@ export function installFakeAgent(script: FakeAgentScript = {}): {
   return { calls, concurrentSessions };
 }
 
+/** Small poll intervals so unit tests aren't paced by the 500ms production defaults. */
+export const FAST_HEALTH_CHECK_INTERVALS = {
+  mcpStatusIntervalMs: 5,
+  healthCheckPollIntervalMs: 5,
+};
+
 export async function startedFakeAiServer(): Promise<FakeAiServer> {
-  const server = new FakeAiServer();
+  const server = new FakeAiServer({ initialToolUseDelayMs: 0 });
   await server.start();
   return server;
 }

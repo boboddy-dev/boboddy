@@ -118,8 +118,46 @@ describe("the interview is anchored to the seeded work item", () => {
     const goal = sectionBetween(prompt, PHASE.goal, PHASE.reachability);
     expectPhrase(
       goal,
-      "an investigation report and a Playwright trace that reproduces the bug, plus a failing test and a candidate fix",
+      "an investigation report and a Playwright trace that reproduces the bug; when the reproduction is confident, a failing test and a proposed fix waiting for your approval",
     );
+  });
+
+  test("the goal question is the overnight question, asked on its own", () => {
+    // A session once folded it into the orientation summary as "is that what
+    // you want, or something else?", so the user never saw the question.
+    const goal = sectionBetween(prompt, PHASE.goal, PHASE.reachability);
+    expectPhrase(goal, "it is the only question in that message");
+    expectPhrase(goal, "landed overnight and an agent picked it up");
+    expectPhrase(goal, "What do you want waiting for you in the morning?");
+    expectPhrase(goal, "Never fold it into the orientation summary");
+  });
+
+  test("the goal question offers tailored suggestions, the default first", () => {
+    const goal = sectionBetween(prompt, PHASE.goal, PHASE.reachability);
+    expectPhrase(goal, "Give two to four suggestions, tailored to this item");
+    expectPhrase(goal, "The first is always the default pipeline's deliverable");
+    expectPhrase(goal, "Pick one, mix them, or tell me something else.");
+  });
+
+  test("orientation is summarised briefly so the goal question stands out", () => {
+    const orient = sectionBetween(prompt, PHASE.orient, PHASE.goal);
+    expectPhrase(orient, "in **one or two lines**");
+    expectPhrase(orient, "wait for phase 3");
+  });
+
+  test("the item frames the interview but the pipeline stays generic", () => {
+    // A session once wrote "billing-onboarding-bug" with every prompt about the
+    // seeded ticket's feature, unusable for the next bug that arrived.
+    expectPhrase(
+      prompt,
+      "The item frames the interview; it does not define the pipeline.",
+    );
+    expectPhrase(prompt, "never after this ticket's feature, customer, or symptom");
+    expectPhrase(prompt, "Never paste this ticket's feature names");
+    expectPhrase(prompt, "turn it into the general rule");
+    const build = sectionBetween(prompt, PHASE.build, PHASE.assignment);
+    expectPhrase(build, "against an imagined, unrelated item of the same kind");
+    expectPhrase(prompt, "**Keep it generic.**");
   });
 
   test("the reachability probe is phrased through the item", () => {
@@ -433,7 +471,7 @@ describe("the interview configures the default pipeline rather than choosing one
       reachability,
       "this phase only decides how its `investigateAndReproduce` step is configured",
     );
-    expectPhrase(build, "Never pick a different shape");
+    expectPhrase(build, "Keep the shape unless the user asks for a different one");
   });
 
   test("no reachable app means no trace, said out loud", () => {
@@ -452,13 +490,19 @@ describe("the interview configures the default pipeline rather than choosing one
     expectNoPhrase(prompt, "archetype");
   });
 
-  test("no gates by default (D6)", () => {
+  test("only the default pipeline's two stops, no other gates", () => {
     expectNoPhrase(build, "Gate on `block`");
     expectNoPhrase(build, "define what confidence means");
+    expectPhrase(build, "`proposeFix` blocks until a human approves");
     expectPhrase(
       build,
-      "Add no `blockWhen` gates unless the user asks for one",
+      "add no other `blockWhen` gates unless they ask for one",
     );
+  });
+
+  test("the scaffolded starter is edited in place, not copied beside itself", () => {
+    expectPhrase(build, "edit that file in place, never a second copy beside it");
+    expectPhrase(build, "it is the step everything else depends on");
   });
 });
 

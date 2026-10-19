@@ -1,5 +1,9 @@
 import { DEFAULT_PIPELINE_ASSIGNMENT_FILENAME } from "@boboddy/sdk/definitions/pipelines";
-import { STARTER_PIPELINE_FILENAME } from "@boboddy/worker";
+import {
+  STARTER_DEFAULT_PIPELINE_ASSIGNMENT_FILE,
+  STARTER_PIPELINE_FILE,
+  STARTER_PIPELINE_FILENAME,
+} from "@boboddy/worker";
 import type { RunOfferGateFailure } from "./design-run-offer-gate-marker";
 import type { DesignWorkItem } from "./design-work-item";
 
@@ -40,32 +44,43 @@ export type DesignSeedPromptInput = {
   agentToolsManifestPath?: string | null;
 };
 
+/** `push.ts` is regenerated on every push, so it is never the user's work. */
+const GENERATED_FILES: readonly string[] = ["push.ts"];
+
 /**
- * `.ts` files in the builder directory that are not the user's design work:
- * `push.ts` is generated on every push, and the other two are written by the
- * preflight's own scaffold step moments before the flag below is read.
+ * The files the preflight's scaffold step writes moments before the flag below
+ * is read, with the content it writes. They count as authored only once they
+ * differ from it: the designer adapts the starter pipeline in place, so after
+ * the first session `bug-pipeline.ts` is the user's own design.
  */
-const NOT_AUTHORED_BY_THE_USER: readonly string[] = [
-  "push.ts",
-  STARTER_PIPELINE_FILENAME,
-  DEFAULT_PIPELINE_ASSIGNMENT_FILENAME,
-];
+const SCAFFOLDED_FILES: ReadonlyMap<string, string> = new Map([
+  [STARTER_PIPELINE_FILENAME, STARTER_PIPELINE_FILE],
+  [DEFAULT_PIPELINE_ASSIGNMENT_FILENAME, STARTER_DEFAULT_PIPELINE_ASSIGNMENT_FILE],
+]);
 
 /**
  * Has the user authored any pipeline definitions yet?
  *
  * This is the difference between "greenfield" and "edit session", which is what
- * the agent actually needs to know — so scaffolded boilerplate has to be
+ * the agent actually needs to know — so untouched scaffold files have to be
  * discounted. Counting every `.ts` file would report "definitions already
  * exist" on a first run, since the preflight has just written the starter
  * pipeline and the default assignment.
  *
- * Takes filenames rather than a directory so the rule is testable without one.
+ * Takes filenames and a reader rather than a directory so the rule is testable
+ * without one. `readFile` returns `undefined` when a file cannot be read, which
+ * counts as authored: better an unnecessary change-size check than editing the
+ * user's work as if it were boilerplate.
  */
-export function hasAuthoredDefinitions(fileNames: readonly string[]): boolean {
-  return fileNames.some(
-    (name) => name.endsWith(".ts") && !NOT_AUTHORED_BY_THE_USER.includes(name),
-  );
+export function hasAuthoredDefinitions(
+  fileNames: readonly string[],
+  readFile: (name: string) => string | undefined,
+): boolean {
+  return fileNames.some((name) => {
+    if (!name.endsWith(".ts") || GENERATED_FILES.includes(name)) return false;
+    const scaffolded = SCAFFOLDED_FILES.get(name);
+    return scaffolded === undefined || readFile(name) !== scaffolded;
+  });
 }
 
 /**
@@ -115,7 +130,7 @@ export function buildDesignSeedPrompt(input: DesignSeedPromptInput): string {
       : `The repository's MCP servers (with their listed tools) and skills are recorded in the discovered-tools manifest at ${manifestPath} — read it in phase 1.`;
 
   return [
-    "Design a Boboddy pipeline for this project, anchored to this work item.",
+    "Design a Boboddy pipeline for this project. Use this work item to frame the interview; the pipeline you write must handle any item of its kind, so keep its names and prompts free of this item's specifics.",
     "",
     "## Work item",
     "",

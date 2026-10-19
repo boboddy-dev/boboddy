@@ -5,7 +5,7 @@
  * run.
  */
 import { rm } from "node:fs/promises";
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, test } from "bun:test";
 import { noopLogger } from "@boboddy/observability/logging/host";
 import { ConfigurationError } from "../../../../src/lib/errors";
 import { buildDryRunWorkspaceOrchestrator } from "../../../../src/work/task/application/run-work-dry-run-orchestrators";
@@ -14,8 +14,11 @@ import { SafeProviderAccessResolver } from "../../../../src/work/task/infra/prov
 import {
   pathExists,
   setupCachedCloneFixture,
+  disposeMirrorFixtureTemplate,
 } from "../../../runtime/runtime-service/unit/cached-git-clone-fixtures";
 import { buildLaunchInput } from "./helpers/orchestrator-launch-fakes";
+
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("buildDryRunWorkspaceOrchestrator git cache wiring", () => {
   let fixtureRoot: string | null = null;

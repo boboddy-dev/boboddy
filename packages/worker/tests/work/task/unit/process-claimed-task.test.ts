@@ -1,14 +1,13 @@
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, test, vi } from "bun:test";
+import { afterAll, afterEach, describe, expect, test, vi } from "bun:test";
 import type { RepoConfig } from "@boboddy/sdk/repo-config";
 import { startProcessClaimedTask } from "../../../../src/work/task/application/process-claimed-task";
-import type {
-  ProcessProjectWorkDeps,
-  TaskWorkerClient,
-} from "../../../../src/work/task/contracts/process-project-work-types";
+import type { ProcessProjectWorkDeps } from "../../../../src/work/task/contracts/process-project-work-types";
 import {
+  createRecordingOrchestrator,
+  createRoutingDeps,
   createRunTracker,
   createWorkerClient,
   createWorkerContext,
@@ -17,72 +16,12 @@ import {
   runClaim,
   taskId,
 } from "./helpers/claimed-task-fixtures";
+import {
+  disposeMirrorFixtureTemplate,
+  shipLaunchGitTimingLines,
+} from "./helpers/launch-git-timing-fixture";
 
-/**
- * A recording runtime-environment orchestrator: its `launch` resolves the same
- * fake environment the existing test uses, but records that it was invoked so
- * routing between the `workspace` and `no_workspace` orchestrators can be
- * asserted through the exported {@link startProcessClaimedTask} seam
- * (`resolveRuntimeEnvironmentOrchestrator` itself is module-private).
- */
-function createRecordingOrchestrator(workspacePath: string) {
-  const launch = vi.fn(() =>
-    Promise.resolve({
-      workspacePath,
-      workspaceFolder: "/workspaces/repo",
-      resolvedBranch: "",
-      workBranch: null,
-      createdFromBranch: null,
-      devcontainerConfigPath: "",
-      runtimeContainerId: null,
-      agent: {
-        baseUrl: "http://localhost:4096",
-        password: "test-password",
-        version: "0.0.0-test",
-        logDirectory: path.join(workspacePath, ".logs"),
-      },
-      aiImage: "opencode-runtime@test",
-      networkName: "",
-      secretValues: [],
-      cleanup: () => Promise.resolve(),
-    }),
-  );
-  return { launch };
-}
-
-function createRoutingDeps(input: {
-  workerClient: TaskWorkerClient;
-  workspaceOrchestrator: { launch: ReturnType<typeof vi.fn> };
-  noWorkspaceOrchestrator?: { launch: ReturnType<typeof vi.fn> } | undefined;
-}): ProcessProjectWorkDeps {
-  return {
-    workerClient: input.workerClient,
-    createRunTracker,
-    runtimeEnvironmentOrchestrator: input.workspaceOrchestrator,
-    ...(input.noWorkspaceOrchestrator
-      ? {
-          noWorkspaceRuntimeEnvironmentOrchestrator:
-            input.noWorkspaceOrchestrator,
-        }
-      : {}),
-    agentRunner: {
-      promptAsync: vi.fn(() =>
-        Promise.resolve({ sessionId: "agent-session-id" }),
-      ),
-      getSessionStatus: vi.fn(),
-      sendRetryPrompt: vi.fn(),
-    },
-    artifactStore: {
-      saveArtifact: vi.fn(),
-    },
-    sleep: vi.fn(() => Promise.resolve(undefined)),
-    logger: {
-      debug: vi.fn(),
-      log: vi.fn(),
-      error: vi.fn(),
-    },
-  } satisfies ProcessProjectWorkDeps;
-}
+afterAll(disposeMirrorFixtureTemplate);
 
 describe("startProcessClaimedTask", () => {
   afterEach(() => {
@@ -96,29 +35,13 @@ describe("startProcessClaimedTask", () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "boboddy-claimed-step-"),
     );
-    const launch = vi.fn(() =>
-      Promise.resolve({
-        workspacePath,
-        // Representative resolved workspace folder: the prompt's artifact paths
-        // must be anchored here rather than a hardcoded `/workspace`.
-        workspaceFolder: "/workspaces/repo",
-        resolvedBranch: "main",
-        workBranch: null,
-        createdFromBranch: null,
-        devcontainerConfigPath: ".devcontainer/devcontainer.json",
-        runtimeContainerId: "runtime-container-id",
-        agent: {
-          baseUrl: "http://localhost:4096",
-          password: "test-password",
-          version: "0.0.0-test",
-          logDirectory: path.join(workspacePath, ".logs"),
-        },
-        aiImage: "boboddy/ai-worker:local",
-        networkName: "test-network",
-        secretValues: [],
-        cleanup: () => Promise.resolve(),
-      }),
-    );
+    const { launch } = createRecordingOrchestrator(workspacePath, {
+      resolvedBranch: "main",
+      devcontainerConfigPath: ".devcontainer/devcontainer.json",
+      runtimeContainerId: "runtime-container-id",
+      aiImage: "boboddy/ai-worker:local",
+      networkName: "test-network",
+    });
 
     const workerClient = createWorkerClient();
     workerClient.getTaskWorkerContext = vi.fn(() =>
@@ -128,49 +51,23 @@ describe("startProcessClaimedTask", () => {
       }),
     );
 
-    const deps = {
-      workerClient,
-      createRunTracker,
-      runtimeEnvironmentOrchestrator: { launch },
-      agentRunner: {
-        promptAsync: vi.fn(() =>
-          Promise.resolve({ sessionId: "agent-session-id" }),
-        ),
-        getSessionStatus: vi.fn(),
-        sendRetryPrompt: vi.fn(),
-      },
-      artifactStore: {
-        saveArtifact: vi.fn(),
-      },
-      sleep: vi.fn(() => Promise.resolve(undefined)),
-      logger: {
-        debug: vi.fn(),
-        log: vi.fn(),
-        error: vi.fn(),
-      },
-    } satisfies ProcessProjectWorkDeps;
-
-    await startProcessClaimedTask(
-      {
-        projectId,
-        requestedByUserId,
-        claim: {
-          task: { id: taskId },
-          claimToken: "claim-token",
-        },
-        leaseDurationSeconds: 30,
-      },
-      deps,
-      deps.workerClient,
-      createRunTracker(),
+    const promptAsync = vi.fn(() =>
+      Promise.resolve({ sessionId: "agent-session-id" }),
     );
+    const deps = createRoutingDeps({
+      workerClient,
+      workspaceOrchestrator: { launch },
+    });
+    deps.agentRunner.promptAsync = promptAsync;
+
+    await runClaim(deps);
 
     expect(launch).toHaveBeenCalledWith(
       expect.objectContaining({
         baseWorkBranch: "boboddy/prev-step",
       }),
     );
-    expect(deps.agentRunner.promptAsync).toHaveBeenCalledWith(
+    expect(promptAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         server: {
           baseUrl: "http://localhost:4096",
@@ -193,27 +90,13 @@ describe("startProcessClaimedTask", () => {
     const workspacePath = await mkdtemp(
       path.join(os.tmpdir(), "boboddy-claimed-step-conversation-"),
     );
-    const launch = vi.fn(() =>
-      Promise.resolve({
-        workspacePath,
-        workspaceFolder: "/workspaces/repo",
-        resolvedBranch: "main",
-        workBranch: null,
-        createdFromBranch: null,
-        devcontainerConfigPath: ".devcontainer/devcontainer.json",
-        runtimeContainerId: "runtime-container-id",
-        agent: {
-          baseUrl: "http://localhost:4096",
-          password: "test-password",
-          version: "0.0.0-test",
-          logDirectory: path.join(workspacePath, ".logs"),
-        },
-        aiImage: "boboddy/ai-worker:local",
-        networkName: "test-network",
-        secretValues: [],
-        cleanup: () => Promise.resolve(),
-      }),
-    );
+    const { launch } = createRecordingOrchestrator(workspacePath, {
+      resolvedBranch: "main",
+      devcontainerConfigPath: ".devcontainer/devcontainer.json",
+      runtimeContainerId: "runtime-container-id",
+      aiImage: "boboddy/ai-worker:local",
+      networkName: "test-network",
+    });
 
     const callOrder: string[] = [];
     const attachConversationStream = vi.fn((input: { sessionId: string }) => {
@@ -227,9 +110,10 @@ describe("startProcessClaimedTask", () => {
     };
 
     const deps = {
-      workerClient: createWorkerClient(),
-      createRunTracker,
-      runtimeEnvironmentOrchestrator: { launch },
+      ...createRoutingDeps({
+        workerClient: createWorkerClient(),
+        workspaceOrchestrator: { launch },
+      }),
       agentRunner: {
         promptAsync: vi.fn(
           async (input: {
@@ -245,15 +129,6 @@ describe("startProcessClaimedTask", () => {
         ),
         getSessionStatus: vi.fn(),
         sendRetryPrompt: vi.fn(),
-      },
-      artifactStore: {
-        saveArtifact: vi.fn(),
-      },
-      sleep: vi.fn(() => Promise.resolve(undefined)),
-      logger: {
-        debug: vi.fn(),
-        log: vi.fn(),
-        error: vi.fn(),
       },
     } satisfies ProcessProjectWorkDeps;
 
@@ -454,4 +329,104 @@ describe("startProcessClaimedTask runtime orchestrator routing", () => {
       );
     },
   );
+});
+
+describe("startProcessClaimedTask step env", () => {
+  test("fails before launch, naming every missing required variable and no values", async () => {
+    const workspaceOrchestrator = createRecordingOrchestrator(
+      await mkdtemp(path.join(os.tmpdir(), "boboddy-claimed-step-env-")),
+    );
+    const workerClient = createWorkerClient();
+    workerClient.getTaskWorkerContext = vi.fn(() =>
+      Promise.resolve(
+        createWorkerContext("workspace", null, {
+          envJson: [
+            {
+              name: "WAREHOUSE_TOKEN",
+              source: "inherit",
+              from: "WAREHOUSE_TOKEN",
+              secret: true,
+              optional: false,
+              applies: "agent",
+            },
+            {
+              name: "DB_PASSWORD",
+              source: "inherit",
+              from: "STAGING_DB_PASSWORD",
+              secret: true,
+              optional: false,
+              applies: "agent",
+            },
+          ],
+        }),
+      ),
+    );
+    const promptAsync = vi.fn();
+    const deps = createRoutingDeps({ workerClient, workspaceOrchestrator });
+    deps.agentRunner.promptAsync = promptAsync;
+    const tracker = createRunTracker();
+
+    let caught: unknown;
+    try {
+      await runClaim(deps, {
+        tracker,
+        workerEnv: { UNRELATED: "should-not-appear-anywhere" },
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    const message = (caught as Error).message;
+    expect(message).toContain("WAREHOUSE_TOKEN");
+    expect(message).toContain("STAGING_DB_PASSWORD");
+    expect(message).not.toContain("should-not-appear-anywhere");
+    expect(workspaceOrchestrator.launch).not.toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- reading through a plain object, not a class instance
+    expect(tracker.markFailed).toHaveBeenCalledWith(
+      expect.objectContaining({ failureReason: message }),
+    );
+    expect(promptAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("launchRuntimeEnvironment git timing lines reach the shipper", () => {
+  test("ships mirror, local clone, overall clone and work-branch timings at info level before completion", async () => {
+    const { shipped, baseEntries, completeCalls } =
+      await shipLaunchGitTimingLines();
+
+    expect(completeCalls).toBe(0);
+    const worker = shipped.filter((line) => line.stream === "worker");
+    const content = worker.map((line) => line.content);
+    const gitCacheLines = content.filter((line) =>
+      line.startsWith("[git-cache] "),
+    );
+    expect(gitCacheLines).toHaveLength(2);
+    expect(gitCacheLines[0]).toMatch(
+      /^\[git-cache\] git-cache: mirror created in \d+\.\ds \(miss\)$/u,
+    );
+    expect(gitCacheLines[1]).toMatch(
+      /^\[git-cache\] git-cache: local clone in \d+\.\ds$/u,
+    );
+    expect(
+      content.filter((line) =>
+        /^\[runtime\] repository cloned in /u.test(line),
+      ),
+    ).toHaveLength(1);
+    expect(
+      content.filter((line) =>
+        /^\[runtime\] work branch prepared in \d+\.\ds$/u.test(line),
+      ),
+    ).toHaveLength(1);
+    const timingLines = worker.filter(
+      (line) =>
+        line.content.startsWith("[git-cache] ") ||
+        /^\[runtime\] (repository cloned|work branch prepared)/u.test(
+          line.content,
+        ),
+    );
+    expect(timingLines).toHaveLength(4);
+    expect(timingLines.every((line) => line.level === "info")).toBe(true);
+    expect(baseEntries.some((entry) => entry.level === "debug")).toBe(false);
+  });
 });

@@ -48,8 +48,6 @@ export const STUDIO_INDEX_HTML = `<!doctype html>
         --studio-severity-none: #3a4050;
         --studio-chip-text: #0f1115;
         --studio-node-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-        --studio-backdrop: rgba(0, 0, 0, 0.6);
-        --studio-dialog-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
       }
       [data-theme="light"] {
         color-scheme: light;
@@ -71,8 +69,6 @@ export const STUDIO_INDEX_HTML = `<!doctype html>
         --studio-severity-none: #1a192b1a;
         --studio-chip-text: #ffffff;
         --studio-node-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-        --studio-backdrop: rgba(0, 0, 0, 0.4);
-        --studio-dialog-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       }
       html, body, #root { height: 100%; margin: 0; }
       body {
@@ -292,33 +288,21 @@ export const STUDIO_INDEX_HTML = `<!doctype html>
       .studio-status { padding: 24px; font-size: 14px; }
       .studio-status-error { color: var(--studio-severity-error); }
       .studio-option-broken { color: var(--studio-severity-error); }
-      .studio-dialog-backdrop {
-        position: fixed;
-        inset: 0;
-        background: var(--studio-backdrop);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
-      }
-      .studio-dialog {
-        background: var(--studio-surface);
-        color: var(--studio-text);
+      .studio-broken {
+        max-width: 720px;
+        margin: 24px;
+        padding: 16px 20px;
         border: 1px solid var(--studio-border);
-        border-radius: 8px;
-        padding: 20px 24px;
-        max-width: 560px;
-        width: calc(100% - 48px);
-        max-height: calc(100% - 48px);
-        overflow-y: auto;
-        box-shadow: var(--studio-dialog-shadow);
+        border-left: 4px solid var(--studio-severity-error);
+        border-radius: 6px;
+        background: var(--studio-surface);
       }
-      .studio-dialog h2 {
+      .studio-broken-title {
         margin: 0 0 12px;
         font-size: 15px;
         color: var(--studio-severity-error);
       }
-      .studio-dialog-message {
+      .studio-broken-message {
         white-space: pre-wrap;
         word-break: break-word;
         font-family: ui-monospace, SFMono-Regular, monospace;
@@ -326,17 +310,18 @@ export const STUDIO_INDEX_HTML = `<!doctype html>
         background: var(--studio-surface-raised);
         border-radius: 6px;
         padding: 12px;
-        margin: 0 0 16px;
+        margin: 0 0 12px;
       }
-      .studio-dialog-close {
-        padding: 6px 14px;
-        border: 1px solid var(--studio-border);
-        border-radius: 4px;
-        background: var(--studio-surface-raised);
-        color: var(--studio-text);
-        cursor: pointer;
+      .studio-broken-hint { margin: 0; font-size: 13px; color: var(--studio-text-muted); }
+      .studio-issue[aria-current="true"] { background: var(--studio-hover); }
+      .studio-compile-error-message {
+        word-break: break-word;
+        color: var(--studio-text-subtle);
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
-      .studio-dialog-close:hover { background: var(--studio-hover); }
     </style>
   </head>
   <body>

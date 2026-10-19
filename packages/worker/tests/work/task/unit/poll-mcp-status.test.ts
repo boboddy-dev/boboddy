@@ -48,7 +48,7 @@ describe("pollMcpStatus", () => {
       },
       {
         windowMs: 200,
-        intervalMs: 20,
+        intervalMs: 5,
       },
     );
 
@@ -77,7 +77,7 @@ describe("pollMcpStatus", () => {
       },
       {
         windowMs: 200,
-        intervalMs: 20,
+        intervalMs: 5,
       },
     );
 
@@ -107,7 +107,7 @@ describe("pollMcpStatus", () => {
       },
       {
         windowMs: 2_000,
-        intervalMs: 10,
+        intervalMs: 5,
       },
     );
 
@@ -149,7 +149,7 @@ describe("pollMcpStatus", () => {
       },
       {
         windowMs: 2_000,
-        intervalMs: 10,
+        intervalMs: 5,
         expectedServers: ["fixture"],
       },
     );
@@ -174,7 +174,7 @@ describe("pollMcpStatus", () => {
       },
       {
         windowMs: 100,
-        intervalMs: 10,
+        intervalMs: 5,
       },
     );
 
@@ -209,7 +209,7 @@ describe("pollMcpStatus", () => {
       },
       {
         windowMs: 200,
-        intervalMs: 20,
+        intervalMs: 5,
       },
     );
 
