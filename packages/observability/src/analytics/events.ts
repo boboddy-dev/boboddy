@@ -68,7 +68,7 @@ export type NoProperties = Record<string, never>;
 
 export type ProjectCreatedProperties = {
   project_id: string;
-  source: "github" | "manual";
+  source: "github" | "bitbucket" | "manual";
   origin: "web" | "cli_handoff" | "cli_api";
 };
 

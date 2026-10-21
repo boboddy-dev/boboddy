@@ -21,12 +21,12 @@ The `@boboddy/cli` npm package ships pre-compiled binaries for:
 
 These flags apply to every command:
 
-| Flag                | Description                                                                                        |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| `--env-file <path>` | Env file to load (default `.env` in the current directory); `.boboddy.env` there is loaded too     |
-| `--verbose`, `-v`   | Show full diagnostic logs alongside the UI                                                         |
-| `--help`            | Show help for the current command                                                                  |
-| `--version`         | Print the CLI version                                                                              |
+| Flag                | Description                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `--env-file <path>` | Env file to load (default `.env` in the current directory); `.boboddy.env` there is loaded too |
+| `--verbose`, `-v`   | Show full diagnostic logs alongside the UI                                                     |
+| `--help`            | Show help for the current command                                                              |
+| `--version`         | Print the CLI version                                                                          |
 
 Neither env file overrides a variable that is already set.
 
@@ -113,10 +113,11 @@ Runs in sequence:
    - It gives up after 15 minutes. Finish creating the project in the browser and re-run `boboddy init`; it
      finds the new project and carries on from there.
    - In a non-interactive terminal it prints the URL and exits instead.
-   - The `/projects/new` page defaults to picking the repo from GitHub; take that if it's offered. A
-     GitHub-linked project keeps syncing issues in as work items; a manually created one syncs nothing until
-     you [connect an integration](/boboddy/how-to/integrations/). Connecting GitHub from that page brings you
-     back to it with your repo still filled in.
+   - The `/projects/new` page opens on its **Details** step with the repository URL filled in, then asks
+     where the project's issues come from (see [Create a project](/boboddy/how-to/create-a-project/)). For a
+     GitHub repo, pick the GitHub App if it's offered: it keeps syncing issues in as work items. Installing the
+     App from that page brings you back to it with your repo still filled in. Bitbucket and other hosts work
+     the same way, with their own options.
 4. Writes `.boboddy/boboddy.jsonc` at the repository root with the `project` as `owner/slug` — see
    [Project refs](#project-refs) (you can also add an optional `branchPrefix` — see
    [Work branches](/boboddy/guides/workers/#work-branches)). An existing `.boboddy/boboddy.jsonc` is kept as
@@ -150,11 +151,11 @@ and offers the handoff again.
 `owner/slug` (e.g. `acme/web-app`) — the same pair as the project's web URL. Without it they read `project`
 from `.boboddy/boboddy.jsonc`. Each command looks the ref up once before doing anything else:
 
-| Failure                       | Message                                                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Not `owner/slug`              | `"<ref>" is not a valid project. Expected "<owner>/<project-slug>", e.g. "acme/web-app".`                         |
-| No such project               | `No project <ref>. Check "project" in .boboddy/boboddy.jsonc — the owner may have renamed their username.`         |
-| You're not allowed            | `You don't have permission to <action> <ref>.` — e.g. `push pipelines to`, `run work for`                          |
+| Failure            | Message                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Not `owner/slug`   | `"<ref>" is not a valid project. Expected "<owner>/<project-slug>", e.g. "acme/web-app".`                  |
+| No such project    | `No project <ref>. Check "project" in .boboddy/boboddy.jsonc — the owner may have renamed their username.` |
+| You're not allowed | `You don't have permission to <action> <ref>.` — e.g. `push pipelines to`, `run work for`                  |
 
 A renamed username changes the ref, so update `project` in `.boboddy/boboddy.jsonc` when that happens.
 
@@ -179,11 +180,11 @@ boboddy pipelines design
 boboddy pipelines design <owner/slug>
 ```
 
-| Flag                  | Description                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `--base-url <url>`    | Override the API server URL. `init` forwards its own                                             |
+| Flag                  | Description                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `--base-url <url>`    | Override the API server URL. `init` forwards its own                                                                          |
 | `--work-item-id <id>` | Design around this work item and skip the picker — see [Choosing a work item](#choosing-a-work-item). `init` forwards its own |
-| `--no-studio`         | Don't open the [studio](#the-studio) in your browser. `init` forwards its own                    |
+| `--no-studio`         | Don't open the [studio](#the-studio) in your browser. `init` forwards its own                                                 |
 
 #### What happens, in order
 
@@ -208,10 +209,10 @@ After checking for an [interactive terminal](#terminal-requirements), every step
 8. **AI provider** — see [Connecting an AI provider](#connecting-an-ai-provider).
 9. **Studio** — see [The studio](#the-studio).
 10. **TUI** — launches the OpenCode TUI in `.boboddy/pipeline-builder/` with an injected `pipeline-designer`
-   agent, seeded with the work item. It reads the repository, interviews you goal-first, adapts the
-   [default pipeline](/boboddy/getting-started/concepts/#default-pipeline) (`bug-pipeline.ts`, already
-   scaffolded by the builder-folder check) plus `default-pipeline-assignment.ts` in place, typechecks, and runs
-   `boboddy pipelines push`.
+    agent, seeded with the work item. It reads the repository, interviews you goal-first, adapts the
+    [default pipeline](/boboddy/getting-started/concepts/#default-pipeline) (`bug-pipeline.ts`, already
+    scaffolded by the builder-folder check) plus `default-pipeline-assignment.ts` in place, typechecks, and runs
+    `boboddy pipelines push`.
 
 When you exit the TUI it runs the [post-push dry run](#dry-runs), then [the run offer](#the-run-offer).
 
@@ -244,12 +245,12 @@ warns and carries on without it. `--no-studio` skips it.
 
 #### Dry runs
 
-|                   | Early                                                     | Post-push                                                                                  |
-| ----------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| When              | In the session, once the agent has read the repository    | After the TUI exits, before the run offer                                                  |
-| What              | `work --dry-run --global-only`: container + OpenCode only | Container, OpenCode, MCP servers, declared health checks                                   |
-| Scope             | Nothing step-specific — no pipeline is pushed yet         | **Every** step's health checks, one launch per distinct runtime                            |
-| Blocking?         | No. Runs in the background; reported near session end     | Yes. A failure means no run offer                                                          |
+|           | Early                                                     | Post-push                                                       |
+| --------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| When      | In the session, once the agent has read the repository    | After the TUI exits, before the run offer                       |
+| What      | `work --dry-run --global-only`: container + OpenCode only | Container, OpenCode, MCP servers, declared health checks        |
+| Scope     | Nothing step-specific — no pipeline is pushed yet         | **Every** step's health checks, one launch per distinct runtime |
+| Blocking? | No. Runs in the background; reported near session end     | Yes. A failure means no run offer                               |
 
 A post-push failure can't be fixed in the same session — the agent has already exited — so it is recorded and
 surfaces automatically at the start of your next `pipelines design` session, before the interview. See
@@ -260,14 +261,14 @@ surfaces automatically at the start of your next `pipelines design` session, bef
 When the session exits cleanly, `design` asks _Run your new pipeline on “&lt;work item title&gt;” now?_. On
 yes it queues a run of the assigned pipeline against that work item and runs the worker in this terminal.
 
-| Situation                                                                       | What happens                                                                        |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Pipeline assigned, any devcontainer it needs present, health checks passed      | The confirm appears; accepting queues the run and runs the worker here              |
-| You decline                                                                     | Prints `boboddy work <owner/slug> --work-item-id <id>` and notes nothing is queued |
-| A step runs in your project's devcontainer and `.devcontainer/devcontainer.json` is missing | No offer: prints why, plus that same command                            |
-| No pipeline assigned to the project                                             | No offer — the session never got as far as pushing one                              |
-| A step's blocking health check fails the dry run                                | No offer: prints why plus the same command; the next `design` session surfaces it   |
-| The session did not exit cleanly                                                | No offer. A non-zero designer exit code still passes through                        |
+| Situation                                                                                   | What happens                                                                       |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Pipeline assigned, any devcontainer it needs present, health checks passed                  | The confirm appears; accepting queues the run and runs the worker here             |
+| You decline                                                                                 | Prints `boboddy work <owner/slug> --work-item-id <id>` and notes nothing is queued |
+| A step runs in your project's devcontainer and `.devcontainer/devcontainer.json` is missing | No offer: prints why, plus that same command                                       |
+| No pipeline assigned to the project                                                         | No offer — the session never got as far as pushing one                             |
+| A step's blocking health check fails the dry run                                            | No offer: prints why plus the same command; the next `design` session surfaces it  |
+| The session did not exit cleanly                                                            | No offer. A non-zero designer exit code still passes through                       |
 
 After declining, start a run from the work item in the dashboard and that command picks it up. Before the
 worker starts, the offer says where a failed run goes: back to `boboddy pipelines design`, to tell the agent
@@ -324,17 +325,17 @@ boboddy pipelines studio
 boboddy pipelines studio --port 4400
 ```
 
-| Flag            | Description                                                 |
-| --------------- | ----------------------------------------------------------- |
+| Flag            | Description                                                  |
+| --------------- | ------------------------------------------------------------ |
 | `--port <port>` | Port to serve the studio on (defaults to a random free port) |
 
 Project root: the current directory, which must contain `.git` or `.boboddy`. It does not walk up from a subdirectory.
 
 Before the server starts it checks:
 
-| Check                        | If missing                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `.boboddy/pipeline-builder/` | Scaffolds it at the project root, the same starter files as [`pipelines init`](#boboddy-pipelines-init)                                          |
+| Check                        | If missing                                                                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.boboddy/pipeline-builder/` | Scaffolds it at the project root, the same starter files as [`pipelines init`](#boboddy-pipelines-init)                                                   |
 | Dependencies                 | **Not** installed for you. It stops and prints the command to run inside that directory (`bun install` / `npm install` / `pnpm install` / `yarn install`) |
 
 :::note
@@ -401,23 +402,23 @@ boboddy work
 boboddy work <owner/slug>
 ```
 
-| Flag                             | Alias | Default                   | Description                                                                                                    |
-| -------------------------------- | ----- | ------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `--base-url <url>`               | —     | `https://app.boboddy.dev` | Override the API server URL                                                                                    |
-| `--once`                         | —     | `false`                   | Poll once and wait for any claimed jobs to finish                                                              |
-| `--concurrency <n>`              | `-c`  | `1`                       | Max concurrently active jobs (env: `BOBODDY_WORK_CONCURRENCY`)                                                 |
-| `--batch-size <n>`               | `-b`  | value of `--concurrency`  | Max tasks claimed per poll                                                                                     |
+| Flag                             | Alias | Default                   | Description                                                                                                               |
+| -------------------------------- | ----- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `--base-url <url>`               | —     | `https://app.boboddy.dev` | Override the API server URL                                                                                               |
+| `--once`                         | —     | `false`                   | Poll once and wait for any claimed jobs to finish                                                                         |
+| `--concurrency <n>`              | `-c`  | `1`                       | Max concurrently active jobs (env: `BOBODDY_WORK_CONCURRENCY`)                                                            |
+| `--batch-size <n>`               | `-b`  | value of `--concurrency`  | Max tasks claimed per poll                                                                                                |
 | `--lease-duration-seconds <n>`   | `-l`  | `30`                      | Seconds a claim lasts before the server can reclaim it; heartbeats extend it (env: `BOBODDY_WORK_LEASE_DURATION_SECONDS`) |
-| `--poll-interval-ms <n>`         | `-p`  | `5000`                    | Milliseconds between polls while there is work to claim (env: `BOBODDY_WORK_POLL_INTERVAL_MS`)                 |
-| `--max-poll-interval-ms <n>`     | —     | `60000`                   | Ceiling for the empty-poll backoff — see [Polling backoff](#polling-backoff) (env: `BOBODDY_WORK_MAX_POLL_INTERVAL_MS`) |
-| `--worker-id <id>`               | `-w`  | auto                      | Worker identifier used while claiming tasks                                                                    |
-| `--work-item-id <id>`            | —     | —                         | Only process tasks for this work item ID                                                                       |
-| `--source-branch <branch>`       | —     | your current local branch | Branch checked out for the run's first step — see [Source branch](#source-branch)                            |
-| `--preserve-runtime-on-complete` | `-k`  | `false`                   | Keep runtime containers and workspace after the step (or, with `--dry-run`, after the report) for debugging    |
-| `--dry-run`                      | —     | `false`                   | Rehearse a real step's environment (devcontainer + OpenCode + MCP servers) and report its health instead       |
-| `--step-id <id>`                 | —     | —                         | Dry run only: fetch this step definition's real MCP servers to test                                            |
-| `--global-only`                  | —     | `false`                   | Dry run only: skip step-specific MCP injection and test whatever is already configured                         |
-| `--pipeline-id <id>`             | —     | —                         | Dry run only: test this pipeline definition's first step — see [What a dry run tests](#what-a-dry-run-tests)   |
+| `--poll-interval-ms <n>`         | `-p`  | `5000`                    | Milliseconds between polls while there is work to claim (env: `BOBODDY_WORK_POLL_INTERVAL_MS`)                            |
+| `--max-poll-interval-ms <n>`     | —     | `60000`                   | Ceiling for the empty-poll backoff — see [Polling backoff](#polling-backoff) (env: `BOBODDY_WORK_MAX_POLL_INTERVAL_MS`)   |
+| `--worker-id <id>`               | `-w`  | auto                      | Worker identifier used while claiming tasks                                                                               |
+| `--work-item-id <id>`            | —     | —                         | Only process tasks for this work item ID                                                                                  |
+| `--source-branch <branch>`       | —     | your current local branch | Branch checked out for the run's first step — see [Source branch](#source-branch)                                         |
+| `--preserve-runtime-on-complete` | `-k`  | `false`                   | Keep runtime containers and workspace after the step (or, with `--dry-run`, after the report) for debugging               |
+| `--dry-run`                      | —     | `false`                   | Rehearse a real step's environment (devcontainer + OpenCode + MCP servers) and report its health instead                  |
+| `--step-id <id>`                 | —     | —                         | Dry run only: fetch this step definition's real MCP servers to test                                                       |
+| `--global-only`                  | —     | `false`                   | Dry run only: skip step-specific MCP injection and test whatever is already configured                                    |
+| `--pipeline-id <id>`             | —     | —                         | Dry run only: test this pipeline definition's first step — see [What a dry run tests](#what-a-dry-run-tests)              |
 
 #### Polling backoff
 
@@ -497,11 +498,11 @@ variables.
 
 ## Exit codes
 
-| Code     | Meaning                                                                                       |
-| -------- | --------------------------------------------------------------------------------------------- |
-| `0`      | Success                                                                                       |
-| `1`      | Any failure; the message is on stderr                                                         |
-| other    | `pipelines design` and `pipelines push` pass through a non-zero exit from the TUI / push script |
+| Code  | Meaning                                                                                         |
+| ----- | ----------------------------------------------------------------------------------------------- |
+| `0`   | Success                                                                                         |
+| `1`   | Any failure; the message is on stderr                                                           |
+| other | `pipelines design` and `pipelines push` pass through a non-zero exit from the TUI / push script |
 
 ### Failure codes
 
@@ -509,25 +510,25 @@ When `init`, `pipelines design`, or `pipelines push` fails, the failure is class
 the `code` on the [`cli_command_failed`](/boboddy/reference/observability/) event. The process still exits `1`
 unless noted above.
 
-| Code                             | Meaning                                                                          |
-| -------------------------------- | -------------------------------------------------------------------------------- |
-| `not_in_git_repo`                | No directory at or above the current one contains `.git`                         |
-| `no_origin_remote`               | The repository has no `origin` remote                                            |
-| `not_signed_in_noninteractive`   | Not signed in, and the terminal can't run the device login                       |
-| `device_login_expired`           | The device-flow login expired or timed out before you approved it                |
-| `device_login_denied`            | You denied the device-flow login in the browser                                  |
-| `device_login_failed`            | The device-flow login failed for another reason                                  |
-| `runtime_download_failed`        | The pinned OpenCode runtime could not be downloaded                              |
-| `no_tty`                         | The command needs an interactive terminal                                        |
-| `opencode_login_failed`          | `opencode auth login` exited with an error, or closed without connecting a provider |
-| `project_handoff_unresolved`     | `init` waited 15 minutes and no project for this repo was created                |
-| `project_handoff_noninteractive` | No project for this repo, and no interactive terminal to hand off to a browser   |
-| `no_project_id`                  | `design` couldn't identify the project and none was entered                      |
-| `no_work_item`                   | No work item was chosen: the picker or the description prompt was cancelled or left blank |
-| `work_item_create_failed`        | The server rejected creating the work item you described                         |
-| `no_package_manager`             | Neither `bun` nor `npm` is on your `PATH` to install the builder's dependencies  |
-| `builder_install_failed`         | Installing the builder's dependencies failed                                     |
-| `run_queue_failed`               | The run offer could not queue the run                                            |
+| Code                             | Meaning                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `not_in_git_repo`                | No directory at or above the current one contains `.git`                                                |
+| `no_origin_remote`               | The repository has no `origin` remote                                                                   |
+| `not_signed_in_noninteractive`   | Not signed in, and the terminal can't run the device login                                              |
+| `device_login_expired`           | The device-flow login expired or timed out before you approved it                                       |
+| `device_login_denied`            | You denied the device-flow login in the browser                                                         |
+| `device_login_failed`            | The device-flow login failed for another reason                                                         |
+| `runtime_download_failed`        | The pinned OpenCode runtime could not be downloaded                                                     |
+| `no_tty`                         | The command needs an interactive terminal                                                               |
+| `opencode_login_failed`          | `opencode auth login` exited with an error, or closed without connecting a provider                     |
+| `project_handoff_unresolved`     | `init` waited 15 minutes and no project for this repo was created                                       |
+| `project_handoff_noninteractive` | No project for this repo, and no interactive terminal to hand off to a browser                          |
+| `no_project_id`                  | `design` couldn't identify the project and none was entered                                             |
+| `no_work_item`                   | No work item was chosen: the picker or the description prompt was cancelled or left blank               |
+| `work_item_create_failed`        | The server rejected creating the work item you described                                                |
+| `no_package_manager`             | Neither `bun` nor `npm` is on your `PATH` to install the builder's dependencies                         |
+| `builder_install_failed`         | Installing the builder's dependencies failed                                                            |
+| `run_queue_failed`               | The run offer could not queue the run                                                                   |
 | `push_failed`                    | `pipelines push` failed: no builder directory, missing dependencies, or the push script exited non-zero |
-| `designer_exited_nonzero`        | The designer TUI exited with a non-zero code                                     |
-| `unknown`                        | Anything not classified above                                                    |
+| `designer_exited_nonzero`        | The designer TUI exited with a non-zero code                                                            |
+| `unknown`                        | Anything not classified above                                                                           |

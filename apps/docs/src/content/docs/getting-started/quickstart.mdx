@@ -3,18 +3,18 @@ title: Quickstart
 description: From boboddy init to a running pipeline in one terminal session
 ---
 
-import { Steps, FileTree } from '@astrojs/starlight/components';
-import Transcript from '../../../components/Transcript.astro';
-import initTranscript from '../../transcripts/01-init.txt?raw';
-import workItemTranscript from '../../transcripts/02-work-item.txt?raw';
-import providerTranscript from '../../transcripts/03-provider.txt?raw';
-import sessionTranscript from '../../transcripts/04-session-start.txt?raw';
-import runOfferTranscript from '../../transcripts/05-run-offer.txt?raw';
-import workerTranscript from '../../transcripts/06-worker.txt?raw';
+import { Steps, FileTree } from "@astrojs/starlight/components";
+import Transcript from "../../../components/Transcript.astro";
+import initTranscript from "../../transcripts/01-init.txt?raw";
+import workItemTranscript from "../../transcripts/02-work-item.txt?raw";
+import providerTranscript from "../../transcripts/03-provider.txt?raw";
+import sessionTranscript from "../../transcripts/04-session-start.txt?raw";
+import runOfferTranscript from "../../transcripts/05-run-offer.txt?raw";
+import workerTranscript from "../../transcripts/06-worker.txt?raw";
 
 :::tip[Have your assistant drive]
-Using Claude Code, Codex, or Copilot? Paste this page's URL and say *follow
-the Boboddy quickstart in this repo*. The docs are published as
+Using Claude Code, Codex, or Copilot? Paste this page's URL and say _follow
+the Boboddy quickstart in this repo_. The docs are published as
 [`llms-full.txt`](/boboddy/llms-full.txt) for exactly that.
 :::
 
@@ -57,8 +57,8 @@ Docker — see [Runtime](/boboddy/getting-started/concepts/#runtime).
    [project](/boboddy/getting-started/concepts/#project) for this repo. The one
    decision is `Create Boboddy project … from GitHub?` — say yes, and your
    issues keep syncing in as work items. If it isn't asked, `init` opens a
-   pre-filled page in your browser; pick your repo from GitHub there if you can
-   (see [Connect GitHub or Jira](/boboddy/how-to/integrations/)).
+   pre-filled page in your browser; finish creating the project there (see
+   [Create a project](/boboddy/how-to/create-a-project/)).
 
    The notices need nothing from you. Answer yes to
    `Design your first pipeline now?`.
@@ -69,7 +69,7 @@ Docker — see [Runtime](/boboddy/getting-started/concepts/#runtime).
 
    The designer builds every pipeline around one real
    [work item](/boboddy/getting-started/concepts/#work-item) — its interview
-   asks how *this* item should be handled — so pick something typical. Not
+   asks how _this_ item should be handled — so pick something typical. Not
    listed? Search, paste a ticket link, or describe one in a sentence.
 
 4. <strong id="connect-your-ai-tool">Connect your AI tool</strong>
@@ -83,11 +83,11 @@ Docker — see [Runtime](/boboddy/getting-started/concepts/#runtime).
 
    Connect the tool you already have:
 
-   | You have       | In the menu, pick                                                                                                                 |
-   | -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-   | Claude Code    | **Anthropic**, then paste an API key from console.anthropic.com — a Claude Pro/Max subscription can't be reused here             |
-   | GitHub Copilot | **GitHub Copilot**, then **GitHub.com (Public)** (or **GitHub Enterprise**), and enter the device code at github.com/login/device |
-   | Codex          | **OpenAI**, then **Sign in with ChatGPT** to use your ChatGPT subscription (or **API key**)                                       |
+   | You have       | In the menu, pick                                                                                                                             |
+   | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+   | Claude Code    | **Anthropic**, then paste an API key from console.anthropic.com — a Claude Pro/Max subscription can't be reused here                          |
+   | GitHub Copilot | **GitHub Copilot**, then **GitHub.com (Public)** (or **GitHub Enterprise**), and enter the device code at github.com/login/device             |
+   | Codex          | **OpenAI**, then **Sign in with ChatGPT** to use your ChatGPT subscription (or **API key**)                                                   |
    | None of these  | Any provider (Anthropic is recommended), then follow the prompts — see OpenCode's [Connecting providers](https://opencode.ai/docs/providers/) |
 
    It's one-time: the same connection runs your steps later. Boboddy never
@@ -108,12 +108,12 @@ Docker — see [Runtime](/boboddy/getting-started/concepts/#runtime).
    The designer reads your repository first, then interviews you about the
    item you picked, one question at a time:
 
-   - *What should come out the other end?* What you'd need to see to trust
+   - _What should come out the other end?_ What you'd need to see to trust
      it. Most people accept the default.
-   - *What can the agent reach?* A running copy of the app, and which of
+   - _What can the agent reach?_ A running copy of the app, and which of
      your repository's MCP servers to use. "Nothing but the repository" is a
      fine answer.
-   - *What must never be touched?* Production writes, customer data, anything
+   - _What must never be touched?_ Production writes, customer data, anything
      that sends email or charges money.
 
    It adapts the [default pipeline](/boboddy/getting-started/concepts/#default-pipeline)
@@ -149,11 +149,11 @@ Docker — see [Runtime](/boboddy/getting-started/concepts/#runtime).
 
    Open your project in the
    [dashboard](/boboddy/getting-started/concepts/#dashboard), go to the
-   *Executions* tab, and select the run. The run page shows the pipeline
+   _Executions_ tab, and select the run. The run page shows the pipeline
    graph and each step's status. Select a step for its logs and
    [evidence](/boboddy/getting-started/concepts/#evidence-and-artifacts):
-   *Output* holds its result, such as the investigation report, and
-   *Artifacts* its files. **View trace** opens a Playwright trace of the
+   _Output_ holds its result, such as the investigation report, and
+   _Artifacts_ its files. **View trace** opens a Playwright trace of the
    reproduction.
 
    That evidence is the point: you check the agent's work instead of redoing
@@ -191,7 +191,7 @@ skips `node_modules/`, `push.ts`, and
   there instead of starting over.
 - [Let a step read your repo](/boboddy/how-to/let-a-step-read-your-repo/) —
   when a step needs your code, it runs in your devcontainer.
-- [Automate intake](/boboddy/how-to/integrations/) — connect GitHub or Jira, and
+- [Automate intake](/boboddy/how-to/integrations/) — connect GitHub, Bitbucket or Jira, and
   route new items with
   [Default Pipeline Assignment](/boboddy/guides/pipeline-assignment/).
 - [Scale workers](/boboddy/guides/workers/) — concurrency, polling, and work

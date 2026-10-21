@@ -27,8 +27,7 @@ export default defineConfig({
     react(),
     starlight({
       title: "Boboddy",
-      description:
-        "Distributed AI workflows with type-safe pipelines",
+      description: "Distributed AI workflows with type-safe pipelines",
       social: [
         {
           icon: "github",
@@ -42,7 +41,8 @@ export default defineConfig({
       },
       favicon: "/brand-icon.svg",
       editLink: {
-        baseUrl: "https://github.com/boboddy-dev/boboddy-platform/edit/main/apps/docs/",
+        baseUrl:
+          "https://github.com/boboddy-dev/boboddy-platform/edit/main/apps/docs/",
       },
       lastUpdated: true,
       /*
@@ -192,7 +192,11 @@ export default defineConfig({
               slug: "how-to/commit-your-pipeline",
             },
             { label: "Set up a dev container", slug: "how-to/devcontainer" },
-            { label: "Connect GitHub or Jira", slug: "how-to/integrations" },
+            { label: "Create a project", slug: "how-to/create-a-project" },
+            {
+              label: "Connect GitHub, Bitbucket or Jira",
+              slug: "how-to/integrations",
+            },
           ],
         },
         {

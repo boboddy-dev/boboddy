@@ -11,8 +11,9 @@ import type { BaseReporter } from "./reporter-types";
  *
  * It applies only when the `origin` remote is a GitHub repository that one of
  * the user's own GitHub App installations covers. Then it offers to create the
- * project from that repo — the same `POST /projects/from-github` the web
- * picker uses, so issues are imported and the integration is linked — and
+ * project from that repo — `POST /projects` with a `github_app` issue
+ * tracker, as the web picker does, so issues are imported and the
+ * integration is linked — and
  * writes `.boboddy/boboddy.jsonc`. Every other outcome is a `skipped` result,
  * and `init` falls back to the browser hand-off (`init-project-handoff.ts`).
  *
@@ -269,11 +270,16 @@ export function buildProjectAutocreatePorts(input: {
       return !clack.isCancel(answer) && answer;
     },
     create: async ({ installationId, repo, name }) => {
-      const { data, error, response } =
-        await client.projects.createProjectFromGitHubRepo({
-          body: { installationId, repo, name, origin: "cli_api" },
-          headers,
-        });
+      const { data, error, response } = await client.projects.createProject({
+        body: {
+          name,
+          description: null,
+          gitUrl: `https://github.com/${repo.fullName}.git`,
+          origin: "cli_api",
+          issueTracker: { type: "github_app", installationId },
+        },
+        headers,
+      });
       if (error !== undefined) {
         return { status: "failed", reason: httpReason(response.status, error) };
       }

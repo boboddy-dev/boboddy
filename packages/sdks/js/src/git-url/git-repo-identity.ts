@@ -14,41 +14,21 @@
  *
  * The identity key is for comparison only. A stored `gitUrl` is never
  * rewritten to it, because workers clone the stored URL verbatim.
- *
- * Parsing follows `packages/worker/src/runtime/runtime-service/domain/git-mirror-key.ts`,
- * which deliberately keeps the scheme and is not shared.
  */
 
-const DEFAULT_PORTS: Readonly<Record<string, string>> = {
-  http: "80",
-  https: "443",
-  ssh: "22",
-  "git+ssh": "22",
-  "ssh+git": "22",
-  git: "9418",
-};
+import {
+  hasDefaultPort,
+  normalisePath,
+  parseRemote,
+  splitUrlForm,
+} from "./git-remote";
+import { parseGitHost } from "./parse-git-host";
+
+export { parseGitHost } from "./parse-git-host";
+export type { GitHost, GitHostKind } from "./parse-git-host";
 
 const HTTP_SCHEMES = new Set(["http", "https"]);
 const CASE_INSENSITIVE_PATH_HOSTS = new Set(["github.com"]);
-
-const URL_FORM = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\/(.*)$/s;
-const SCP_FORM = /^(?:([^@/:\s]+)@)?([^@/:\s[\]]+):(?!:)(.+)$/;
-const HOST_PORT = /^(\[[^\]]+\]|[^:[\]]+)(?::(\d*))?$/;
-
-type ParsedRemote = {
-  scheme: string;
-  host: string;
-  port: string | null;
-  path: string;
-};
-
-type UrlFormParts = {
-  scheme: string;
-  prefix: string;
-  userinfo: string | null;
-  hostPort: string;
-  remainder: string;
-};
 
 /**
  * The identity key for `rawUrl` (e.g. `"github.com/acme/repo"`), or `null`
@@ -64,9 +44,7 @@ export function gitRepoIdentity(rawUrl: string): string | null {
     return null;
   }
   const port =
-    parsed.port === null || parsed.port === DEFAULT_PORTS[parsed.scheme]
-      ? ""
-      : `:${parsed.port}`;
+    parsed.port === null || hasDefaultPort(parsed) ? "" : `:${parsed.port}`;
   const caseFoldedPath = CASE_INSENSITIVE_PATH_HOSTS.has(parsed.host)
     ? path.toLowerCase()
     : path;
@@ -111,92 +89,6 @@ export function stripGitUrlCredentials(rawUrl: string): string {
 export function parseGitHubRepo(
   rawUrl: string,
 ): { owner: string; name: string } | null {
-  const parsed = parseRemote(rawUrl);
-  if (parsed === null || parsed.host !== "github.com") {
-    return null;
-  }
-  if (parsed.port !== null && parsed.port !== DEFAULT_PORTS[parsed.scheme]) {
-    return null;
-  }
-  const segments = normalisePath(parsed.path).split("/");
-  if (segments.length !== 2) {
-    return null;
-  }
-  const [owner = "", name = ""] = segments;
-  if (owner === "" || name === "") {
-    return null;
-  }
-  return { owner, name };
-}
-
-function parseRemote(rawUrl: string): ParsedRemote | null {
-  const trimmed = rawUrl.trim();
-  if (trimmed === "") {
-    return null;
-  }
-  const urlForm = splitUrlForm(trimmed);
-  if (urlForm !== null) {
-    return parseUrlForm(urlForm);
-  }
-  if (URL_FORM.test(trimmed) || trimmed.startsWith("/")) {
-    return null;
-  }
-  return parseScpForm(trimmed);
-}
-
-function splitUrlForm(value: string): UrlFormParts | null {
-  const match = URL_FORM.exec(value);
-  if (!match) {
-    return null;
-  }
-  const [, rawScheme = "", rest = ""] = match;
-  const scheme = rawScheme.toLowerCase();
-  if (!(scheme in DEFAULT_PORTS)) {
-    return null;
-  }
-  const authorityEnd = rest.search(/[/?#]/);
-  const authority = authorityEnd === -1 ? rest : rest.slice(0, authorityEnd);
-  const remainder = authorityEnd === -1 ? "" : rest.slice(authorityEnd);
-  const at = authority.lastIndexOf("@");
-  return {
-    scheme,
-    prefix: `${rawScheme}://`,
-    userinfo: at === -1 ? null : authority.slice(0, at),
-    hostPort: at === -1 ? authority : authority.slice(at + 1),
-    remainder,
-  };
-}
-
-function parseUrlForm(parts: UrlFormParts): ParsedRemote | null {
-  const match = HOST_PORT.exec(parts.hostPort);
-  if (!match) {
-    return null;
-  }
-  const [, host = "", port = ""] = match;
-  return {
-    scheme: parts.scheme,
-    host: host.toLowerCase(),
-    port: port === "" ? null : port,
-    path: parts.remainder.replace(/[?#].*$/s, ""),
-  };
-}
-
-function parseScpForm(value: string): ParsedRemote | null {
-  const match = SCP_FORM.exec(value);
-  if (!match) {
-    return null;
-  }
-  const [, , host = "", path = ""] = match;
-  if (host.length === 1) {
-    return null;
-  }
-  return { scheme: "ssh", host: host.toLowerCase(), port: null, path };
-}
-
-function normalisePath(path: string): string {
-  return path
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "")
-    .replace(/\.git$/, "")
-    .replace(/\/+$/, "");
+  const repo = parseGitHost(rawUrl);
+  return repo.host === "github" ? { owner: repo.owner, name: repo.name } : null;
 }

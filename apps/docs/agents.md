@@ -6,46 +6,47 @@ This file tells AI agents (Claude Code, Codex, etc.) when and how to update the 
 
 Update the documentation whenever you make changes in these areas:
 
-| Change area | Docs to update |
-|-------------|----------------|
-| New CLI command or flag | `src/content/docs/reference/cli.md` |
-| Changed CLI command name, flag, or default | `src/content/docs/reference/cli.md` |
-| New `defineStep`/`codeStep` option or `definePipeline` state kind | `src/content/docs/reference/sdk.mdx` + relevant guide |
-| New SDK export or helper | `src/content/docs/reference/sdk.mdx` |
-| New auth flow or credential storage behavior | `src/content/docs/getting-started/installation.md` |
-| Product pitch, the loop, or who Boboddy is for | `src/content/docs/index.mdx` |
-| New or renamed core term (project, step, signal, runtime, …) | `src/content/docs/getting-started/concepts.md` |
-| A new task a user does after the Quickstart | A page in `src/content/docs/how-to/` (≤ 500 words, links to `guides/` for depth) |
-| New telemetry event, opt-out mechanism, or `boboddy telemetry` flag | `src/content/docs/reference/observability.md` |
-| Changes to project init flow | `src/content/docs/reference/cli.md#boboddy-init` first, then `src/content/docs/getting-started/quickstart.mdx` — the Quickstart shows only what the user types and sees |
-| New step concepts (signals, computed signals, MCP) | `src/content/docs/guides/steps.md` |
-| New `definePipeline()` concepts (state kinds, bindings, pipeline input) | `src/content/docs/guides/pipelines.md` |
-| New `Rule`/`Computed` DSL or fan-out cohort-advancement concepts | `src/content/docs/guides/pipeline-advancement.md` |
-| New default-pipeline-assignment concepts | `src/content/docs/guides/pipeline-assignment.md` |
-| New worker flags | `src/content/docs/reference/cli.md#boboddy-work-project` |
-| New worker execution behavior | `src/content/docs/guides/workers.md` |
-| New dev container guidance | `src/content/docs/how-to/devcontainer.md` |
-| New GitHub/Jira integration or sync behavior | `src/content/docs/how-to/integrations.md` |
-| New reusable, interactive component worth showing off (not just documenting) | `src/content/docs/catalog/` — see "Adding a catalog entry" below |
-| New top-level concept not fitting an existing page | Create a new page and add it to the sidebar in `astro.config.mjs` |
+| Change area                                                                  | Docs to update                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New CLI command or flag                                                      | `src/content/docs/reference/cli.md`                                                                                                                                     |
+| Changed CLI command name, flag, or default                                   | `src/content/docs/reference/cli.md`                                                                                                                                     |
+| New `defineStep`/`codeStep` option or `definePipeline` state kind            | `src/content/docs/reference/sdk.mdx` + relevant guide                                                                                                                   |
+| New SDK export or helper                                                     | `src/content/docs/reference/sdk.mdx`                                                                                                                                    |
+| New auth flow or credential storage behavior                                 | `src/content/docs/getting-started/installation.md`                                                                                                                      |
+| Product pitch, the loop, or who Boboddy is for                               | `src/content/docs/index.mdx`                                                                                                                                            |
+| New or renamed core term (project, step, signal, runtime, …)                 | `src/content/docs/getting-started/concepts.md`                                                                                                                          |
+| A new task a user does after the Quickstart                                  | A page in `src/content/docs/how-to/` (≤ 500 words, links to `guides/` for depth)                                                                                        |
+| New telemetry event, opt-out mechanism, or `boboddy telemetry` flag          | `src/content/docs/reference/observability.md`                                                                                                                           |
+| Changes to project init flow                                                 | `src/content/docs/reference/cli.md#boboddy-init` first, then `src/content/docs/getting-started/quickstart.mdx` — the Quickstart shows only what the user types and sees |
+| New step concepts (signals, computed signals, MCP)                           | `src/content/docs/guides/steps.md`                                                                                                                                      |
+| New `definePipeline()` concepts (state kinds, bindings, pipeline input)      | `src/content/docs/guides/pipelines.md`                                                                                                                                  |
+| New `Rule`/`Computed` DSL or fan-out cohort-advancement concepts             | `src/content/docs/guides/pipeline-advancement.md`                                                                                                                       |
+| New default-pipeline-assignment concepts                                     | `src/content/docs/guides/pipeline-assignment.md`                                                                                                                        |
+| New worker flags                                                             | `src/content/docs/reference/cli.md#boboddy-work-project`                                                                                                                |
+| New worker execution behavior                                                | `src/content/docs/guides/workers.md`                                                                                                                                    |
+| New dev container guidance                                                   | `src/content/docs/how-to/devcontainer.md`                                                                                                                               |
+| New GitHub/Bitbucket/Jira integration or sync behavior                       | `src/content/docs/how-to/integrations.md`                                                                                                                               |
+| Changes to the `/projects/new` flow or token saving                          | `src/content/docs/how-to/create-a-project.md`                                                                                                                           |
+| New reusable, interactive component worth showing off (not just documenting) | `src/content/docs/catalog/` — see "Adding a catalog entry" below                                                                                                        |
+| New top-level concept not fitting an existing page                           | Create a new page and add it to the sidebar in `astro.config.mjs`                                                                                                       |
 
 ## One home per fact
 
 Each fact below has one canonical page. Mention it elsewhere in one sentence and link; never copy the table.
 
-| Fact | Canonical home |
-|------|----------------|
-| Provider table (which OpenCode menu entry for which AI tool) | `getting-started/quickstart.mdx` step 4 (`#connect-your-ai-tool`) |
-| OpenCode is downloaded and pinned by the CLI, ~100 MB, not installed by you | `getting-started/installation.md#requirements` |
-| Environment requirements (Docker, provider, login) | `getting-started/installation.md#requirements` |
-| Devcontainer: the designer writes `.devcontainer/devcontainer.json` when missing (it doesn't build it); `Runtime.devcontainer()` for steps that need the code, `Runtime.host()` for steps that don't, so a first run can need Docker | `getting-started/concepts.md#runtime` |
-| `.env` / `.env.example` secrets | `guides/steps.md#secrets` |
-| `.opencode/` tools auto-load | `guides/steps.md#tools-already-available-to-every-step` |
-| Worker flags | `reference/cli.md#boboddy-work-project` |
-| `pull → install → typecheck → push` loop | `reference/cli.md#boboddy-pipelines-pull-project` / `#boboddy-pipelines-push-project` |
-| `choice` and `routeToPipeline` | `guides/pipeline-advancement.md` |
-| "Use `design` unless you want to write it yourself" | `reference/cli.md#boboddy-pipelines-init` |
-| `CliError` failure codes and their meanings | `reference/cli.md#failure-codes` (`reference/observability.md` links to it) |
+| Fact                                                                                                                                                                                                                                 | Canonical home                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Provider table (which OpenCode menu entry for which AI tool)                                                                                                                                                                         | `getting-started/quickstart.mdx` step 4 (`#connect-your-ai-tool`)                     |
+| OpenCode is downloaded and pinned by the CLI, ~100 MB, not installed by you                                                                                                                                                          | `getting-started/installation.md#requirements`                                        |
+| Environment requirements (Docker, provider, login)                                                                                                                                                                                   | `getting-started/installation.md#requirements`                                        |
+| Devcontainer: the designer writes `.devcontainer/devcontainer.json` when missing (it doesn't build it); `Runtime.devcontainer()` for steps that need the code, `Runtime.host()` for steps that don't, so a first run can need Docker | `getting-started/concepts.md#runtime`                                                 |
+| `.env` / `.env.example` secrets                                                                                                                                                                                                      | `guides/steps.md#secrets`                                                             |
+| `.opencode/` tools auto-load                                                                                                                                                                                                         | `guides/steps.md#tools-already-available-to-every-step`                               |
+| Worker flags                                                                                                                                                                                                                         | `reference/cli.md#boboddy-work-project`                                               |
+| `pull → install → typecheck → push` loop                                                                                                                                                                                             | `reference/cli.md#boboddy-pipelines-pull-project` / `#boboddy-pipelines-push-project` |
+| `choice` and `routeToPipeline`                                                                                                                                                                                                       | `guides/pipeline-advancement.md`                                                      |
+| "Use `design` unless you want to write it yourself"                                                                                                                                                                                  | `reference/cli.md#boboddy-pipelines-init`                                             |
+| `CliError` failure codes and their meanings                                                                                                                                                                                          | `reference/cli.md#failure-codes` (`reference/observability.md` links to it)           |
 
 To check a fact has one home, search the published pages only — `rg <pattern> apps/docs/src/content/docs`. Transcripts under `src/content/transcripts/` legitimately repeat CLI output.
 
@@ -94,7 +95,8 @@ apps/docs/
 │       │   │   ├── run-on-a-work-item.md   ← queue a run, then `boboddy work`
 │       │   │   ├── commit-your-pipeline.mdx ← what to commit, what's ignored, teammates
 │       │   │   ├── devcontainer.md         ← writing a .devcontainer/devcontainer.json by hand
-│       │   │   └── integrations.md         ← connecting GitHub/Jira, sync cadence, field mapping
+│       │   │   ├── create-a-project.md     ← URL-first project creation, issue tracker choice, saving tokens
+│       │   │   └── integrations.md         ← connecting GitHub (App/token), Bitbucket, Jira, sync cadence, field mapping
 │       │   ├── guides/                     ← the "SDK" sidebar group
 │       │   │   ├── steps.md                ← defineStep()/codeStep() deep dive
 │       │   │   ├── pipelines.md            ← definePipeline() state graph deep dive

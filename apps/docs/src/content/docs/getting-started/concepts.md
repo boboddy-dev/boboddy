@@ -19,10 +19,11 @@ don't need it. See [`boboddy init`](/boboddy/reference/cli/#boboddy-init).
 ## Work item
 
 A work item is one thing to do: an issue, a ticket, or a sentence you typed.
-Work items are synced from GitHub or Jira, or created by hand — the designer
-creates one for you when you describe the work instead of picking an existing
-item. **Every pipeline run is a run on one work item**, and every design
-session is built around one. See [Connect GitHub or Jira](/boboddy/how-to/integrations/).
+Work items are synced from GitHub, Bitbucket or Jira, or created by hand — the
+designer creates one for you when you describe the work instead of picking an
+existing item. **Every pipeline run is a run on one work item**, and every
+design session is built around one. See
+[Connect GitHub, Bitbucket or Jira](/boboddy/how-to/integrations/).
 
 ## Pipeline
 
@@ -141,5 +142,5 @@ file changes. You can also open it on its own. See
 
 The dashboard, at [app.boboddy.dev](https://app.boboddy.dev), is where runs,
 logs, and traces live. It's also where you can start a run by hand from a
-work item's executions drawer, and where you connect GitHub or Jira under
+work item's executions drawer, and where you connect GitHub, Bitbucket or Jira under
 **Project → Settings → Integrations**.

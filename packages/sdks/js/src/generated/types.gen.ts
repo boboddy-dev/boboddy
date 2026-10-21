@@ -344,7 +344,7 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
         items: Array<{
             id: string;
             projectId: string;
-            platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+            platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
             platformId?: string | unknown;
             platformKey: string;
             url?: string | unknown;
@@ -359,7 +359,7 @@ export type GetApiProjectsByProjectIdWorkItemsResponses = {
             createdByUsername: string | unknown;
             createdByImage: string | unknown;
             parentWorkItemId: string | unknown;
-            status: 'open' | 'closed';
+            state: 'open' | 'closed';
             spawnedByTaskId: string | unknown;
             createdAt: string;
             updatedAt: string;
@@ -786,6 +786,51 @@ export type PostApiProjectsData = {
         description: string | unknown;
         gitUrl: string;
         origin?: 'web' | 'cli_handoff' | 'cli_api';
+        issueTracker?: {
+            type: string;
+            installationId: string;
+        } | {
+            type: string;
+            credential: {
+                secretId: string;
+            } | {
+                email: string;
+                apiKey: string;
+            } | {
+                token: string;
+            } | {
+                email: string;
+                apiToken: string;
+            };
+        } | {
+            type: string;
+            credential: {
+                secretId: string;
+            } | {
+                email: string;
+                apiKey: string;
+            } | {
+                token: string;
+            } | {
+                email: string;
+                apiToken: string;
+            };
+        } | {
+            type: string;
+            baseUrl: string;
+            projectKeys: Array<string>;
+            credential: {
+                secretId: string;
+            } | {
+                email: string;
+                apiKey: string;
+            } | {
+                token: string;
+            } | {
+                email: string;
+                apiToken: string;
+            };
+        };
     };
     path?: never;
     query?: never;
@@ -842,6 +887,22 @@ export type PostApiProjectsErrors = {
         }>;
     };
     /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
      * Response for status 422
      */
     422: {
@@ -861,6 +922,22 @@ export type PostApiProjectsErrors = {
      * Response for status 500
      */
     500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 502
+     */
+    502: {
         type: string;
         title: string;
         status: number;
@@ -951,6 +1028,7 @@ export type PostApiProjectsResponses = {
         visibility: 'private' | 'public';
         createdAt: string;
         updatedAt: string;
+        initialSyncFailed: boolean;
     };
 };
 
@@ -11284,7 +11362,7 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
     200: {
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11299,7 +11377,7 @@ export type GetApiWorkItemsByWorkItemIdResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -11428,7 +11506,7 @@ export type PatchApiWorkItemsByWorkItemIdResponses = {
     200: {
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11443,7 +11521,7 @@ export type PatchApiWorkItemsByWorkItemIdResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -11553,7 +11631,7 @@ export type GetApiWorkItemsByWorkItemIdChildrenResponses = {
     200: Array<{
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11568,7 +11646,7 @@ export type GetApiWorkItemsByWorkItemIdChildrenResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -11580,7 +11658,7 @@ export type GetApiWorkItemsByWorkItemIdChildrenResponse = GetApiWorkItemsByWorkI
 export type PostApiWorkItemsData = {
     body: {
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11591,7 +11669,7 @@ export type PostApiWorkItemsData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
-        status?: 'open' | 'closed';
+        state?: 'open' | 'closed';
     };
     path?: never;
     query?: never;
@@ -11722,7 +11800,7 @@ export type PostApiWorkItemsResponses = {
     200: {
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11737,7 +11815,7 @@ export type PostApiWorkItemsResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -11749,7 +11827,7 @@ export type PostApiWorkItemsResponse = PostApiWorkItemsResponses[keyof PostApiWo
 export type PutApiWorkItemsData = {
     body: {
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11760,7 +11838,7 @@ export type PutApiWorkItemsData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
-        status?: 'open' | 'closed';
+        state?: 'open' | 'closed';
     };
     path?: never;
     query?: never;
@@ -11875,7 +11953,7 @@ export type PutApiWorkItemsResponses = {
     200: {
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -11890,7 +11968,7 @@ export type PutApiWorkItemsResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -12005,7 +12083,7 @@ export type DeleteApiWorkItemsBatchResponse = DeleteApiWorkItemsBatchResponses[k
 export type PostApiWorkItemsBatchData = {
     body: Array<{
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -12016,7 +12094,7 @@ export type PostApiWorkItemsBatchData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
-        status?: 'open' | 'closed';
+        state?: 'open' | 'closed';
     }>;
     path?: never;
     query?: never;
@@ -12147,7 +12225,7 @@ export type PostApiWorkItemsBatchResponses = {
     200: Array<{
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -12162,7 +12240,7 @@ export type PostApiWorkItemsBatchResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -12174,7 +12252,7 @@ export type PostApiWorkItemsBatchResponse = PostApiWorkItemsBatchResponses[keyof
 export type PutApiWorkItemsBatchData = {
     body: Array<{
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -12185,7 +12263,7 @@ export type PutApiWorkItemsBatchData = {
         fields: {
             [key: string]: unknown;
         } | unknown;
-        status?: 'open' | 'closed';
+        state?: 'open' | 'closed';
     }>;
     path?: never;
     query?: never;
@@ -12300,7 +12378,7 @@ export type PutApiWorkItemsBatchResponses = {
     200: Array<{
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -12315,7 +12393,7 @@ export type PutApiWorkItemsBatchResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -12443,7 +12521,7 @@ export type PatchApiWorkItemsByWorkItemIdParentResponses = {
     200: {
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
+        platform: 'jira' | 'github' | 'bitbucket' | 'linear' | 'boboddy' | 'custom';
         platformId?: string | unknown;
         platformKey: string;
         url?: string | unknown;
@@ -12458,7 +12536,7 @@ export type PatchApiWorkItemsByWorkItemIdParentResponses = {
         createdByUsername: string | unknown;
         createdByImage: string | unknown;
         parentWorkItemId: string | unknown;
-        status: 'open' | 'closed';
+        state: 'open' | 'closed';
         spawnedByTaskId: string | unknown;
         createdAt: string;
         updatedAt: string;
@@ -13260,7 +13338,17 @@ export type GetApiWorkItemCommentDraftsResponse = GetApiWorkItemCommentDraftsRes
 export type PostApiWorkItemCommentDraftsByNotificationIdApproveData = {
     body: {
         body: string;
-        apiKey?: string;
+        credential?: {
+            secretId: string;
+        } | {
+            email: string;
+            apiKey: string;
+        } | {
+            token: string;
+        } | {
+            email: string;
+            apiToken: string;
+        };
     };
     path: {
         notificationId: string;
@@ -15700,24 +15788,75 @@ export type GetApiProjectsByProjectIdIntegrationsResponses = {
     200: Array<{
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
-        installationId: string;
-        externalScope: {
-            repos: Array<{
-                id: number;
-                fullName: string;
-            }>;
-        } | {
-            baseUrl: string;
-            email: string;
-            projectKeys: Array<string>;
-        };
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
         lastError: string | unknown;
         firstSyncHorizonDays: number | unknown;
         createdAt: string;
         updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        installationId: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        };
+    } | {
+        id: string;
+        projectId: string;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
+        createdAt: string;
+        updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        };
+    } | {
+        id: string;
+        projectId: string;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
+        createdAt: string;
+        updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        externalScope: {
+            repos: Array<{
+                workspace: string;
+                slug: string;
+                fullName: string;
+            }>;
+        };
+    } | {
+        id: string;
+        projectId: string;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
+        createdAt: string;
+        updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        externalScope: {
+            baseUrl: string;
+            projectKeys: Array<string>;
+        };
     }>;
 };
 
@@ -15840,24 +15979,75 @@ export type PostApiProjectsByProjectIdIntegrationsResponses = {
     200: {
         id: string;
         projectId: string;
-        platform: 'jira' | 'github' | 'linear' | 'boboddy' | 'custom';
-        installationId: string;
-        externalScope: {
-            repos: Array<{
-                id: number;
-                fullName: string;
-            }>;
-        } | {
-            baseUrl: string;
-            email: string;
-            projectKeys: Array<string>;
-        };
         status: 'active' | 'paused' | 'error';
         lastSyncedAt: string | unknown;
         lastError: string | unknown;
         firstSyncHorizonDays: number | unknown;
         createdAt: string;
         updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        installationId: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        };
+    } | {
+        id: string;
+        projectId: string;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
+        createdAt: string;
+        updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        externalScope: {
+            repos: Array<{
+                id: number;
+                fullName: string;
+            }>;
+        };
+    } | {
+        id: string;
+        projectId: string;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
+        createdAt: string;
+        updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        externalScope: {
+            repos: Array<{
+                workspace: string;
+                slug: string;
+                fullName: string;
+            }>;
+        };
+    } | {
+        id: string;
+        projectId: string;
+        status: 'active' | 'paused' | 'error';
+        lastSyncedAt: string | unknown;
+        lastError: string | unknown;
+        firstSyncHorizonDays: number | unknown;
+        createdAt: string;
+        updatedAt: string;
+        kind: string;
+        platform: string;
+        authMode: string;
+        externalScope: {
+            baseUrl: string;
+            projectKeys: Array<string>;
+        };
     };
 };
 
@@ -15865,7 +16055,15 @@ export type PostApiProjectsByProjectIdIntegrationsResponse = PostApiProjectsByPr
 
 export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncData = {
     body: {
-        apiKey?: string;
+        secretId: string;
+    } | {
+        email: string;
+        apiKey: string;
+    } | {
+        token: string;
+    } | {
+        email: string;
+        apiToken: string;
     };
     path: {
         projectId: string;
@@ -16305,23 +16503,143 @@ export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshRespons
 
 export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponse = PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponses[keyof PostApiIntegrationsGithubInstallationsByInstallationIdRefreshResponses];
 
-export type PostApiProjectsFromGithubData = {
+export type PostApiProjectsRepoCheckData = {
     body: {
-        installationId: string;
-        repo: {
-            id: number;
-            fullName: string;
-        };
-        name?: string;
-        description?: string | unknown;
-        origin?: 'web' | 'cli_handoff' | 'cli_api';
+        gitUrl: string;
     };
     path?: never;
     query?: never;
-    url: '/api/projects/from-github';
+    url: '/api/projects/repo-check';
 };
 
-export type PostApiProjectsFromGithubErrors = {
+export type PostApiProjectsRepoCheckErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiProjectsRepoCheckError = PostApiProjectsRepoCheckErrors[keyof PostApiProjectsRepoCheckErrors];
+
+export type PostApiProjectsRepoCheckResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        host: 'github' | 'bitbucket' | 'other';
+        webUrl: string | unknown;
+        defaultName: string;
+        alreadyExists: boolean;
+        existingProject: {
+            name: string;
+            slug: string;
+            ownerUsername: string | unknown;
+        } | unknown;
+        githubApp?: {
+            installationId: string;
+            accountLogin: string | unknown;
+        } | unknown;
+    };
+};
+
+export type PostApiProjectsRepoCheckResponse = PostApiProjectsRepoCheckResponses[keyof PostApiProjectsRepoCheckResponses];
+
+export type PostApiProjectsIssueTrackerCheckData = {
+    body: {
+        gitUrl: string;
+        issueTracker: {
+            type: string;
+            credential: {
+                secretId: string;
+            } | {
+                email: string;
+                apiKey: string;
+            } | {
+                token: string;
+            } | {
+                email: string;
+                apiToken: string;
+            };
+        } | {
+            type: string;
+            credential: {
+                secretId: string;
+            } | {
+                email: string;
+                apiKey: string;
+            } | {
+                token: string;
+            } | {
+                email: string;
+                apiToken: string;
+            };
+        } | {
+            type: string;
+            baseUrl: string;
+            projectKeys: Array<string>;
+            credential: {
+                secretId: string;
+            } | {
+                email: string;
+                apiKey: string;
+            } | {
+                token: string;
+            } | {
+                email: string;
+                apiToken: string;
+            };
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/api/projects/issue-tracker-check';
+};
+
+export type PostApiProjectsIssueTrackerCheckErrors = {
     /**
      * Response for status 400
      */
@@ -16371,6 +16689,22 @@ export type PostApiProjectsFromGithubErrors = {
         }>;
     };
     /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
      * Response for status 422
      */
     422: {
@@ -16402,89 +16736,42 @@ export type PostApiProjectsFromGithubErrors = {
             summary?: string;
         }>;
     };
+    /**
+     * Response for status 502
+     */
+    502: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
 };
 
-export type PostApiProjectsFromGithubError = PostApiProjectsFromGithubErrors[keyof PostApiProjectsFromGithubErrors];
+export type PostApiProjectsIssueTrackerCheckError = PostApiProjectsIssueTrackerCheckErrors[keyof PostApiProjectsIssueTrackerCheckErrors];
 
-export type PostApiProjectsFromGithubResponses = {
+export type PostApiProjectsIssueTrackerCheckResponses = {
     /**
      * Response for status 200
      */
     200: {
-        id: string;
-        name: string;
-        slug: string;
-        description: string | unknown;
-        gitUrl: string;
-        createdByUserId: string;
-        orgId: string;
-        ownerUsername: string | unknown;
-        memberships: Array<{
-            userId: string;
-            permissions: Array<string>;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        defaultPipelineAssignment: {
-            pipelineDefinitionId: string;
-            rulesJson: {
-                rules: Array<{
-                    conditions: {
-                        [key: string]: unknown;
-                    };
-                    event: {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                    name?: string;
-                    priority?: number;
-                    [key: string]: unknown | {
-                        [key: string]: unknown;
-                    } | {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    } | string | number | undefined;
-                }>;
-                [key: string]: unknown | Array<{
-                    conditions: {
-                        [key: string]: unknown;
-                    };
-                    event: {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                    name?: string;
-                    priority?: number;
-                    [key: string]: unknown | {
-                        [key: string]: unknown;
-                    } | {
-                        type: string;
-                        params?: {
-                            [key: string]: unknown;
-                        };
-                    } | string | number | undefined;
-                }>;
-            };
-            defaultEventType: 'assign' | 'skip';
-            defaultEventParamsJson: {
-                [key: string]: unknown;
-            } | unknown;
-            allowedEventTypes: Array<'assign' | 'skip'>;
+        ok: boolean;
+        account: string;
+        issuesEnabled: boolean;
+        repo: {
+            id: number;
+            fullName: string;
         } | unknown;
-        visibility: 'private' | 'public';
-        createdAt: string;
-        updatedAt: string;
-        initialSyncFailed: boolean;
     };
 };
 
-export type PostApiProjectsFromGithubResponse = PostApiProjectsFromGithubResponses[keyof PostApiProjectsFromGithubResponses];
+export type PostApiProjectsIssueTrackerCheckResponse = PostApiProjectsIssueTrackerCheckResponses[keyof PostApiProjectsIssueTrackerCheckResponses];
 
 export type GetApiProjectInvitesByTokenData = {
     body?: never;
@@ -17396,3 +17683,552 @@ export type PostApiUsernameResponses = {
 };
 
 export type PostApiUsernameResponse = PostApiUsernameResponses[keyof PostApiUsernameResponses];
+
+export type GetApiMeSecretsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        kind?: 'jira_api_key' | 'github_token' | 'bitbucket_api_token';
+    };
+    url: '/api/me/secrets';
+};
+
+export type GetApiMeSecretsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type GetApiMeSecretsError = GetApiMeSecretsErrors[keyof GetApiMeSecretsErrors];
+
+export type GetApiMeSecretsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: Array<{
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            email: string;
+        };
+        lastFour: string;
+        expiresAt: string;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            login: string | unknown;
+        };
+        lastFour: string;
+        expiresAt: string | unknown;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            email: string;
+        };
+        lastFour: string;
+        expiresAt: string;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetApiMeSecretsResponse = GetApiMeSecretsResponses[keyof GetApiMeSecretsResponses];
+
+export type PostApiMeSecretsData = {
+    body: {
+        kind: string;
+        name: string;
+        email: string;
+        value: string;
+        expiresAt: string;
+    } | {
+        kind: string;
+        name: string;
+        value: string;
+        login?: string;
+        expiresAt?: string | unknown;
+    } | {
+        kind: string;
+        name: string;
+        email: string;
+        value: string;
+        expiresAt: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/me/secrets';
+};
+
+export type PostApiMeSecretsErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PostApiMeSecretsError = PostApiMeSecretsErrors[keyof PostApiMeSecretsErrors];
+
+export type PostApiMeSecretsResponses = {
+    /**
+     * Response for status 201
+     */
+    201: {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            email: string;
+        };
+        lastFour: string;
+        expiresAt: string;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            login: string | unknown;
+        };
+        lastFour: string;
+        expiresAt: string | unknown;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            email: string;
+        };
+        lastFour: string;
+        expiresAt: string;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PostApiMeSecretsResponse = PostApiMeSecretsResponses[keyof PostApiMeSecretsResponses];
+
+export type DeleteApiMeSecretsBySecretIdData = {
+    body?: never;
+    path: {
+        secretId: string;
+    };
+    query?: never;
+    url: '/api/me/secrets/{secretId}';
+};
+
+export type DeleteApiMeSecretsBySecretIdErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type DeleteApiMeSecretsBySecretIdError = DeleteApiMeSecretsBySecretIdErrors[keyof DeleteApiMeSecretsBySecretIdErrors];
+
+export type DeleteApiMeSecretsBySecretIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        deleted: boolean;
+    };
+};
+
+export type DeleteApiMeSecretsBySecretIdResponse = DeleteApiMeSecretsBySecretIdResponses[keyof DeleteApiMeSecretsBySecretIdResponses];
+
+export type PatchApiMeSecretsBySecretIdData = {
+    body: {
+        name: string;
+    };
+    path: {
+        secretId: string;
+    };
+    query?: never;
+    url: '/api/me/secrets/{secretId}';
+};
+
+export type PatchApiMeSecretsBySecretIdErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 409
+     */
+    409: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+    };
+};
+
+export type PatchApiMeSecretsBySecretIdError = PatchApiMeSecretsBySecretIdErrors[keyof PatchApiMeSecretsBySecretIdErrors];
+
+export type PatchApiMeSecretsBySecretIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            email: string;
+        };
+        lastFour: string;
+        expiresAt: string;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            login: string | unknown;
+        };
+        lastFour: string;
+        expiresAt: string | unknown;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        id: string;
+        kind: string;
+        name: string;
+        metadata: {
+            email: string;
+        };
+        lastFour: string;
+        expiresAt: string;
+        lastUsedAt: string | unknown;
+        status: 'active' | 'expiring_soon' | 'expired';
+        createdAt: string;
+        updatedAt: string;
+    };
+};
+
+export type PatchApiMeSecretsBySecretIdResponse = PatchApiMeSecretsBySecretIdResponses[keyof PatchApiMeSecretsBySecretIdResponses];
