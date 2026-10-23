@@ -24,6 +24,11 @@ import {
 import type { SerializedBinding } from "../pipelines/bindings";
 import type { StepDefinitionSpec } from "../steps/define-step";
 import { resolveSourcePath, type JsonSchemaNode } from "./json-schema-paths";
+import {
+  checkArtifactFields,
+  checkArtifactSignals,
+} from "./validate-artifacts";
+import { checkArtifactMarkers } from "./validate-artifact-markers";
 import { checkEnv } from "./validate-env";
 import { checkRepo } from "./validate-repo";
 import { checkRuntime } from "./validate-runtime";
@@ -521,6 +526,9 @@ export function validateDefinitionSpecs(
 
   return [
     ...checkSignalSourcePaths(specs.steps),
+    ...checkArtifactFields(specs.steps),
+    ...checkArtifactSignals(specs.steps),
+    ...checkArtifactMarkers(specs.pipelines, specs.steps, stepsByKey),
     ...checkHealthChecks(specs.steps),
     ...checkEnv(specs.steps),
     ...checkRuntime(specs.steps),

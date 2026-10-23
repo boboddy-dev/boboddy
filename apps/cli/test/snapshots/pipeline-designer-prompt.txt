@@ -515,18 +515,18 @@ scans **this directory only** — not subdirectories.
 | `steps.ts`                       | Shared steps as **named** exports. Optional; steps may live inline.   |
 | `default-pipeline-assignment.ts` | Reserved. Routes incoming work items to a pipeline. Never a pipeline. |
 | `push.ts`                        | Generated on every push. Never edit. Skipped by the scanner and by the typecheck. |
-| `package.json`, `tsconfig.json`  | Scaffolded. `@boboddy/sdk` + `zod` are the only deps you may import.  |
+| `package.json`, `tsconfig.json`  | Scaffolded. `@boboddy/sdk` + `zod` are the only deps; import `z` from the SDK, not from `zod`. |
 
 Imports:
 
 ```ts
-import { z } from "zod";
 import {
   defineMcp,
   defineStep,
   Env,
   Features,
   Runtime,
+  z,
 } from "@boboddy/sdk/definitions/steps";
 import {
   definePipeline,
@@ -541,8 +541,7 @@ A step is one unit of AI work: a prompt, an optional typed input, a typed
 result, and the signals lifted out of that result.
 
 ```ts
-import { z } from "zod";
-import { defineStep, Env, Features, Runtime } from "@boboddy/sdk/definitions/steps";
+import { defineStep, Env, Features, Runtime, z } from "@boboddy/sdk/definitions/steps";
 
 export const investigate = defineStep({
   key: "investigate", // stable identity; never reuse for a different job
@@ -592,12 +591,28 @@ The read-only database is at ${env.READONLY_DB_URL}.
     Interpolation is for emphasis and for weaving a value into a sentence.
   - `boboddy.artifactsDir` is the directory the execution collects artifacts
     from (traces, screenshots, reports). It already ends in a separator.
+    Prefer telling the agent to submit files with `boboddy-submit-artifact`
+    (with `name` for an undeclared file), which needs no path.
 - **`additionalInput`** — extra fields the state that runs this step must bind
   via its own `input` mapper (see §3). `z.unknown()` means "no declared extra
   input" and keeps the mapper optional.
 - **`result`** — the schema the agent's structured answer must satisfy. Later
   steps consume the **whole** result: bind it with `ctx.output(stateKey)`
   (see §3), not field by field.
+  - **Files a later step or a comment needs** are declared as artifact fields:
+    `z.artifact({ accept: [...ArtifactTypes.video, ".gif"] }).nullable()`
+    (`ArtifactTypes` is exported next to `z`; `accept` lists lower-case
+    extensions with a dot). The agent fills the field by calling
+    `boboddy-submit-artifact` with `field: "<fieldName>"`; tell it to in the
+    prompt, and never to write the path into its findings. Keep the field
+    `.nullable()` so a run without the file still succeeds, give its signal
+    `required: false`, and route on `Rule.when("<key>", "exists")`. An
+    artifact field cannot be inside an array.
+  - **Showing the file in a comment:** in a `work_item_platform_comment`
+    body, `Artifact.embed(step.signals.<key>, { caption })` on its own
+    paragraph shows it inline where the platform can (Jira) and links to it
+    otherwise; `Artifact.link(..., { label })` always links. If the file is
+    missing the comment is not drafted.
 - **`signals`** — a signal exists only because a rule reads it: a `choice`
   branch's `when`, a `loop`'s `until`. Do not declare a signal to pass data to
   a later step; that is what `ctx.output()` is for. A step no rule reads has no
@@ -686,8 +701,7 @@ All three also take `env?`, `optionalEnv?`, `healthChecks?`, and OpenCode's
 the same server's checks or env vars into two steps: copies drift.
 
 ```ts
-import { z } from "zod";
-import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+import { defineMcp, defineStep, z } from "@boboddy/sdk/definitions/steps";
 
 const postgres = defineMcp({
   type: "ref",
@@ -726,8 +740,7 @@ A server the repository does not define is written inline as `local` or
 cannot use a `ref`.
 
 ```ts
-import { z } from "zod";
-import { defineMcp, defineStep, Runtime } from "@boboddy/sdk/definitions/steps";
+import { defineMcp, defineStep, Runtime, z } from "@boboddy/sdk/definitions/steps";
 
 const warehouse = defineMcp({
   type: "local",
@@ -950,8 +963,7 @@ an output) is rejected by push.
    everything it would supply is optional).
 
 ```ts
-import { defineStep } from "@boboddy/sdk/definitions/steps";
-import { z } from "zod";
+import { defineStep, z } from "@boboddy/sdk/definitions/steps";
 import { definePipeline } from "@boboddy/sdk/definitions/pipelines";
 import { investigate } from "./steps";
 
@@ -1058,7 +1070,9 @@ nesting inside `Rule.all([...])` / `Rule.any([...])`.
 
 Operators: `"equal"`, `"notEqual"`, `"lessThan"`, `"lessThanInclusive"`,
 `"greaterThan"`, `"greaterThanInclusive"`, `"in"`, `"notIn"`, `"contains"`,
-`"doesNotContain"`.
+`"doesNotContain"`, plus `"exists"` / `"notExists"`, which take no value:
+`Rule.when("reproVideo", "exists")` matches when the signal is present and
+not null. Use them for optional signals, artifact signals above all.
 
 ```ts fragment
 Rule.any([
@@ -1195,8 +1209,10 @@ pipeline you build.
 | `evaluate` | step, `Runtime.host()` | `quality` (0–1), `missingDetails[]`, a restated summary |
 | `checkQuality` | `choice` on `quality < 0.1` | routes to `requestDetails`, otherwise onward |
 | `requestDetails` | `codeStep`, then `insufficientDetail` (`fail`) | a comment draft asking for the missing details |
-| `investigateAndReproduce` | step, devcontainer, `Repo.readOnly()` | report, `reproduced`, `reproductionConfidence` (0–1), traces, suspected root cause, evidence |
-| `checkReproduction` | `choice` on `reproductionConfidence >= 0.8` | routes to `failingTest`, otherwise `notReproduced` (`fail`) |
+| `investigateAndReproduce` | step, devcontainer, `Repo.readOnly()` | report, `reproduced`, `reproductionConfidence` (0–1), a `reproVideo` recording (or null), suspected root cause, evidence |
+| `checkReproduction` | `choice` on `reproductionConfidence >= 0.8` | routes to `checkRecording`, otherwise `notReproduced` (`fail`) |
+| `checkRecording` | `choice` on `reproVideo` `exists` | routes to `reportReproduction`, otherwise `failingTest` |
+| `reportReproduction` | `codeStep` | a comment draft embedding the recording |
 | `failingTest` | step, devcontainer | a failing test, or `testWritten: false` with a reason |
 | `proposeFix` | step, devcontainer, `Repo.readOnly()`, `blockWhen` | a fix proposal; the run blocks until a human releases it |
 | `fix` | step, devcontainer | the approved fix applied, with a stated confidence |
@@ -1215,18 +1231,26 @@ How it is wired, and why:
   prompt what each one is for.
 - **A high bar to write a test.** `reproductionConfidence` is the step's own
   judgement of whether it reproduced the bug and understands its cause.
-  `checkReproduction` sends only a confident reproduction (`>= 0.8`) on to
-  `failingTest`; anything less ends the run at `notReproduced`, with the
-  investigation report as its result.
+  `checkReproduction` sends only a confident reproduction (`>= 0.8`) on
+  towards `failingTest`; anything less ends the run at `notReproduced`, with
+  the investigation report as its result.
+- **The recording is an optional artifact.** `reproVideo` is a nullable
+  `z.artifact` field the agent fills with `boboddy-submit-artifact`, and its
+  signal is `required: false`. `checkRecording` routes on
+  `Rule.when("reproVideo", "exists")`: only a run that recorded the failure
+  goes through `reportReproduction`, a code step whose comment draft embeds
+  the recording with `Artifact.embed(investigateAndReproduce.signals.reproVideo, ...)`.
+  Both choices sit straight after `investigateAndReproduce` because a
+  `choice` reads the signals of the step that ran before it.
 - **A human approves the fix.** `proposeFix` reads the code but changes
   nothing, and its `requiresHumanApproval` is always true, so its `blockWhen`
   always blocks. Releasing the block in the dashboard lets `fix` apply the
   approved proposal. Keep the gate unless the user asks to remove it.
 - **Whole outputs, signals only for rules.** Each state's `input` binds
   `ctx.output(...)` of every earlier state on its path, and each step declares
-  those fields in `additionalInput`. `quality`, `reproductionConfidence` and
-  `requiresHumanApproval` are the only signals, one per rule. Add a signal only
-  for a new rule.
+  those fields in `additionalInput`. `quality`, `reproductionConfidence`,
+  `reproVideo` and `requiresHumanApproval` are the only signals, one per rule.
+  Add a signal only for a new rule or a comment that embeds a file.
 - **Branches.** `investigateAndReproduce` and `proposeFix` are read-only, so
   they push nothing. `failingTest` commits its test on a work branch, and
   `proposeFix` and `fix` start from that branch, so the fix lands on top of the
@@ -1246,8 +1270,9 @@ Adapting `investigateAndReproduce` to what the agent can reach:
   rather than guess.
 - **No reachable app.** There is no trace. Remove the Playwright `defineMcp`
   and its `mcps` entry, the URL and the browser procedure; have it reproduce
-  from the code, the tests and the other tools, and say in its prompt that
-  `tracePaths` is always empty. Rewrite what earns a `reproductionConfidence`
+  from the code, the tests and the other tools, and remove `reproVideo`, its
+  signal, `checkRecording` and `reportReproduction` (point
+  `checkReproduction` straight at `failingTest`). Rewrite what earns a `reproductionConfidence`
   above 0.8 for this case (a code path the evidence pins down, a test it could
   run), or nothing will ever reach `failingTest`.
 - **Other tools the user picked** (a read-only database, logs, an internal
@@ -1286,8 +1311,9 @@ written for a generic project.
 #### `bug-pipeline.ts`
 
 ```ts
-import { z } from "zod";
 import {
+  Artifact,
+  ArtifactTypes,
   codeStep,
   defineMcp,
   defineStep,
@@ -1295,6 +1321,7 @@ import {
   Notify,
   Repo,
   Runtime,
+  z,
 } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
@@ -1302,8 +1329,10 @@ import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 //
 //   evaluate (host) → checkQuality ─ quality < 0.1 → requestDetails → insufficientDetail
 //                                  └ otherwise ──→ investigateAndReproduce
-//   investigateAndReproduce → checkReproduction ─ confidence ≥ 0.8 → failingTest
+//   investigateAndReproduce → checkReproduction ─ confidence ≥ 0.8 → checkRecording
 //                                               └ otherwise ──────→ notReproduced
+//   checkRecording ─ recording exists → reportReproduction → failingTest
+//                  └ otherwise ─────────────────────────→ failingTest
 //   failingTest → proposeFix (blocks for human approval) → fix → done
 //
 // The bar to start investigating is deliberately low: anything with a
@@ -1312,8 +1341,10 @@ import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 // a human; releasing the block in the dashboard lets `fix` apply it.
 //
 // Every step receives the whole output of every step before it (bound with
-// `ctx.output(...)` in each state's `input`). Signals exist only for the rules:
-// `quality`, `reproductionConfidence` and `requiresHumanApproval`.
+// `ctx.output(...)` in each state's `input`). Signals exist for the rules
+// (`quality`, `reproVideo`, `reproductionConfidence` and
+// `requiresHumanApproval`) and, for `reproVideo`, for the comment that embeds
+// the recording.
 //
 // Replace APP_URL, the sign-in instructions, the `defineMcp` servers and the
 // test runner with this repository's own. `investigateAndReproduce` is the step
@@ -1345,7 +1376,10 @@ const investigation = z.object({
   reproduced: z.boolean(),
   reproductionConfidence: z.number().min(0).max(1),
   reproductionSteps: z.array(z.string()),
-  tracePaths: z.array(z.string()),
+  reproVideo: z
+    .artifact({ accept: [...ArtifactTypes.video, ".gif"] })
+    .nullable()
+    .describe("Screen recording of the reported failure"),
   suspectedRootCause: z.string(),
   evidence: z.array(z.string()),
 });
@@ -1457,7 +1491,7 @@ export const investigateAndReproduce = defineStep({
   // The browser steps' order is not stylistic. Starting the trace before the
   // viewport is set, or stopping it before the post-action wait, loses the
   // evidence.
-  agentPrompt: ({ input, env, boboddy }) => `
+  agentPrompt: ({ input, env }) => `
 Investigate the reported bug, reproduce it against the running application at
 ${input.appUrl}, and explain its cause. This is the most important step in the
 pipeline: everything after it works from your evidence. Your input's
@@ -1482,8 +1516,9 @@ Reproduce in this order exactly:
    otherwise desktop. Bugs disappear at the wrong width.
 3. Snapshot the initial state.
 4. Start a Playwright trace now: after the browser is open and resized, before
-   any meaningful interaction. Use raw code execution ONLY to start and stop the
-   trace; drive everything else with the ordinary browser tools.
+   any meaningful interaction. If your browser tools can record the screen,
+   start a recording at the same moment. Use raw code execution ONLY to start
+   and stop the trace; drive everything else with the ordinary browser tools.
 5. Work through the reported steps, snapshotting before every major transition
    (a modal, a redirect, any click whose target you are unsure of).
 6. Perform the final triggering action.
@@ -1491,7 +1526,11 @@ Reproduce in this order exactly:
    actual bug more often than not, and stopping here is the single most common
    way to lose the evidence.
 8. Collect console messages and network requests.
-9. Only now, stop the trace into ${boboddy.artifactsDir}.
+9. Only now, stop the trace and the recording.
+10. Submit each file with \`boboddy-submit-artifact\`: the recording of the
+    failure with \`field: "reproVideo"\` (an .mp4, .webm, .mov or .gif), and the
+    trace with \`name: "trace.zip"\`. Submit a recording only if it shows the
+    reported failure.
 
 Report:
 
@@ -1504,7 +1543,8 @@ Report:
   only above that bar, so do not inflate it.
 - \`reproductionSteps\`: the minimal ordered steps, concrete enough to replay
   with no context.
-- \`tracePaths\`: every trace you wrote, or an empty array.
+- \`reproVideo\`: leave it out. It is filled in from the recording you
+  submitted, and is null when you submitted none.
 - \`suspectedRootCause\`: your best explanation, naming files and functions.
   Say how sure you are and why.
 - \`evidence\`: concrete artifacts from every tool you used: selectors, URLs,
@@ -1521,9 +1561,47 @@ The next step turns this into a failing test, so be specific.
 
   result: investigation,
 
-  signals: [{ sourcePath: "reproductionConfidence" }],
+  // `reproVideo` is optional: a run without a recording still goes on, and
+  // `checkRecording` skips the comment that would embed it.
+  signals: [
+    { sourcePath: "reproductionConfidence" },
+    { sourcePath: "reproVideo", required: false },
+  ],
 
   features: [Features.notifications()],
+});
+
+// A code step that drafts a comment showing the recording on the work item.
+// The marker is replaced by the video where the platform can play it, and by
+// a link to it otherwise.
+export const reportReproduction = codeStep({
+  key: "report-reproduction",
+  name: "Report Reproduction",
+  description: "Show the reporter the recording of the reproduced failure.",
+  inputSchema: z.object({ investigateAndReproduce: investigation }),
+  resultSchema: z.object({ reportedSteps: z.array(z.string()) }),
+  features: [Features.notifications()],
+  fn: (input) => {
+    const steps = input.investigateAndReproduce.reproductionSteps;
+    return {
+      reportedSteps: steps,
+      ...Notify.create({
+        kind: "status_update",
+        title: "Reproduced",
+        body: [
+          "We reproduced this report with these steps:",
+          "",
+          ...steps.map((step, index) => `${String(index + 1)}. ${step}`),
+          "",
+          Artifact.embed(investigateAndReproduce.signals.reproVideo, {
+            caption: "Recording of the failure",
+          }),
+        ].join("\n"),
+        priority: "normal",
+        suggestedChannels: ["work_item_platform_comment"],
+      }),
+    };
+  },
 });
 
 export const failingTest = defineStep({
@@ -1715,12 +1793,33 @@ export default definePipeline({
       choices: [
         {
           when: Rule.when("reproductionConfidence", "greaterThanInclusive", 0.8),
-          next: "failingTest",
+          next: "checkRecording",
         },
       ],
       default: "notReproduced",
     },
     notReproduced: { kind: "fail" },
+    // A choice reads the signals of the step before it, so both checks sit
+    // straight after `investigateAndReproduce`. Only a run that recorded the
+    // failure has anything to show the reporter.
+    checkRecording: {
+      kind: "choice",
+      choices: [
+        {
+          when: Rule.when("reproVideo", "exists"),
+          next: "reportReproduction",
+        },
+      ],
+      default: "failingTest",
+    },
+    reportReproduction: {
+      kind: "step",
+      step: reportReproduction,
+      input: (ctx) => ({
+        investigateAndReproduce: ctx.output("investigateAndReproduce"),
+      }),
+      next: "failingTest",
+    },
     failingTest: {
       kind: "step",
       step: failingTest,
@@ -1877,8 +1976,7 @@ If a step mounts one of these servers, its `defineMcp` carries the row's health 
 Needs a Chromium binary reachable inside the execution environment. The shipped Playwright system template pins an exact version and passes `--executable-path` for its own base image — copy neither verbatim; the server's definition must match both to whatever image this step actually runs in, and add `--headless` for a `workspace` step with no display. If the repository does not define the server, write it inline as `type: "local"` with a command the user confirms for that environment, keeping the same check.
 
 ```ts
-import { z } from "zod";
-import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+import { defineMcp, defineStep, z } from "@boboddy/sdk/definitions/steps";
 
 // The repository's "playwright" server launches "@playwright/mcp". See
 // the caveats above for what its definition needs.
@@ -1906,8 +2004,7 @@ export const playwrightHealthCheckExample = defineStep({
 Launched with `uvx`, not `npx` — it is a Python package. The server's definition must read its connection string from the environment as `{env:VAR}`; that variable is then required automatically. If the repository does not define the server, write it inline as `type: "local"` with the connection string in `environment` as `{env:VAR}`, keeping the same check. Never inline a connection string as a health check argument or write it into the command.
 
 ```ts
-import { z } from "zod";
-import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+import { defineMcp, defineStep, z } from "@boboddy/sdk/definitions/steps";
 
 // The repository's "postgres" server launches "postgres-mcp". See
 // the caveats above for what its definition needs.

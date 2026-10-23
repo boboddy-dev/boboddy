@@ -72,7 +72,7 @@ Available scopes:
 | `env`     | The worker's environment, or the step's `environment.vars` (below) |
 | `boboddy` | Boboddy-provided runtime values                                 |
 
-Boboddy currently provides `boboddy.artifactsDir`, which points to the directory whose contents will be uploaded as step artifacts after the run.
+Boboddy currently provides `boboddy.artifactsDir`, which points to the directory whose contents will be uploaded as step artifacts after the run. For a file you want to show in a comment, prefer the `boboddy-submit-artifact` tool (see [Attaching artifacts to comments](#attaching-artifacts-to-comments)).
 
 The function form compiles to the same template syntax Boboddy stores internally, such as `{{input.title}}` and `{{env.BASE_URL}}`. Existing raw tokens still work, but new steps should prefer scoped variables.
 
@@ -467,8 +467,8 @@ export const reviewStep = defineStep({
 | ------------ | ----------------------------------- | ------------------------------------------------------------------ |
 | `sourcePath` | `string`                            | Dot-notation path into the result object (e.g., `"metrics.score"`) |
 | `key`        | `string`                            | Signal name used in pipeline advancement rules                     |
-| `type`       | `"number" \| "string" \| "boolean"` | Expected type                                                      |
-| `required`   | `boolean`                           | If true, a missing value causes the execution to fail              |
+| `type`       | `"number" \| "string" \| "boolean" \| "object" \| "array" \| "artifact"` | Expected type. Inferred from `result` in `defineStep`; an [artifact field](#attaching-artifacts-to-comments) infers `"artifact"` |
+| `required`   | `boolean`                           | Defaults to `true`. If true, a missing value causes the execution to fail. For an `artifact` signal only a file the agent never reported counts as missing |
 
 ## Computed signals
 
@@ -834,7 +834,7 @@ Notify.inApp(title, body, priority, options?);
 
 Returns `{ $boboddy_notifications_v1: [item] }` — return it directly if the notification is the step's whole result, or spread it into a larger result object. `options` accepts `kind` (defaults to `"status_update"`) and `payload`.
 
-`inApp` is the only channel with dedicated sugar, because it's the only channel the platform actually delivers today — `work_item_platform_comment`, `email`, and `slack` suggestions are accepted by the schema but currently have no delivery adapter, so they'll always end up as a failed delivery rather than a silent no-op. To suggest one of those anyway (e.g. once its adapter ships), use `Notify.create({ ..., suggestedChannels: [...] })` directly — `suggestedChannels` is always just a suggestion the platform's notification policy decides on, never a delivery guarantee, which is why it isn't hidden behind a same-looking function per channel.
+`inApp` is the only channel with dedicated sugar, because it's the only channel delivered without a human in the loop. `work_item_platform_comment` is delivered too, but as a draft: a human reviews the exact text and approves it before it is posted to the work item on Jira, GitHub or Bitbucket (see [Attaching artifacts to comments](#attaching-artifacts-to-comments) for showing files in it). `email` and `slack` suggestions are accepted by the schema but have no delivery adapter yet, so they end up as a failed delivery rather than a silent no-op. To suggest any channel other than `in_app`, use `Notify.create({ ..., suggestedChannels: [...] })` directly — `suggestedChannels` is always just a suggestion the platform's notification policy decides on, never a delivery guarantee, which is why it isn't hidden behind a same-looking function per channel.
 
 `Notify.feedbackRequest(question, category, urgency)` is the value-builder counterpart to `Features.feedbackRequests()`. `Notify.merge(...)` combines fragments from more than one `Notify.*` call into a single result.
 
@@ -857,6 +857,171 @@ export const notifyBlocked = codeStep({
 ### Reading notifications back out — `NotificationSignal`
 
 `NotificationSignal.key` is the raw `$boboddy_notifications_v1` signal key, and `NotificationSignal.find(signals)` parses a task's signals array back into `NotificationItem[]` (or `undefined` if none were emitted or the value doesn't parse).
+
+## Attaching artifacts to comments
+
+A step can produce files, such as a screen recording or a screenshot, and a work item comment can show them. There are two kinds of artifact:
+
+- **Declared** artifacts are fields in the step's result schema, built with `z.artifact(...)`. They have a known name, can be read as a signal, can drive routing, and can be embedded by reference.
+- **Undeclared** artifacts are any other files the step leaves in `boboddy.artifactsDir`. They are uploaded too, and a comment can only point at them by file name or glob.
+
+### Declaring an artifact field
+
+Import `z` from the SDK rather than from `zod`. It is the whole of Zod plus `z.artifact`:
+
+```typescript
+import { ArtifactTypes, defineStep, z } from "@boboddy/sdk/definitions/steps";
+
+export const reproduce = defineStep({
+  key: "reproduce",
+  name: "Reproduce",
+  result: z.object({
+    reproduced: z.boolean(),
+    reproVideo: z
+      .artifact({ accept: [...ArtifactTypes.video, ".gif"] })
+      .nullable()
+      .describe("Screen recording of the reported failure"),
+  }),
+  signals: [{ sourcePath: "reproVideo", required: false }],
+  agentPrompt: `Reproduce the bug and record it. Submit the recording with
+boboddy-submit-artifact using field "reproVideo".`,
+});
+```
+
+`accept` lists the file extensions the field takes, lower-case with a leading dot (`".mp4"`, not `"mp4"` or `".MP4"`); a wrong entry throws when the step is defined. Leave it out to accept any file. `ArtifactTypes.video` is `.mp4 .webm .mov` and `ArtifactTypes.image` is `.png .jpg .jpeg .gif .svg`.
+
+An artifact field can't sit inside an array. A signal whose `sourcePath` points at an artifact field gets the type `"artifact"`.
+
+### Submitting the file from an agent step
+
+The agent calls the `boboddy-submit-artifact` tool with `{ path, field?, name? }`. The tool copies the file into the step's artifacts:
+
+- With `field`, the file fills that declared field and is stored as `<field><ext>`, for example `reproVideo.mp4`. Submitting again replaces the earlier file.
+- With only `name`, it becomes an undeclared artifact under that name.
+
+When the agent writes its findings, Boboddy fills in the artifact fields itself. The agent must not write artifact values into its findings. A nullable field that was never submitted is set to `null`. A non-nullable field that was never submitted is rejected, and the agent is asked to submit the file.
+
+Files written straight into `boboddy.artifactsDir` are still uploaded, but only as undeclared artifacts.
+
+### Returning a file from a code step
+
+A code step's `fn` gets a second argument, `{ artifactsDir }`, the absolute path of its artifacts folder. Write the file there and return `Artifact.path(...)` with its path relative to that folder:
+
+```typescript
+import { Artifact, ArtifactTypes, codeStep, z } from "@boboddy/sdk/definitions/steps";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+export const renderChart = codeStep({
+  key: "render-chart",
+  name: "Render Chart",
+  resultSchema: z.object({ chart: z.artifact({ accept: ArtifactTypes.image }) }),
+  fn: async (_input, { artifactsDir }) => {
+    await writeFile(join(artifactsDir, "chart.png"), await drawChart());
+    return { chart: Artifact.path("chart.png") };
+  },
+  signals: [{ sourcePath: "chart", key: "chart", type: "artifact" }],
+});
+```
+
+The worker checks every returned path: it must stay inside the folder, exist, be non-empty and have an accepted extension.
+
+### Embedding and linking in a comment
+
+`Artifact.embed(target, { caption })` and `Artifact.link(target, { label })` return a marker string that you put in a notification `body` or in a step prompt:
+
+| Target                      | Marker                                            | If the file is missing         |
+| --------------------------- | ------------------------------------------------- | ------------------------------ |
+| `step.signals.<key>`        | `![caption](artifact:signal/<stepKey>/<signalKey>)` | Required: the comment is not drafted |
+| A file name or glob string  | `[label](artifact:<glob>)`                        | Optional: the marker is removed |
+
+```typescript
+Notify.create({
+  kind: "status_update",
+  title: "Reproduced",
+  body: `Steps to reproduce:\n\n1. ...\n\n${Artifact.embed(reproduce.signals.reproVideo, {
+    caption: "Recording of the failure",
+  })}`,
+  priority: "normal",
+  suggestedChannels: ["work_item_platform_comment"],
+});
+```
+
+Rules for markers:
+
+- Put each marker in its own paragraph. A marker inside other text gets a warning and is shown as a link.
+- Don't refer to the artifact in the text around the marker ("see the video below"). The marker may be removed, and the text would then point at nothing.
+- When a glob matches several files, the newest one is used.
+- Embedding a step that isn't in the pipeline is an error. Embedding a field whose `accept` has no extension the platforms can embed is a warning.
+
+Boboddy checks the markers in step prompts when you push.
+
+### When the file is missing
+
+When the comment is drafted, each marker is resolved. A **signal marker** whose artifact is unavailable means no draft is created for that comment (suppression reason `artifact_unavailable`). An unavailable **path marker** is removed along with its paragraph, and the rest of the comment is kept.
+
+An artifact signal records why the file is unavailable as `unavailableReason`:
+
+| Value                 | Meaning                                                    |
+| --------------------- | ---------------------------------------------------------- |
+| `not_reported`        | The field was `null` or never filled                       |
+| `wrong_extension`     | The file's extension isn't in `accept`                     |
+| `upload_failed:<code>` | The file was found but failed to upload, with the error code |
+| `not_found`           | No uploaded file matches the field                         |
+
+A `required` artifact signal fails the step only on `not_reported`.
+
+### Routing on whether the file exists
+
+Rules see an artifact signal as either its value or `null`. Use the `exists` and `notExists` operators, which take no value:
+
+```typescript
+checkRecording: {
+  kind: "choice",
+  choices: [{ when: Rule.when("reproVideo", "exists"), next: "reportReproduction" }],
+  default: "failingTest",
+},
+```
+
+In a fan-out's `advanceEach`, `signal("reproVideo").exists()` does the same (see [Pipeline Advancement](/boboddy/guides/pipeline-advancement/)). A choice reads the signals of the step that ran just before it, so put the check straight after the step that produces the file.
+
+:::tip
+Make optional recordings `.nullable()` and route on `exists`. The comment that embeds the recording is then only drafted when there is a recording to show, and runs without one take another path instead of producing a suppressed draft.
+:::
+
+### Reviewing the draft
+
+A comment with markers is still a draft that a human approves. Under the draft's editor, **Preview** shows each embedded file inline (a video player or an image) and each link marker as a link. A marker you add while editing shows "Not checked yet — approve to check this file".
+
+- **Left out** lists the optional markers that were removed when the draft was created, with the reason for each, for example "no saved file matched".
+- When a required file was missing, there is no draft to review. The notification shows **Comment not drafted** with the reason, such as "the upload failed (storage limit reached)", and a link to the step.
+
+### Approval
+
+On approval every marker is resolved again, including markers you added. If any artifact has since become unavailable (for example, it expired after 30 days or was deleted), approval fails with `artifact_unavailable`. Nothing is posted, and a banner names each unavailable marker. Remove those markers and approve again, or reject the draft.
+
+Retrying a failed approval never uploads a file twice: Boboddy records each file it has already uploaded and reuses it.
+
+### What each platform shows
+
+| Platform   | Embedded                        | Otherwise                         |
+| ---------- | ------------------------------- | --------------------------------- |
+| Jira Cloud | `.png`, `.gif`, `.mp4`, `.webm` | Link to the file in Boboddy       |
+| GitHub     | Nothing in v1                   | Link to the file in Boboddy       |
+| Bitbucket  | Nothing in v1                   | Link to the file in Boboddy       |
+
+An embed that falls back to a link keeps its caption as the line before the link, so the comment reads the same either way:
+
+```markdown
+Recording of the failure
+[View reproVideo.webm in Boboddy](https://<your Boboddy URL>/projects/<projectId>/artifacts/<artifactId>)
+```
+
+- **Jira Cloud** gets each embeddable file as an attachment on the issue, shown inline in the comment. If Jira doesn't return the attachment's media ID, the comment links to the attachment instead. Any other extension is linked to Boboddy, whatever the field's `accept` allows.
+- **GitHub** comments are posted with the GitHub App's installation token (or your token), and GitHub doesn't let those tokens upload files, so every file is linked. This is the same with the App and with a token.
+- **Bitbucket** links every file in v1.
+
+Links go to the file's page in Boboddy, `/projects/<projectId>/artifacts/<artifactId>`, which shows a preview and a download button. Readers need to sign in to Boboddy as a project member to open it, so people on the issue who aren't project members can't see linked files. After 30 days the page says the file has expired.
 
 ## Versioning
 
@@ -917,7 +1082,9 @@ The worker resolves the step with `@boboddy/sdk/code-step-lookup` from the SDK i
 
 During a run the worker writes a temporary `.code-step-runner-<uuid>.mjs` next to `sourceFile` and removes it afterwards.
 
-Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal rather than inferred from `resultSchema`. See [`codeStep(options)`](/boboddy/reference/sdk/#codestepoptions) for the full option table.
+`fn(input, { artifactsDir })` also gets the absolute path of the step's artifacts folder. Write files there and return `Artifact.path("<relative path>")` in a `z.artifact` field to declare them (see [Returning a file from a code step](#returning-a-file-from-a-code-step)).
+
+Unlike `defineStep`'s `signals`, `codeStep`'s `type` is required on every signal rather than inferred from `resultSchema`; an artifact field's signal uses `type: "artifact"`. See [`codeStep(options)`](/boboddy/reference/sdk/#codestepoptions) for the full option table.
 
 `codeStep()` also accepts [`features`](#features) — only each feature's result-schema extension and signals apply (there's no prompt to append to on a code step). See [Building notifications at runtime — `Notify`](#building-notifications-at-runtime--notify) for the `Features.notifications()` + `Notify` + code-step pairing.
 

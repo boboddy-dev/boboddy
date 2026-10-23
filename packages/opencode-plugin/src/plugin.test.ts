@@ -7,6 +7,7 @@ import {
   BOBODDY_RPC_ID,
   type BoboddyListToolsOutput,
 } from "./boboddy-rpc";
+import { BOBODDY_SUBMIT_ARTIFACT_TOOL } from "./tools/boboddy-submit-artifact";
 import { BOBODDY_SUBMIT_STEP_FINDINGS_TOOL } from "./tools/boboddy-submit-step-findings";
 
 type RegisteredRpc = {
@@ -50,13 +51,14 @@ function createFakeContext(directory: string) {
 }
 
 describe("BoboddyOpencodePlugin", () => {
-  test("setup registers both Boboddy tools outside Code Mode", async () => {
+  test("setup registers the Boboddy tools outside Code Mode", async () => {
     const { context, added } = createFakeContext("/workspace");
 
     await BoboddyOpencodePlugin.setup(context);
 
     expect(BoboddyOpencodePlugin.id).toBe("boboddy");
     expect(added.map((tool) => tool.name).sort()).toEqual([
+      BOBODDY_SUBMIT_ARTIFACT_TOOL,
       BOBODDY_SUBMIT_STEP_FINDINGS_TOOL,
       "playwright-trace-analyzer",
     ]);

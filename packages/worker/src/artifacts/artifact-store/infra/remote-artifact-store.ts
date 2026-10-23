@@ -1,48 +1,11 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { RemoteArtifactUploader } from "../../../work/task/contracts/process-project-work-types";
+import { detectArtifactContentType } from "../domain/artifact-content-type";
 import type {
   ArtifactStore,
   SaveArtifactInput,
   SaveArtifactResult,
 } from "../domain/artifact-store";
-
-/**
- * Best-effort MIME type lookup keyed by lowercase file extension (without the
- * leading dot). Kept intentionally small — anything unmapped falls back to
- * `application/octet-stream`, which is a safe default for opaque bytes.
- */
-const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
-  json: "application/json",
-  txt: "text/plain",
-  md: "text/markdown",
-  html: "text/html",
-  htm: "text/html",
-  css: "text/css",
-  js: "text/javascript",
-  csv: "text/csv",
-  xml: "application/xml",
-  yaml: "application/yaml",
-  yml: "application/yaml",
-  log: "text/plain",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  svg: "image/svg+xml",
-  webp: "image/webp",
-  pdf: "application/pdf",
-  zip: "application/zip",
-  gz: "application/gzip",
-  tar: "application/x-tar",
-};
-
-const DEFAULT_CONTENT_TYPE = "application/octet-stream";
-
-function detectContentType(relativeStorePath: string): string {
-  const ext = path.extname(relativeStorePath).replace(/^\./, "").toLowerCase();
-  return CONTENT_TYPE_BY_EXTENSION[ext] ?? DEFAULT_CONTENT_TYPE;
-}
 
 /**
  * Persists step artifacts to the app-owned object store via presigned PUT URLs
@@ -72,7 +35,7 @@ export class RemoteArtifactStore implements ArtifactStore {
 
     const bytes = await readFile(input.sourcePath);
     const sizeBytes = bytes.byteLength;
-    const contentType = detectContentType(input.relativeStorePath);
+    const contentType = detectArtifactContentType(input.relativeStorePath);
 
     const { uploadUrl, storeRef, objectKey } =
       await this.uploader.createArtifactUploadUrl({

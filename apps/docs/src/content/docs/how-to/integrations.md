@@ -176,6 +176,12 @@ To use a key you haven't saved, choose **Paste a key instead** and enter your
 Atlassian email and API token. A pasted key is used only for that request and
 is never stored.
 
+When a comment you approve embeds a recording or screenshot, Boboddy uploads
+the file to the Jira issue as an attachment with the key you chose, so that
+key's account needs permission to add attachments to the issue. GitHub and
+Bitbucket comments link to files in Boboddy instead of uploading them. See
+[What each platform shows](/boboddy/guides/steps/#what-each-platform-shows).
+
 ### Expiry
 
 Atlassian tokens always expire, so every saved key has an expiry date that

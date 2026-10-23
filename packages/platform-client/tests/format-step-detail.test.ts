@@ -57,6 +57,7 @@ describe("formatStepDetail", () => {
             source: "extracted",
             valueJson: "high",
             sourcePath: "$.risk",
+            unavailableReason: null,
           },
         ],
       },

@@ -328,6 +328,8 @@ describe("scaffoldPipelineBuilderDirectory", () => {
         "checkQuality: {",
         "investigateAndReproduce: {",
         "checkReproduction: {",
+        "checkRecording: {",
+        "reportReproduction: {",
         "failingTest: {",
         "proposeFix: {",
         "fix: {",
@@ -339,6 +341,7 @@ describe("scaffoldPipelineBuilderDirectory", () => {
       expect(content).toContain(
         'Rule.when("reproductionConfidence", "greaterThanInclusive", 0.8)',
       );
+      expect(content).toContain('Rule.when("reproVideo", "exists")');
       expect(content).toContain(
         'blockWhen: Rule.when("requiresHumanApproval", "equal", true)',
       );

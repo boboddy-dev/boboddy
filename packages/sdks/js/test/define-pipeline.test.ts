@@ -212,6 +212,35 @@ describe("definePipeline — choice", () => {
     ]);
   });
 
+  test.concurrent("compiles a value-less presence condition with a null value", () => {
+    const spec = definePipeline({
+      key: "choice-exists-test",
+      startAt: "analyze",
+      states: {
+        analyze: { kind: "step", step: analyzeStep, next: "routeBySeverity" },
+        routeBySeverity: {
+          kind: "choice",
+          choices: [{ when: Rule.when("severity", "exists"), next: "pageOncall" }],
+          default: "done",
+        },
+        pageOncall: { kind: "step", step: pageOncallStep, next: "escalated" },
+        escalated: { kind: "fail" },
+        done: { kind: "succeed" },
+      },
+    });
+
+    const choiceNode = spec.nodeDefinitions.find(
+      (n): n is ChoiceNodeDefinitionSpec =>
+        n.nodeKey === "routeBySeverity" && n.kind === "choice",
+    );
+    expect(choiceNode?.choices).toEqual([
+      {
+        conditionJson: { fact: "severity", operator: "exists", value: null },
+        targetNodeKey: "pageOncall",
+      },
+    ]);
+  });
+
   test.concurrent("requires at least one choice or a default", () => {
     expect(() =>
       definePipeline({

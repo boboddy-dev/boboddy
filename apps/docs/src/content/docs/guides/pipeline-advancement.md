@@ -47,6 +47,10 @@ Rule.any([
 | `notIn`                   | Value is not in a list   |
 | `contains`                | Contains a value          |
 | `doesNotContain`          | Does not contain a value |
+| `exists`                  | Has a non-null value; takes no value, e.g. `Rule.when("reproVideo", "exists")` |
+| `notExists`               | Is `null` or missing; takes no value |
+
+`exists` and `notExists` are how you route on whether an [artifact](/boboddy/guides/steps/#routing-on-whether-the-file-exists) was stored.
 
 :::caution
 No condition's signal argument is type-checked. A typo in `Rule.when("confidnce", ...)` compiles cleanly and only fails at execution time — re-read every signal key against the step's declared `signals` by eye.
@@ -174,7 +178,7 @@ advanceEach: ({ signal, all }) => ({
 }),
 ```
 
-`signal(key)` / `stepSignals.<key>` return a comparator-bound ref — chain `.eq()`, `.ne()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.in()`, `.notIn()`, `.contains()`, `.doesNotContain()`, then `.then(outcome)` to finalize as a rule (`outcome` is `"continue" | "block"`).
+`signal(key)` / `stepSignals.<key>` return a comparator-bound ref — chain `.eq()`, `.ne()`, `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.in()`, `.notIn()`, `.contains()`, `.doesNotContain()`, `.exists()`, `.notExists()`, then `.then(outcome)` to finalize as a rule (`outcome` is `"continue" | "block"`).
 
 ### `advanceAll` — the whole cohort's outcome
 

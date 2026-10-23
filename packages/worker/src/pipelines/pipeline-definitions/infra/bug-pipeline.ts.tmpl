@@ -1,5 +1,6 @@
-import { z } from "zod";
 import {
+  Artifact,
+  ArtifactTypes,
   codeStep,
   defineMcp,
   defineStep,
@@ -7,6 +8,7 @@ import {
   Notify,
   Repo,
   Runtime,
+  z,
 } from "@boboddy/sdk/definitions/steps";
 import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 
@@ -14,8 +16,10 @@ import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 //
 //   evaluate (host) → checkQuality ─ quality < 0.1 → requestDetails → insufficientDetail
 //                                  └ otherwise ──→ investigateAndReproduce
-//   investigateAndReproduce → checkReproduction ─ confidence ≥ 0.8 → failingTest
+//   investigateAndReproduce → checkReproduction ─ confidence ≥ 0.8 → checkRecording
 //                                               └ otherwise ──────→ notReproduced
+//   checkRecording ─ recording exists → reportReproduction → failingTest
+//                  └ otherwise ─────────────────────────→ failingTest
 //   failingTest → proposeFix (blocks for human approval) → fix → done
 //
 // The bar to start investigating is deliberately low: anything with a
@@ -24,8 +28,10 @@ import { definePipeline, Rule } from "@boboddy/sdk/definitions/pipelines";
 // a human; releasing the block in the dashboard lets `fix` apply it.
 //
 // Every step receives the whole output of every step before it (bound with
-// `ctx.output(...)` in each state's `input`). Signals exist only for the rules:
-// `quality`, `reproductionConfidence` and `requiresHumanApproval`.
+// `ctx.output(...)` in each state's `input`). Signals exist for the rules
+// (`quality`, `reproVideo`, `reproductionConfidence` and
+// `requiresHumanApproval`) and, for `reproVideo`, for the comment that embeds
+// the recording.
 //
 // Replace APP_URL, the sign-in instructions, the `defineMcp` servers and the
 // test runner with this repository's own. `investigateAndReproduce` is the step
@@ -57,7 +63,10 @@ const investigation = z.object({
   reproduced: z.boolean(),
   reproductionConfidence: z.number().min(0).max(1),
   reproductionSteps: z.array(z.string()),
-  tracePaths: z.array(z.string()),
+  reproVideo: z
+    .artifact({ accept: [...ArtifactTypes.video, ".gif"] })
+    .nullable()
+    .describe("Screen recording of the reported failure"),
   suspectedRootCause: z.string(),
   evidence: z.array(z.string()),
 });
@@ -169,7 +178,7 @@ export const investigateAndReproduce = defineStep({
   // The browser steps' order is not stylistic. Starting the trace before the
   // viewport is set, or stopping it before the post-action wait, loses the
   // evidence.
-  agentPrompt: ({ input, env, boboddy }) => `
+  agentPrompt: ({ input, env }) => `
 Investigate the reported bug, reproduce it against the running application at
 ${input.appUrl}, and explain its cause. This is the most important step in the
 pipeline: everything after it works from your evidence. Your input's
@@ -194,8 +203,9 @@ Reproduce in this order exactly:
    otherwise desktop. Bugs disappear at the wrong width.
 3. Snapshot the initial state.
 4. Start a Playwright trace now: after the browser is open and resized, before
-   any meaningful interaction. Use raw code execution ONLY to start and stop the
-   trace; drive everything else with the ordinary browser tools.
+   any meaningful interaction. If your browser tools can record the screen,
+   start a recording at the same moment. Use raw code execution ONLY to start
+   and stop the trace; drive everything else with the ordinary browser tools.
 5. Work through the reported steps, snapshotting before every major transition
    (a modal, a redirect, any click whose target you are unsure of).
 6. Perform the final triggering action.
@@ -203,7 +213,11 @@ Reproduce in this order exactly:
    actual bug more often than not, and stopping here is the single most common
    way to lose the evidence.
 8. Collect console messages and network requests.
-9. Only now, stop the trace into ${boboddy.artifactsDir}.
+9. Only now, stop the trace and the recording.
+10. Submit each file with \`boboddy-submit-artifact\`: the recording of the
+    failure with \`field: "reproVideo"\` (an .mp4, .webm, .mov or .gif), and the
+    trace with \`name: "trace.zip"\`. Submit a recording only if it shows the
+    reported failure.
 
 Report:
 
@@ -216,7 +230,8 @@ Report:
   only above that bar, so do not inflate it.
 - \`reproductionSteps\`: the minimal ordered steps, concrete enough to replay
   with no context.
-- \`tracePaths\`: every trace you wrote, or an empty array.
+- \`reproVideo\`: leave it out. It is filled in from the recording you
+  submitted, and is null when you submitted none.
 - \`suspectedRootCause\`: your best explanation, naming files and functions.
   Say how sure you are and why.
 - \`evidence\`: concrete artifacts from every tool you used: selectors, URLs,
@@ -233,9 +248,47 @@ The next step turns this into a failing test, so be specific.
 
   result: investigation,
 
-  signals: [{ sourcePath: "reproductionConfidence" }],
+  // `reproVideo` is optional: a run without a recording still goes on, and
+  // `checkRecording` skips the comment that would embed it.
+  signals: [
+    { sourcePath: "reproductionConfidence" },
+    { sourcePath: "reproVideo", required: false },
+  ],
 
   features: [Features.notifications()],
+});
+
+// A code step that drafts a comment showing the recording on the work item.
+// The marker is replaced by the video where the platform can play it, and by
+// a link to it otherwise.
+export const reportReproduction = codeStep({
+  key: "report-reproduction",
+  name: "Report Reproduction",
+  description: "Show the reporter the recording of the reproduced failure.",
+  inputSchema: z.object({ investigateAndReproduce: investigation }),
+  resultSchema: z.object({ reportedSteps: z.array(z.string()) }),
+  features: [Features.notifications()],
+  fn: (input) => {
+    const steps = input.investigateAndReproduce.reproductionSteps;
+    return {
+      reportedSteps: steps,
+      ...Notify.create({
+        kind: "status_update",
+        title: "Reproduced",
+        body: [
+          "We reproduced this report with these steps:",
+          "",
+          ...steps.map((step, index) => `${String(index + 1)}. ${step}`),
+          "",
+          Artifact.embed(investigateAndReproduce.signals.reproVideo, {
+            caption: "Recording of the failure",
+          }),
+        ].join("\n"),
+        priority: "normal",
+        suggestedChannels: ["work_item_platform_comment"],
+      }),
+    };
+  },
 });
 
 export const failingTest = defineStep({
@@ -427,12 +480,33 @@ export default definePipeline({
       choices: [
         {
           when: Rule.when("reproductionConfidence", "greaterThanInclusive", 0.8),
-          next: "failingTest",
+          next: "checkRecording",
         },
       ],
       default: "notReproduced",
     },
     notReproduced: { kind: "fail" },
+    // A choice reads the signals of the step before it, so both checks sit
+    // straight after `investigateAndReproduce`. Only a run that recorded the
+    // failure has anything to show the reporter.
+    checkRecording: {
+      kind: "choice",
+      choices: [
+        {
+          when: Rule.when("reproVideo", "exists"),
+          next: "reportReproduction",
+        },
+      ],
+      default: "failingTest",
+    },
+    reportReproduction: {
+      kind: "step",
+      step: reportReproduction,
+      input: (ctx) => ({
+        investigateAndReproduce: ctx.output("investigateAndReproduce"),
+      }),
+      next: "failingTest",
+    },
     failingTest: {
       kind: "step",
       step: failingTest,

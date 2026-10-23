@@ -313,10 +313,52 @@ See [Repo access](/boboddy/guides/steps/#repo-access) for the guide.
 type Signal = {
   sourcePath: string; // dot-notation path into result, e.g. "metrics.score"
   key?: string; // signal name used in advancement rules (defaults to sourcePath)
-  type?: "number" | "string" | "boolean" | "object" | "array";
+  type?: "number" | "string" | "boolean" | "object" | "array" | "artifact";
   required?: boolean; // fail execution if signal is missing
 };
 ```
+
+A signal whose `sourcePath` points at a [`z.artifact`](#zartifactoptions) field has type `"artifact"`. Its value is the stored file, or `null` with an `unavailableReason`. A required artifact signal fails only when the file was never reported. See [Attaching artifacts to comments](/boboddy/guides/steps/#attaching-artifacts-to-comments).
+
+### `z`
+
+`z` from `@boboddy/sdk` (and `@boboddy/sdk/definitions/steps`) is the whole of Zod plus `z.artifact`. Import it instead of `zod` in pipeline code.
+
+```typescript
+import { z } from "@boboddy/sdk/definitions/steps";
+```
+
+### `z.artifact(options?)`
+
+Declares a result field that holds a file. Also exported as `artifact`.
+
+| Option   | Type       | Description                                                                                                  |
+| -------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| `accept` | `string[]` | Accepted file extensions, lower-case with a leading dot (`".mp4"`). A wrong entry throws. Empty or omitted accepts any file |
+
+An artifact field can't be inside an array. Use `.nullable()` for a file that may not exist.
+
+### `ArtifactTypes`
+
+Extension lists for `accept`:
+
+| Key     | Extensions                               |
+| ------- | ---------------------------------------- |
+| `video` | `.mp4`, `.webm`, `.mov`                  |
+| `image` | `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`  |
+
+### `Artifact`
+
+```typescript
+Artifact.path(relativePath);           // code steps: the value of an artifact field
+Artifact.embed(target, { caption });   // ![caption](artifact:...)
+Artifact.link(target, { label });      // [label](artifact:...)
+```
+
+- `path` takes a path relative to the code step's `artifactsDir` and returns an `ArtifactPath`.
+- `embed` and `link` return a marker string for a notification `body` or a step prompt. `target` is `step.signals.<key>`, which gives a required marker (`artifact:signal/<stepKey>/<signalKey>`), or a file name or glob, which gives an optional one (`artifact:<glob>`).
+
+See [Embedding and linking in a comment](/boboddy/guides/steps/#embedding-and-linking-in-a-comment) for the marker rules and what each platform shows.
 
 ### `defineMcp`
 
@@ -495,7 +537,7 @@ Notify.merge(...fragments);
 ```
 
 - `create` is the one generic constructor — field names match `NotificationItem` exactly.
-- `inApp` is the only channel with dedicated sugar, because `in_app` is the only channel the platform actually delivers today; `work_item_platform_comment`, `email`, and `slack` are accepted by the schema as suggestions but currently have no delivery adapter. Use `Notify.create({ ..., suggestedChannels: [...] })` directly to suggest one of those.
+- `inApp` is the only channel with dedicated sugar, because `in_app` is the only channel delivered without a human in the loop. `work_item_platform_comment` is delivered as a draft that a human approves before it is posted on Jira, GitHub or Bitbucket. `email` and `slack` are accepted by the schema but have no delivery adapter yet. Use `Notify.create({ ..., suggestedChannels: [...] })` directly to suggest any channel other than `in_app`.
 - `feedbackRequest` is the value-builder counterpart to `Features.feedbackRequests()`.
 - Each of `create`/`inApp`/`feedbackRequest` returns `{ $boboddy_notifications_v1: [item] }` — return it directly, or spread it into a larger result. `inApp`'s `options` is `{ kind?, payload? }`; `kind` defaults to `"status_update"`.
 - `merge(...fragments)` combines multiple builder results into one.
@@ -531,7 +573,7 @@ export const sumScores = codeStep({
 | `name`         | `string`                                          | Yes      | Display name                                                        |
 | `version`      | `number`                                          | No       | Version (default: `1`)                                              |
 | `description`  | `string`                                          | No       | Short description                                                   |
-| `fn`           | `(input) => result \| Promise<result>`            | Yes      | The step's implementation; may be inline. The worker imports the module and finds the step by `key`, so the step can be exported by name, embedded in a pipeline, or both. See [Code steps](/boboddy/guides/steps/#code-steps) |
+| `fn`           | `(input, context: CodeStepContext) => result \| Promise<result>` | Yes | The step's implementation; may be inline. The worker imports the module and finds the step by `key`, so the step can be exported by name, embedded in a pipeline, or both. See [Code steps](/boboddy/guides/steps/#code-steps) |
 | `inputSchema`  | `ZodType`                                         | No       | Zod schema for `fn`'s input                                          |
 | `resultSchema` | `ZodType`                                         | No       | Zod schema for `fn`'s return value                                   |
 | `signals`      | `CodeStepSignalSpec[]`                            | No       | Values to extract from the result; unlike `defineStep`, `type` is required (not inferred) |
@@ -539,7 +581,9 @@ export const sumScores = codeStep({
 | `environment`  | `{ runtime?: DevcontainerRuntimeSpec \| ManagedRuntimeSpec; vars?: ({ input }) => Record<string, string \| EnvEntry>; repo?: DevcontainerRepoSpec \| (({ input, result }) => DevcontainerRepoSpec) }` | No | `runtime` is `Runtime.managed.<id>()` or `Runtime.devcontainer({ config? })`; the default is `Runtime.managed.bun1()`. `Runtime.host()` is not supported. `vars` are environment variables for the runner process, read by `fn` through `process.env`. `repo` is `Repo.readWrite()` (default) or `Repo.readOnly()`. See [`Runtime`](#runtime), [`Env`](#env) and [`Repo`](#repo) |
 | `status`       | `"draft" \| "active"`                             | No       | Draft steps are not executed; defaults to `"active"`                |
 
-`CodeStepSignalSpec` is `{ sourcePath, key?, type: "string" | "number" | "boolean" | "object" | "array", required?, availableWhenResultStatusIn? }`.
+`CodeStepSignalSpec` is `{ sourcePath, key?, type: "string" | "number" | "boolean" | "object" | "array" | "artifact", required?, availableWhenResultStatusIn? }`.
+
+`CodeStepContext` is `{ artifactsDir: string }`, the absolute path of the step's artifacts folder, which already exists. Write a file there and return `Artifact.path(<relative path>)` in a [`z.artifact`](#zartifactoptions) field. The worker checks that the path stays inside the folder, exists, is non-empty and has an accepted extension.
 
 ---
 
@@ -626,7 +670,7 @@ Rule.all([condition, condition]);
 Rule.any([condition, condition]);
 ```
 
-`operator` is one of `"equal" | "notEqual" | "lessThan" | "lessThanInclusive" | "greaterThan" | "greaterThanInclusive" | "in" | "notIn" | "contains" | "doesNotContain"`.
+`operator` is one of `"equal" | "notEqual" | "lessThan" | "lessThanInclusive" | "greaterThan" | "greaterThanInclusive" | "in" | "notIn" | "contains" | "doesNotContain" | "exists" | "notExists"`. `exists` (non-null) and `notExists` (`null` or missing) take no value: `Rule.when("reproVideo", "exists")`. In cohort advancement the same checks are `signal(key).exists()` / `.notExists()`.
 
 `Computed.average` / `.weightedAverage` / `.sum` / `.min` / `.max` / `.count` / `.booleanAny` / `.booleanAll` each take an array of **two or more** signal keys and return a token that can be passed as `Rule.when`/`Rule.signal`'s `signal` argument in place of a bare key. See [Pipeline Advancement](/boboddy/guides/pipeline-advancement/) for the full reference and examples.
 

@@ -1,0 +1,7 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`boboddySubmitStepFindings reports every artifact and schema problem in one error 1`] = `
+"\`reproVideo\` is filled in from submitted artifacts. Remove it and call \`boboddy-submit-artifact\` with \`field: "reproVideo"\`.
+\`screenshot\` is required. Save the file and call \`boboddy-submit-artifact\` with \`field: "screenshot"\` first.
+findingsJson does not match resultSchemaJson: /summary must be string"
+`;

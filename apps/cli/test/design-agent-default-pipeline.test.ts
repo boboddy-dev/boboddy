@@ -314,7 +314,7 @@ describe("the default pipeline survives the real push validator", () => {
     if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
-  test("collection finds the pipeline and its six steps", () => {
+  test("collection finds the pipeline and its seven steps", () => {
     // Guards against a vacuous pass: an empty batch validates clean.
     expect(collected.pipelines.map((pipeline) => pipeline.key)).toEqual([
       "bug-pipeline",
@@ -325,11 +325,12 @@ describe("the default pipeline survives the real push validator", () => {
       "fix",
       "investigate-and-reproduce",
       "propose-fix",
+      "report-reproduction",
       "request-details",
     ]);
   });
 
-  test("the only signals besides the notifications feature's are the three the rules read", () => {
+  test("the only signals besides the notifications feature's are the four the rules read", () => {
     const signalKeys = collected.steps
       .flatMap((step) => step.signalExtractorDefinitions)
       .map((signal) => signal.key)
@@ -337,9 +338,28 @@ describe("the default pipeline survives the real push validator", () => {
       .sort();
     expect(signalKeys).toEqual([
       "quality",
+      "reproVideo",
       "reproductionConfidence",
       "requiresHumanApproval",
     ]);
+  });
+
+  test("the recording is an optional artifact signal, routed on and embedded", () => {
+    const investigate = collected.steps.find(
+      (step) => step.key === "investigate-and-reproduce",
+    );
+    expect(
+      investigate?.signalExtractorDefinitions.find(
+        (signal) => signal.key === "reproVideo",
+      ),
+    ).toMatchObject({ type: "artifact", required: false });
+    expect(source).toContain('Rule.when("reproVideo", "exists")');
+    expect(source).toContain(
+      "Artifact.embed(investigateAndReproduce.signals.reproVideo",
+    );
+    expect(source).toContain('field: "reproVideo"');
+    expect(source).not.toContain('from "zod"');
+    expect(source).not.toContain("boboddy.artifactsDir");
   });
 
   test("the shape: low bar to investigate, confidence gates the test, approval gates the fix", () => {
@@ -352,6 +372,8 @@ describe("the default pipeline survives the real push validator", () => {
       "investigateAndReproduce",
       "checkReproduction",
       "notReproduced",
+      "checkRecording",
+      "reportReproduction",
       "failingTest",
       "proposeFix",
       "fix",
@@ -384,6 +406,7 @@ describe("the default pipeline survives the real push validator", () => {
       ],
       "failing-test": ["cli:npx --no-install vitest --version:required"],
       "propose-fix": [],
+      "report-reproduction": [],
       fix: ["cli:npx --no-install vitest --version:required"],
     });
   });

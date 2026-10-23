@@ -1,6 +1,14 @@
 import Ajv from "ajv/dist/2020";
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { ARTIFACT_SCHEMA_KEYWORD } from "@boboddy/sdk/contracts/artifacts";
+import {
+  applyArtifactSubmissions,
+  checkReturnedArtifactPaths,
+  checkSubmittedArtifactFiles,
+  findSubmittableArtifactFields,
+  readStepArtifactSubmissions,
+} from "@boboddy/sdk/contracts/step-artifact-submissions";
 import type { AnyJsonValue } from "../../../common/contracts/json";
 import type {
   CommitAndPushWorkBranchResult,
@@ -135,10 +143,49 @@ async function readCurrentExecutionInfo(
   };
 }
 
-function validateFindingsAgainstSchema(
+/**
+ * How a step's declared artifact fields were filled: by the plugin from
+ * `artifacts.json` (an agent step), or by the step function returning
+ * `Artifact.path(...)` values (a code step).
+ */
+type ArtifactFieldSource = "submissions" | "returned";
+
+async function checkArtifactFields(
+  findings: AnyJsonValue,
+  resultSchemaJson: Record<string, unknown>,
+  workspacePath: string,
+  source: ArtifactFieldSource,
+): Promise<string[]> {
+  const fields = findSubmittableArtifactFields(resultSchemaJson);
+  if (fields.length === 0) return [];
+
+  if (source === "returned") {
+    return checkReturnedArtifactPaths({ workspacePath, fields, findings });
+  }
+
+  const submissions = await readStepArtifactSubmissions(workspacePath);
+  const verified = applyArtifactSubmissions({
+    findings,
+    fields,
+    submissions,
+    mode: "verify",
+  });
+  return [
+    ...verified.problems,
+    ...(await checkSubmittedArtifactFiles({
+      workspacePath,
+      fields,
+      submissions,
+    })),
+  ];
+}
+
+async function validateFindingsAgainstSchema(
   findings: AnyJsonValue,
   resultSchemaJson: Record<string, unknown> | null,
-): { ok: true } | { ok: false; reason: string } {
+  workspacePath: string,
+  artifactSource: ArtifactFieldSource,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (!resultSchemaJson) {
     return {
       ok: false,
@@ -148,6 +195,7 @@ function validateFindingsAgainstSchema(
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false });
+  ajv.addKeyword(ARTIFACT_SCHEMA_KEYWORD);
   let validate: ReturnType<Ajv["compile"]>;
   try {
     validate = ajv.compile(resultSchemaJson);
@@ -160,21 +208,27 @@ function validateFindingsAgainstSchema(
     };
   }
 
-  const valid = validate(findings);
-  if (valid) {
-    return { ok: true };
+  const problems = await checkArtifactFields(
+    findings,
+    resultSchemaJson,
+    workspacePath,
+    artifactSource,
+  );
+
+  if (!validate(findings)) {
+    const details = (validate.errors ?? [])
+      .map(
+        (issue) => `${issue.instancePath || "/"} ${issue.message ?? "invalid"}`,
+      )
+      .join("; ");
+    problems.unshift(
+      `findingsJson does not match resultSchemaJson: ${details || "validation failed"}`,
+    );
   }
 
-  const details = (validate.errors ?? [])
-    .map(
-      (issue) => `${issue.instancePath || "/"} ${issue.message ?? "invalid"}`,
-    )
-    .join("; ");
-
-  return {
-    ok: false,
-    reason: `findingsJson does not match resultSchemaJson: ${details || "validation failed"}`,
-  };
+  return problems.length === 0
+    ? { ok: true }
+    : { ok: false, reason: problems.join("\n") };
 }
 
 export type TryPersistAgentFindingsOptions = {
@@ -226,9 +280,11 @@ export async function tryPersistAgentFindings(
   }
 
   const findingsJson = parsedPayload["findingsJson"] as AnyJsonValue;
-  const validation = validateFindingsAgainstSchema(
+  const validation = await validateFindingsAgainstSchema(
     findingsJson,
     currentExecutionInfo.resultSchemaJson,
+    startedTask.environment.workspacePath,
+    startedTask.environment.agent ? "submissions" : "returned",
   );
 
   if (!validation.ok) {

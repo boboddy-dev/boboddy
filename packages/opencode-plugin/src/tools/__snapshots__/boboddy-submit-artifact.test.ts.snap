@@ -1,0 +1,10 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`buildSubmitArtifactDescription lists each declared field 1`] = `
+"Submit a file produced by this step. This step declares:
+- reproVideo (.mp4, .webm, .mov, .gif; optional): Screen recording of the failure
+- screenshot (.png; required)
+Submit declared files with \`field\`. Don't put artifact paths in findingsJson;
+boboddy-submit-step-findings fills those fields in.
+Other files can be submitted without \`field\`, optionally with \`name\` for the stored file name."
+`;

@@ -6,7 +6,7 @@ import type { ZodObject, ZodRawShape } from "zod";
 type FeatureSignalSpec = {
   key: string;
   sourcePath: string;
-  type: "string" | "number" | "boolean" | "object" | "array";
+  type: "string" | "number" | "boolean" | "object" | "array" | "artifact";
   required?: boolean;
   availableWhenResultStatusIn?: string[] | null;
 };
@@ -147,8 +147,17 @@ const notificationsFeature: NotificationsFeature = {
     "- **priority**: One of `low`, `normal`, `high`, `urgent`.",
     '- **suggestedChannels** *(optional)*: Channels you think are worth using (e.g. `["in_app", "work_item_platform_comment"]`).',
     "  You only *suggest* channels — the platform policy decides the final delivery channels.",
-    '  Suggesting `work_item_platform_comment` does NOT post anything directly: it always requires a human to review the exact text and explicitly approve it before it\'s posted to the work item\'s originating platform issue (e.g. GitHub) — it becomes a pending draft on that comment thread, not an immediate post.',
+    "  Suggesting `work_item_platform_comment` does NOT post anything directly: it always requires a human to review the exact text and explicitly approve it before it's posted to the work item's originating platform issue (e.g. GitHub) — it becomes a pending draft on that comment thread, not an immediate post.",
     '- **payload** *(optional)*: Kind-specific data. For `feedback_request`, include `{ "category": string, "urgency": "blocking"|"clarification"|"assumption"|"informational" }`.',
+    "",
+    "### Artifacts in comments",
+    "",
+    "A `work_item_platform_comment` body can show or link files this pipeline run produced, using artifact markers:",
+    "- `![caption](artifact:signal/<stepKey>/<signalKey>)` embeds a declared artifact signal where the platform can show it, and links to it otherwise. `[label](artifact:signal/<stepKey>/<signalKey>)` links to it. If that artifact is unavailable, the comment is not drafted.",
+    "- `![caption](artifact:<name-or-glob>)` and `[label](artifact:<name-or-glob>)` do the same for any file under the artifacts folder, e.g. `artifact:screenshots/*.png`. If nothing matches, the marker's paragraph is left out.",
+    "Rules:",
+    "- One marker per paragraph: put each marker on its own line, with a blank line before and after. A marker inside a sentence is only linked.",
+    '- Don\'t refer to an artifact outside its marker (no "see the video below"). Put any description in the caption or label, so the comment still reads correctly if the marker is left out.',
   ].join("\n"),
   _signals: [
     {
@@ -236,10 +245,11 @@ export const NotificationSignal = {
 // `fn` (most useful in a `codeStep`, where there's no agent to follow a
 // prompt) or `agentPrompt`-driven result can return.
 //
-// Only `inApp` gets dedicated sugar: it's the one channel the platform
-// actually delivers today (`in_app`'s adapter is real; `work_item_platform_comment`/
-// `email`/`slack` are all unimplemented and will fail delivery even when a
-// policy rule allows them). Use `Notify.create({ ...,  suggestedChannels })`
+// Only `inApp` gets dedicated sugar: it's the one channel delivered without a
+// human in the loop. `work_item_platform_comment` is delivered too, but as a
+// draft a human approves before it is posted to the work item (Jira, GitHub
+// or Bitbucket); `email`/`slack` are unimplemented and fail delivery even when
+// a policy rule allows them. Use `Notify.create({ ..., suggestedChannels })`
 // directly to suggest any other channel — the field is a suggestion the
 // platform's notification policy decides on, not a delivery guarantee, so it
 // deliberately isn't hidden behind one dedicated function per channel that

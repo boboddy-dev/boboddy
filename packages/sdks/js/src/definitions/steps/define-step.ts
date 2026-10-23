@@ -30,78 +30,11 @@ import type { EnvRecord, PromptEnvContext } from "./env";
 import { compileEnvironment, type StepEnvironment } from "./runtime";
 import { mergeStepMcps } from "./compile-mcps";
 import type { McpHandle } from "./define-mcp";
+import type { ArtifactPath } from "../artifacts/artifact";
+import { attachSignalHandles, type StepSignalHandles } from "./signal-handles";
+import { inferSignalType, type SignalTypeStr } from "./infer-signal-type";
 
-/**
- * Resolves the Zod schema node at a dot-notation path within a ZodObject schema.
- * Returns undefined if the path does not exist.
- */
-function resolveZodSchemaAtPath(
-  schema: ZodType | undefined,
-  path: string,
-): ZodType | undefined {
-  if (!schema) return undefined;
-  const segments = path.split(".");
-  let current: ZodType | undefined = schema;
-  for (const segment of segments) {
-    if (!current) return undefined;
-    // Unwrap wrapper types (optional, nullable, default, catch, etc.)
-    current = unwrapZodWrappers(current);
-    const def = (
-      current as unknown as {
-        def?: { type?: string; shape?: Record<string, ZodType> };
-      }
-    ).def;
-    if (!def || def.type !== "object" || !def.shape) return undefined;
-    current = def.shape[segment];
-  }
-  return current;
-}
-
-/**
- * Unwraps Zod wrapper types (optional, nullable, default, catch) to reach the
- * inner type, then maps the resulting Zod type name to a SignalTypeStr.
- */
-function zodTypeToSignalType(
-  schema: ZodType | undefined,
-): SignalTypeStr | undefined {
-  if (!schema) return undefined;
-  const unwrapped = unwrapZodWrappers(schema);
-  const def = (unwrapped as unknown as { def?: { type?: string } }).def;
-  const typeName = def?.type;
-  switch (typeName) {
-    case "string":
-      return "string";
-    case "number":
-      return "number";
-    case "boolean":
-      return "boolean";
-    case "array":
-      return "array";
-    case "object":
-      return "object";
-    default:
-      return undefined;
-  }
-}
-
-/** Recursively unwraps optional / nullable / default / catch wrappers. */
-function unwrapZodWrappers(schema: ZodType): ZodType {
-  const def = (
-    schema as unknown as { def?: { type?: string; innerType?: ZodType } }
-  ).def;
-  if (!def) return schema;
-  if (
-    def.type === "optional" ||
-    def.type === "nullable" ||
-    def.type === "default" ||
-    def.type === "catch"
-  ) {
-    if (def.innerType) return unwrapZodWrappers(def.innerType);
-  }
-  return schema;
-}
-
-type SignalTypeStr = "string" | "number" | "boolean" | "object" | "array";
+export { inferSignalType, type SignalTypeStr } from "./infer-signal-type";
 
 // Forces TS to eagerly resolve a computed object type (mapped type,
 // conditional, or generic alias application) into its final resolved shape
@@ -144,20 +77,28 @@ export type TypeAtPath<
     ? NonNullable<T>[P]
     : unknown;
 
-// Maps a TypeScript type to its signal type string.
+// Maps a TypeScript type to its signal type string. A plain string may also
+// be declared `"artifact"`, for schemas that hand-write the
+// `x-boboddy-artifact` keyword; validation checks the schema agrees.
 type ToSignalType<T> = string extends T
   ? SignalTypeStr
-  : [T] extends [string]
-    ? "string"
-    : [T] extends [number]
-      ? "number"
-      : [T] extends [boolean]
-        ? "boolean"
-        : [T] extends [readonly unknown[]]
-          ? "array"
-          : [T] extends [object]
-            ? "object"
-            : SignalTypeStr;
+  : [NonNullable<T>] extends [never]
+    ? SignalTypeStr
+    : [NonNullable<T>] extends [ArtifactPath]
+      ? "artifact"
+      : ToPlainSignalType<T>;
+
+type ToPlainSignalType<T> = [T] extends [string]
+  ? "string" | "artifact"
+  : [T] extends [number]
+    ? "number"
+    : [T] extends [boolean]
+      ? "boolean"
+      : [T] extends [readonly unknown[]]
+        ? "array"
+        : [T] extends [object]
+          ? "object"
+          : SignalTypeStr;
 
 // A union of valid signal spec shapes keyed by sourcePath.
 // When `type` is provided it must match the actual type at that path.
@@ -299,8 +240,10 @@ export type StepDefinitionSpec = {
   // real input/result types live on the phantom `TypedStepDefinitionSpec`
   // this spec gets cast to (see `codeStep()`), not on the plain
   // `StepDefinitionSpec` wire shape itself.
-  // eslint-disable-next-line local/no-unknown-parameter-type
-  entrypoint?: { fn: (input: unknown) => unknown };
+  entrypoint?: {
+    // eslint-disable-next-line local/no-unknown-parameter-type
+    fn: (input: unknown, context: { artifactsDir: string }) => unknown;
+  };
   /** `kind === "code"` only, present after `collect-definitions.ts` has run. */
   entrypointJson?: StepDefinitionEntrypointJson | null;
 };
@@ -316,7 +259,9 @@ export type SignalTypeStrToTs<T extends SignalTypeStr> = T extends "string"
         ? unknown[]
         : T extends "object"
           ? object
-          : unknown;
+          : T extends "artifact"
+            ? ArtifactPath
+            : unknown;
 
 // Builds a map from signal key → TypeScript value type.
 // Uses the explicit `type` field when present, otherwise resolves via TypeAtPath.
@@ -372,6 +317,8 @@ export type TypedStepDefinitionSpec<
   readonly __resultType: TResult;
   readonly __signalKeys: TSignalKeys;
   readonly __signalTypeMap: TSignalTypeMap;
+  /** Typed handles to this step's signals, keyed by signal key. */
+  readonly signals: StepSignalHandles<TSignalKeys, TSignalTypeMap>;
 };
 
 // Infers the signal key from a single signal spec object:
@@ -490,6 +437,10 @@ export function defineStep<
     envJson,
   });
 
+  const resultSchemaJson = effectiveResult
+    ? toJSONSchema(effectiveResult as unknown as $ZodType)
+    : null;
+
   const spec: StepDefinitionSpec = {
     key: config.key,
     name: config.name,
@@ -504,9 +455,7 @@ export function defineStep<
     inputSchemaJson: config.additionalInput
       ? toJSONSchema(config.additionalInput as unknown as $ZodType)
       : null,
-    resultSchemaJson: effectiveResult
-      ? toJSONSchema(effectiveResult as unknown as $ZodType)
-      : null,
+    resultSchemaJson,
     signalExtractorDefinitions: [
       ...(
         (config.signals ?? []) as Array<{
@@ -521,9 +470,7 @@ export function defineStep<
         sourcePath: s.sourcePath,
         type:
           s.type ??
-          zodTypeToSignalType(
-            resolveZodSchemaAtPath(effectiveResult, s.sourcePath),
-          ) ??
+          inferSignalType(effectiveResult, resultSchemaJson, s.sourcePath) ??
           "string",
         required: s.required ?? true,
         availableWhenResultStatusIn: s.availableWhenResultStatusIn ?? null,
@@ -541,7 +488,7 @@ export function defineStep<
     envJson: mcpFields.envJson,
     ...(repo !== undefined ? { repo } : {}),
   };
-  return spec as TypedStepDefinitionSpec<
+  return attachSignalHandles(spec) as TypedStepDefinitionSpec<
     TInput["_output"],
     EffectiveResult<TResult["_output"], TFeatures>,
     SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,

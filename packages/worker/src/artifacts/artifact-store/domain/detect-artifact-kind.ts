@@ -1,9 +1,17 @@
 import { open } from "node:fs/promises";
 import type { ArtifactKind } from "@boboddy/sdk/contracts/artifacts";
+import {
+  artifactKindFromContentType,
+  detectArtifactContentType,
+} from "./artifact-content-type";
 
 /**
- * Classifies a collected artifact by inspecting its actual contents rather
- * than trusting its name. Playwright traces are zip archives, and Playwright's
+ * Classifies a collected artifact. A `.zip` is a `playwright-trace` when its
+ * contents say so and `generic` otherwise; any other file takes its kind from
+ * its content type (`video`, `image` or `generic`).
+ *
+ * Traces are classified by inspecting their contents rather than trusting
+ * their name. Playwright traces are zip archives, and Playwright's
  * own Trace Viewer accepts a zip as a trace based on one rule: it contains at
  * least one entry whose name ends in `.trace` (see
  * `packages/isomorphic/trace/traceLoader.ts` in `playwright-core`). That
@@ -23,7 +31,9 @@ export async function detectArtifactKind(
 ): Promise<ArtifactKind> {
   const base = relativeStorePath.toLowerCase().split("/").pop() ?? "";
   if (!base.endsWith(".zip")) {
-    return "generic";
+    return artifactKindFromContentType(
+      detectArtifactContentType(relativeStorePath),
+    );
   }
 
   const entryNames = await readZipEntryNames(sourcePath).catch(() => []);

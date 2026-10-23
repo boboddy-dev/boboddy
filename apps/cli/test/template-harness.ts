@@ -72,8 +72,7 @@ export function extractCompilableSnippets(markdown: string): string[] {
  * idiomatic layout for a real pipeline-builder directory and the reason those
  * snippets can be compiled at all.
  */
-export const SHARED_STEPS_FIXTURE = `import { z } from "zod";
-import { defineStep } from "@boboddy/sdk/definitions/steps";
+export const SHARED_STEPS_FIXTURE = `import { defineStep, z } from "@boboddy/sdk/definitions/steps";
 
 export const investigate = defineStep({
   key: "investigate",

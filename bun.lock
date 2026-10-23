@@ -164,7 +164,7 @@
         "zod": "^4.3.6",
       },
       "peerDependencies": {
-        "zod": ">=4.0.0",
+        "zod": "^4.0.0",
       },
     },
     "packages/worker": {

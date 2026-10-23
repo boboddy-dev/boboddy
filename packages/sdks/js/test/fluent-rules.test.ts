@@ -117,6 +117,8 @@ describe("fluent rules", () => {
       ["notIn", (s) => s.notIn([1, 2]), "notIn"],
       ["contains", (s) => s.contains("x"), "contains"],
       ["doesNotContain", (s) => s.doesNotContain("x"), "doesNotContain"],
+      ["exists", (s) => s.exists(), "exists"],
+      ["notExists", (s) => s.notExists(), "notExists"],
     ];
     for (const [, build, expected] of ops) {
       const leaf = build(sig) as { then: (o: string) => { conditions: Array<{ operator: string }> } };

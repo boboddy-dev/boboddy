@@ -391,6 +391,18 @@ function resolvePathToNode(
 }
 
 /**
+ * The schema node `sourcePath` resolves to, or `null` when the path doesn't
+ * provably resolve (indeterminate or invalid).
+ */
+export function resolveSourcePathNode(
+  schema: JsonSchemaNode,
+  sourcePath: string,
+): JsonSchemaNode | null {
+  const result = resolvePathToNode(schema, sourcePath);
+  return result.kind === "resolved" ? result.node : null;
+}
+
+/**
  * Whether `sourcePath` can resolve against `schema`.
  *
  * Pass the step's `resultSchemaJson` as both the node and the document root;

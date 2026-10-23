@@ -61,6 +61,8 @@ export interface SignalRef<
   contains(value: unknown): RuleLeaf<TSignalKeys>;
   // eslint-disable-next-line local/no-unknown-parameter-type
   doesNotContain(value: unknown): RuleLeaf<TSignalKeys>;
+  exists(): RuleLeaf<TSignalKeys>;
+  notExists(): RuleLeaf<TSignalKeys>;
 }
 
 /**
@@ -165,6 +167,8 @@ function createSignalRef<TSignalKeys extends string>(
     notIn: (vs) => leaf("notIn", vs),
     contains: (v) => leaf("contains", v),
     doesNotContain: (v) => leaf("doesNotContain", v),
+    exists: () => leaf("exists", null),
+    notExists: () => leaf("notExists", null),
   };
 }
 

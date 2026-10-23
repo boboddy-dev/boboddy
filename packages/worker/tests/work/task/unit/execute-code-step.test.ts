@@ -101,7 +101,7 @@ describe("executeCodeStep", () => {
     expect(shellCommand).not.toContain(".boboddy/tmp/code-step-runner-");
   });
 
-  test("passes the argv <entrypoint> <stepKey> <input> <findings> after the runner path", async () => {
+  test("passes the argv <entrypoint> <stepKey> <input> <findings> <artifactsDir> after the runner path", async () => {
     const commands: string[] = [];
     const runCommand: RunCodeStepCommand = (input) => {
       commands.push(input.shellCommand);
@@ -123,7 +123,7 @@ describe("executeCodeStep", () => {
     );
 
     expect(commands[0]).toMatch(
-      /bun run '\/workspaces\/repo\/steps\/\.code-step-runner-[^']+\.mjs' '\/workspaces\/repo\/steps\/review\.ts' 'it'\\''s-a-key' '\/workspaces\/repo\/\.boboddy\/tmp\/code-step-input-[^']+\.json' '\/workspaces\/repo\/\.boboddy\/step-findings-submission\.json'/,
+      /bun run '\/workspaces\/repo\/steps\/\.code-step-runner-[^']+\.mjs' '\/workspaces\/repo\/steps\/review\.ts' 'it'\\''s-a-key' '\/workspaces\/repo\/\.boboddy\/tmp\/code-step-input-[^']+\.json' '\/workspaces\/repo\/\.boboddy\/step-findings-submission\.json' '\/workspaces\/repo\/\.boboddy\/step-artifacts'/,
     );
   });
 

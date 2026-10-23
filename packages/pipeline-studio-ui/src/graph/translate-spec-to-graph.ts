@@ -159,8 +159,6 @@ function stepInputFields(
 function stepOutputSignals(step: StepDefinitionSpec): StudioNodeOutputSignal[] {
   return step.signalExtractorDefinitions.map((signal) => ({
     key: signal.key,
-    // `SignalTypeStr` (this field's declared type) is a private, strict
-    // subset of the public `SchemaType` — see `define-step.ts`.
     type: signal.type,
     required: signal.required,
   }));

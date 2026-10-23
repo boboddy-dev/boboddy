@@ -6,6 +6,7 @@
  *
  *   - finds a step exported by name, and one embedded only in the default
  *     pipeline, and writes its result to the findings file;
+ *   - passes `{ artifactsDir }` as the second argument, creating the folder;
  *   - fails with a clear stderr message when the key is not in the module,
  *     is ambiguous, or the installed SDK has no `code-step-lookup`;
  *   - runs end to end through `executeCodeStep` and the default command
@@ -112,6 +113,7 @@ describe("code step runner script", () => {
     const entrypointPath = path.join(workspacePath, SOURCE_FILE);
     const inputPath = path.join(workspacePath, "input.json");
     const findingsPath = path.join(workspacePath, "findings.json");
+    const artifactsDir = path.join(workspacePath, ".boboddy", "step-artifacts");
     await writeFile(entrypointPath, input.moduleSource);
     await writeFile(runnerPath, CODE_STEP_RUNNER_SCRIPT_SOURCE);
     await writeFile(inputPath, JSON.stringify(input.stepInput ?? null));
@@ -126,6 +128,7 @@ describe("code step runner script", () => {
         input.stepKey,
         inputPath,
         findingsPath,
+        artifactsDir,
       ]);
     } catch (error) {
       const execError = error as { code?: number; stderr?: string };
@@ -166,6 +169,34 @@ describe("code step runner script", () => {
     expect(result.stderr).toBe("");
     expect(result.exitCode).toBe(0);
     expect(result.findings).toEqual({ findingsJson: { shifted: 105 } });
+  });
+
+  test("passes { artifactsDir } as the second argument, with the folder already created", async () => {
+    await linkRealSdk();
+
+    const result = await runRunner({
+      moduleSource: `
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+export const s = ${stepSource(
+        "record",
+        `async (_input, { artifactsDir }) => {
+          await writeFile(path.join(artifactsDir, "clip.webm"), "bytes");
+          return { artifactsDir, clip: "clip.webm" };
+        }`,
+      )};`,
+      stepKey: "record",
+    });
+
+    const artifactsDir = path.join(workspacePath, ".boboddy", "step-artifacts");
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBe(0);
+    expect(result.findings).toEqual({
+      findingsJson: { artifactsDir, clip: "clip.webm" },
+    });
+    expect(await readFile(path.join(artifactsDir, "clip.webm"), "utf8")).toBe(
+      "bytes",
+    );
   });
 
   test("fails with a clear message when the module holds no code step with the key", async () => {

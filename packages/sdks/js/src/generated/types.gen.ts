@@ -86,6 +86,9 @@ export type GetApiProjectsResolveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -102,6 +105,9 @@ export type GetApiProjectsResolveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -118,6 +124,9 @@ export type GetApiProjectsResolveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -134,6 +143,9 @@ export type GetApiProjectsResolveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -150,6 +162,9 @@ export type GetApiProjectsResolveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -267,6 +282,9 @@ export type GetApiProjectsByProjectIdWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -283,6 +301,9 @@ export type GetApiProjectsByProjectIdWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -299,6 +320,9 @@ export type GetApiProjectsByProjectIdWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -315,6 +339,9 @@ export type GetApiProjectsByProjectIdWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -331,6 +358,9 @@ export type GetApiProjectsByProjectIdWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -402,6 +432,9 @@ export type GetApiProjectsByProjectIdWorkItemFieldOptionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -418,6 +451,9 @@ export type GetApiProjectsByProjectIdWorkItemFieldOptionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -434,6 +470,9 @@ export type GetApiProjectsByProjectIdWorkItemFieldOptionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -450,6 +489,9 @@ export type GetApiProjectsByProjectIdWorkItemFieldOptionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -466,6 +508,9 @@ export type GetApiProjectsByProjectIdWorkItemFieldOptionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -509,6 +554,9 @@ export type GetApiProjectsByProjectIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -525,6 +573,9 @@ export type GetApiProjectsByProjectIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -541,6 +592,9 @@ export type GetApiProjectsByProjectIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -557,6 +611,9 @@ export type GetApiProjectsByProjectIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -573,6 +630,9 @@ export type GetApiProjectsByProjectIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -680,6 +740,9 @@ export type GetApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -696,6 +759,9 @@ export type GetApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -853,6 +919,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -869,6 +938,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -885,6 +957,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -901,6 +976,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -917,6 +995,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -933,6 +1014,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 502
@@ -949,6 +1033,9 @@ export type PostApiProjectsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -1112,6 +1199,9 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -1128,6 +1218,9 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -1144,6 +1237,9 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -1160,6 +1256,9 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -1176,6 +1275,9 @@ export type PutApiProjectsByProjectIdDefaultPipelineAssignmentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -1286,6 +1388,9 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -1302,6 +1407,9 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -1318,6 +1426,9 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -1334,6 +1445,9 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -1350,6 +1464,9 @@ export type PutApiProjectsByProjectIdMembersByUserIdPermissionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -1459,6 +1576,9 @@ export type GetApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -1475,6 +1595,9 @@ export type GetApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -1491,6 +1614,9 @@ export type GetApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -1507,6 +1633,9 @@ export type GetApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -1638,7 +1767,7 @@ export type GetApiStepDefinitionsResponses = {
             id: string;
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
             createdAt: string;
@@ -1772,7 +1901,7 @@ export type PostApiStepDefinitionsData = {
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
         }>;
@@ -1798,6 +1927,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -1814,6 +1946,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -1830,6 +1965,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -1846,6 +1984,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -1862,6 +2003,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -1878,6 +2022,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -1894,6 +2041,9 @@ export type PostApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -2025,7 +2175,7 @@ export type PostApiStepDefinitionsResponses = {
             id: string;
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
             createdAt: string;
@@ -2159,7 +2309,7 @@ export type PutApiStepDefinitionsData = {
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
         }>;
@@ -2185,6 +2335,9 @@ export type PutApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -2201,6 +2354,9 @@ export type PutApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -2217,6 +2373,9 @@ export type PutApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -2233,6 +2392,9 @@ export type PutApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -2249,6 +2411,9 @@ export type PutApiStepDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -2380,7 +2545,7 @@ export type PutApiStepDefinitionsResponses = {
             id: string;
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
             createdAt: string;
@@ -2418,6 +2583,9 @@ export type GetApiStepDefinitionsByStepDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -2434,6 +2602,9 @@ export type GetApiStepDefinitionsByStepDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -2450,6 +2621,9 @@ export type GetApiStepDefinitionsByStepDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -2466,6 +2640,9 @@ export type GetApiStepDefinitionsByStepDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -2482,6 +2659,9 @@ export type GetApiStepDefinitionsByStepDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -2613,7 +2793,7 @@ export type GetApiStepDefinitionsByStepDefinitionIdResponses = {
             id: string;
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
             createdAt: string;
@@ -2651,6 +2831,9 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -2667,6 +2850,9 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -2683,6 +2869,9 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -2699,6 +2888,9 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -2715,6 +2907,9 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -2846,7 +3041,7 @@ export type PutApiStepDefinitionsByStepDefinitionIdArchiveResponses = {
             id: string;
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
             createdAt: string;
@@ -2888,6 +3083,9 @@ export type PostApiTasksClaimsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -2904,6 +3102,9 @@ export type PostApiTasksClaimsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -2920,6 +3121,9 @@ export type PostApiTasksClaimsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -2936,6 +3140,9 @@ export type PostApiTasksClaimsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -2952,6 +3159,9 @@ export type PostApiTasksClaimsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -2991,11 +3201,12 @@ export type PostApiTasksClaimsResponses = {
                     id: string;
                     taskResultId: string;
                     key: string;
-                    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                    type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                     source: 'extracted' | 'computed';
                     valueJson: unknown;
                     sourcePath: string | unknown;
                     computedFromSignalKeys: Array<string> | unknown;
+                    unavailableReason: string | unknown;
                     createdAt: string;
                 }>;
                 createdAt: string;
@@ -3034,6 +3245,9 @@ export type GetApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -3050,6 +3264,9 @@ export type GetApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -3066,6 +3283,9 @@ export type GetApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -3082,6 +3302,9 @@ export type GetApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -3120,11 +3343,12 @@ export type GetApiTasksResponses = {
                 id: string;
                 taskResultId: string;
                 key: string;
-                type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                 source: 'extracted' | 'computed';
                 valueJson: unknown;
                 sourcePath: string | unknown;
                 computedFromSignalKeys: Array<string> | unknown;
+                unavailableReason: string | unknown;
                 createdAt: string;
             }>;
             createdAt: string;
@@ -3167,6 +3391,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -3183,6 +3410,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -3199,6 +3429,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -3215,6 +3448,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -3231,6 +3467,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -3247,6 +3486,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -3263,6 +3505,9 @@ export type PostApiTasksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -3301,11 +3546,12 @@ export type PostApiTasksResponses = {
                 id: string;
                 taskResultId: string;
                 key: string;
-                type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                 source: 'extracted' | 'computed';
                 valueJson: unknown;
                 sourcePath: string | unknown;
                 computedFromSignalKeys: Array<string> | unknown;
+                unavailableReason: string | unknown;
                 createdAt: string;
             }>;
             createdAt: string;
@@ -3345,6 +3591,9 @@ export type PutApiTasksByTaskIdHeartbeatErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -3361,6 +3610,9 @@ export type PutApiTasksByTaskIdHeartbeatErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -3377,6 +3629,9 @@ export type PutApiTasksByTaskIdHeartbeatErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -3393,6 +3648,9 @@ export type PutApiTasksByTaskIdHeartbeatErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -3409,6 +3667,9 @@ export type PutApiTasksByTaskIdHeartbeatErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -3425,6 +3686,9 @@ export type PutApiTasksByTaskIdHeartbeatErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -3463,11 +3727,12 @@ export type PutApiTasksByTaskIdHeartbeatResponses = {
                 id: string;
                 taskResultId: string;
                 key: string;
-                type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                 source: 'extracted' | 'computed';
                 valueJson: unknown;
                 sourcePath: string | unknown;
                 computedFromSignalKeys: Array<string> | unknown;
+                unavailableReason: string | unknown;
                 createdAt: string;
             }>;
             createdAt: string;
@@ -3506,6 +3771,9 @@ export type PostApiTasksByTaskIdWorkerContextErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -3522,6 +3790,9 @@ export type PostApiTasksByTaskIdWorkerContextErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -3538,6 +3809,9 @@ export type PostApiTasksByTaskIdWorkerContextErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -3554,6 +3828,9 @@ export type PostApiTasksByTaskIdWorkerContextErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -3570,6 +3847,9 @@ export type PostApiTasksByTaskIdWorkerContextErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -3586,6 +3866,9 @@ export type PostApiTasksByTaskIdWorkerContextErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -3786,6 +4069,9 @@ export type PostApiTasksByTaskIdCompletionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -3802,6 +4088,9 @@ export type PostApiTasksByTaskIdCompletionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -3818,6 +4107,9 @@ export type PostApiTasksByTaskIdCompletionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -3834,6 +4126,9 @@ export type PostApiTasksByTaskIdCompletionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -3850,6 +4145,9 @@ export type PostApiTasksByTaskIdCompletionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -3866,6 +4164,9 @@ export type PostApiTasksByTaskIdCompletionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -3904,11 +4205,12 @@ export type PostApiTasksByTaskIdCompletionsResponses = {
                 id: string;
                 taskResultId: string;
                 key: string;
-                type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                 source: 'extracted' | 'computed';
                 valueJson: unknown;
                 sourcePath: string | unknown;
                 computedFromSignalKeys: Array<string> | unknown;
+                unavailableReason: string | unknown;
                 createdAt: string;
             }>;
             createdAt: string;
@@ -3945,6 +4247,9 @@ export type PutApiTasksByTaskIdRunningErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -3961,6 +4266,9 @@ export type PutApiTasksByTaskIdRunningErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -3977,6 +4285,9 @@ export type PutApiTasksByTaskIdRunningErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -3993,6 +4304,9 @@ export type PutApiTasksByTaskIdRunningErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4009,6 +4323,9 @@ export type PutApiTasksByTaskIdRunningErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4047,11 +4364,12 @@ export type PutApiTasksByTaskIdRunningResponses = {
                 id: string;
                 taskResultId: string;
                 key: string;
-                type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                 source: 'extracted' | 'computed';
                 valueJson: unknown;
                 sourcePath: string | unknown;
                 computedFromSignalKeys: Array<string> | unknown;
+                unavailableReason: string | unknown;
                 createdAt: string;
             }>;
             createdAt: string;
@@ -4091,6 +4409,9 @@ export type PostApiTaskResultsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4107,6 +4428,9 @@ export type PostApiTaskResultsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4123,6 +4447,9 @@ export type PostApiTaskResultsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -4139,6 +4466,9 @@ export type PostApiTaskResultsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4155,6 +4485,9 @@ export type PostApiTaskResultsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4171,6 +4504,9 @@ export type PostApiTaskResultsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4190,11 +4526,12 @@ export type PostApiTaskResultsResponses = {
             id: string;
             taskResultId: string;
             key: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             source: 'extracted' | 'computed';
             valueJson: unknown;
             sourcePath: string | unknown;
             computedFromSignalKeys: Array<string> | unknown;
+            unavailableReason: string | unknown;
             createdAt: string;
         }>;
         createdAt: string;
@@ -4228,6 +4565,9 @@ export type PostApiTaskResultsByTaskResultIdSignalsExtractErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4244,6 +4584,9 @@ export type PostApiTaskResultsByTaskResultIdSignalsExtractErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4260,6 +4603,9 @@ export type PostApiTaskResultsByTaskResultIdSignalsExtractErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4276,6 +4622,9 @@ export type PostApiTaskResultsByTaskResultIdSignalsExtractErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4292,6 +4641,9 @@ export type PostApiTaskResultsByTaskResultIdSignalsExtractErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4305,11 +4657,12 @@ export type PostApiTaskResultsByTaskResultIdSignalsExtractResponses = {
         id: string;
         taskResultId: string;
         key: string;
-        type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+        type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
         source: 'extracted' | 'computed';
         valueJson: unknown;
         sourcePath: string | unknown;
         computedFromSignalKeys: Array<string> | unknown;
+        unavailableReason: string | unknown;
         createdAt: string;
     }>;
 };
@@ -4344,6 +4697,9 @@ export type GetApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4360,6 +4716,9 @@ export type GetApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4376,6 +4735,9 @@ export type GetApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4392,6 +4754,9 @@ export type GetApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4408,6 +4773,9 @@ export type GetApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4466,6 +4834,9 @@ export type PostApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4482,6 +4853,9 @@ export type PostApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4498,6 +4872,9 @@ export type PostApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -4514,6 +4891,9 @@ export type PostApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4530,6 +4910,9 @@ export type PostApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4546,6 +4929,9 @@ export type PostApiTasksByTaskIdLogsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4587,6 +4973,9 @@ export type GetApiTasksByTaskIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4603,6 +4992,9 @@ export type GetApiTasksByTaskIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4619,6 +5011,9 @@ export type GetApiTasksByTaskIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4635,6 +5030,9 @@ export type GetApiTasksByTaskIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4651,6 +5049,9 @@ export type GetApiTasksByTaskIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4689,11 +5090,12 @@ export type GetApiTasksByTaskIdResponses = {
                 id: string;
                 taskResultId: string;
                 key: string;
-                type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+                type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
                 source: 'extracted' | 'computed';
                 valueJson: unknown;
                 sourcePath: string | unknown;
                 computedFromSignalKeys: Array<string> | unknown;
+                unavailableReason: string | unknown;
                 createdAt: string;
             }>;
             createdAt: string;
@@ -4730,6 +5132,9 @@ export type GetApiTasksByTaskIdLogsArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 402
@@ -4746,6 +5151,9 @@ export type GetApiTasksByTaskIdLogsArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4762,6 +5170,9 @@ export type GetApiTasksByTaskIdLogsArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4778,6 +5189,9 @@ export type GetApiTasksByTaskIdLogsArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4794,6 +5208,9 @@ export type GetApiTasksByTaskIdLogsArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4810,6 +5227,9 @@ export type GetApiTasksByTaskIdLogsArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4852,6 +5272,9 @@ export type GetApiTasksByTaskIdHistoryErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -4868,6 +5291,9 @@ export type GetApiTasksByTaskIdHistoryErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -4884,6 +5310,9 @@ export type GetApiTasksByTaskIdHistoryErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -4900,6 +5329,9 @@ export type GetApiTasksByTaskIdHistoryErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -4916,6 +5348,9 @@ export type GetApiTasksByTaskIdHistoryErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -4975,6 +5410,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 402
@@ -4991,6 +5429,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5007,6 +5448,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -5023,6 +5467,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -5039,6 +5486,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -5055,6 +5505,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -5071,6 +5524,9 @@ export type PostApiTasksByTaskIdArtifactUploadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -5115,6 +5571,9 @@ export type GetApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5131,6 +5590,9 @@ export type GetApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -5147,6 +5609,9 @@ export type GetApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -5163,6 +5628,9 @@ export type GetApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -5179,6 +5647,9 @@ export type GetApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -5197,7 +5668,7 @@ export type GetApiTasksByTaskIdArtifactsResponses = {
         objectKey: string | unknown;
         sizeBytes: number | unknown;
         contentType: string | unknown;
-        kind: 'generic' | 'playwright-trace';
+        kind: 'generic' | 'playwright-trace' | 'video' | 'image';
         createdAt: string;
     }>;
 };
@@ -5211,7 +5682,7 @@ export type PostApiTasksByTaskIdArtifactsData = {
         relativeStorePath: string;
         sizeBytes: number;
         contentType?: string;
-        kind?: 'generic' | 'playwright-trace';
+        kind?: 'generic' | 'playwright-trace' | 'video' | 'image';
     };
     path: {
         taskId: string;
@@ -5236,6 +5707,9 @@ export type PostApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5252,6 +5726,9 @@ export type PostApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -5268,6 +5745,9 @@ export type PostApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -5284,6 +5764,9 @@ export type PostApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -5300,6 +5783,9 @@ export type PostApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -5316,6 +5802,9 @@ export type PostApiTasksByTaskIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -5334,7 +5823,7 @@ export type PostApiTasksByTaskIdArtifactsResponses = {
         objectKey: string | unknown;
         sizeBytes: number | unknown;
         contentType: string | unknown;
-        kind: 'generic' | 'playwright-trace';
+        kind: 'generic' | 'playwright-trace' | 'video' | 'image';
         createdAt: string;
     };
 };
@@ -5367,6 +5856,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 402
@@ -5383,6 +5875,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5399,6 +5894,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -5415,6 +5913,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 410
@@ -5431,6 +5932,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -5447,6 +5951,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -5463,6 +5970,9 @@ export type GetApiTasksByTaskIdArtifactsByArtifactIdDownloadUrlErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -5507,6 +6017,9 @@ export type GetApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5523,6 +6036,9 @@ export type GetApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -5539,6 +6055,9 @@ export type GetApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -5555,6 +6074,9 @@ export type GetApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -5571,6 +6093,9 @@ export type GetApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -5585,7 +6110,7 @@ export type GetApiTasksByTaskIdArtifactFailuresResponses = {
         taskId: string;
         relativeStorePath: string;
         attemptedSizeBytes: number;
-        kind: 'generic' | 'playwright-trace';
+        kind: 'generic' | 'playwright-trace' | 'video' | 'image';
         errorCode: string;
         errorMessage: string;
         httpStatus: number | unknown;
@@ -5600,7 +6125,7 @@ export type PostApiTasksByTaskIdArtifactFailuresData = {
         claimToken: string;
         relativeStorePath: string;
         attemptedSizeBytes: number;
-        kind?: 'generic' | 'playwright-trace';
+        kind?: 'generic' | 'playwright-trace' | 'video' | 'image';
         errorCode: string;
         errorMessage: string;
         httpStatus?: number;
@@ -5628,6 +6153,9 @@ export type PostApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5644,6 +6172,9 @@ export type PostApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -5660,6 +6191,9 @@ export type PostApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -5676,6 +6210,9 @@ export type PostApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -5692,6 +6229,9 @@ export type PostApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -5708,6 +6248,9 @@ export type PostApiTasksByTaskIdArtifactFailuresErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -5722,7 +6265,7 @@ export type PostApiTasksByTaskIdArtifactFailuresResponses = {
         taskId: string;
         relativeStorePath: string;
         attemptedSizeBytes: number;
-        kind: 'generic' | 'playwright-trace';
+        kind: 'generic' | 'playwright-trace' | 'video' | 'image';
         errorCode: string;
         errorMessage: string;
         httpStatus: number | unknown;
@@ -5957,6 +6500,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -5973,6 +6519,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -5989,6 +6538,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -6005,6 +6557,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -6021,6 +6576,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -6037,6 +6595,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -6053,6 +6614,9 @@ export type PostApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -6409,6 +6973,9 @@ export type PutApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -6425,6 +6992,9 @@ export type PutApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -6441,6 +7011,9 @@ export type PutApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -6457,6 +7030,9 @@ export type PutApiPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -6613,6 +7189,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -6629,6 +7208,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -6645,6 +7227,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -6661,6 +7246,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -6677,6 +7265,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdArchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -6833,6 +7424,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -6849,6 +7443,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -6865,6 +7462,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -6881,6 +7481,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -6897,6 +7500,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdUnarchiveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -7104,6 +7710,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -7120,6 +7729,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -7136,6 +7748,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -7152,6 +7767,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -7168,6 +7786,9 @@ export type PutApiPipelineDefinitionsByPipelineDefinitionIdStepsByPipelineStepDe
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -7324,6 +7945,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -7340,6 +7964,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -7356,6 +7983,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -7372,6 +8002,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -7388,6 +8021,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -7404,6 +8040,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -7561,6 +8200,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -7577,6 +8219,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -7593,6 +8238,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -7609,6 +8257,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -7625,6 +8276,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -7641,6 +8295,9 @@ export type GetApiPipelineDefinitionsByPipelineDefinitionIdVersionsByPipelineDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -7972,6 +8629,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -7988,6 +8648,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -8004,6 +8667,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -8020,6 +8686,9 @@ export type GetApiProjectsByProjectIdPipelineDefinitionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -8182,6 +8851,9 @@ export type GetApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -8198,6 +8870,9 @@ export type GetApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -8214,6 +8889,9 @@ export type GetApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -8230,6 +8908,9 @@ export type GetApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -8298,6 +8979,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -8314,6 +8998,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -8330,6 +9017,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -8346,6 +9036,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -8362,6 +9055,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -8378,6 +9074,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -8394,6 +9093,9 @@ export type PostApiPipelineExecutionsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -8519,6 +9221,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -8535,6 +9240,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -8551,6 +9259,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -8567,6 +9278,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -8583,6 +9297,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStartErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -8708,6 +9425,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors = 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -8724,6 +9444,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors = 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -8740,6 +9463,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors = 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -8756,6 +9482,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors = 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -8772,6 +9501,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsFirstErrors = 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -8898,6 +9630,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -8914,6 +9649,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -8930,6 +9668,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -8946,6 +9687,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -8962,6 +9706,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStepR
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -9094,6 +9841,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -9110,6 +9860,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -9126,6 +9879,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -9142,6 +9898,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -9158,6 +9917,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -9290,6 +10052,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -9306,6 +10071,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -9322,6 +10090,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -9338,6 +10109,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -9354,6 +10128,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepRunsByPipelineStep
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -9483,6 +10260,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -9499,6 +10279,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -9515,6 +10298,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -9531,6 +10317,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -9547,6 +10336,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdCohortsByOriginNodeDef
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -9675,6 +10467,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -9691,6 +10486,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -9707,6 +10505,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -9723,6 +10524,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -9739,6 +10543,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdRerunErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -9864,6 +10671,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -9880,6 +10690,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -9896,6 +10709,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -9912,6 +10728,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -9928,6 +10747,9 @@ export type PutApiPipelineExecutionsByPipelineExecutionIdCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10053,6 +10875,9 @@ export type PutApiPipelineExecutionsBatchCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10069,6 +10894,9 @@ export type PutApiPipelineExecutionsBatchCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -10085,6 +10913,9 @@ export type PutApiPipelineExecutionsBatchCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -10101,6 +10932,9 @@ export type PutApiPipelineExecutionsBatchCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -10117,6 +10951,9 @@ export type PutApiPipelineExecutionsBatchCancelErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10163,6 +11000,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessages
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10179,6 +11019,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessages
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -10195,6 +11038,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessages
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -10211,6 +11057,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessages
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -10227,6 +11076,9 @@ export type PostApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyMessages
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10362,6 +11214,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10378,6 +11233,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -10394,6 +11252,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -10410,6 +11271,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -10426,6 +11290,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10551,6 +11418,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10567,6 +11437,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -10583,6 +11456,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -10599,6 +11475,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -10615,6 +11494,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdRoutedChainErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10744,6 +11626,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10760,6 +11645,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -10776,6 +11664,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -10792,6 +11683,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -10808,6 +11702,9 @@ export type GetApiPipelineExecutionsByPipelineExecutionIdStepsByStepKeyThreadErr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10867,6 +11764,9 @@ export type GetApiPipelineExecutionsCountsByPipelineErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10883,6 +11783,9 @@ export type GetApiPipelineExecutionsCountsByPipelineErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -10899,6 +11802,9 @@ export type GetApiPipelineExecutionsCountsByPipelineErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -10915,6 +11821,9 @@ export type GetApiPipelineExecutionsCountsByPipelineErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -10957,6 +11866,9 @@ export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionI
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -10973,6 +11885,9 @@ export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionI
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -10989,6 +11904,9 @@ export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionI
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11005,6 +11923,9 @@ export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionI
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11021,6 +11942,9 @@ export type GetApiPipelineExecutionsStepRollupsByDefinitionByPipelineDefinitionI
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11073,6 +11997,9 @@ export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdEr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11089,6 +12016,9 @@ export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdEr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11105,6 +12035,9 @@ export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdEr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11121,6 +12054,9 @@ export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdEr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11137,6 +12073,9 @@ export type GetApiPipelineExecutionsStepRunsByDefinitionByPipelineDefinitionIdEr
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11183,6 +12122,9 @@ export type DeleteApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11199,6 +12141,9 @@ export type DeleteApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11215,6 +12160,9 @@ export type DeleteApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11231,6 +12179,9 @@ export type DeleteApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11247,6 +12198,9 @@ export type DeleteApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11286,6 +12240,9 @@ export type GetApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11302,6 +12259,9 @@ export type GetApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11318,6 +12278,9 @@ export type GetApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11334,6 +12297,9 @@ export type GetApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11350,6 +12316,9 @@ export type GetApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11414,6 +12383,9 @@ export type PatchApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -11430,6 +12402,9 @@ export type PatchApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11446,6 +12421,9 @@ export type PatchApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11462,6 +12440,9 @@ export type PatchApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11478,6 +12459,9 @@ export type PatchApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11494,6 +12478,9 @@ export type PatchApiWorkItemsByWorkItemIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11555,6 +12542,9 @@ export type GetApiWorkItemsByWorkItemIdChildrenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11571,6 +12561,9 @@ export type GetApiWorkItemsByWorkItemIdChildrenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11587,6 +12580,9 @@ export type GetApiWorkItemsByWorkItemIdChildrenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11603,6 +12599,9 @@ export type GetApiWorkItemsByWorkItemIdChildrenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11619,6 +12618,9 @@ export type GetApiWorkItemsByWorkItemIdChildrenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11692,6 +12694,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -11708,6 +12713,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11724,6 +12732,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11740,6 +12751,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -11756,6 +12770,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11772,6 +12789,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11788,6 +12808,9 @@ export type PostApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -11861,6 +12884,9 @@ export type PutApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -11877,6 +12903,9 @@ export type PutApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -11893,6 +12922,9 @@ export type PutApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -11909,6 +12941,9 @@ export type PutApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -11925,6 +12960,9 @@ export type PutApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -11941,6 +12979,9 @@ export type PutApiWorkItemsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12002,6 +13043,9 @@ export type DeleteApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12018,6 +13062,9 @@ export type DeleteApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12034,6 +13081,9 @@ export type DeleteApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12050,6 +13100,9 @@ export type DeleteApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12066,6 +13119,9 @@ export type DeleteApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12117,6 +13173,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12133,6 +13192,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12149,6 +13211,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12165,6 +13230,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -12181,6 +13249,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12197,6 +13268,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12213,6 +13287,9 @@ export type PostApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12286,6 +13363,9 @@ export type PutApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12302,6 +13382,9 @@ export type PutApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12318,6 +13401,9 @@ export type PutApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12334,6 +13420,9 @@ export type PutApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12350,6 +13439,9 @@ export type PutApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12366,6 +13458,9 @@ export type PutApiWorkItemsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12429,6 +13524,9 @@ export type PatchApiWorkItemsByWorkItemIdParentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12445,6 +13543,9 @@ export type PatchApiWorkItemsByWorkItemIdParentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12461,6 +13562,9 @@ export type PatchApiWorkItemsByWorkItemIdParentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12477,6 +13581,9 @@ export type PatchApiWorkItemsByWorkItemIdParentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12493,6 +13600,9 @@ export type PatchApiWorkItemsByWorkItemIdParentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12509,6 +13619,9 @@ export type PatchApiWorkItemsByWorkItemIdParentErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12570,6 +13683,9 @@ export type GetApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12586,6 +13702,9 @@ export type GetApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12602,6 +13721,9 @@ export type GetApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12618,6 +13740,9 @@ export type GetApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12634,6 +13759,9 @@ export type GetApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12650,6 +13778,9 @@ export type GetApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12706,6 +13837,9 @@ export type PostApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12722,6 +13856,9 @@ export type PostApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12738,6 +13875,9 @@ export type PostApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12754,6 +13894,9 @@ export type PostApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12770,6 +13913,9 @@ export type PostApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12786,6 +13932,9 @@ export type PostApiWorkItemCommentsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12841,6 +13990,9 @@ export type DeleteApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12857,6 +14009,9 @@ export type DeleteApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12873,6 +14028,9 @@ export type DeleteApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -12889,6 +14047,9 @@ export type DeleteApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -12905,6 +14066,9 @@ export type DeleteApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -12921,6 +14085,9 @@ export type DeleteApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -12962,6 +14129,9 @@ export type PatchApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -12978,6 +14148,9 @@ export type PatchApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -12994,6 +14167,9 @@ export type PatchApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13010,6 +14186,9 @@ export type PatchApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13026,6 +14205,9 @@ export type PatchApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13042,6 +14224,9 @@ export type PatchApiWorkItemCommentsByCommentIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13099,6 +14284,9 @@ export type PostApiWorkItemCommentsByCommentIdPinErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -13115,6 +14303,9 @@ export type PostApiWorkItemCommentsByCommentIdPinErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13131,6 +14322,9 @@ export type PostApiWorkItemCommentsByCommentIdPinErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13147,6 +14341,9 @@ export type PostApiWorkItemCommentsByCommentIdPinErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13163,6 +14360,9 @@ export type PostApiWorkItemCommentsByCommentIdPinErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13179,6 +14379,9 @@ export type PostApiWorkItemCommentsByCommentIdPinErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13234,6 +14437,9 @@ export type GetApiWorkItemCommentDraftsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13250,6 +14456,9 @@ export type GetApiWorkItemCommentDraftsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13266,6 +14475,9 @@ export type GetApiWorkItemCommentDraftsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13282,6 +14494,9 @@ export type GetApiWorkItemCommentDraftsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13298,6 +14513,9 @@ export type GetApiWorkItemCommentDraftsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13330,6 +14548,50 @@ export type GetApiWorkItemCommentDraftsResponses = {
             updatedAt: string;
         };
         lastError: string | unknown;
+        artifactResolution: {
+            markers: Array<{
+                markerIndex: number;
+                kind: 'embed' | 'link';
+                ref: {
+                    type: string;
+                    stepKey: string;
+                    signalKey: string;
+                } | {
+                    type: string;
+                    pattern: string;
+                };
+                caption: string;
+                standalone: boolean;
+                status: 'resolved' | 'unavailable';
+                required: boolean;
+                reason: string | unknown;
+                artifact: {
+                    artifactId: string;
+                    name: string;
+                    contentType: string | unknown;
+                    kind: string;
+                    sizeBytes: number | unknown;
+                } | unknown;
+            }>;
+            leftOut: Array<{
+                markerIndex: number;
+                ref: {
+                    type: string;
+                    stepKey: string;
+                    signalKey: string;
+                } | {
+                    type: string;
+                    pattern: string;
+                };
+                caption: string;
+                reason: string;
+            }>;
+            warnings: Array<{
+                markerIndex: number;
+                code: string;
+                message: string;
+            }>;
+        } | unknown;
     }>;
 };
 
@@ -13373,6 +14635,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -13389,6 +14654,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13405,6 +14673,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13421,6 +14692,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -13437,6 +14711,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13453,6 +14730,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13469,6 +14749,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 502
@@ -13485,6 +14768,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdApproveErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13540,6 +14826,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13556,6 +14845,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13572,6 +14864,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -13588,6 +14883,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13604,6 +14902,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13620,6 +14921,9 @@ export type PostApiWorkItemCommentDraftsByNotificationIdRejectErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13679,6 +14983,9 @@ export type GetApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -13695,6 +15002,9 @@ export type GetApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13711,6 +15021,9 @@ export type GetApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13727,6 +15040,9 @@ export type GetApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13743,6 +15059,9 @@ export type GetApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13759,6 +15078,9 @@ export type GetApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13816,6 +15138,9 @@ export type PostApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -13832,6 +15157,9 @@ export type PostApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13848,6 +15176,9 @@ export type PostApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13864,6 +15195,9 @@ export type PostApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -13880,6 +15214,9 @@ export type PostApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -13896,6 +15233,9 @@ export type PostApiWorkItemBlocksErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -13942,6 +15282,9 @@ export type DeleteApiWorkItemBlocksByBlockIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -13958,6 +15301,9 @@ export type DeleteApiWorkItemBlocksByBlockIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -13974,6 +15320,9 @@ export type DeleteApiWorkItemBlocksByBlockIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -13990,6 +15339,9 @@ export type DeleteApiWorkItemBlocksByBlockIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14006,6 +15358,9 @@ export type DeleteApiWorkItemBlocksByBlockIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14022,6 +15377,9 @@ export type DeleteApiWorkItemBlocksByBlockIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14061,6 +15419,9 @@ export type GetApiProjectsByProjectIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14077,6 +15438,9 @@ export type GetApiProjectsByProjectIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14093,6 +15457,9 @@ export type GetApiProjectsByProjectIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14109,6 +15476,9 @@ export type GetApiProjectsByProjectIdArtifactsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14128,7 +15498,7 @@ export type GetApiProjectsByProjectIdArtifactsResponses = {
             objectKey: string | unknown;
             sizeBytes: number | unknown;
             contentType: string | unknown;
-            kind: 'generic' | 'playwright-trace';
+            kind: 'generic' | 'playwright-trace' | 'video' | 'image';
             createdAt: string;
             nodeKey: string | unknown;
         }>;
@@ -14137,6 +15507,257 @@ export type GetApiProjectsByProjectIdArtifactsResponses = {
 };
 
 export type GetApiProjectsByProjectIdArtifactsResponse = GetApiProjectsByProjectIdArtifactsResponses[keyof GetApiProjectsByProjectIdArtifactsResponses];
+
+export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdData = {
+    body?: never;
+    path: {
+        projectId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/artifacts/{artifactId}';
+};
+
+export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+};
+
+export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdError = DeleteApiProjectsByProjectIdArtifactsByArtifactIdErrors[keyof DeleteApiProjectsByProjectIdArtifactsByArtifactIdErrors];
+
+export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: number;
+};
+
+export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponse = DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponses[keyof DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponses];
+
+export type GetApiProjectsByProjectIdArtifactsByArtifactIdData = {
+    body?: never;
+    path: {
+        projectId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/api/projects/{projectId}/artifacts/{artifactId}';
+};
+
+export type GetApiProjectsByProjectIdArtifactsByArtifactIdErrors = {
+    /**
+     * Response for status 401
+     */
+    401: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 422
+     */
+    422: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        type: string;
+        title: string;
+        status: number;
+        detail?: string;
+        instance?: string;
+        code?: string;
+        errors?: Array<{
+            path: string;
+            message: string;
+            summary?: string;
+        }>;
+        meta?: {
+            [key: string]: unknown;
+        };
+    };
+};
+
+export type GetApiProjectsByProjectIdArtifactsByArtifactIdError = GetApiProjectsByProjectIdArtifactsByArtifactIdErrors[keyof GetApiProjectsByProjectIdArtifactsByArtifactIdErrors];
+
+export type GetApiProjectsByProjectIdArtifactsByArtifactIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: string;
+        taskId: string;
+        projectId: string;
+        relativeStorePath: string;
+        sizeBytes: number | unknown;
+        contentType: string | unknown;
+        kind: 'generic' | 'playwright-trace' | 'video' | 'image';
+        createdAt: string;
+        status: 'available' | 'expired' | 'deleted';
+        pipelineRunId: string | unknown;
+        attemptNumber: number | unknown;
+        nodeKey: string | unknown;
+    };
+};
+
+export type GetApiProjectsByProjectIdArtifactsByArtifactIdResponse = GetApiProjectsByProjectIdArtifactsByArtifactIdResponses[keyof GetApiProjectsByProjectIdArtifactsByArtifactIdResponses];
 
 export type DeleteApiProjectsByProjectIdArtifactsBatchData = {
     body: {
@@ -14165,6 +15786,9 @@ export type DeleteApiProjectsByProjectIdArtifactsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14181,6 +15805,9 @@ export type DeleteApiProjectsByProjectIdArtifactsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -14197,6 +15824,9 @@ export type DeleteApiProjectsByProjectIdArtifactsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14213,6 +15843,9 @@ export type DeleteApiProjectsByProjectIdArtifactsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14229,6 +15862,9 @@ export type DeleteApiProjectsByProjectIdArtifactsBatchErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14242,110 +15878,6 @@ export type DeleteApiProjectsByProjectIdArtifactsBatchResponses = {
 };
 
 export type DeleteApiProjectsByProjectIdArtifactsBatchResponse = DeleteApiProjectsByProjectIdArtifactsBatchResponses[keyof DeleteApiProjectsByProjectIdArtifactsBatchResponses];
-
-export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdData = {
-    body?: never;
-    path: {
-        projectId: string;
-        artifactId: string;
-    };
-    query?: never;
-    url: '/api/projects/{projectId}/artifacts/{artifactId}';
-};
-
-export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdErrors = {
-    /**
-     * Response for status 401
-     */
-    401: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 403
-     */
-    403: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 404
-     */
-    404: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 422
-     */
-    422: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        type: string;
-        title: string;
-        status: number;
-        detail?: string;
-        instance?: string;
-        code?: string;
-        errors?: Array<{
-            path: string;
-            message: string;
-            summary?: string;
-        }>;
-    };
-};
-
-export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdError = DeleteApiProjectsByProjectIdArtifactsByArtifactIdErrors[keyof DeleteApiProjectsByProjectIdArtifactsByArtifactIdErrors];
-
-export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponses = {
-    /**
-     * Response for status 200
-     */
-    200: number;
-};
-
-export type DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponse = DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponses[keyof DeleteApiProjectsByProjectIdArtifactsByArtifactIdResponses];
 
 export type GetApiProjectsByProjectIdNotificationsData = {
     body?: never;
@@ -14375,6 +15907,9 @@ export type GetApiProjectsByProjectIdNotificationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14391,6 +15926,9 @@ export type GetApiProjectsByProjectIdNotificationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -14407,6 +15945,9 @@ export type GetApiProjectsByProjectIdNotificationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14423,6 +15964,9 @@ export type GetApiProjectsByProjectIdNotificationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14439,6 +15983,9 @@ export type GetApiProjectsByProjectIdNotificationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14499,6 +16046,9 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14515,6 +16065,9 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -14531,6 +16084,9 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14547,6 +16103,9 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14563,6 +16122,9 @@ export type GetApiProjectsByProjectIdNotificationsByNotificationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14634,6 +16196,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14650,6 +16215,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -14666,6 +16234,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14682,6 +16253,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14698,6 +16272,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdDismissErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14738,6 +16315,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14754,6 +16334,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -14770,6 +16353,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14786,6 +16372,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14802,6 +16391,9 @@ export type PostApiProjectsByProjectIdNotificationsByNotificationIdRespondErrors
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14861,6 +16453,9 @@ export type GetApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -14877,6 +16472,9 @@ export type GetApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -14893,6 +16491,9 @@ export type GetApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -14909,6 +16510,9 @@ export type GetApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -14925,6 +16529,9 @@ export type GetApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -14984,6 +16591,9 @@ export type PutApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -15000,6 +16610,9 @@ export type PutApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -15016,6 +16629,9 @@ export type PutApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -15032,6 +16648,9 @@ export type PutApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -15048,6 +16667,9 @@ export type PutApiProjectsByProjectIdNotificationRulesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -15097,6 +16719,9 @@ export type GetApiStepDefinitionTemplatesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -15113,6 +16738,9 @@ export type GetApiStepDefinitionTemplatesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -15208,7 +16836,7 @@ export type GetApiStepDefinitionTemplatesResponses = {
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
         }>;
@@ -15253,6 +16881,9 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -15269,6 +16900,9 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -15285,6 +16919,9 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -15301,6 +16938,9 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -15396,7 +17036,7 @@ export type GetApiStepDefinitionTemplatesByStepDefinitionTemplateIdResponses = {
         signalExtractorDefinitions: Array<{
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
         }>;
@@ -15447,6 +17087,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -15463,6 +17106,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -15479,6 +17125,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -15495,6 +17144,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -15511,6 +17163,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -15527,6 +17182,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -15543,6 +17201,9 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateE
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -15674,7 +17335,7 @@ export type PostApiStepDefinitionTemplatesByStepDefinitionTemplateIdInstantiateR
             id: string;
             key: string;
             sourcePath: string;
-            type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+            type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'artifact';
             required: boolean;
             availableWhenResultStatusIn: Array<string> | unknown;
             createdAt: string;
@@ -15712,6 +17373,9 @@ export type GetApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -15728,6 +17392,9 @@ export type GetApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -15744,6 +17411,9 @@ export type GetApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -15760,6 +17430,9 @@ export type GetApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -15776,6 +17449,9 @@ export type GetApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -15887,6 +17563,9 @@ export type PostApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -15903,6 +17582,9 @@ export type PostApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -15919,6 +17601,9 @@ export type PostApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -15935,6 +17620,9 @@ export type PostApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -15951,6 +17639,9 @@ export type PostApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -15967,6 +17658,9 @@ export type PostApiProjectsByProjectIdIntegrationsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16089,6 +17783,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -16105,6 +17802,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -16121,6 +17821,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -16137,6 +17840,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -16153,6 +17859,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16169,6 +17878,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 502
@@ -16185,6 +17897,9 @@ export type PostApiProjectsByProjectIdIntegrationsByIntegrationIdSyncErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16236,6 +17951,9 @@ export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -16252,6 +17970,9 @@ export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -16268,6 +17989,9 @@ export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -16284,6 +18008,9 @@ export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16300,6 +18027,9 @@ export type DeleteApiProjectsByProjectIdIntegrationsByIntegrationIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16356,6 +18086,9 @@ export type GetApiIntegrationsGithubReposErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -16372,6 +18105,9 @@ export type GetApiIntegrationsGithubReposErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16388,6 +18124,9 @@ export type GetApiIntegrationsGithubReposErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16434,6 +18173,9 @@ export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -16450,6 +18192,9 @@ export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -16466,6 +18211,9 @@ export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16482,6 +18230,9 @@ export type PostApiIntegrationsGithubInstallationsByInstallationIdRefreshErrors 
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16528,6 +18279,9 @@ export type PostApiProjectsRepoCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -16544,6 +18298,9 @@ export type PostApiProjectsRepoCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16560,6 +18317,9 @@ export type PostApiProjectsRepoCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16655,6 +18415,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -16671,6 +18434,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -16687,6 +18453,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -16703,6 +18472,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -16719,6 +18491,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16735,6 +18510,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 502
@@ -16751,6 +18529,9 @@ export type PostApiProjectsIssueTrackerCheckErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16798,6 +18579,9 @@ export type GetApiProjectInvitesByTokenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -16814,6 +18598,9 @@ export type GetApiProjectInvitesByTokenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16830,6 +18617,9 @@ export type GetApiProjectInvitesByTokenErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16880,6 +18670,9 @@ export type GetApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -16896,6 +18689,9 @@ export type GetApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -16912,6 +18708,9 @@ export type GetApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -16928,6 +18727,9 @@ export type GetApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -16984,6 +18786,9 @@ export type PostApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 401
@@ -17000,6 +18805,9 @@ export type PostApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17016,6 +18824,9 @@ export type PostApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -17032,6 +18843,9 @@ export type PostApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17048,6 +18862,9 @@ export type PostApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17064,6 +18881,9 @@ export type PostApiProjectsByProjectIdInvitesErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17120,6 +18940,9 @@ export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17136,6 +18959,9 @@ export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -17152,6 +18978,9 @@ export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17168,6 +18997,9 @@ export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17184,6 +19016,9 @@ export type PostApiProjectsByProjectIdInvitesByInviteIdRevokeErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17236,6 +19071,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17252,6 +19090,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -17268,6 +19109,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -17284,6 +19128,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 410
@@ -17300,6 +19147,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17316,6 +19166,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17332,6 +19185,9 @@ export type PostApiProjectInvitesByTokenAcceptErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17384,6 +19240,9 @@ export type GetApiOrgsByOrgIdUsageErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17400,6 +19259,9 @@ export type GetApiOrgsByOrgIdUsageErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -17416,6 +19278,9 @@ export type GetApiOrgsByOrgIdUsageErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17432,6 +19297,9 @@ export type GetApiOrgsByOrgIdUsageErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17448,6 +19316,9 @@ export type GetApiOrgsByOrgIdUsageErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17506,6 +19377,9 @@ export type GetApiUsernameAvailableErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17522,6 +19396,9 @@ export type GetApiUsernameAvailableErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17538,6 +19415,9 @@ export type GetApiUsernameAvailableErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17554,6 +19434,9 @@ export type GetApiUsernameAvailableErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17596,6 +19479,9 @@ export type PostApiUsernameErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17612,6 +19498,9 @@ export type PostApiUsernameErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -17628,6 +19517,9 @@ export type PostApiUsernameErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17644,6 +19536,9 @@ export type PostApiUsernameErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17660,6 +19555,9 @@ export type PostApiUsernameErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17709,6 +19607,9 @@ export type GetApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17725,6 +19626,9 @@ export type GetApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17741,6 +19645,9 @@ export type GetApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17757,6 +19664,9 @@ export type GetApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17851,6 +19761,9 @@ export type PostApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -17867,6 +19780,9 @@ export type PostApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -17883,6 +19799,9 @@ export type PostApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -17899,6 +19818,9 @@ export type PostApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -17915,6 +19837,9 @@ export type PostApiMeSecretsErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -17993,6 +19918,9 @@ export type DeleteApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -18009,6 +19937,9 @@ export type DeleteApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -18025,6 +19956,9 @@ export type DeleteApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -18041,6 +19975,9 @@ export type DeleteApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -18057,6 +19994,9 @@ export type DeleteApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 
@@ -18100,6 +20040,9 @@ export type PatchApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 403
@@ -18116,6 +20059,9 @@ export type PatchApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 404
@@ -18132,6 +20078,9 @@ export type PatchApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 409
@@ -18148,6 +20097,9 @@ export type PatchApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 422
@@ -18164,6 +20116,9 @@ export type PatchApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
     /**
      * Response for status 500
@@ -18180,6 +20135,9 @@ export type PatchApiMeSecretsBySecretIdErrors = {
             message: string;
             summary?: string;
         }>;
+        meta?: {
+            [key: string]: unknown;
+        };
     };
 };
 

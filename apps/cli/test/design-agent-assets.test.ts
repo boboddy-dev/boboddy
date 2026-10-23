@@ -172,13 +172,15 @@ describe("composed prompt size", () => {
   // catalog) took it to ~81,100, and the goal question with tailored
   // suggestions plus the generic-pipeline rule (role, phases 2 and 6, §7, §8)
   // to ~84,000, and the default pipeline's propose-fix step, reproduction
-  // gate and approval block (template plus §7) to ~90,400 —
-  // the lower bound is set just under the current value so any further growth
-  // is a deliberate decision rather than a drift.
+  // gate and approval block (template plus §7) to ~90,400, and artifact
+  // fields (`z.artifact`, `exists`, `Artifact.embed` in §1, §4 and §7, plus
+  // the template's recording, `checkRecording` and `reportReproduction`) to
+  // ~95,300 — the lower bound is set just under the current value so any
+  // further growth is a deliberate decision rather than a drift.
   test("stays within the expected envelope", () => {
     const length = buildPipelineDesignerPrompt().length;
-    expect(length).toBeGreaterThan(90_000);
-    expect(length).toBeLessThan(92_500);
+    expect(length).toBeGreaterThan(95_000);
+    expect(length).toBeLessThan(97_500);
   });
 
   test("survives a round trip through the injected TUI config", () => {

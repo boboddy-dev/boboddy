@@ -186,6 +186,9 @@ describe("RemoteArtifactStore", () => {
     const cases: { file: string; relative: string; expected: string }[] = [
       { file: "notes.md", relative: "notes.md", expected: "text/markdown" },
       { file: "image.png", relative: "image.png", expected: "image/png" },
+      { file: "clip.mp4", relative: "clip.mp4", expected: "video/mp4" },
+      { file: "clip.webm", relative: "clip.WEBM", expected: "video/webm" },
+      { file: "clip.mov", relative: "clip.mov", expected: "video/quicktime" },
       {
         file: "blob.bin",
         relative: "blob.bin",

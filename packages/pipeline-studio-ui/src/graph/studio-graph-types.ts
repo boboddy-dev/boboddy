@@ -4,6 +4,7 @@ import type {
   SchemaType,
 } from "@boboddy/sdk/definitions/validation";
 import type { NodeDefinitionKind } from "@boboddy/sdk/definitions/pipelines";
+import type { SignalTypeStr } from "@boboddy/sdk/definitions/steps";
 import type { BrokenPipeline } from "@boboddy/sdk/push";
 
 // `Node`/`Edge` are imported `type`-only (see the top-level comment in
@@ -35,7 +36,7 @@ export type StudioNodeInputField = {
 /** One declared output signal on a consumer step, as shown on its node. */
 export type StudioNodeOutputSignal = {
   key: string;
-  type: SchemaType;
+  type: SignalTypeStr;
   required: boolean;
 };
 

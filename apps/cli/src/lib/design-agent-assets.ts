@@ -178,8 +178,7 @@ export function buildHealthCheckExampleSource(
   const stepKey = `${entry.id}-health-check-example`;
   const varName = `${entry.id}HealthCheckExample`;
   const argsLiteral = JSON.stringify(entry.args);
-  return `import { z } from "zod";
-import { defineMcp, defineStep } from "@boboddy/sdk/definitions/steps";
+  return `import { defineMcp, defineStep, z } from "@boboddy/sdk/definitions/steps";
 
 // The repository's "${entry.ref}" server launches "${entry.packageHint}". See
 // the caveats above for what its definition needs.

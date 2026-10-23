@@ -120,7 +120,15 @@ export const Computed = {
 // ─── Operators ────────────────────────────────────────────────────────────────
 
 /**
- * Comparison operators supported by json-rules-engine.
+ * Operators that test whether a signal has a value and take no comparison
+ * value. `exists` matches any non-null value, e.g. an artifact signal whose
+ * file was stored; `notExists` matches `null` or a missing signal.
+ */
+export type PresenceConditionOperator = "exists" | "notExists";
+
+/**
+ * Comparison operators supported by json-rules-engine, plus the presence
+ * operators the runtime registers on top of it.
  * These map directly to the operator names the runtime evaluates against signal values.
  */
 export type ConditionOperator =
@@ -133,7 +141,14 @@ export type ConditionOperator =
   | "in"
   | "notIn"
   | "contains"
-  | "doesNotContain";
+  | "doesNotContain"
+  | PresenceConditionOperator;
+
+function isPresenceOperator(
+  operator: ConditionOperator,
+): operator is PresenceConditionOperator {
+  return operator === "exists" || operator === "notExists";
+}
 
 // ─── Outcome ──────────────────────────────────────────────────────────────────
 
@@ -342,7 +357,12 @@ function any<TSignalKeys extends string>(
  * @example
  * Rule.when("severity", "equal", "critical")       // bare condition
  * Rule.when("passed", "equal", true, "continue")    // full rule
+ * Rule.when("reproVideo", "exists")                 // presence check
  */
+function when<TSignalKeys extends string>(
+  signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
+  operator: PresenceConditionOperator,
+): SignalCondition<TSignalKeys>;
 function when<TSignalKeys extends string>(
   signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
   operator: ConditionOperator,
@@ -360,14 +380,14 @@ function when<TSignalKeys extends string>(
   signal: TSignalKeys | InlineComputedSignal<string, TSignalKeys>,
   operator: ConditionOperator,
   // eslint-disable-next-line local/no-unknown-parameter-type
-  value: unknown,
+  value?: unknown,
   outcome?: AdvancementOutcome,
 ): SignalCondition<TSignalKeys> | Rule<TSignalKeys> {
   const condition: SignalCondition<TSignalKeys> = {
     _tag: "signal",
     signal,
     operator,
-    value,
+    value: isPresenceOperator(operator) ? null : value,
   };
   if (outcome === undefined) {
     return condition;

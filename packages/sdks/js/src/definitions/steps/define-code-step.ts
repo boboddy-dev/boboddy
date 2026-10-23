@@ -5,9 +5,11 @@ import type {
   EffectiveResult,
   SignalKeysOf,
   SignalTypeMapOf,
+  SignalTypeStr,
   StepDefinitionSpec,
   TypedStepDefinitionSpec,
 } from "./define-step";
+import { attachSignalHandles } from "./signal-handles";
 import { DEFAULT_CODE_STEP_RUNTIME_ID } from "../../managed-runtimes";
 import {
   compileEnvironment,
@@ -28,13 +30,24 @@ import type { AnyStepFeature, FeatureSignalKeys } from "./step-features";
 export type CodeStepSignalSpec = {
   key?: string;
   sourcePath: string;
-  type: "string" | "number" | "boolean" | "object" | "array";
+  type: SignalTypeStr;
   required?: boolean;
   availableWhenResultStatusIn?: string[] | null;
 };
 
+/** What the worker passes a code step besides its input. */
+export type CodeStepContext = {
+  /**
+   * Absolute path of the step-artifacts folder, which already exists. Write
+   * a file here and return its path relative to this folder with
+   * `Artifact.path(...)` to fill an artifact field.
+   */
+  artifactsDir: string;
+};
+
 export type CodeStepFn<TInput, TResult> = (
   input: TInput,
+  context: CodeStepContext,
 ) => TResult | Promise<TResult>;
 
 export type DefineCodeStepInput<
@@ -184,7 +197,7 @@ export function codeStep<
     entrypoint: { fn: config.fn },
   };
 
-  return spec as TypedStepDefinitionSpec<
+  return attachSignalHandles(spec) as TypedStepDefinitionSpec<
     TInput["_output"],
     EffectiveResult<TResult["_output"], TFeatures>,
     SignalKeysOf<TSignals> | FeatureSignalKeys<TFeatures>,

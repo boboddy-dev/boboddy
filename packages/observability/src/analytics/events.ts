@@ -97,7 +97,7 @@ export type ArtifactProducedProperties = {
   project_id: string;
   task_id: string;
   artifact_id: string;
-  kind: "generic" | "playwright-trace";
+  kind: "generic" | "playwright-trace" | "video" | "image";
 };
 
 /**

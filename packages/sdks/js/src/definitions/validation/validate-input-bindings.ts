@@ -358,7 +358,7 @@ function bindingSourceType(
       const signal = spec.signalExtractorDefinitions.find(
         (candidate) => candidate.key === binding.signalKey,
       );
-      if (signal) return signal.type;
+      if (signal) return signal.type === "artifact" ? "unknown" : signal.type;
     }
     return "unknown";
   }

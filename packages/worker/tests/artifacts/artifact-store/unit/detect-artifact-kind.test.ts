@@ -21,6 +21,30 @@ describe("detectArtifactKind", () => {
     expect(await detectArtifactKind("report.html", filePath)).toBe("generic");
   });
 
+  test("classifies videos and images from their content type", async () => {
+    const filePath = await writeTempFile("unused.bin", "x");
+    const kinds = await Promise.all(
+      [
+        "reproVideo.mp4",
+        "clips/run.WEBM",
+        "capture.mov",
+        "shot.png",
+        "anim.gif",
+        "diagram.svg",
+        "notes.txt",
+      ].map(async (name) => [name, await detectArtifactKind(name, filePath)]),
+    );
+    expect(Object.fromEntries(kinds)).toEqual({
+      "reproVideo.mp4": "video",
+      "clips/run.WEBM": "video",
+      "capture.mov": "video",
+      "shot.png": "image",
+      "anim.gif": "image",
+      "diagram.svg": "image",
+      "notes.txt": "generic",
+    });
+  });
+
   test("classifies a .zip with no trace entry as generic", async () => {
     const zip = buildTestZip(["report.html", "screenshot.png"]);
     const filePath = await writeTempFile("bundle.zip", zip);

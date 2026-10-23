@@ -147,7 +147,13 @@ export type TaskStatus =
   | "skipped"
   | "yielded";
 
-export type StepSignalType = "string" | "number" | "boolean" | "object" | "array";
+export type StepSignalType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array"
+  | "artifact";
 export type StepSignalSource = "extracted" | "computed";
 
 export type StepSignal = {
@@ -157,6 +163,7 @@ export type StepSignal = {
   source: StepSignalSource;
   valueJson: unknown;
   sourcePath: string | null;
+  unavailableReason: string | null;
 };
 
 export type TaskResult = {
@@ -246,7 +253,7 @@ export type ConversationEvent =
     }
   | { kind: "session-error"; message: string };
 
-export type ArtifactKind = "generic" | "playwright-trace";
+export type ArtifactKind = "generic" | "playwright-trace" | "video" | "image";
 
 export type Artifact = {
   id: string;

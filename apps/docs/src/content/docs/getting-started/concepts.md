@@ -58,16 +58,19 @@ devcontainer — see [Runtime](#runtime) below. See
 
 Evidence is what a step leaves behind so you can check its work. Some of it is
 in the step's result, such as the default pipeline's investigation report.
-The rest is files: anything the agent writes to `${boboddy.artifactsDir}` is
-uploaded as one of the step's artifacts when it finishes. In the dashboard, a
-step's _Output_ shows its result and _Artifacts_ lists its files. A
-Playwright trace gets a **View trace** button that opens it in Playwright's
-trace viewer. See [Prompt context](/boboddy/guides/steps/#prompt-context).
+The rest is files, uploaded as the step's artifacts when it finishes. The
+agent saves them with the `boboddy-submit-artifact` tool, or writes them to
+`${boboddy.artifactsDir}`. A step can also declare a file as a result field,
+such as a screen recording, so a rule can check it exists and a work item
+comment can show it. In the dashboard, a step's _Output_ shows its result and
+_Artifacts_ lists its files. A Playwright trace gets a **View trace** button
+that opens it in Playwright's trace viewer. See
+[Attaching artifacts to comments](/boboddy/guides/steps/#attaching-artifacts-to-comments).
 
 ## Signal
 
-A signal is a number, string, or boolean extracted from a step's result, such
-as a `quality` score. Declare one only when a rule reads it: a rule can't
+A signal is a number, string, boolean, or file extracted from a step's
+result, such as a `quality` score. Declare one only when a rule reads it: a rule can't
 look inside the full result, only at the signals the step declares. Later
 steps don't need signals, because they receive earlier steps' whole output.
 See [Signals](/boboddy/guides/steps/#signals).

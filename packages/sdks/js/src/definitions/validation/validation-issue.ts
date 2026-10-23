@@ -22,7 +22,10 @@ export type DefinitionValidationIssue = {
     | "unbound-required-input"
     | "binding-target-field"
     | "binding-type-mismatch"
-    | "split-branches-reconverge";
+    | "split-branches-reconverge"
+    | "artifact-field"
+    | "artifact-signal"
+    | "artifact-marker";
   /**
    * Whether this issue blocks a push. The 4 original checks are all
    * unconditionally `"error"`, matching their implicit all-blocking

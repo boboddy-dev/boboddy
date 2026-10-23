@@ -22,7 +22,8 @@
  *
  * The runner script dynamically `import()`s the entrypoint module, finds the
  * code step by key (see `code-step-runner-script.ts`), calls it with the
- * parsed input JSON, and writes the result to
+ * parsed input JSON and `{ artifactsDir }` (the runner-visible
+ * `.boboddy/step-artifacts` folder), and writes the result to
  * `.boboddy/step-findings-submission.json` in the exact shape the OpenCode
  * plugin's `boboddy-submit-step-findings` tool already writes (see
  * `buildFindingsSubmissionPath` / `process-project-work-findings.ts`, reused
@@ -33,6 +34,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { buildStepArtifactsDir } from "@boboddy/sdk/contracts/step-artifact-submissions";
 import { createUuidV7 } from "../../../common/contracts/uuid-v7";
 import { buildDockerEnvFlags } from "../../../runtime/runtime-service/infra/docker-env-flags";
 import { CODE_STEP_RUNNER_SCRIPT_SOURCE } from "./code-step-runner-script";
@@ -182,6 +184,7 @@ function buildRunnerInvocationScript(input: {
   stepKey: string;
   inputFilePath: string;
   findingsFilePath: string;
+  artifactsDir: string;
 }): string {
   const runnerArgs = [
     shQuote(input.runnerScriptPath),
@@ -189,6 +192,7 @@ function buildRunnerInvocationScript(input: {
     shQuote(input.stepKey),
     shQuote(input.inputFilePath),
     shQuote(input.findingsFilePath),
+    shQuote(input.artifactsDir),
   ].join(" ");
   const enterWorkspace = `cd ${shQuote(input.workspaceFolder)} &&`;
 
@@ -301,6 +305,9 @@ export async function executeCodeStep(
   const runnerVisibleFindingsPath = buildFindingsSubmissionPath(
     input.environment.workspaceFolder,
   );
+  const runnerVisibleArtifactsDir = buildStepArtifactsDir(
+    input.environment.workspaceFolder,
+  );
 
   try {
     await mkdir(path.dirname(hostRunnerScriptPath), { recursive: true });
@@ -325,6 +332,7 @@ export async function executeCodeStep(
       stepKey: input.stepKey,
       inputFilePath: runnerVisibleInputFilePath,
       findingsFilePath: runnerVisibleFindingsPath,
+      artifactsDir: runnerVisibleArtifactsDir,
     });
 
     const result = await runCommand({
